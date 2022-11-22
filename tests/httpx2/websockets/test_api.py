@@ -6,8 +6,21 @@ import pytest
 from starlette.types import ASGIApp
 from starlette.websockets import WebSocket
 
-from httpx_ws import WebSocketDisconnect, aconnect_ws
+from httpx_ws import WebSocketDisconnect, WebSocketUpgradeError, aconnect_ws
 from httpx_ws.transport import ASGIWebSocketTransport
+
+
+@pytest.mark.asyncio
+async def test_upgrade_error():
+    def handler(request):
+        return httpx.Response(400)
+
+    async with httpx.AsyncClient(
+        base_url="http://localhost:8000", transport=httpx.MockTransport(handler)
+    ) as client:
+        with pytest.raises(WebSocketUpgradeError):
+            async with aconnect_ws(client, "/ws"):
+                pass
 
 
 @pytest.mark.asyncio
