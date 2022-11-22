@@ -15,6 +15,20 @@ Send = typing.Callable[[Message], typing.Awaitable[None]]
 ASGIApp = typing.Callable[[Scope, Receive, Send], typing.Awaitable[None]]
 
 
+class ASGIWebSocketTransportError(Exception):
+    pass
+
+
+class UnhandledASGIMessageType(ASGIWebSocketTransportError):
+    def __init__(self, message: Message) -> None:
+        self.message = message
+
+
+class UnhandledWebSocketEvent(ASGIWebSocketTransportError):
+    def __init__(self, event: wsproto.events.Event) -> None:
+        self.event = event
+
+
 class ASGIWebSocketAsyncNetworkStream(AsyncNetworkStream):
     def __init__(self, app: ASGIApp, scope: Scope) -> None:
         self.app = app
@@ -47,7 +61,7 @@ class ASGIWebSocketAsyncNetworkStream(AsyncNetworkStream):
         type = message["type"]
 
         if type not in {"websocket.send", "websocket.close"}:
-            raise ValueError("Unknown message", message)
+            raise UnhandledASGIMessageType(message)
 
         event: wsproto.events.Event
         if type == "websocket.send":
@@ -80,13 +94,10 @@ class ASGIWebSocketAsyncNetworkStream(AsyncNetworkStream):
             elif isinstance(event, wsproto.events.BytesMessage):
                 await self.send({"type": "websocket.receive", "bytes": event.data})
             else:
-                raise ValueError("Unhandled event", event)
+                raise UnhandledWebSocketEvent(event)
 
     async def aclose(self) -> None:
         self.exit_stack.close()
-
-    def get_extra_info(self, info: str) -> typing.Any:
-        return None  # pragma: nocover
 
     async def send(self, message: Message) -> None:
         self._receive_queue.put(message)
