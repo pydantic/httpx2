@@ -1,6 +1,7 @@
 __version__ = "0.0.0"
 
 from httpx_ws._api import (
+    AsyncWebSocketSession,
     HTTPXWSException,
     JSONMode,
     WebSocketDisconnect,
@@ -8,6 +9,7 @@ from httpx_ws._api import (
     WebSocketSession,
     WebSocketUpgradeError,
     aconnect_ws,
+    connect_ws,
 )
 
 __all__ = [
@@ -15,7 +17,9 @@ __all__ = [
     "JSONMode",
     "WebSocketDisconnect",
     "WebSocketInvalidTypeReceived",
+    "AsyncWebSocketSession",
     "WebSocketSession",
     "WebSocketUpgradeError",
     "aconnect_ws",
+    "connect_ws",
 ]

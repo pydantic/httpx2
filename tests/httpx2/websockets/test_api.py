@@ -46,7 +46,7 @@ def send_app(
 
 
 @pytest.mark.asyncio
-class TestSend:
+class TestAsyncSend:
     async def test_send(
         self,
         websocket_app_factory: Callable[[Callable], ASGIApp],
@@ -143,7 +143,7 @@ class TestSend:
 
 
 @pytest.mark.asyncio
-class TestReceive:
+class TestAsyncReceive:
     async def test_receive(self, websocket_app_factory: Callable[[Callable], ASGIApp]):
         async def websocket_endpoint(websocket: WebSocket):
             await websocket.accept()
@@ -260,7 +260,7 @@ class TestReceive:
 
 
 @pytest.mark.asyncio
-async def test_send_close(websocket_app_factory: Callable[[Callable], ASGIApp]):
+async def test_async_send_close(websocket_app_factory: Callable[[Callable], ASGIApp]):
     async def websocket_endpoint(websocket: WebSocket):
         await websocket.accept()
         await websocket.receive_text()
@@ -275,7 +275,9 @@ async def test_send_close(websocket_app_factory: Callable[[Callable], ASGIApp]):
 
 
 @pytest.mark.asyncio
-async def test_receive_close(websocket_app_factory: Callable[[Callable], ASGIApp]):
+async def test_async_receive_close(
+    websocket_app_factory: Callable[[Callable], ASGIApp]
+):
     async def websocket_endpoint(websocket: WebSocket):
         await websocket.accept()
         await websocket.close()
