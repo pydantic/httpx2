@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 
 import httpx
 import pytest
+import wsproto
 from starlette.types import ASGIApp
 from starlette.websockets import WebSocket
 
@@ -41,7 +42,7 @@ async def test_send_message(
         base_url="http://localhost:8000", transport=ASGIWebSocketTransport(app)
     ) as client:
         async with aconnect_ws(client, "/ws") as ws:
-            await ws.send("CLIENT_MESSAGE")
+            await ws.send(wsproto.events.TextMessage(data="CLIENT_MESSAGE"))
 
     on_receive_message.assert_called_once_with("CLIENT_MESSAGE")
 
@@ -61,8 +62,9 @@ async def test_receive_message(websocket_app_factory: Callable[[Callable], ASGIA
         base_url="http://localhost:8000", transport=ASGIWebSocketTransport(app)
     ) as client:
         async with aconnect_ws(client, "/ws") as ws:
-            message = await ws.receive()
-            assert message == "SERVER_MESSAGE"
+            event = await ws.receive()
+            assert isinstance(event, wsproto.events.TextMessage)
+            assert event.data == "SERVER_MESSAGE"
 
 
 @pytest.mark.asyncio

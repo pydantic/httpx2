@@ -27,17 +27,16 @@ class WebSocketSession:
         self.stream = response.extensions["network_stream"]
         self.connection = wsproto.Connection(wsproto.ConnectionType.CLIENT)
 
-    async def send(self, message: str):
-        event = wsproto.events.TextMessage(message)
+    async def send(self, event: wsproto.events.Event):
         await self._send_event(event)
 
-    async def receive(self):
+    async def receive(self) -> wsproto.events.Event:
         data = await self.stream.read(max_bytes=4096)
         self.connection.receive_data(data)
         for event in self.connection.events():
             if isinstance(event, wsproto.events.CloseConnection):
                 raise WebSocketDisconnect(event.code, event.reason)
-            return event.data
+            return event
 
     async def close(self, code: int = 1000, reason: typing.Optional[str] = None):
         event = wsproto.events.CloseConnection(code, reason)
