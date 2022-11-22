@@ -2,10 +2,18 @@ import base64
 import contextlib
 import json
 import secrets
+import sys
 import typing
+
+if sys.version_info < (3, 8):
+    from typing_extensions import Literal  # pragma: no cover
+else:
+    from typing import Literal  # pragma: no cover
 
 import httpx
 import wsproto
+
+JSONMode = Literal["text", "binary"]
 
 
 class HTTPXWSException(Exception):
@@ -21,6 +29,11 @@ class WebSocketDisconnect(HTTPXWSException):
     def __init__(self, code: int = 1000, reason: typing.Optional[str] = None) -> None:
         self.code = code
         self.reason = reason or ""
+
+
+class WebSocketInvalidTypeReceived(HTTPXWSException):
+    def __init__(self, event: wsproto.events.Event) -> None:
+        self.event = event
 
 
 class WebSocketSession:
@@ -39,7 +52,7 @@ class WebSocketSession:
         event = wsproto.events.BytesMessage(data=data)
         await self.send(event)
 
-    async def send_json(self, data: typing.Any, mode: str = "text") -> None:
+    async def send_json(self, data: typing.Any, mode: JSONMode = "text") -> None:
         assert mode in ["text", "binary"]
         serialized_data = json.dumps(data)
         if mode == "text":
@@ -55,6 +68,27 @@ class WebSocketSession:
                 raise WebSocketDisconnect(event.code, event.reason)
             return event
         raise HTTPXWSException()  # pragma: no cover
+
+    async def receive_text(self) -> str:
+        event = await self.receive()
+        if isinstance(event, wsproto.events.TextMessage):
+            return event.data
+        raise WebSocketInvalidTypeReceived(event)
+
+    async def receive_bytes(self) -> bytes:
+        event = await self.receive()
+        if isinstance(event, wsproto.events.BytesMessage):
+            return event.data
+        raise WebSocketInvalidTypeReceived(event)
+
+    async def receive_json(self, mode: JSONMode = "text") -> typing.Any:
+        assert mode in ["text", "binary"]
+        data: typing.Union[str, bytes]
+        if mode == "text":
+            data = await self.receive_text()
+        elif mode == "binary":
+            data = await self.receive_bytes()
+        return json.loads(data)
 
     async def close(self, code: int = 1000, reason: typing.Optional[str] = None):
         event = wsproto.events.CloseConnection(code, reason)

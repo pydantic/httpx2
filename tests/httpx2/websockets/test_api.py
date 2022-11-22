@@ -7,7 +7,13 @@ import wsproto
 from starlette.types import ASGIApp
 from starlette.websockets import WebSocket
 
-from httpx_ws import WebSocketDisconnect, WebSocketUpgradeError, aconnect_ws
+from httpx_ws import (
+    JSONMode,
+    WebSocketDisconnect,
+    WebSocketInvalidTypeReceived,
+    WebSocketUpgradeError,
+    aconnect_ws,
+)
 from httpx_ws.transport import ASGIWebSocketTransport
 
 
@@ -113,7 +119,7 @@ class TestSend:
     @pytest.mark.parametrize("mode", ["text", "binary"])
     async def test_send_json(
         self,
-        mode: str,
+        mode: JSONMode,
         websocket_app_factory: Callable[[Callable], ASGIApp],
         on_receive_message: MagicMock,
     ):
@@ -137,23 +143,120 @@ class TestSend:
 
 
 @pytest.mark.asyncio
-async def test_receive_message(websocket_app_factory: Callable[[Callable], ASGIApp]):
-    async def websocket_endpoint(websocket: WebSocket):
-        await websocket.accept()
+class TestReceive:
+    async def test_receive(self, websocket_app_factory: Callable[[Callable], ASGIApp]):
+        async def websocket_endpoint(websocket: WebSocket):
+            await websocket.accept()
 
-        await websocket.send_text("SERVER_MESSAGE")
+            await websocket.send_text("SERVER_MESSAGE")
 
-        await websocket.close()
+            await websocket.close()
 
-    app = websocket_app_factory(websocket_endpoint)
+        app = websocket_app_factory(websocket_endpoint)
 
-    async with httpx.AsyncClient(
-        base_url="http://localhost:8000", transport=ASGIWebSocketTransport(app)
-    ) as client:
-        async with aconnect_ws(client, "/ws") as ws:
-            event = await ws.receive()
-            assert isinstance(event, wsproto.events.TextMessage)
-            assert event.data == "SERVER_MESSAGE"
+        async with httpx.AsyncClient(
+            base_url="http://localhost:8000", transport=ASGIWebSocketTransport(app)
+        ) as client:
+            async with aconnect_ws(client, "/ws") as ws:
+                event = await ws.receive()
+                assert isinstance(event, wsproto.events.TextMessage)
+                assert event.data == "SERVER_MESSAGE"
+
+    async def test_receive_text(
+        self, websocket_app_factory: Callable[[Callable], ASGIApp]
+    ):
+        async def websocket_endpoint(websocket: WebSocket):
+            await websocket.accept()
+
+            await websocket.send_text("SERVER_MESSAGE")
+
+            await websocket.close()
+
+        app = websocket_app_factory(websocket_endpoint)
+
+        async with httpx.AsyncClient(
+            base_url="http://localhost:8000", transport=ASGIWebSocketTransport(app)
+        ) as client:
+            async with aconnect_ws(client, "/ws") as ws:
+                data = await ws.receive_text()
+                assert data == "SERVER_MESSAGE"
+
+    async def test_receive_text_invalid_type(
+        self, websocket_app_factory: Callable[[Callable], ASGIApp]
+    ):
+        async def websocket_endpoint(websocket: WebSocket):
+            await websocket.accept()
+
+            await websocket.send_bytes(b"SERVER_MESSAGE")
+
+            await websocket.close()
+
+        app = websocket_app_factory(websocket_endpoint)
+
+        async with httpx.AsyncClient(
+            base_url="http://localhost:8000", transport=ASGIWebSocketTransport(app)
+        ) as client:
+            with pytest.raises(WebSocketInvalidTypeReceived):
+                async with aconnect_ws(client, "/ws") as ws:
+                    await ws.receive_text()
+
+    async def test_receive_bytes(
+        self, websocket_app_factory: Callable[[Callable], ASGIApp]
+    ):
+        async def websocket_endpoint(websocket: WebSocket):
+            await websocket.accept()
+
+            await websocket.send_bytes(b"SERVER_MESSAGE")
+
+            await websocket.close()
+
+        app = websocket_app_factory(websocket_endpoint)
+
+        async with httpx.AsyncClient(
+            base_url="http://localhost:8000", transport=ASGIWebSocketTransport(app)
+        ) as client:
+            async with aconnect_ws(client, "/ws") as ws:
+                data = await ws.receive_bytes()
+                assert data == b"SERVER_MESSAGE"
+
+    async def test_receive_bytes_invalid_type(
+        self, websocket_app_factory: Callable[[Callable], ASGIApp]
+    ):
+        async def websocket_endpoint(websocket: WebSocket):
+            await websocket.accept()
+
+            await websocket.send_text("SERVER_MESSAGE")
+
+            await websocket.close()
+
+        app = websocket_app_factory(websocket_endpoint)
+
+        async with httpx.AsyncClient(
+            base_url="http://localhost:8000", transport=ASGIWebSocketTransport(app)
+        ) as client:
+            with pytest.raises(WebSocketInvalidTypeReceived):
+                async with aconnect_ws(client, "/ws") as ws:
+                    await ws.receive_bytes()
+
+    @pytest.mark.parametrize("mode", ["text", "binary"])
+    async def test_receive_json(
+        self, mode: JSONMode, websocket_app_factory: Callable[[Callable], ASGIApp]
+    ):
+        async def websocket_endpoint(websocket: WebSocket):
+            await websocket.accept()
+
+            await websocket.send_json({"message": "SERVER_MESSAGE"}, mode=mode)
+
+            await websocket.close()
+
+        app = websocket_app_factory(websocket_endpoint)
+
+        async with httpx.AsyncClient(
+            base_url="http://localhost:8000", transport=ASGIWebSocketTransport(app)
+        ) as client:
+            async with aconnect_ws(client, "/ws") as ws:
+                data = await ws.receive_json(mode=mode)
+                assert data == {"message": "SERVER_MESSAGE"}
 
 
 @pytest.mark.asyncio
