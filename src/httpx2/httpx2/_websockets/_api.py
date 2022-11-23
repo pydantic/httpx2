@@ -15,6 +15,8 @@ import wsproto
 
 JSONMode = Literal["text", "binary"]
 
+DEFAULT_RECEIVE_MAX_BYTES = 65_536
+
 
 class HTTPXWSException(Exception):
     pass
@@ -60,8 +62,10 @@ class WebSocketSession:
         else:
             self.send_bytes(serialized_data.encode("utf-8"))
 
-    def receive(self) -> wsproto.events.Event:
-        data = self.stream.read(max_bytes=4096)
+    def receive(
+        self, max_bytes: int = DEFAULT_RECEIVE_MAX_BYTES
+    ) -> wsproto.events.Event:
+        data = self.stream.read(max_bytes=max_bytes)
         self.connection.receive_data(data)
         for event in self.connection.events():
             if isinstance(event, wsproto.events.CloseConnection):
@@ -69,25 +73,27 @@ class WebSocketSession:
             return event
         raise HTTPXWSException()  # pragma: no cover
 
-    def receive_text(self) -> str:
-        event = self.receive()
+    def receive_text(self, max_bytes: int = DEFAULT_RECEIVE_MAX_BYTES) -> str:
+        event = self.receive(max_bytes)
         if isinstance(event, wsproto.events.TextMessage):
             return event.data
         raise WebSocketInvalidTypeReceived(event)
 
-    def receive_bytes(self) -> bytes:
-        event = self.receive()
+    def receive_bytes(self, max_bytes: int = DEFAULT_RECEIVE_MAX_BYTES) -> bytes:
+        event = self.receive(max_bytes)
         if isinstance(event, wsproto.events.BytesMessage):
             return event.data
         raise WebSocketInvalidTypeReceived(event)
 
-    def receive_json(self, mode: JSONMode = "text") -> typing.Any:
+    def receive_json(
+        self, max_bytes: int = DEFAULT_RECEIVE_MAX_BYTES, mode: JSONMode = "text"
+    ) -> typing.Any:
         assert mode in ["text", "binary"]
         data: typing.Union[str, bytes]
         if mode == "text":
-            data = self.receive_text()
+            data = self.receive_text(max_bytes)
         elif mode == "binary":
-            data = self.receive_bytes()
+            data = self.receive_bytes(max_bytes)
         return json.loads(data)
 
     def close(self, code: int = 1000, reason: typing.Optional[str] = None):
@@ -123,8 +129,10 @@ class AsyncWebSocketSession:
         else:
             await self.send_bytes(serialized_data.encode("utf-8"))
 
-    async def receive(self) -> wsproto.events.Event:
-        data = await self.stream.read(max_bytes=4096)
+    async def receive(
+        self, max_bytes: int = DEFAULT_RECEIVE_MAX_BYTES
+    ) -> wsproto.events.Event:
+        data = await self.stream.read(max_bytes=max_bytes)
         self.connection.receive_data(data)
         for event in self.connection.events():
             if isinstance(event, wsproto.events.CloseConnection):
@@ -132,25 +140,27 @@ class AsyncWebSocketSession:
             return event
         raise HTTPXWSException()  # pragma: no cover
 
-    async def receive_text(self) -> str:
-        event = await self.receive()
+    async def receive_text(self, max_bytes: int = DEFAULT_RECEIVE_MAX_BYTES) -> str:
+        event = await self.receive(max_bytes)
         if isinstance(event, wsproto.events.TextMessage):
             return event.data
         raise WebSocketInvalidTypeReceived(event)
 
-    async def receive_bytes(self) -> bytes:
-        event = await self.receive()
+    async def receive_bytes(self, max_bytes: int = DEFAULT_RECEIVE_MAX_BYTES) -> bytes:
+        event = await self.receive(max_bytes)
         if isinstance(event, wsproto.events.BytesMessage):
             return event.data
         raise WebSocketInvalidTypeReceived(event)
 
-    async def receive_json(self, mode: JSONMode = "text") -> typing.Any:
+    async def receive_json(
+        self, max_bytes: int = DEFAULT_RECEIVE_MAX_BYTES, mode: JSONMode = "text"
+    ) -> typing.Any:
         assert mode in ["text", "binary"]
         data: typing.Union[str, bytes]
         if mode == "text":
-            data = await self.receive_text()
+            data = await self.receive_text(max_bytes)
         elif mode == "binary":
-            data = await self.receive_bytes()
+            data = await self.receive_bytes(max_bytes)
         return json.loads(data)
 
     async def close(self, code: int = 1000, reason: typing.Optional[str] = None):
