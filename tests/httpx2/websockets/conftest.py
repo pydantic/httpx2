@@ -35,7 +35,7 @@ def server_factory() -> ServerFactoryFixture:
     def _server_factory(endpoint: Callable):
         startup_queue: queue.Queue[bool] = queue.Queue()
 
-        async def start_uvicorn(socket: str):
+        def create_app() -> Starlette:
             routes = [
                 WebSocketRoute("/ws", endpoint=endpoint),
             ]
@@ -43,17 +43,20 @@ def server_factory() -> ServerFactoryFixture:
             async def on_startup():
                 startup_queue.put(True)
 
-            app = Starlette(routes=routes, on_startup=[on_startup])
+            return Starlette(routes=routes, on_startup=[on_startup])
+
+        def create_server(app: Starlette, socket: str):
             config = uvicorn.Config(app, uds=socket)
-            server = uvicorn.Server(config)
-            await server.serve()
+            return uvicorn.Server(config)
 
         with start_blocking_portal(backend="asyncio") as portal:
             with tempfile.TemporaryDirectory() as socket_directory:
-                socket_path = str(pathlib.Path(socket_directory) / "socket.sock")
-                future = portal.start_task_soon(start_uvicorn, socket_path)
+                socket = str(pathlib.Path(socket_directory) / "socket.sock")
+                app = create_app()
+                server = create_server(app, socket)
+                portal.start_task_soon(server.serve)
                 startup_queue.get(True)
-                yield socket_path
-                future.cancel()
+                yield socket
+                server.should_exit = True
 
     return _server_factory
