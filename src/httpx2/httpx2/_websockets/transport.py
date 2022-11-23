@@ -42,13 +42,10 @@ class ASGIWebSocketAsyncNetworkStream(AsyncNetworkStream):
         self.portal = self.exit_stack.enter_context(
             anyio.start_blocking_portal("asyncio")
         )
-        try:
-            _: "Future[None]" = self.portal.start_task_soon(self._run)
-            await self.send({"type": "websocket.connect"})
-            message = await self.receive()
-            assert message["type"] == "websocket.accept"
-        except Exception:
-            raise
+        _: "Future[None]" = self.portal.start_task_soon(self._run)
+        await self.send({"type": "websocket.connect"})
+        message = await self.receive()
+        assert message["type"] == "websocket.accept"
         return self
 
     async def __aexit__(self, *args: typing.Any) -> None:
@@ -97,6 +94,7 @@ class ASGIWebSocketAsyncNetworkStream(AsyncNetworkStream):
                 raise UnhandledWebSocketEvent(event)
 
     async def aclose(self) -> None:
+        await self.send({"type": "websocket.close"})
         self.exit_stack.close()
 
     async def send(self, message: Message) -> None:
