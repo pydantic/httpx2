@@ -1,10 +1,8 @@
-from typing import Callable
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
 
 import httpx
 import pytest
 import wsproto
-from starlette.types import ASGIApp
 from starlette.websockets import WebSocket
 
 from httpx_ws import (
@@ -13,14 +11,22 @@ from httpx_ws import (
     WebSocketInvalidTypeReceived,
     WebSocketUpgradeError,
     aconnect_ws,
+    connect_ws,
 )
-from httpx_ws.transport import ASGIWebSocketTransport
+from tests.conftest import ServerFactoryFixture
 
 
 @pytest.mark.asyncio
 async def test_upgrade_error():
     def handler(request):
         return httpx.Response(400)
+
+    with httpx.Client(
+        base_url="http://localhost:8000", transport=httpx.MockTransport(handler)
+    ) as client:
+        with pytest.raises(WebSocketUpgradeError):
+            with connect_ws(client, "/ws"):
+                pass
 
     async with httpx.AsyncClient(
         base_url="http://localhost:8000", transport=httpx.MockTransport(handler)
@@ -30,26 +36,11 @@ async def test_upgrade_error():
                 pass
 
 
-@pytest.fixture
-def send_app(
-    websocket_app_factory: Callable[[Callable], ASGIApp], on_receive_message: MagicMock
-) -> ASGIApp:
-    async def websocket_endpoint(websocket: WebSocket):
-        await websocket.accept()
-
-        message = await websocket.receive_text()
-        on_receive_message(message)
-
-        await websocket.close()
-
-    return websocket_app_factory(websocket_endpoint)
-
-
 @pytest.mark.asyncio
-class TestAsyncSend:
+class TestSend:
     async def test_send(
         self,
-        websocket_app_factory: Callable[[Callable], ASGIApp],
+        server_factory: ServerFactoryFixture,
         on_receive_message: MagicMock,
     ):
         async def websocket_endpoint(websocket: WebSocket):
@@ -60,19 +51,22 @@ class TestAsyncSend:
 
             await websocket.close()
 
-        app = websocket_app_factory(websocket_endpoint)
+        with server_factory(websocket_endpoint):
+            with httpx.Client(base_url="http://localhost:8000") as client:
+                with connect_ws(client, "/ws") as ws:
+                    ws.send(wsproto.events.TextMessage(data="CLIENT_MESSAGE"))
 
-        async with httpx.AsyncClient(
-            base_url="http://localhost:8000", transport=ASGIWebSocketTransport(app)
-        ) as client:
-            async with aconnect_ws(client, "/ws") as ws:
-                await ws.send(wsproto.events.TextMessage(data="CLIENT_MESSAGE"))
+            async with httpx.AsyncClient(base_url="http://localhost:8000") as aclient:
+                async with aconnect_ws(aclient, "/ws") as aws:
+                    await aws.send(wsproto.events.TextMessage(data="CLIENT_MESSAGE"))
 
-        on_receive_message.assert_called_once_with("CLIENT_MESSAGE")
+        on_receive_message.assert_has_calls(
+            [call("CLIENT_MESSAGE"), call("CLIENT_MESSAGE")]
+        )
 
     async def test_send_text(
         self,
-        websocket_app_factory: Callable[[Callable], ASGIApp],
+        server_factory: ServerFactoryFixture,
         on_receive_message: MagicMock,
     ):
         async def websocket_endpoint(websocket: WebSocket):
@@ -83,19 +77,22 @@ class TestAsyncSend:
 
             await websocket.close()
 
-        app = websocket_app_factory(websocket_endpoint)
+        with server_factory(websocket_endpoint):
+            with httpx.Client(base_url="http://localhost:8000") as client:
+                with connect_ws(client, "/ws") as ws:
+                    ws.send_text("CLIENT_MESSAGE")
 
-        async with httpx.AsyncClient(
-            base_url="http://localhost:8000", transport=ASGIWebSocketTransport(app)
-        ) as client:
-            async with aconnect_ws(client, "/ws") as ws:
-                await ws.send_text("CLIENT_MESSAGE")
+            async with httpx.AsyncClient(base_url="http://localhost:8000") as aclient:
+                async with aconnect_ws(aclient, "/ws") as aws:
+                    await aws.send_text("CLIENT_MESSAGE")
 
-        on_receive_message.assert_called_once_with("CLIENT_MESSAGE")
+        on_receive_message.assert_has_calls(
+            [call("CLIENT_MESSAGE"), call("CLIENT_MESSAGE")]
+        )
 
     async def test_send_bytes(
         self,
-        websocket_app_factory: Callable[[Callable], ASGIApp],
+        server_factory: ServerFactoryFixture,
         on_receive_message: MagicMock,
     ):
         async def websocket_endpoint(websocket: WebSocket):
@@ -106,21 +103,24 @@ class TestAsyncSend:
 
             await websocket.close()
 
-        app = websocket_app_factory(websocket_endpoint)
+        with server_factory(websocket_endpoint):
+            with httpx.Client(base_url="http://localhost:8000") as client:
+                with connect_ws(client, "/ws") as ws:
+                    ws.send_bytes(b"CLIENT_MESSAGE")
 
-        async with httpx.AsyncClient(
-            base_url="http://localhost:8000", transport=ASGIWebSocketTransport(app)
-        ) as client:
-            async with aconnect_ws(client, "/ws") as ws:
-                await ws.send_bytes(b"CLIENT_MESSAGE")
+            async with httpx.AsyncClient(base_url="http://localhost:8000") as aclient:
+                async with aconnect_ws(aclient, "/ws") as aws:
+                    await aws.send_bytes(b"CLIENT_MESSAGE")
 
-        on_receive_message.assert_called_once_with(b"CLIENT_MESSAGE")
+        on_receive_message.assert_has_calls(
+            [call(b"CLIENT_MESSAGE"), call(b"CLIENT_MESSAGE")]
+        )
 
     @pytest.mark.parametrize("mode", ["text", "binary"])
     async def test_send_json(
         self,
         mode: JSONMode,
-        websocket_app_factory: Callable[[Callable], ASGIApp],
+        server_factory: ServerFactoryFixture,
         on_receive_message: MagicMock,
     ):
         async def websocket_endpoint(websocket: WebSocket):
@@ -131,20 +131,23 @@ class TestAsyncSend:
 
             await websocket.close()
 
-        app = websocket_app_factory(websocket_endpoint)
+        with server_factory(websocket_endpoint):
+            with httpx.Client(base_url="http://localhost:8000") as client:
+                with connect_ws(client, "/ws") as ws:
+                    ws.send_json({"message": "CLIENT_MESSAGE"}, mode=mode)
 
-        async with httpx.AsyncClient(
-            base_url="http://localhost:8000", transport=ASGIWebSocketTransport(app)
-        ) as client:
-            async with aconnect_ws(client, "/ws") as ws:
-                await ws.send_json({"message": "CLIENT_MESSAGE"}, mode=mode)
+            async with httpx.AsyncClient(base_url="http://localhost:8000") as aclient:
+                async with aconnect_ws(aclient, "/ws") as aws:
+                    await aws.send_json({"message": "CLIENT_MESSAGE"}, mode=mode)
 
-        on_receive_message.assert_called_once_with({"message": "CLIENT_MESSAGE"})
+        on_receive_message.assert_has_calls(
+            [call({"message": "CLIENT_MESSAGE"}), call({"message": "CLIENT_MESSAGE"})]
+        )
 
 
 @pytest.mark.asyncio
-class TestAsyncReceive:
-    async def test_receive(self, websocket_app_factory: Callable[[Callable], ASGIApp]):
+class TestReceive:
+    async def test_receive(self, server_factory: ServerFactoryFixture):
         async def websocket_endpoint(websocket: WebSocket):
             await websocket.accept()
 
@@ -152,19 +155,20 @@ class TestAsyncReceive:
 
             await websocket.close()
 
-        app = websocket_app_factory(websocket_endpoint)
+        with server_factory(websocket_endpoint):
+            with httpx.Client(base_url="http://localhost:8000") as client:
+                with connect_ws(client, "/ws") as ws:
+                    event = ws.receive()
+                    assert isinstance(event, wsproto.events.TextMessage)
+                    assert event.data == "SERVER_MESSAGE"
 
-        async with httpx.AsyncClient(
-            base_url="http://localhost:8000", transport=ASGIWebSocketTransport(app)
-        ) as client:
-            async with aconnect_ws(client, "/ws") as ws:
-                event = await ws.receive()
-                assert isinstance(event, wsproto.events.TextMessage)
-                assert event.data == "SERVER_MESSAGE"
+            async with httpx.AsyncClient(base_url="http://localhost:8000") as aclient:
+                async with aconnect_ws(aclient, "/ws") as aws:
+                    event = await aws.receive()
+                    assert isinstance(event, wsproto.events.TextMessage)
+                    assert event.data == "SERVER_MESSAGE"
 
-    async def test_receive_text(
-        self, websocket_app_factory: Callable[[Callable], ASGIApp]
-    ):
+    async def test_receive_text(self, server_factory: ServerFactoryFixture):
         async def websocket_endpoint(websocket: WebSocket):
             await websocket.accept()
 
@@ -172,17 +176,19 @@ class TestAsyncReceive:
 
             await websocket.close()
 
-        app = websocket_app_factory(websocket_endpoint)
+        with server_factory(websocket_endpoint):
+            with httpx.Client(base_url="http://localhost:8000") as client:
+                with connect_ws(client, "/ws") as ws:
+                    data = ws.receive_text()
+                    assert data == "SERVER_MESSAGE"
 
-        async with httpx.AsyncClient(
-            base_url="http://localhost:8000", transport=ASGIWebSocketTransport(app)
-        ) as client:
-            async with aconnect_ws(client, "/ws") as ws:
-                data = await ws.receive_text()
-                assert data == "SERVER_MESSAGE"
+            async with httpx.AsyncClient(base_url="http://localhost:8000") as aclient:
+                async with aconnect_ws(aclient, "/ws") as aws:
+                    data = await aws.receive_text()
+                    assert data == "SERVER_MESSAGE"
 
     async def test_receive_text_invalid_type(
-        self, websocket_app_factory: Callable[[Callable], ASGIApp]
+        self, server_factory: ServerFactoryFixture
     ):
         async def websocket_endpoint(websocket: WebSocket):
             await websocket.accept()
@@ -191,18 +197,18 @@ class TestAsyncReceive:
 
             await websocket.close()
 
-        app = websocket_app_factory(websocket_endpoint)
+        with server_factory(websocket_endpoint):
+            with httpx.Client(base_url="http://localhost:8000") as client:
+                with pytest.raises(WebSocketInvalidTypeReceived):
+                    with connect_ws(client, "/ws") as ws:
+                        ws.receive_text()
 
-        async with httpx.AsyncClient(
-            base_url="http://localhost:8000", transport=ASGIWebSocketTransport(app)
-        ) as client:
-            with pytest.raises(WebSocketInvalidTypeReceived):
-                async with aconnect_ws(client, "/ws") as ws:
-                    await ws.receive_text()
+            async with httpx.AsyncClient(base_url="http://localhost:8000") as aclient:
+                with pytest.raises(WebSocketInvalidTypeReceived):
+                    async with aconnect_ws(aclient, "/ws") as aws:
+                        await aws.receive_text()
 
-    async def test_receive_bytes(
-        self, websocket_app_factory: Callable[[Callable], ASGIApp]
-    ):
+    async def test_receive_bytes(self, server_factory: ServerFactoryFixture):
         async def websocket_endpoint(websocket: WebSocket):
             await websocket.accept()
 
@@ -210,17 +216,19 @@ class TestAsyncReceive:
 
             await websocket.close()
 
-        app = websocket_app_factory(websocket_endpoint)
+        with server_factory(websocket_endpoint):
+            with httpx.Client(base_url="http://localhost:8000") as client:
+                with connect_ws(client, "/ws") as ws:
+                    data = ws.receive_bytes()
+                    assert data == b"SERVER_MESSAGE"
 
-        async with httpx.AsyncClient(
-            base_url="http://localhost:8000", transport=ASGIWebSocketTransport(app)
-        ) as client:
-            async with aconnect_ws(client, "/ws") as ws:
-                data = await ws.receive_bytes()
-                assert data == b"SERVER_MESSAGE"
+            async with httpx.AsyncClient(base_url="http://localhost:8000") as aclient:
+                async with aconnect_ws(aclient, "/ws") as aws:
+                    data = await aws.receive_bytes()
+                    assert data == b"SERVER_MESSAGE"
 
     async def test_receive_bytes_invalid_type(
-        self, websocket_app_factory: Callable[[Callable], ASGIApp]
+        self, server_factory: ServerFactoryFixture
     ):
         async def websocket_endpoint(websocket: WebSocket):
             await websocket.accept()
@@ -229,18 +237,20 @@ class TestAsyncReceive:
 
             await websocket.close()
 
-        app = websocket_app_factory(websocket_endpoint)
+        with server_factory(websocket_endpoint):
+            with httpx.Client(base_url="http://localhost:8000") as client:
+                with pytest.raises(WebSocketInvalidTypeReceived):
+                    with connect_ws(client, "/ws") as ws:
+                        ws.receive_bytes()
 
-        async with httpx.AsyncClient(
-            base_url="http://localhost:8000", transport=ASGIWebSocketTransport(app)
-        ) as client:
-            with pytest.raises(WebSocketInvalidTypeReceived):
-                async with aconnect_ws(client, "/ws") as ws:
-                    await ws.receive_bytes()
+            async with httpx.AsyncClient(base_url="http://localhost:8000") as aclient:
+                with pytest.raises(WebSocketInvalidTypeReceived):
+                    async with aconnect_ws(aclient, "/ws") as aws:
+                        await aws.receive_bytes()
 
     @pytest.mark.parametrize("mode", ["text", "binary"])
     async def test_receive_json(
-        self, mode: JSONMode, websocket_app_factory: Callable[[Callable], ASGIApp]
+        self, mode: JSONMode, server_factory: ServerFactoryFixture
     ):
         async def websocket_endpoint(websocket: WebSocket):
             await websocket.accept()
@@ -249,44 +259,47 @@ class TestAsyncReceive:
 
             await websocket.close()
 
-        app = websocket_app_factory(websocket_endpoint)
+        with server_factory(websocket_endpoint):
+            with httpx.Client(base_url="http://localhost:8000") as client:
+                with connect_ws(client, "/ws") as ws:
+                    data = ws.receive_json(mode=mode)
+                    assert data == {"message": "SERVER_MESSAGE"}
 
-        async with httpx.AsyncClient(
-            base_url="http://localhost:8000", transport=ASGIWebSocketTransport(app)
-        ) as client:
-            async with aconnect_ws(client, "/ws") as ws:
-                data = await ws.receive_json(mode=mode)
-                assert data == {"message": "SERVER_MESSAGE"}
+            async with httpx.AsyncClient(base_url="http://localhost:8000") as aclient:
+                async with aconnect_ws(aclient, "/ws") as aws:
+                    data = await aws.receive_json(mode=mode)
+                    assert data == {"message": "SERVER_MESSAGE"}
 
 
 @pytest.mark.asyncio
-async def test_async_send_close(websocket_app_factory: Callable[[Callable], ASGIApp]):
+async def test_send_close(server_factory: ServerFactoryFixture):
     async def websocket_endpoint(websocket: WebSocket):
         await websocket.accept()
         await websocket.receive_text()
 
-    app = websocket_app_factory(websocket_endpoint)
+    with server_factory(websocket_endpoint):
+        with httpx.Client(base_url="http://localhost:8000") as client:
+            with connect_ws(client, "/ws"):
+                pass
 
-    async with httpx.AsyncClient(
-        base_url="http://localhost:8000", transport=ASGIWebSocketTransport(app)
-    ) as client:
-        async with aconnect_ws(client, "/ws"):
-            pass
+        async with httpx.AsyncClient(base_url="http://localhost:8000") as aclient:
+            async with aconnect_ws(aclient, "/ws"):
+                pass
 
 
 @pytest.mark.asyncio
-async def test_async_receive_close(
-    websocket_app_factory: Callable[[Callable], ASGIApp]
-):
+async def test_receive_close(server_factory: ServerFactoryFixture):
     async def websocket_endpoint(websocket: WebSocket):
         await websocket.accept()
         await websocket.close()
 
-    app = websocket_app_factory(websocket_endpoint)
+    with server_factory(websocket_endpoint):
+        with httpx.Client(base_url="http://localhost:8000") as client:
+            with pytest.raises(WebSocketDisconnect):
+                with connect_ws(client, "/ws") as ws:
+                    ws.receive()
 
-    async with httpx.AsyncClient(
-        base_url="http://localhost:8000", transport=ASGIWebSocketTransport(app)
-    ) as client:
-        with pytest.raises(WebSocketDisconnect):
-            async with aconnect_ws(client, "/ws") as ws:
-                await ws.receive()
+        async with httpx.AsyncClient(base_url="http://localhost:8000") as aclient:
+            with pytest.raises(WebSocketDisconnect):
+                async with aconnect_ws(aclient, "/ws") as aws:
+                    await aws.receive()
