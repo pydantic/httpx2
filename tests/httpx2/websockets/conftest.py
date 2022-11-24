@@ -58,7 +58,7 @@ def server_factory() -> ServerFactoryFixture:
             return Starlette(routes=routes, on_startup=[on_startup])
 
         def create_server(app: Starlette, socket: str):
-            config = uvicorn.Config(app, uds=socket, ws="wsproto")
+            config = uvicorn.Config(app, uds=socket, ws="websockets")
             return uvicorn.Server(config)
 
         def on_server_stopped(_task):
