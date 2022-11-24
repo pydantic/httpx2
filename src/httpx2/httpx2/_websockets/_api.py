@@ -1,4 +1,5 @@
 import base64
+import collections
 import contextlib
 import json
 import secrets
@@ -44,6 +45,7 @@ class WebSocketSession:
     def __init__(self, response: httpx.Response) -> None:
         self.stream: NetworkStream = response.extensions["network_stream"]
         self.connection = wsproto.Connection(wsproto.ConnectionType.CLIENT)
+        self._events: typing.Deque[wsproto.events.Event] = collections.deque()
 
     def send(self, event: wsproto.events.Event) -> None:
         self._send_event(event)
@@ -67,13 +69,14 @@ class WebSocketSession:
     def receive(
         self, max_bytes: int = DEFAULT_RECEIVE_MAX_BYTES
     ) -> wsproto.events.Event:
-        data = self.stream.read(max_bytes=max_bytes)
-        self.connection.receive_data(data)
-        for event in self.connection.events():
-            if isinstance(event, wsproto.events.CloseConnection):
-                raise WebSocketDisconnect(event.code, event.reason)
-            return event
-        raise HTTPXWSException()  # pragma: no cover
+        while len(self._events) == 0:
+            data = self.stream.read(max_bytes=max_bytes)
+            self.connection.receive_data(data)
+            self._events.extend(self.connection.events())
+        event = self._events.popleft()
+        if isinstance(event, wsproto.events.CloseConnection):
+            raise WebSocketDisconnect(event.code, event.reason)
+        return event
 
     def receive_text(self, max_bytes: int = DEFAULT_RECEIVE_MAX_BYTES) -> str:
         event = self.receive(max_bytes)
@@ -115,6 +118,7 @@ class AsyncWebSocketSession:
     def __init__(self, response: httpx.Response) -> None:
         self.stream: AsyncNetworkStream = response.extensions["network_stream"]
         self.connection = wsproto.Connection(wsproto.ConnectionType.CLIENT)
+        self._events: typing.Deque[wsproto.events.Event] = collections.deque()
 
     async def send(self, event: wsproto.events.Event) -> None:
         await self._send_event(event)
@@ -138,13 +142,14 @@ class AsyncWebSocketSession:
     async def receive(
         self, max_bytes: int = DEFAULT_RECEIVE_MAX_BYTES
     ) -> wsproto.events.Event:
-        data = await self.stream.read(max_bytes=max_bytes)
-        self.connection.receive_data(data)
-        for event in self.connection.events():
-            if isinstance(event, wsproto.events.CloseConnection):
-                raise WebSocketDisconnect(event.code, event.reason)
-            return event
-        raise HTTPXWSException()  # pragma: no cover
+        while len(self._events) == 0:
+            data = await self.stream.read(max_bytes=max_bytes)
+            self.connection.receive_data(data)
+            self._events.extend(self.connection.events())
+        event = self._events.popleft()
+        if isinstance(event, wsproto.events.CloseConnection):
+            raise WebSocketDisconnect(event.code, event.reason)
+        return event
 
     async def receive_text(self, max_bytes: int = DEFAULT_RECEIVE_MAX_BYTES) -> str:
         event = await self.receive(max_bytes)
