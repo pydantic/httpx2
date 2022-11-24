@@ -41,7 +41,7 @@ ServerFactoryFixture = Callable[[Callable], ContextManager[str]]
 
 
 @pytest.fixture
-def server_factory() -> ServerFactoryFixture:
+def server_factory(websocket_implementation: str) -> ServerFactoryFixture:
     @contextlib.contextmanager
     def _server_factory(endpoint: Callable):
         startup_queue: queue.Queue[bool] = queue.Queue()
@@ -58,7 +58,7 @@ def server_factory() -> ServerFactoryFixture:
             return Starlette(routes=routes, on_startup=[on_startup])
 
         def create_server(app: Starlette, socket: str):
-            config = uvicorn.Config(app, uds=socket, ws="websockets")
+            config = uvicorn.Config(app, uds=socket, ws=websocket_implementation)
             return uvicorn.Server(config)
 
         def on_server_stopped(_task):

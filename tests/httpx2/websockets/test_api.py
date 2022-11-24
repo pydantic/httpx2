@@ -1,9 +1,11 @@
+import asyncio
 from unittest.mock import MagicMock, call
 
 import httpx
 import pytest
 import wsproto
 from starlette.websockets import WebSocket
+from starlette.websockets import WebSocketDisconnect as StarletteWebSocketDisconnect
 
 from httpx_ws import (
     JSONMode,
@@ -184,6 +186,7 @@ class TestReceive:
     async def test_receive(self, server_factory: ServerFactoryFixture):
         async def websocket_endpoint(websocket: WebSocket):
             await websocket.accept()
+            await asyncio.sleep(0.1)  # FIXME: see #7
 
             await websocket.send_text("SERVER_MESSAGE")
 
@@ -213,6 +216,7 @@ class TestReceive:
     async def test_receive_text(self, server_factory: ServerFactoryFixture):
         async def websocket_endpoint(websocket: WebSocket):
             await websocket.accept()
+            await asyncio.sleep(0.1)  # FIXME: see #7
 
             await websocket.send_text("SERVER_MESSAGE")
 
@@ -242,6 +246,7 @@ class TestReceive:
     ):
         async def websocket_endpoint(websocket: WebSocket):
             await websocket.accept()
+            await asyncio.sleep(0.1)  # FIXME: see #7
 
             await websocket.send_bytes(b"SERVER_MESSAGE")
 
@@ -269,6 +274,7 @@ class TestReceive:
     async def test_receive_bytes(self, server_factory: ServerFactoryFixture):
         async def websocket_endpoint(websocket: WebSocket):
             await websocket.accept()
+            await asyncio.sleep(0.1)  # FIXME: see #7
 
             await websocket.send_bytes(b"SERVER_MESSAGE")
 
@@ -298,6 +304,7 @@ class TestReceive:
     ):
         async def websocket_endpoint(websocket: WebSocket):
             await websocket.accept()
+            await asyncio.sleep(0.1)  # FIXME: see #7
 
             await websocket.send_text("SERVER_MESSAGE")
 
@@ -322,6 +329,7 @@ class TestReceive:
     ):
         async def websocket_endpoint(websocket: WebSocket):
             await websocket.accept()
+            await asyncio.sleep(0.1)  # FIXME: see #7
 
             await websocket.send_json({"message": "SERVER_MESSAGE"}, mode=mode)
 
@@ -351,7 +359,10 @@ class TestReceive:
 async def test_send_close(server_factory: ServerFactoryFixture):
     async def websocket_endpoint(websocket: WebSocket):
         await websocket.accept()
-        await websocket.receive_text()
+        try:
+            await websocket.receive_text()
+        except StarletteWebSocketDisconnect:
+            await websocket.close()
 
     with server_factory(websocket_endpoint) as socket:
         with httpx.Client(transport=httpx.HTTPTransport(uds=socket)) as client:
@@ -369,6 +380,7 @@ async def test_send_close(server_factory: ServerFactoryFixture):
 async def test_receive_close(server_factory: ServerFactoryFixture):
     async def websocket_endpoint(websocket: WebSocket):
         await websocket.accept()
+        await asyncio.sleep(0.1)  # FIXME: see #7
         await websocket.close()
 
     with server_factory(websocket_endpoint) as socket:
