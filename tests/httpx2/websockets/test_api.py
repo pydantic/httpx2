@@ -40,6 +40,37 @@ async def test_upgrade_error():
 
 @pytest.mark.asyncio
 class TestSend:
+    async def test_ping(self, server_factory: ServerFactoryFixture):
+        async def websocket_endpoint(websocket: WebSocket):
+            await websocket.accept()
+
+            await asyncio.sleep(0.1)
+
+            await websocket.close()
+
+        with server_factory(websocket_endpoint) as socket:
+            with httpx.Client(transport=httpx.HTTPTransport(uds=socket)) as client:
+                try:
+                    with connect_ws("http://socket/ws", client) as ws:
+                        ws.ping()
+                        event = ws.receive()
+                        assert isinstance(event, wsproto.events.Pong)
+                        assert event.payload == b""
+                except WebSocketDisconnect:
+                    pass
+
+            async with httpx.AsyncClient(
+                transport=httpx.AsyncHTTPTransport(uds=socket)
+            ) as aclient:
+                try:
+                    async with aconnect_ws("http://socket/ws", aclient) as aws:
+                        await aws.ping()
+                        event = await aws.receive()
+                        assert isinstance(event, wsproto.events.Pong)
+                        assert event.payload == b""
+                except WebSocketDisconnect:
+                    pass
+
     async def test_send_foo(
         self,
         server_factory: ServerFactoryFixture,
