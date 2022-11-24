@@ -3,8 +3,16 @@ import contextlib
 import pathlib
 import queue
 import tempfile
+import sys
 from typing import Callable, ContextManager
 from unittest.mock import MagicMock
+import time
+
+
+if sys.version_info < (3, 8):
+    from typing_extensions import Literal  # pragma: no cover
+else:
+    from typing import Literal  # pragma: no cover
 
 import pytest
 import uvicorn
@@ -26,6 +34,11 @@ def on_receive_message():
     return MagicMock()
 
 
+@pytest.fixture(params=("wsproto", "websockets"))
+def websocket_implementation(request) -> Literal["wsproto", "websockets"]:
+    return request.param
+
+
 ServerFactoryFixture = Callable[[Callable], ContextManager[str]]
 
 
@@ -34,6 +47,7 @@ def server_factory() -> ServerFactoryFixture:
     @contextlib.contextmanager
     def _server_factory(endpoint: Callable):
         startup_queue: queue.Queue[bool] = queue.Queue()
+        shutdown_queue: queue.Queue[bool] = queue.Queue()
 
         def create_app() -> Starlette:
             routes = [
@@ -46,17 +60,24 @@ def server_factory() -> ServerFactoryFixture:
             return Starlette(routes=routes, on_startup=[on_startup])
 
         def create_server(app: Starlette, socket: str):
-            config = uvicorn.Config(app, uds=socket)
+            config = uvicorn.Config(app, uds=socket, ws="wsproto")
             return uvicorn.Server(config)
+
+        def on_server_stopped(_task):
+            shutdown_queue.put(True)
 
         with start_blocking_portal(backend="asyncio") as portal:
             with tempfile.TemporaryDirectory() as socket_directory:
                 socket = str(pathlib.Path(socket_directory) / "socket.sock")
                 app = create_app()
                 server = create_server(app, socket)
-                portal.start_task_soon(server.serve)
+                task = portal.start_task_soon(server.serve)
+                task.add_done_callback(on_server_stopped)
                 startup_queue.get(True)
+                time.sleep(1)
                 yield socket
+                time.sleep(1)
                 server.should_exit = True
+                shutdown_queue.get(True)
 
     return _server_factory
