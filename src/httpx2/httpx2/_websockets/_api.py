@@ -198,12 +198,13 @@ def _get_headers() -> typing.Dict[str, typing.Any]:
 
 @contextlib.contextmanager
 def connect_ws(
-    client: httpx.Client, url: str, **kwargs: typing.Any
+    url: str, client: typing.Optional[httpx.Client] = None, **kwargs: typing.Any
 ) -> typing.Generator[WebSocketSession, None, None]:
+    client = httpx.Client() if client is None else client
     headers = kwargs.pop("headers", {})
     headers.update(_get_headers())
 
-    with client.stream("GET", url, headers=headers) as response:
+    with client.stream("GET", url, headers=headers, **kwargs) as response:
         if response.status_code != 101:
             raise WebSocketUpgradeError(response)
 
@@ -214,12 +215,13 @@ def connect_ws(
 
 @contextlib.asynccontextmanager
 async def aconnect_ws(
-    client: httpx.AsyncClient, url: str, **kwargs: typing.Any
+    url: str, client: typing.Optional[httpx.AsyncClient] = None, **kwargs: typing.Any
 ) -> typing.AsyncGenerator[AsyncWebSocketSession, None]:
+    client = httpx.AsyncClient() if client is None else client
     headers = kwargs.pop("headers", {})
     headers.update(_get_headers())
 
-    async with client.stream("GET", url, headers=headers) as response:
+    async with client.stream("GET", url, headers=headers, **kwargs) as response:
         if response.status_code != 101:
             raise WebSocketUpgradeError(response)
 

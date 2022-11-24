@@ -27,14 +27,14 @@ async def test_upgrade_error():
         base_url="http://localhost:8000", transport=httpx.MockTransport(handler)
     ) as client:
         with pytest.raises(WebSocketUpgradeError):
-            with connect_ws(client, "http://socket/ws"):
+            with connect_ws("http://socket/ws", client):
                 pass
 
     async with httpx.AsyncClient(
         base_url="http://localhost:8000", transport=httpx.MockTransport(handler)
     ) as client:
         with pytest.raises(WebSocketUpgradeError):
-            async with aconnect_ws(client, "http://socket/ws"):
+            async with aconnect_ws("http://socket/ws", client):
                 pass
 
 
@@ -56,7 +56,7 @@ class TestSend:
         with server_factory(websocket_endpoint) as socket:
             with httpx.Client(transport=httpx.HTTPTransport(uds=socket)) as client:
                 try:
-                    with connect_ws(client, "http://socket/ws") as ws:
+                    with connect_ws("http://socket/ws", client) as ws:
                         ws.send(wsproto.events.TextMessage(data="CLIENT_MESSAGE"))
                 except WebSocketDisconnect:
                     pass
@@ -65,7 +65,7 @@ class TestSend:
                 transport=httpx.AsyncHTTPTransport(uds=socket)
             ) as aclient:
                 try:
-                    async with aconnect_ws(aclient, "http://socket/ws") as aws:
+                    async with aconnect_ws("http://socket/ws", aclient) as aws:
                         await aws.send(
                             wsproto.events.TextMessage(data="CLIENT_MESSAGE")
                         )
@@ -92,7 +92,7 @@ class TestSend:
         with server_factory(websocket_endpoint) as socket:
             with httpx.Client(transport=httpx.HTTPTransport(uds=socket)) as client:
                 try:
-                    with connect_ws(client, "http://socket/ws") as ws:
+                    with connect_ws("http://socket/ws", client) as ws:
                         ws.send_text("CLIENT_MESSAGE")
                 except WebSocketDisconnect:
                     pass
@@ -101,7 +101,7 @@ class TestSend:
                 transport=httpx.AsyncHTTPTransport(uds=socket)
             ) as aclient:
                 try:
-                    async with aconnect_ws(aclient, "http://socket/ws") as aws:
+                    async with aconnect_ws("http://socket/ws", aclient) as aws:
                         await aws.send_text("CLIENT_MESSAGE")
                 except WebSocketDisconnect:
                     pass
@@ -126,7 +126,7 @@ class TestSend:
         with server_factory(websocket_endpoint) as socket:
             with httpx.Client(transport=httpx.HTTPTransport(uds=socket)) as client:
                 try:
-                    with connect_ws(client, "http://socket/ws") as ws:
+                    with connect_ws("http://socket/ws", client) as ws:
                         ws.send_bytes(b"CLIENT_MESSAGE")
                 except WebSocketDisconnect:
                     pass
@@ -135,7 +135,7 @@ class TestSend:
                 transport=httpx.AsyncHTTPTransport(uds=socket)
             ) as aclient:
                 try:
-                    async with aconnect_ws(aclient, "http://socket/ws") as aws:
+                    async with aconnect_ws("http://socket/ws", aclient) as aws:
                         await aws.send_bytes(b"CLIENT_MESSAGE")
                 except WebSocketDisconnect:
                     pass
@@ -162,7 +162,7 @@ class TestSend:
         with server_factory(websocket_endpoint) as socket:
             with httpx.Client(transport=httpx.HTTPTransport(uds=socket)) as client:
                 try:
-                    with connect_ws(client, "http://socket/ws") as ws:
+                    with connect_ws("http://socket/ws", client) as ws:
                         ws.send_json({"message": "CLIENT_MESSAGE"}, mode=mode)
                 except WebSocketDisconnect:
                     pass
@@ -171,7 +171,7 @@ class TestSend:
                 transport=httpx.AsyncHTTPTransport(uds=socket)
             ) as aclient:
                 try:
-                    async with aconnect_ws(aclient, "http://socket/ws") as aws:
+                    async with aconnect_ws("http://socket/ws", aclient) as aws:
                         await aws.send_json({"message": "CLIENT_MESSAGE"}, mode=mode)
                 except WebSocketDisconnect:
                     pass
@@ -195,7 +195,7 @@ class TestReceive:
         with server_factory(websocket_endpoint) as socket:
             with httpx.Client(transport=httpx.HTTPTransport(uds=socket)) as client:
                 try:
-                    with connect_ws(client, "http://socket/ws") as ws:
+                    with connect_ws("http://socket/ws", client) as ws:
                         event = ws.receive()
                         assert isinstance(event, wsproto.events.TextMessage)
                         assert event.data == "SERVER_MESSAGE"
@@ -206,7 +206,7 @@ class TestReceive:
                 transport=httpx.AsyncHTTPTransport(uds=socket)
             ) as aclient:
                 try:
-                    async with aconnect_ws(aclient, "http://socket/ws") as aws:
+                    async with aconnect_ws("http://socket/ws", aclient) as aws:
                         event = await aws.receive()
                         assert isinstance(event, wsproto.events.TextMessage)
                         assert event.data == "SERVER_MESSAGE"
@@ -225,7 +225,7 @@ class TestReceive:
         with server_factory(websocket_endpoint) as socket:
             with httpx.Client(transport=httpx.HTTPTransport(uds=socket)) as client:
                 try:
-                    with connect_ws(client, "http://socket/ws") as ws:
+                    with connect_ws("http://socket/ws", client) as ws:
                         data = ws.receive_text()
                         assert data == "SERVER_MESSAGE"
                 except WebSocketDisconnect:
@@ -235,7 +235,7 @@ class TestReceive:
                 transport=httpx.AsyncHTTPTransport(uds=socket)
             ) as aclient:
                 try:
-                    async with aconnect_ws(aclient, "http://socket/ws") as aws:
+                    async with aconnect_ws("http://socket/ws", aclient) as aws:
                         data = await aws.receive_text()
                         assert data == "SERVER_MESSAGE"
                 except WebSocketDisconnect:
@@ -256,7 +256,7 @@ class TestReceive:
             with httpx.Client(transport=httpx.HTTPTransport(uds=socket)) as client:
                 try:
                     with pytest.raises(WebSocketInvalidTypeReceived):
-                        with connect_ws(client, "http://socket/ws") as ws:
+                        with connect_ws("http://socket/ws", client) as ws:
                             ws.receive_text()
                 except WebSocketDisconnect:
                     pass
@@ -266,7 +266,7 @@ class TestReceive:
             ) as aclient:
                 try:
                     with pytest.raises(WebSocketInvalidTypeReceived):
-                        async with aconnect_ws(aclient, "http://socket/ws") as aws:
+                        async with aconnect_ws("http://socket/ws", aclient) as aws:
                             await aws.receive_text()
                 except WebSocketDisconnect:
                     pass
@@ -283,7 +283,7 @@ class TestReceive:
         with server_factory(websocket_endpoint) as socket:
             with httpx.Client(transport=httpx.HTTPTransport(uds=socket)) as client:
                 try:
-                    with connect_ws(client, "http://socket/ws") as ws:
+                    with connect_ws("http://socket/ws", client) as ws:
                         data = ws.receive_bytes()
                         assert data == b"SERVER_MESSAGE"
                 except WebSocketDisconnect:
@@ -293,7 +293,7 @@ class TestReceive:
                 transport=httpx.AsyncHTTPTransport(uds=socket)
             ) as aclient:
                 try:
-                    async with aconnect_ws(aclient, "http://socket/ws") as aws:
+                    async with aconnect_ws("http://socket/ws", aclient) as aws:
                         data = await aws.receive_bytes()
                         assert data == b"SERVER_MESSAGE"
                 except WebSocketDisconnect:
@@ -313,14 +313,14 @@ class TestReceive:
         with server_factory(websocket_endpoint) as socket:
             with httpx.Client(transport=httpx.HTTPTransport(uds=socket)) as client:
                 with pytest.raises(WebSocketInvalidTypeReceived):
-                    with connect_ws(client, "http://socket/ws") as ws:
+                    with connect_ws("http://socket/ws", client) as ws:
                         ws.receive_bytes()
 
             async with httpx.AsyncClient(
                 transport=httpx.AsyncHTTPTransport(uds=socket)
             ) as aclient:
                 with pytest.raises(WebSocketInvalidTypeReceived):
-                    async with aconnect_ws(aclient, "http://socket/ws") as aws:
+                    async with aconnect_ws("http://socket/ws", aclient) as aws:
                         await aws.receive_bytes()
 
     @pytest.mark.parametrize("mode", ["text", "binary"])
@@ -338,7 +338,7 @@ class TestReceive:
         with server_factory(websocket_endpoint) as socket:
             with httpx.Client(transport=httpx.HTTPTransport(uds=socket)) as client:
                 try:
-                    with connect_ws(client, "http://socket/ws") as ws:
+                    with connect_ws("http://socket/ws", client) as ws:
                         data = ws.receive_json(mode=mode)
                         assert data == {"message": "SERVER_MESSAGE"}
                 except WebSocketDisconnect:
@@ -348,7 +348,7 @@ class TestReceive:
                 transport=httpx.AsyncHTTPTransport(uds=socket)
             ) as aclient:
                 try:
-                    async with aconnect_ws(aclient, "http://socket/ws") as aws:
+                    async with aconnect_ws("http://socket/ws", aclient) as aws:
                         data = await aws.receive_json(mode=mode)
                         assert data == {"message": "SERVER_MESSAGE"}
                 except WebSocketDisconnect:
@@ -366,13 +366,13 @@ async def test_send_close(server_factory: ServerFactoryFixture):
 
     with server_factory(websocket_endpoint) as socket:
         with httpx.Client(transport=httpx.HTTPTransport(uds=socket)) as client:
-            with connect_ws(client, "http://socket/ws"):
+            with connect_ws("http://socket/ws", client):
                 pass
 
         async with httpx.AsyncClient(
             transport=httpx.AsyncHTTPTransport(uds=socket)
         ) as aclient:
-            async with aconnect_ws(aclient, "http://socket/ws"):
+            async with aconnect_ws("http://socket/ws", aclient):
                 pass
 
 
@@ -386,12 +386,12 @@ async def test_receive_close(server_factory: ServerFactoryFixture):
     with server_factory(websocket_endpoint) as socket:
         with httpx.Client(transport=httpx.HTTPTransport(uds=socket)) as client:
             with pytest.raises(WebSocketDisconnect):
-                with connect_ws(client, "http://socket/ws") as ws:
+                with connect_ws("http://socket/ws", client) as ws:
                     ws.receive()
 
         async with httpx.AsyncClient(
             transport=httpx.AsyncHTTPTransport(uds=socket)
         ) as aclient:
             with pytest.raises(WebSocketDisconnect):
-                async with aconnect_ws(aclient, "http://socket/ws") as aws:
+                async with aconnect_ws("http://socket/ws", aclient) as aws:
                     await aws.receive()
