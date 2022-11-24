@@ -10,8 +10,10 @@ if sys.version_info < (3, 8):
 else:
     from typing import Literal  # pragma: no cover
 
+import httpcore
 import httpx
 import wsproto
+from httpcore.backends.base import AsyncNetworkStream, NetworkStream
 
 JSONMode = Literal["text", "binary"]
 
@@ -40,7 +42,7 @@ class WebSocketInvalidTypeReceived(HTTPXWSException):
 
 class WebSocketSession:
     def __init__(self, response: httpx.Response) -> None:
-        self.stream = response.extensions["network_stream"]
+        self.stream: NetworkStream = response.extensions["network_stream"]
         self.connection = wsproto.Connection(wsproto.ConnectionType.CLIENT)
 
     def send(self, event: wsproto.events.Event) -> None:
@@ -97,8 +99,12 @@ class WebSocketSession:
         return json.loads(data)
 
     def close(self, code: int = 1000, reason: typing.Optional[str] = None):
-        event = wsproto.events.CloseConnection(code, reason)
-        self._send_event(event)
+        if self.connection.state != wsproto.connection.ConnectionState.CLOSED:
+            event = wsproto.events.CloseConnection(code, reason)
+            try:
+                self._send_event(event)
+            except httpcore.WriteError:
+                pass
 
     def _send_event(self, event: wsproto.events.Event):
         data = self.connection.send(event)
@@ -107,7 +113,7 @@ class WebSocketSession:
 
 class AsyncWebSocketSession:
     def __init__(self, response: httpx.Response) -> None:
-        self.stream = response.extensions["network_stream"]
+        self.stream: AsyncNetworkStream = response.extensions["network_stream"]
         self.connection = wsproto.Connection(wsproto.ConnectionType.CLIENT)
 
     async def send(self, event: wsproto.events.Event) -> None:
@@ -164,8 +170,12 @@ class AsyncWebSocketSession:
         return json.loads(data)
 
     async def close(self, code: int = 1000, reason: typing.Optional[str] = None):
-        event = wsproto.events.CloseConnection(code, reason)
-        await self._send_event(event)
+        if self.connection.state != wsproto.connection.ConnectionState.CLOSED:
+            event = wsproto.events.CloseConnection(code, reason)
+            try:
+                await self._send_event(event)
+            except httpcore.WriteError:
+                pass
 
     async def _send_event(self, event: wsproto.events.Event):
         data = self.connection.send(event)

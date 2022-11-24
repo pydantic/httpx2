@@ -2,12 +2,10 @@ import asyncio
 import contextlib
 import pathlib
 import queue
-import tempfile
 import sys
+import tempfile
 from typing import Callable, ContextManager
 from unittest.mock import MagicMock
-import time
-
 
 if sys.version_info < (3, 8):
     from typing_extensions import Literal  # pragma: no cover
@@ -74,9 +72,7 @@ def server_factory() -> ServerFactoryFixture:
                 task = portal.start_task_soon(server.serve)
                 task.add_done_callback(on_server_stopped)
                 startup_queue.get(True)
-                time.sleep(1)
                 yield socket
-                time.sleep(1)
                 server.should_exit = True
                 shutdown_queue.get(True)
 
