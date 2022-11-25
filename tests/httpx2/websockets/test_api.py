@@ -71,7 +71,7 @@ class TestSend:
                 except WebSocketDisconnect:
                     pass
 
-    async def test_send_foo(
+    async def test_send(
         self,
         server_factory: ServerFactoryFixture,
         on_receive_message: MagicMock,
