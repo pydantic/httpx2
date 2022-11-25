@@ -42,8 +42,8 @@ class WebSocketInvalidTypeReceived(HTTPXWSException):
 
 
 class WebSocketSession:
-    def __init__(self, response: httpx.Response) -> None:
-        self.stream: NetworkStream = response.extensions["network_stream"]
+    def __init__(self, stream: NetworkStream) -> None:
+        self.stream = stream
         self.connection = wsproto.Connection(wsproto.ConnectionType.CLIENT)
         self._events: typing.Deque[wsproto.events.Event] = collections.deque()
 
@@ -78,6 +78,9 @@ class WebSocketSession:
             self.connection.receive_data(data)
             self._events.extend(self.connection.events())
         event = self._events.popleft()
+        if isinstance(event, wsproto.events.Ping):
+            self.send(event.response())
+            return self.receive(max_bytes)
         if isinstance(event, wsproto.events.CloseConnection):
             raise WebSocketDisconnect(event.code, event.reason)
         return event
@@ -119,8 +122,8 @@ class WebSocketSession:
 
 
 class AsyncWebSocketSession:
-    def __init__(self, response: httpx.Response) -> None:
-        self.stream: AsyncNetworkStream = response.extensions["network_stream"]
+    def __init__(self, stream: AsyncNetworkStream) -> None:
+        self.stream = stream
         self.connection = wsproto.Connection(wsproto.ConnectionType.CLIENT)
         self._events: typing.Deque[wsproto.events.Event] = collections.deque()
 
@@ -155,6 +158,9 @@ class AsyncWebSocketSession:
             self.connection.receive_data(data)
             self._events.extend(self.connection.events())
         event = self._events.popleft()
+        if isinstance(event, wsproto.events.Ping):
+            await self.send(event.response())
+            return await self.receive(max_bytes)
         if isinstance(event, wsproto.events.CloseConnection):
             raise WebSocketDisconnect(event.code, event.reason)
         return event
@@ -216,7 +222,7 @@ def connect_ws(
         if response.status_code != 101:
             raise WebSocketUpgradeError(response)
 
-        session = WebSocketSession(response)
+        session = WebSocketSession(response.extensions["network_stream"])
         yield session
         session.close()
 
@@ -233,6 +239,6 @@ async def aconnect_ws(
         if response.status_code != 101:
             raise WebSocketUpgradeError(response)
 
-        session = AsyncWebSocketSession(response)
+        session = AsyncWebSocketSession(response.extensions["network_stream"])
         yield session
         await session.close()

@@ -8,9 +8,9 @@ from typing import Callable, ContextManager
 from unittest.mock import MagicMock
 
 if sys.version_info < (3, 8):
-    from typing_extensions import Literal  # pragma: no cover
+    from typing_extensions import Literal, Protocol  # pragma: no cover
 else:
-    from typing import Literal  # pragma: no cover
+    from typing import Literal, Protocol  # pragma: no cover
 
 import pytest
 import uvicorn
@@ -37,11 +37,15 @@ def websocket_implementation(request) -> Literal["wsproto", "websockets"]:
     return request.param
 
 
-ServerFactoryFixture = Callable[[Callable], ContextManager[str]]
+class ServerFactoryFixture(Protocol):
+    def __call__(self, endpoint: Callable) -> ContextManager[str]:
+        ...
 
 
 @pytest.fixture
-def server_factory(websocket_implementation: str) -> ServerFactoryFixture:
+def server_factory(
+    websocket_implementation: Literal["wsproto", "websockets"]
+) -> ServerFactoryFixture:
     @contextlib.contextmanager
     def _server_factory(endpoint: Callable):
         startup_queue: queue.Queue[bool] = queue.Queue()

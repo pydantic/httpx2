@@ -1,16 +1,20 @@
 import asyncio
+import typing
 from unittest.mock import MagicMock, call
 
 import httpx
 import pytest
 import wsproto
+from httpcore.backends.base import AsyncNetworkStream, NetworkStream
 from starlette.websockets import WebSocket
 from starlette.websockets import WebSocketDisconnect as StarletteWebSocketDisconnect
 
 from httpx_ws import (
+    AsyncWebSocketSession,
     JSONMode,
     WebSocketDisconnect,
     WebSocketInvalidTypeReceived,
+    WebSocketSession,
     WebSocketUpgradeError,
     aconnect_ws,
     connect_ws,
@@ -384,6 +388,71 @@ class TestReceive:
                         assert data == {"message": "SERVER_MESSAGE"}
                 except WebSocketDisconnect:
                     pass
+
+
+class TestReceivePing:
+    def test_receive_ping(self):
+        class MockNetworkStream(NetworkStream):
+            def __init__(self) -> None:
+                self.connection = wsproto.connection.Connection(
+                    wsproto.connection.ConnectionType.SERVER
+                )
+                self.ping_sent = False
+
+            def read(
+                self, max_bytes: int, timeout: typing.Optional[float] = None
+            ) -> bytes:
+                event: wsproto.events.Event
+                if not self.ping_sent:
+                    event = wsproto.events.Ping(b"SERVER_PING")
+                    self.ping_sent = True
+                else:
+                    event = wsproto.events.TextMessage("SERVER_MESSAGE")
+                return self.connection.send(event)
+
+            def write(
+                self, buffer: bytes, timeout: typing.Optional[float] = None
+            ) -> None:
+                self.connection.receive_data(buffer)
+
+        stream = MockNetworkStream()
+        websocket_session = WebSocketSession(stream)
+        websocket_session.receive()
+
+        received_events = list(stream.connection.events())
+        assert received_events == [wsproto.events.Pong(b"SERVER_PING")]
+
+    @pytest.mark.asyncio
+    async def test_async_receive_ping(self):
+        class MockAsyncNetworkStream(AsyncNetworkStream):
+            def __init__(self) -> None:
+                self.connection = wsproto.connection.Connection(
+                    wsproto.connection.ConnectionType.SERVER
+                )
+                self.ping_sent = False
+
+            async def read(
+                self, max_bytes: int, timeout: typing.Optional[float] = None
+            ) -> bytes:
+                event: wsproto.events.Event
+                if not self.ping_sent:
+                    event = wsproto.events.Ping(b"SERVER_PING")
+                    self.ping_sent = True
+                else:
+                    event = wsproto.events.TextMessage("SERVER_MESSAGE")
+                return self.connection.send(event)
+
+            async def write(
+                self, buffer: bytes, timeout: typing.Optional[float] = None
+            ) -> None:
+                self.connection.receive_data(buffer)
+
+        stream = MockAsyncNetworkStream()
+        websocket_session = AsyncWebSocketSession(stream)
+        await websocket_session.receive()
+
+        received_events = list(stream.connection.events())
+        assert received_events == [wsproto.events.Pong(b"SERVER_PING")]
 
 
 @pytest.mark.asyncio
