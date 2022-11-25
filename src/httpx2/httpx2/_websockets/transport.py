@@ -101,6 +101,8 @@ class ASGIWebSocketAsyncNetworkStream(AsyncNetworkStream):
         self._receive_queue.put(message)
 
     async def receive(self, timeout: typing.Optional[float] = None) -> Message:
+        while self._send_queue.empty():
+            await anyio.sleep(0)
         return self._send_queue.get(timeout=timeout)
 
     async def _run(self) -> None:
