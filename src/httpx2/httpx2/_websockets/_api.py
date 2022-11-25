@@ -18,6 +18,8 @@ import httpx
 import wsproto
 from httpcore.backends.base import AsyncNetworkStream, NetworkStream
 
+from httpx_ws._ping import AsyncPingManager, PingManager
+
 JSONMode = Literal["text", "binary"]
 
 DEFAULT_RECEIVE_MAX_BYTES = 65_536
@@ -48,15 +50,20 @@ class WebSocketSession:
         self.stream = stream
         self.connection = wsproto.Connection(wsproto.ConnectionType.CLIENT)
         self._events: queue.Queue[wsproto.events.Event] = queue.Queue()
+
+        self._ping_manager = PingManager()
+
         self._should_close = False
         self._background_receive_task = threading.Thread(
             target=self._background_receive
         )
         self._background_receive_task.start()
 
-    def ping(self, payload: bytes = b"") -> None:
-        event = wsproto.events.Ping(payload)
+    def ping(self, payload: bytes = b"") -> threading.Event:
+        ping_id, callback = self._ping_manager.create(payload)
+        event = wsproto.events.Ping(ping_id)
         self._send_event(event)
+        return callback
 
     def send(self, event: wsproto.events.Event) -> None:
         self._send_event(event)
@@ -124,6 +131,9 @@ class WebSocketSession:
                     if isinstance(event, wsproto.events.Ping):
                         self.send(event.response())
                         continue
+                    if isinstance(event, wsproto.events.Pong):
+                        self._ping_manager.ack(event.payload)
+                        continue
                     if isinstance(event, wsproto.events.CloseConnection):
                         self._should_close = True
                     self._events.put(event)
@@ -140,12 +150,17 @@ class AsyncWebSocketSession:
         self.stream = stream
         self.connection = wsproto.Connection(wsproto.ConnectionType.CLIENT)
         self._events: asyncio.Queue[wsproto.events.Event] = asyncio.Queue()
+
+        self._ping_manager = AsyncPingManager()
+
         self._should_close = False
         self._background_receive_task = asyncio.create_task(self._background_receive())
 
-    async def ping(self, payload: bytes = b"") -> None:
-        event = wsproto.events.Ping(payload)
+    async def ping(self, payload: bytes = b"") -> asyncio.Event:
+        ping_id, callback = self._ping_manager.create(payload)
+        event = wsproto.events.Ping(ping_id)
         await self._send_event(event)
+        return callback
 
     async def send(self, event: wsproto.events.Event) -> None:
         await self._send_event(event)
@@ -216,6 +231,9 @@ class AsyncWebSocketSession:
                 for event in self.connection.events():
                     if isinstance(event, wsproto.events.Ping):
                         await self.send(event.response())
+                        continue
+                    if isinstance(event, wsproto.events.Pong):
+                        self._ping_manager.ack(event.payload)
                         continue
                     if isinstance(event, wsproto.events.CloseConnection):
                         self._should_close = True

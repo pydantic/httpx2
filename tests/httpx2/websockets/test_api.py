@@ -2,6 +2,7 @@ import asyncio
 import typing
 from unittest.mock import MagicMock, call
 
+import httpcore
 import httpx
 import pytest
 import wsproto
@@ -390,25 +391,24 @@ class TestReceive:
                     pass
 
 
+@pytest.mark.asyncio
 class TestReceivePing:
-    def test_receive_ping(self):
+    async def test_receive_ping(self):
         class MockNetworkStream(NetworkStream):
             def __init__(self) -> None:
                 self.connection = wsproto.connection.Connection(
                     wsproto.connection.ConnectionType.SERVER
                 )
-                self.ping_sent = False
+                self.events_to_send = [wsproto.events.Ping(b"SERVER_PING")]
 
             def read(
                 self, max_bytes: int, timeout: typing.Optional[float] = None
             ) -> bytes:
-                event: wsproto.events.Event
-                if not self.ping_sent:
-                    event = wsproto.events.Ping(b"SERVER_PING")
-                    self.ping_sent = True
-                else:
-                    event = wsproto.events.TextMessage("SERVER_MESSAGE")
-                return self.connection.send(event)
+                try:
+                    event = self.events_to_send.pop(0)
+                    return self.connection.send(event)
+                except IndexError:
+                    raise httpcore.ReadError()
 
             def write(
                 self, buffer: bytes, timeout: typing.Optional[float] = None
@@ -417,30 +417,31 @@ class TestReceivePing:
 
         stream = MockNetworkStream()
         websocket_session = WebSocketSession(stream)
-        websocket_session.receive()
+        await asyncio.sleep(0.1)
+        websocket_session.close()
 
         received_events = list(stream.connection.events())
-        assert received_events == [wsproto.events.Pong(b"SERVER_PING")]
+        assert received_events == [
+            wsproto.events.Pong(b"SERVER_PING"),
+            wsproto.events.CloseConnection(1000, ""),
+        ]
 
-    @pytest.mark.asyncio
     async def test_async_receive_ping(self):
         class MockAsyncNetworkStream(AsyncNetworkStream):
             def __init__(self) -> None:
                 self.connection = wsproto.connection.Connection(
                     wsproto.connection.ConnectionType.SERVER
                 )
-                self.ping_sent = False
+                self.events_to_send = [wsproto.events.Ping(b"SERVER_PING")]
 
             async def read(
                 self, max_bytes: int, timeout: typing.Optional[float] = None
             ) -> bytes:
-                event: wsproto.events.Event
-                if not self.ping_sent:
-                    event = wsproto.events.Ping(b"SERVER_PING")
-                    self.ping_sent = True
-                else:
-                    event = wsproto.events.TextMessage("SERVER_MESSAGE")
-                return self.connection.send(event)
+                try:
+                    event = self.events_to_send.pop(0)
+                    return self.connection.send(event)
+                except IndexError:
+                    raise httpcore.ReadError()
 
             async def write(
                 self, buffer: bytes, timeout: typing.Optional[float] = None
@@ -449,10 +450,39 @@ class TestReceivePing:
 
         stream = MockAsyncNetworkStream()
         websocket_session = AsyncWebSocketSession(stream)
-        await websocket_session.receive()
+        await asyncio.sleep(0.1)
+        await websocket_session.close()
 
         received_events = list(stream.connection.events())
-        assert received_events == [wsproto.events.Pong(b"SERVER_PING")]
+        assert received_events == [
+            wsproto.events.Pong(b"SERVER_PING"),
+            wsproto.events.CloseConnection(1000, ""),
+        ]
+
+
+@pytest.mark.asyncio
+async def test_ping_pong(server_factory: ServerFactoryFixture):
+    async def websocket_endpoint(websocket: WebSocket):
+        await websocket.accept()
+        try:
+            await websocket.receive_text()
+        except StarletteWebSocketDisconnect:
+            pass
+
+    with server_factory(websocket_endpoint) as socket:
+        with httpx.Client(transport=httpx.HTTPTransport(uds=socket)) as client:
+            with connect_ws("http://socket/ws", client) as ws:
+                ping_callback = ws.ping()
+                result = ping_callback.wait()
+                assert result is True
+
+        async with httpx.AsyncClient(
+            transport=httpx.AsyncHTTPTransport(uds=socket)
+        ) as aclient:
+            async with aconnect_ws("http://socket/ws", aclient) as aws:
+                aping_callback = await aws.ping()
+                aresult = await aping_callback.wait()
+                assert aresult is True
 
 
 @pytest.mark.asyncio
@@ -462,7 +492,7 @@ async def test_send_close(server_factory: ServerFactoryFixture):
         try:
             await websocket.receive_text()
         except StarletteWebSocketDisconnect:
-            await websocket.close()
+            pass
 
     with server_factory(websocket_endpoint) as socket:
         with httpx.Client(transport=httpx.HTTPTransport(uds=socket)) as client:
