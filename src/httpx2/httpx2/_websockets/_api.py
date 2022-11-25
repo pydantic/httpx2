@@ -1,9 +1,11 @@
+import asyncio
 import base64
-import collections
 import contextlib
 import json
+import queue
 import secrets
 import sys
+import threading
 import typing
 
 if sys.version_info < (3, 8):
@@ -45,7 +47,12 @@ class WebSocketSession:
     def __init__(self, stream: NetworkStream) -> None:
         self.stream = stream
         self.connection = wsproto.Connection(wsproto.ConnectionType.CLIENT)
-        self._events: typing.Deque[wsproto.events.Event] = collections.deque()
+        self._events: queue.Queue[wsproto.events.Event] = queue.Queue()
+        self._should_close = False
+        self._background_receive_task = threading.Thread(
+            target=self._background_receive
+        )
+        self._background_receive_task.start()
 
     def ping(self, payload: bytes = b"") -> None:
         event = wsproto.events.Ping(payload)
@@ -70,51 +77,58 @@ class WebSocketSession:
         else:
             self.send_bytes(serialized_data.encode("utf-8"))
 
-    def receive(
-        self, max_bytes: int = DEFAULT_RECEIVE_MAX_BYTES
-    ) -> wsproto.events.Event:
-        while len(self._events) == 0:
-            data = self.stream.read(max_bytes=max_bytes)
-            self.connection.receive_data(data)
-            self._events.extend(self.connection.events())
-        event = self._events.popleft()
-        if isinstance(event, wsproto.events.Ping):
-            self.send(event.response())
-            return self.receive(max_bytes)
+    def receive(self, timeout: typing.Optional[float] = None) -> wsproto.events.Event:
+        event = self._events.get(block=True, timeout=timeout)
         if isinstance(event, wsproto.events.CloseConnection):
             raise WebSocketDisconnect(event.code, event.reason)
         return event
 
-    def receive_text(self, max_bytes: int = DEFAULT_RECEIVE_MAX_BYTES) -> str:
-        event = self.receive(max_bytes)
+    def receive_text(self, timeout: typing.Optional[float] = None) -> str:
+        event = self.receive(timeout)
         if isinstance(event, wsproto.events.TextMessage):
             return event.data
         raise WebSocketInvalidTypeReceived(event)
 
-    def receive_bytes(self, max_bytes: int = DEFAULT_RECEIVE_MAX_BYTES) -> bytes:
-        event = self.receive(max_bytes)
+    def receive_bytes(self, timeout: typing.Optional[float] = None) -> bytes:
+        event = self.receive(timeout)
         if isinstance(event, wsproto.events.BytesMessage):
             return event.data
         raise WebSocketInvalidTypeReceived(event)
 
     def receive_json(
-        self, max_bytes: int = DEFAULT_RECEIVE_MAX_BYTES, mode: JSONMode = "text"
+        self, timeout: typing.Optional[float] = None, mode: JSONMode = "text"
     ) -> typing.Any:
         assert mode in ["text", "binary"]
         data: typing.Union[str, bytes]
         if mode == "text":
-            data = self.receive_text(max_bytes)
+            data = self.receive_text(timeout)
         elif mode == "binary":
-            data = self.receive_bytes(max_bytes)
+            data = self.receive_bytes(timeout)
         return json.loads(data)
 
     def close(self, code: int = 1000, reason: typing.Optional[str] = None):
+        self._should_close = True
         if self.connection.state != wsproto.connection.ConnectionState.CLOSED:
             event = wsproto.events.CloseConnection(code, reason)
             try:
                 self._send_event(event)
             except httpcore.WriteError:
                 pass
+
+    def _background_receive(self, max_bytes: int = DEFAULT_RECEIVE_MAX_BYTES) -> None:
+        try:
+            while not self._should_close:
+                data = self.stream.read(max_bytes=max_bytes)
+                self.connection.receive_data(data)
+                for event in self.connection.events():
+                    if isinstance(event, wsproto.events.Ping):
+                        self.send(event.response())
+                        continue
+                    if isinstance(event, wsproto.events.CloseConnection):
+                        self._should_close = True
+                    self._events.put(event)
+        except httpcore.ReadError:
+            pass
 
     def _send_event(self, event: wsproto.events.Event):
         data = self.connection.send(event)
@@ -125,7 +139,9 @@ class AsyncWebSocketSession:
     def __init__(self, stream: AsyncNetworkStream) -> None:
         self.stream = stream
         self.connection = wsproto.Connection(wsproto.ConnectionType.CLIENT)
-        self._events: typing.Deque[wsproto.events.Event] = collections.deque()
+        self._events: asyncio.Queue[wsproto.events.Event] = asyncio.Queue()
+        self._should_close = False
+        self._background_receive_task = asyncio.create_task(self._background_receive())
 
     async def ping(self, payload: bytes = b"") -> None:
         event = wsproto.events.Ping(payload)
@@ -151,50 +167,61 @@ class AsyncWebSocketSession:
             await self.send_bytes(serialized_data.encode("utf-8"))
 
     async def receive(
-        self, max_bytes: int = DEFAULT_RECEIVE_MAX_BYTES
+        self, timeout: typing.Optional[float] = None
     ) -> wsproto.events.Event:
-        while len(self._events) == 0:
-            data = await self.stream.read(max_bytes=max_bytes)
-            self.connection.receive_data(data)
-            self._events.extend(self.connection.events())
-        event = self._events.popleft()
-        if isinstance(event, wsproto.events.Ping):
-            await self.send(event.response())
-            return await self.receive(max_bytes)
+        event = await self._events.get()
         if isinstance(event, wsproto.events.CloseConnection):
             raise WebSocketDisconnect(event.code, event.reason)
         return event
 
-    async def receive_text(self, max_bytes: int = DEFAULT_RECEIVE_MAX_BYTES) -> str:
-        event = await self.receive(max_bytes)
+    async def receive_text(self, timeout: typing.Optional[float] = None) -> str:
+        event = await self.receive(timeout)
         if isinstance(event, wsproto.events.TextMessage):
             return event.data
         raise WebSocketInvalidTypeReceived(event)
 
-    async def receive_bytes(self, max_bytes: int = DEFAULT_RECEIVE_MAX_BYTES) -> bytes:
-        event = await self.receive(max_bytes)
+    async def receive_bytes(self, timeout: typing.Optional[float] = None) -> bytes:
+        event = await self.receive(timeout)
         if isinstance(event, wsproto.events.BytesMessage):
             return event.data
         raise WebSocketInvalidTypeReceived(event)
 
     async def receive_json(
-        self, max_bytes: int = DEFAULT_RECEIVE_MAX_BYTES, mode: JSONMode = "text"
+        self, timeout: typing.Optional[float] = None, mode: JSONMode = "text"
     ) -> typing.Any:
         assert mode in ["text", "binary"]
         data: typing.Union[str, bytes]
         if mode == "text":
-            data = await self.receive_text(max_bytes)
+            data = await self.receive_text(timeout)
         elif mode == "binary":
-            data = await self.receive_bytes(max_bytes)
+            data = await self.receive_bytes(timeout)
         return json.loads(data)
 
     async def close(self, code: int = 1000, reason: typing.Optional[str] = None):
+        self._should_close = True
         if self.connection.state != wsproto.connection.ConnectionState.CLOSED:
             event = wsproto.events.CloseConnection(code, reason)
             try:
                 await self._send_event(event)
             except httpcore.WriteError:
                 pass
+
+    async def _background_receive(
+        self, max_bytes: int = DEFAULT_RECEIVE_MAX_BYTES
+    ) -> None:
+        try:
+            while not self._should_close:
+                data = await self.stream.read(max_bytes=max_bytes)
+                self.connection.receive_data(data)
+                for event in self.connection.events():
+                    if isinstance(event, wsproto.events.Ping):
+                        await self.send(event.response())
+                        continue
+                    if isinstance(event, wsproto.events.CloseConnection):
+                        self._should_close = True
+                    await self._events.put(event)
+        except httpcore.ReadError:
+            pass
 
     async def _send_event(self, event: wsproto.events.Event):
         data = self.connection.send(event)
