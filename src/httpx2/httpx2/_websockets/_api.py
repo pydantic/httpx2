@@ -184,7 +184,7 @@ class AsyncWebSocketSession:
     async def receive(
         self, timeout: typing.Optional[float] = None
     ) -> wsproto.events.Event:
-        event = await self._events.get()
+        event = await asyncio.wait_for(self._events.get(), timeout)
         if isinstance(event, wsproto.events.CloseConnection):
             raise WebSocketDisconnect(event.code, event.reason)
         return event
