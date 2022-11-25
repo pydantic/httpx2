@@ -22,7 +22,8 @@ from httpx_ws._ping import AsyncPingManager, PingManager
 
 JSONMode = Literal["text", "binary"]
 
-DEFAULT_RECEIVE_MAX_BYTES = 65_536
+DEFAULT_MAX_MESSAGE_SIZE_BYTES = 65_536
+DEFAULT_QUEUE_SIZE = 512
 
 
 class HTTPXWSException(Exception):
@@ -46,16 +47,22 @@ class WebSocketInvalidTypeReceived(HTTPXWSException):
 
 
 class WebSocketSession:
-    def __init__(self, stream: NetworkStream) -> None:
+    def __init__(
+        self,
+        stream: NetworkStream,
+        *,
+        max_message_size_bytes: int = DEFAULT_MAX_MESSAGE_SIZE_BYTES,
+        queue_size: int = DEFAULT_QUEUE_SIZE,
+    ) -> None:
         self.stream = stream
         self.connection = wsproto.Connection(wsproto.ConnectionType.CLIENT)
-        self._events: queue.Queue[wsproto.events.Event] = queue.Queue()
+        self._events: queue.Queue[wsproto.events.Event] = queue.Queue(queue_size)
 
         self._ping_manager = PingManager()
 
         self._should_close = False
         self._background_receive_task = threading.Thread(
-            target=self._background_receive
+            target=self._background_receive, args=(max_message_size_bytes,)
         )
         self._background_receive_task.start()
 
@@ -122,7 +129,7 @@ class WebSocketSession:
             except httpcore.WriteError:
                 pass
 
-    def _background_receive(self, max_bytes: int = DEFAULT_RECEIVE_MAX_BYTES) -> None:
+    def _background_receive(self, max_bytes: int) -> None:
         try:
             while not self._should_close:
                 data = self.stream.read(max_bytes=max_bytes)
@@ -146,15 +153,23 @@ class WebSocketSession:
 
 
 class AsyncWebSocketSession:
-    def __init__(self, stream: AsyncNetworkStream) -> None:
+    def __init__(
+        self,
+        stream: AsyncNetworkStream,
+        *,
+        max_message_size_bytes: int = DEFAULT_MAX_MESSAGE_SIZE_BYTES,
+        queue_size: int = DEFAULT_QUEUE_SIZE,
+    ) -> None:
         self.stream = stream
         self.connection = wsproto.Connection(wsproto.ConnectionType.CLIENT)
-        self._events: asyncio.Queue[wsproto.events.Event] = asyncio.Queue()
+        self._events: asyncio.Queue[wsproto.events.Event] = asyncio.Queue(queue_size)
 
         self._ping_manager = AsyncPingManager()
 
         self._should_close = False
-        self._background_receive_task = asyncio.create_task(self._background_receive())
+        self._background_receive_task = asyncio.create_task(
+            self._background_receive(max_message_size_bytes)
+        )
 
     async def ping(self, payload: bytes = b"") -> asyncio.Event:
         ping_id, callback = self._ping_manager.create(payload)
@@ -221,9 +236,7 @@ class AsyncWebSocketSession:
             except httpcore.WriteError:
                 pass
 
-    async def _background_receive(
-        self, max_bytes: int = DEFAULT_RECEIVE_MAX_BYTES
-    ) -> None:
+    async def _background_receive(self, max_bytes: int) -> None:
         try:
             while not self._should_close:
                 data = await self.stream.read(max_bytes=max_bytes)
@@ -257,7 +270,12 @@ def _get_headers() -> typing.Dict[str, typing.Any]:
 
 @contextlib.contextmanager
 def connect_ws(
-    url: str, client: typing.Optional[httpx.Client] = None, **kwargs: typing.Any
+    url: str,
+    client: typing.Optional[httpx.Client] = None,
+    *,
+    max_message_size_bytes: int = DEFAULT_MAX_MESSAGE_SIZE_BYTES,
+    queue_size: int = DEFAULT_QUEUE_SIZE,
+    **kwargs: typing.Any,
 ) -> typing.Generator[WebSocketSession, None, None]:
     client = httpx.Client() if client is None else client
     headers = kwargs.pop("headers", {})
@@ -267,14 +285,23 @@ def connect_ws(
         if response.status_code != 101:
             raise WebSocketUpgradeError(response)
 
-        session = WebSocketSession(response.extensions["network_stream"])
+        session = WebSocketSession(
+            response.extensions["network_stream"],
+            max_message_size_bytes=max_message_size_bytes,
+            queue_size=queue_size,
+        )
         yield session
         session.close()
 
 
 @contextlib.asynccontextmanager
 async def aconnect_ws(
-    url: str, client: typing.Optional[httpx.AsyncClient] = None, **kwargs: typing.Any
+    url: str,
+    client: typing.Optional[httpx.AsyncClient] = None,
+    *,
+    max_message_size_bytes: int = DEFAULT_MAX_MESSAGE_SIZE_BYTES,
+    queue_size: int = DEFAULT_QUEUE_SIZE,
+    **kwargs: typing.Any,
 ) -> typing.AsyncGenerator[AsyncWebSocketSession, None]:
     client = httpx.AsyncClient() if client is None else client
     headers = kwargs.pop("headers", {})
@@ -284,6 +311,10 @@ async def aconnect_ws(
         if response.status_code != 101:
             raise WebSocketUpgradeError(response)
 
-        session = AsyncWebSocketSession(response.extensions["network_stream"])
+        session = AsyncWebSocketSession(
+            response.extensions["network_stream"],
+            max_message_size_bytes=max_message_size_bytes,
+            queue_size=queue_size,
+        )
         yield session
         await session.close()
