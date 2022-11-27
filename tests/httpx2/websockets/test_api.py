@@ -368,7 +368,10 @@ class TestReceivePing:
                 self.connection = wsproto.connection.Connection(
                     wsproto.connection.ConnectionType.SERVER
                 )
-                self.events_to_send = [wsproto.events.Ping(b"SERVER_PING")]
+                self.events_to_send = [
+                    wsproto.events.Ping(b"SERVER_PING"),
+                    wsproto.events.CloseConnection(1000),
+                ]
 
             def read(
                 self, max_bytes: int, timeout: typing.Optional[float] = None
@@ -404,7 +407,10 @@ class TestReceivePing:
                 self.connection = wsproto.connection.Connection(
                     wsproto.connection.ConnectionType.SERVER
                 )
-                self.events_to_send = [wsproto.events.Ping(b"SERVER_PING")]
+                self.events_to_send = [
+                    wsproto.events.Ping(b"SERVER_PING"),
+                    wsproto.events.CloseConnection(1000),
+                ]
 
             async def read(
                 self, max_bytes: int, timeout: typing.Optional[float] = None
