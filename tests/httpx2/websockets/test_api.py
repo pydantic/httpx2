@@ -1,4 +1,5 @@
 import asyncio
+import time
 import typing
 from unittest.mock import MagicMock, call
 
@@ -15,6 +16,7 @@ from httpx_ws import (
     JSONMode,
     WebSocketDisconnect,
     WebSocketInvalidTypeReceived,
+    WebSocketNetworkError,
     WebSocketSession,
     WebSocketUpgradeError,
     aconnect_ws,
@@ -45,6 +47,64 @@ async def test_upgrade_error():
 
 @pytest.mark.asyncio
 class TestSend:
+    async def test_send_error(self):
+        class MockNetworkStream(NetworkStream):
+            def __init__(self) -> None:
+                self.connection = wsproto.connection.Connection(
+                    wsproto.connection.ConnectionType.SERVER
+                )
+                self._should_close = False
+
+            def read(
+                self, max_bytes: int, timeout: typing.Optional[float] = None
+            ) -> bytes:
+                while not self._should_close:
+                    time.sleep(0.1)
+                raise httpcore.ReadError()
+
+            def write(
+                self, buffer: bytes, timeout: typing.Optional[float] = None
+            ) -> None:
+                raise httpcore.WriteError()
+
+            def close(self) -> None:
+                self._should_close = True
+
+        stream = MockNetworkStream()
+        websocket_session = WebSocketSession(stream)
+        with pytest.raises(WebSocketNetworkError):
+            websocket_session.send(wsproto.events.Ping())
+        websocket_session.close()
+
+    async def test_async_send_error(self):
+        class AsyncMockNetworkStream(AsyncNetworkStream):
+            def __init__(self) -> None:
+                self.connection = wsproto.connection.Connection(
+                    wsproto.connection.ConnectionType.SERVER
+                )
+                self._should_close = False
+
+            async def read(
+                self, max_bytes: int, timeout: typing.Optional[float] = None
+            ) -> bytes:
+                while not self._should_close:
+                    await asyncio.sleep(0.1)
+                raise httpcore.ReadError()
+
+            async def write(
+                self, buffer: bytes, timeout: typing.Optional[float] = None
+            ) -> None:
+                raise httpcore.WriteError()
+
+            async def aclose(self) -> None:
+                self._should_close = True
+
+        stream = AsyncMockNetworkStream()
+        websocket_session = AsyncWebSocketSession(stream)
+        with pytest.raises(WebSocketNetworkError):
+            await websocket_session.send(wsproto.events.Ping())
+        await websocket_session.close()
+
     async def test_send(
         self,
         server_factory: ServerFactoryFixture,
@@ -188,6 +248,58 @@ class TestSend:
 
 @pytest.mark.asyncio
 class TestReceive:
+    async def test_receive_error(self):
+        class MockNetworkStream(NetworkStream):
+            def __init__(self) -> None:
+                self.connection = wsproto.connection.Connection(
+                    wsproto.connection.ConnectionType.SERVER
+                )
+
+            def read(
+                self, max_bytes: int, timeout: typing.Optional[float] = None
+            ) -> bytes:
+                raise httpcore.ReadError()
+
+            def write(
+                self, buffer: bytes, timeout: typing.Optional[float] = None
+            ) -> None:
+                pass
+
+            def close(self) -> None:
+                pass
+
+        stream = MockNetworkStream()
+        websocket_session = WebSocketSession(stream)
+        with pytest.raises(WebSocketNetworkError):
+            websocket_session.receive()
+        websocket_session.close()
+
+    async def test_async_receive_error(self):
+        class AsyncMockNetworkStream(AsyncNetworkStream):
+            def __init__(self) -> None:
+                self.connection = wsproto.connection.Connection(
+                    wsproto.connection.ConnectionType.SERVER
+                )
+
+            async def read(
+                self, max_bytes: int, timeout: typing.Optional[float] = None
+            ) -> bytes:
+                raise httpcore.ReadError()
+
+            async def write(
+                self, buffer: bytes, timeout: typing.Optional[float] = None
+            ) -> None:
+                pass
+
+            async def aclose(self) -> None:
+                pass
+
+        stream = AsyncMockNetworkStream()
+        websocket_session = AsyncWebSocketSession(stream)
+        with pytest.raises(WebSocketNetworkError):
+            await websocket_session.receive()
+        await websocket_session.close()
+
     async def test_receive(self, server_factory: ServerFactoryFixture):
         async def websocket_endpoint(websocket: WebSocket):
             await websocket.accept()
