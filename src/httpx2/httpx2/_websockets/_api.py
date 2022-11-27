@@ -334,8 +334,8 @@ class WebSocketSession:
         Raises:
             queue.Empty: No event was received before the timeout delay.
             WebSocketDisconnect: The server closed the websocket.
-            WebSocketInvalidTypeReceived:
-                The received event didn't correspond to the specified mode.
+            WebSocketInvalidTypeReceived: The received event
+                didn't correspond to the specified mode.
 
         Examples:
             Wait for data until available.
@@ -687,8 +687,8 @@ class AsyncWebSocketSession:
         Raises:
             queue.Empty: No event was received before the timeout delay.
             WebSocketDisconnect: The server closed the websocket.
-            WebSocketInvalidTypeReceived:
-                The received event didn't correspond to the specified mode.
+            WebSocketInvalidTypeReceived: The received event
+                didn't correspond to the specified mode.
 
         Examples:
             Wait for data until available.
@@ -791,6 +791,50 @@ def connect_ws(
     queue_size: int = DEFAULT_QUEUE_SIZE,
     **kwargs: typing.Any,
 ) -> typing.Generator[WebSocketSession, None, None]:
+    """
+    Start a sync WebSocket session.
+
+    It returns a context manager that'll automatically
+    call [close()][httpx_ws.WebSocketSession.close] when exiting.
+
+    Args:
+        url: The WebSocket URL.
+        client:
+            HTTPX client to use.
+            If not provided, a default one will be initialized.
+        max_message_size_bytes:
+            Message size in bytes to receive from the server.
+            Defaults to 65 KiB.
+        queue_size:
+            Size of the queue where the received messages will be held
+            until they are consumed.
+            If the queue is full, the client will stop receive messages
+            from the server until the queue has room available.
+            Defaults to 512.
+        **kwargs:
+            Additional keyword arguments that will be passed to
+            the [HTTPX stream()](https://www.python-httpx.org/api/#request) method.
+
+    Returns:
+        A [context manager][contextlib.AbstractContextManager]
+            for [WebSocketSession][httpx_ws.WebSocketSession].
+
+    Examples:
+        Without explicit HTTPX client.
+
+            with connect_ws("http://localhost:8000/ws") as ws:
+                message = ws.receive_text()
+                print(message)
+                ws.send_text("Hello!")
+
+        With explicit HTTPX client.
+
+            with httpx.Client() as client:
+                with connect_ws("http://localhost:8000/ws", client) as ws:
+                    message = ws.receive_text()
+                    print(message)
+                    ws.send_text("Hello!")
+    """
     client = httpx.Client() if client is None else client
     headers = kwargs.pop("headers", {})
     headers.update(_get_headers())
@@ -817,6 +861,50 @@ async def aconnect_ws(
     queue_size: int = DEFAULT_QUEUE_SIZE,
     **kwargs: typing.Any,
 ) -> typing.AsyncGenerator[AsyncWebSocketSession, None]:
+    """
+    Start an async WebSocket session.
+
+    It returns an async context manager that'll automatically
+    call [close()][httpx_ws.AsyncWebSocketSession.close] when exiting.
+
+    Args:
+        url: The WebSocket URL.
+        client:
+            HTTPX client to use.
+            If not provided, a default one will be initialized.
+        max_message_size_bytes:
+            Message size in bytes to receive from the server.
+            Defaults to 65 KiB.
+        queue_size:
+            Size of the queue where the received messages will be held
+            until they are consumed.
+            If the queue is full, the client will stop receive messages
+            from the server until the queue has room available.
+            Defaults to 512.
+        **kwargs:
+            Additional keyword arguments that will be passed to
+            the [HTTPX stream()](https://www.python-httpx.org/api/#request) method.
+
+    Returns:
+        An [async context manager][contextlib.AbstractAsyncContextManager]
+            for [AsyncWebSocketSession][httpx_ws.AsyncWebSocketSession].
+
+    Examples:
+        Without explicit HTTPX client.
+
+            async with aconnect_ws("http://localhost:8000/ws") as ws:
+                message = await ws.receive_text()
+                print(message)
+                await ws.send_text("Hello!")
+
+        With explicit HTTPX client.
+
+            async with httpx.AsyncClient() as client:
+                async with aconnect_ws("http://localhost:8000/ws", client) as ws:
+                    message = await ws.receive_text()
+                    print(message)
+                    await ws.send_text("Hello!")
+    """
     client = httpx.AsyncClient() if client is None else client
     headers = kwargs.pop("headers", {})
     headers.update(_get_headers())
