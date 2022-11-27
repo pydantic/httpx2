@@ -260,8 +260,8 @@ class TestReceive:
         with server_factory(websocket_endpoint) as socket:
             with httpx.Client(transport=httpx.HTTPTransport(uds=socket)) as client:
                 try:
-                    with pytest.raises(WebSocketInvalidTypeReceived):
-                        with connect_ws("http://socket/ws", client) as ws:
+                    with connect_ws("http://socket/ws", client) as ws:
+                        with pytest.raises(WebSocketInvalidTypeReceived):
                             ws.receive_text()
                 except WebSocketDisconnect:
                     pass
@@ -270,8 +270,8 @@ class TestReceive:
                 transport=httpx.AsyncHTTPTransport(uds=socket)
             ) as aclient:
                 try:
-                    with pytest.raises(WebSocketInvalidTypeReceived):
-                        async with aconnect_ws("http://socket/ws", aclient) as aws:
+                    async with aconnect_ws("http://socket/ws", aclient) as aws:
+                        with pytest.raises(WebSocketInvalidTypeReceived):
                             await aws.receive_text()
                 except WebSocketDisconnect:
                     pass
@@ -317,15 +317,15 @@ class TestReceive:
 
         with server_factory(websocket_endpoint) as socket:
             with httpx.Client(transport=httpx.HTTPTransport(uds=socket)) as client:
-                with pytest.raises(WebSocketInvalidTypeReceived):
-                    with connect_ws("http://socket/ws", client) as ws:
+                with connect_ws("http://socket/ws", client) as ws:
+                    with pytest.raises(WebSocketInvalidTypeReceived):
                         ws.receive_bytes()
 
             async with httpx.AsyncClient(
                 transport=httpx.AsyncHTTPTransport(uds=socket)
             ) as aclient:
-                with pytest.raises(WebSocketInvalidTypeReceived):
-                    async with aconnect_ws("http://socket/ws", aclient) as aws:
+                async with aconnect_ws("http://socket/ws", aclient) as aws:
+                    with pytest.raises(WebSocketInvalidTypeReceived):
                         await aws.receive_bytes()
 
     @pytest.mark.parametrize("mode", ["text", "binary"])
@@ -490,13 +490,13 @@ async def test_receive_close(server_factory: ServerFactoryFixture):
 
     with server_factory(websocket_endpoint) as socket:
         with httpx.Client(transport=httpx.HTTPTransport(uds=socket)) as client:
-            with pytest.raises(WebSocketDisconnect):
-                with connect_ws("http://socket/ws", client) as ws:
+            with connect_ws("http://socket/ws", client) as ws:
+                with pytest.raises(WebSocketDisconnect):
                     ws.receive()
 
         async with httpx.AsyncClient(
             transport=httpx.AsyncHTTPTransport(uds=socket)
         ) as aclient:
-            with pytest.raises(WebSocketDisconnect):
-                async with aconnect_ws("http://socket/ws", aclient) as aws:
+            async with aconnect_ws("http://socket/ws", aclient) as aws:
+                with pytest.raises(WebSocketDisconnect):
                     await aws.receive()
