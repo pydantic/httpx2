@@ -387,6 +387,7 @@ class WebSocketSession:
                 self.send(event)
             except httpcore.WriteError:
                 pass
+        self.stream.close()
 
     def _background_receive(self, max_bytes: int) -> None:
         """
@@ -740,6 +741,7 @@ class AsyncWebSocketSession:
                 await self.send(event)
             except httpcore.WriteError:
                 pass
+        await self.stream.aclose()
 
     async def _background_receive(self, max_bytes: int) -> None:
         """

@@ -384,6 +384,9 @@ class TestReceivePing:
             ) -> None:
                 self.connection.receive_data(buffer)
 
+            def close(self) -> None:
+                pass
+
         stream = MockNetworkStream()
         websocket_session = WebSocketSession(stream)
         await asyncio.sleep(0.1)
@@ -416,6 +419,9 @@ class TestReceivePing:
                 self, buffer: bytes, timeout: typing.Optional[float] = None
             ) -> None:
                 self.connection.receive_data(buffer)
+
+            async def aclose(self) -> None:
+                pass
 
         stream = MockAsyncNetworkStream()
         websocket_session = AsyncWebSocketSession(stream)
