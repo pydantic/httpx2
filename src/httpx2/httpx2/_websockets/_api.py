@@ -25,6 +25,8 @@ JSONMode = Literal["text", "binary"]
 
 DEFAULT_MAX_MESSAGE_SIZE_BYTES = 65_536
 DEFAULT_QUEUE_SIZE = 512
+DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS = 20.0
+DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS = 20.0
 
 
 class HTTPXWSException(Exception):
@@ -89,6 +91,12 @@ class WebSocketSession:
         *,
         max_message_size_bytes: int = DEFAULT_MAX_MESSAGE_SIZE_BYTES,
         queue_size: int = DEFAULT_QUEUE_SIZE,
+        keepalive_ping_interval_seconds: typing.Optional[
+            float
+        ] = DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS,
+        keepalive_ping_timeout_seconds: typing.Optional[
+            float
+        ] = DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
     ) -> None:
         self.stream = stream
         self.connection = wsproto.Connection(wsproto.ConnectionType.CLIENT)
@@ -104,6 +112,14 @@ class WebSocketSession:
             target=self._background_receive, args=(max_message_size_bytes,)
         )
         self._background_receive_task.start()
+
+        self._background_keepalive_ping_task: typing.Optional[threading.Thread] = None
+        if keepalive_ping_interval_seconds is not None:
+            self._background_keepalive_ping_task = threading.Thread(
+                target=self._background_keepalive_ping,
+                args=(keepalive_ping_interval_seconds, keepalive_ping_timeout_seconds),
+            )
+            self._background_keepalive_ping_task.start()
 
     def ping(self, payload: bytes = b"") -> threading.Event:
         """
@@ -461,6 +477,21 @@ class WebSocketSession:
             self.close(CloseReason.INTERNAL_ERROR, "Stream error")
             self._events.put(WebSocketNetworkError())
 
+    def _background_keepalive_ping(
+        self, interval_seconds: float, timeout_seconds: typing.Optional[float] = None
+    ) -> None:
+        while True:
+            should_close = self._should_close.wait(interval_seconds)
+            if should_close:
+                break
+
+            pong_callback = self.ping()
+            if timeout_seconds is not None:
+                acknowledged = pong_callback.wait(timeout_seconds)
+                if not acknowledged:
+                    self.close(CloseReason.INTERNAL_ERROR, "Keepalive ping timeout")
+                    self._events.put(WebSocketNetworkError())
+
 
 class AsyncWebSocketSession:
     """
@@ -473,6 +504,12 @@ class AsyncWebSocketSession:
         *,
         max_message_size_bytes: int = DEFAULT_MAX_MESSAGE_SIZE_BYTES,
         queue_size: int = DEFAULT_QUEUE_SIZE,
+        keepalive_ping_interval_seconds: typing.Optional[
+            float
+        ] = DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS,
+        keepalive_ping_timeout_seconds: typing.Optional[
+            float
+        ] = DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
     ) -> None:
         self.stream = stream
         self.connection = wsproto.Connection(wsproto.ConnectionType.CLIENT)
@@ -487,6 +524,14 @@ class AsyncWebSocketSession:
         self._background_receive_task = asyncio.create_task(
             self._background_receive(max_message_size_bytes)
         )
+
+        self._background_keepalive_ping_task: typing.Optional[asyncio.Task] = None
+        if keepalive_ping_interval_seconds is not None:
+            self._background_keepalive_ping_task = asyncio.create_task(
+                self._background_keepalive_ping(
+                    keepalive_ping_interval_seconds, keepalive_ping_timeout_seconds
+                )
+            )
 
     async def ping(self, payload: bytes = b"") -> asyncio.Event:
         """
@@ -624,7 +669,7 @@ class AsyncWebSocketSession:
             A raw [wsproto.events.Event][wsproto.events.Event].
 
         Raises:
-            queue.Empty: No event was received before the timeout delay.
+            asyncio.TimeoutError: No event was received before the timeout delay.
             WebSocketDisconnect: The server closed the websocket.
             WebSocketNetworkError: A network error occured.
 
@@ -640,7 +685,7 @@ class AsyncWebSocketSession:
 
                 try:
                     event = await ws.receive(timeout=2.)
-                except queue.Empty:
+                except asyncio.TimeoutError:
                     print("No event received.")
                 except WebSocketDisconnect:
                     print("Connection closed")
@@ -665,7 +710,7 @@ class AsyncWebSocketSession:
             Text data.
 
         Raises:
-            queue.Empty: No event was received before the timeout delay.
+            asyncio.TimeoutError: No event was received before the timeout delay.
             WebSocketDisconnect: The server closed the websocket.
             WebSocketNetworkError: A network error occured.
             WebSocketInvalidTypeReceived: The received event was not a text message.
@@ -682,7 +727,7 @@ class AsyncWebSocketSession:
 
                 try:
                     event = await ws.receive_text(timeout=2.)
-                except queue.Empty:
+                except asyncio.TimeoutError:
                     print("No text received.")
                 except WebSocketDisconnect:
                     print("Connection closed")
@@ -705,7 +750,7 @@ class AsyncWebSocketSession:
             Bytes data.
 
         Raises:
-            queue.Empty: No event was received before the timeout delay.
+            asyncio.TimeoutError: No event was received before the timeout delay.
             WebSocketDisconnect: The server closed the websocket.
             WebSocketNetworkError: A network error occured.
             WebSocketInvalidTypeReceived: The received event was not a bytes message.
@@ -722,7 +767,7 @@ class AsyncWebSocketSession:
 
                 try:
                     data = await ws.receive_bytes(timeout=2.)
-                except queue.Empty:
+                except asyncio.TimeoutError:
                     print("No data received.")
                 except WebSocketDisconnect:
                     print("Connection closed")
@@ -751,7 +796,7 @@ class AsyncWebSocketSession:
             Parsed JSON data.
 
         Raises:
-            queue.Empty: No event was received before the timeout delay.
+            asyncio.TimeoutError: No event was received before the timeout delay.
             WebSocketDisconnect: The server closed the websocket.
             WebSocketNetworkError: A network error occured.
             WebSocketInvalidTypeReceived: The received event
@@ -769,7 +814,7 @@ class AsyncWebSocketSession:
 
                 try:
                     data = await ws.receive_json(timeout=2.)
-                except queue.Empty:
+                except asyncio.TimeoutError:
                     print("No data received.")
                 except WebSocketDisconnect:
                     print("Connection closed")
@@ -846,6 +891,25 @@ class AsyncWebSocketSession:
             await self.close(CloseReason.INTERNAL_ERROR, "Stream error")
             await self._events.put(WebSocketNetworkError())
 
+    async def _background_keepalive_ping(
+        self, interval_seconds: float, timeout_seconds: typing.Optional[float] = None
+    ) -> None:
+        while True:
+            try:
+                await asyncio.wait_for(self._should_close.wait(), interval_seconds)
+            except asyncio.TimeoutError:
+                pass
+
+            pong_callback = await self.ping()
+            if timeout_seconds is not None:
+                try:
+                    await asyncio.wait_for(pong_callback.wait(), timeout_seconds)
+                except asyncio.TimeoutError:
+                    await self.close(
+                        CloseReason.INTERNAL_ERROR, "Keepalive ping timeout"
+                    )
+                    await self._events.put(WebSocketNetworkError())
+
 
 def _get_headers() -> typing.Dict[str, typing.Any]:
     return {
@@ -863,6 +927,12 @@ def connect_ws(
     *,
     max_message_size_bytes: int = DEFAULT_MAX_MESSAGE_SIZE_BYTES,
     queue_size: int = DEFAULT_QUEUE_SIZE,
+    keepalive_ping_interval_seconds: typing.Optional[
+        float
+    ] = DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS,
+    keepalive_ping_timeout_seconds: typing.Optional[
+        float
+    ] = DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
     **kwargs: typing.Any,
 ) -> typing.Generator[WebSocketSession, None, None]:
     """
@@ -885,6 +955,16 @@ def connect_ws(
             If the queue is full, the client will stop receive messages
             from the server until the queue has room available.
             Defaults to 512.
+        keepalive_ping_interval_seconds:
+            Interval at which the client will automatically send a Ping event
+            to keep the connection alive. Set it to `None` to disable this mechanism.
+            Defaults to 20 seconds.
+        keepalive_ping_timeout_seconds:
+            Maximum delay the client will wait for an answer to its Ping event.
+            If the delay is exceeded,
+            [WebSocketNetworkError][httpx_ws.WebSocketNetworkError]
+            will be raised and the connection closed.
+            Defaults to 20 seconds.
         **kwargs:
             Additional keyword arguments that will be passed to
             the [HTTPX stream()](https://www.python-httpx.org/api/#request) method.
@@ -921,6 +1001,8 @@ def connect_ws(
             response.extensions["network_stream"],
             max_message_size_bytes=max_message_size_bytes,
             queue_size=queue_size,
+            keepalive_ping_interval_seconds=keepalive_ping_interval_seconds,
+            keepalive_ping_timeout_seconds=keepalive_ping_timeout_seconds,
         )
         yield session
         session.close()
@@ -933,6 +1015,12 @@ async def aconnect_ws(
     *,
     max_message_size_bytes: int = DEFAULT_MAX_MESSAGE_SIZE_BYTES,
     queue_size: int = DEFAULT_QUEUE_SIZE,
+    keepalive_ping_interval_seconds: typing.Optional[
+        float
+    ] = DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS,
+    keepalive_ping_timeout_seconds: typing.Optional[
+        float
+    ] = DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
     **kwargs: typing.Any,
 ) -> typing.AsyncGenerator[AsyncWebSocketSession, None]:
     """
@@ -955,6 +1043,16 @@ async def aconnect_ws(
             If the queue is full, the client will stop receive messages
             from the server until the queue has room available.
             Defaults to 512.
+        keepalive_ping_interval_seconds:
+            Interval at which the client will automatically send a Ping event
+            to keep the connection alive. Set it to `None` to disable this mechanism.
+            Defaults to 20 seconds.
+        keepalive_ping_timeout_seconds:
+            Maximum delay the client will wait for an answer to its Ping event.
+            If the delay is exceeded,
+            [WebSocketNetworkError][httpx_ws.WebSocketNetworkError]
+            will be raised and the connection closed.
+            Defaults to 20 seconds.
         **kwargs:
             Additional keyword arguments that will be passed to
             the [HTTPX stream()](https://www.python-httpx.org/api/#request) method.
@@ -991,6 +1089,8 @@ async def aconnect_ws(
             response.extensions["network_stream"],
             max_message_size_bytes=max_message_size_bytes,
             queue_size=queue_size,
+            keepalive_ping_interval_seconds=keepalive_ping_interval_seconds,
+            keepalive_ping_timeout_seconds=keepalive_ping_timeout_seconds,
         )
         yield session
         await session.close()

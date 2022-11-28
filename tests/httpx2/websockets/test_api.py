@@ -1,4 +1,5 @@
 import asyncio
+import queue
 import time
 import typing
 from unittest.mock import MagicMock, call
@@ -551,6 +552,169 @@ class TestReceivePing:
             wsproto.events.Pong(b"SERVER_PING"),
             wsproto.events.CloseConnection(1000, ""),
         ]
+
+
+@pytest.mark.asyncio
+class TestKeepalivePing:
+    async def test_keepalive_ping(self):
+        class MockNetworkStream(NetworkStream):
+            def __init__(self) -> None:
+                self.connection = wsproto.connection.Connection(
+                    wsproto.connection.ConnectionType.SERVER
+                )
+                self._should_close = False
+                self.ping_received = 0
+                self.ping_answered = 0
+                self.events_to_send: queue.Queue[wsproto.events.Event] = queue.Queue()
+
+            def read(
+                self, max_bytes: int, timeout: typing.Optional[float] = None
+            ) -> bytes:
+                while not self._should_close:
+                    try:
+                        event = self.events_to_send.get_nowait()
+                        self.ping_answered += 1
+                        return self.connection.send(event)
+                    except queue.Empty:
+                        pass
+                raise httpcore.ReadError()
+
+            def write(
+                self, buffer: bytes, timeout: typing.Optional[float] = None
+            ) -> None:
+                self.connection.receive_data(buffer)
+                for event in self.connection.events():
+                    if isinstance(event, wsproto.events.Ping):
+                        self.ping_received += 1
+                        self.events_to_send.put(event.response())
+
+            def close(self) -> None:
+                self._should_close = True
+
+        stream = MockNetworkStream()
+        websocket_session = WebSocketSession(
+            stream,
+            keepalive_ping_interval_seconds=0.1,
+            keepalive_ping_timeout_seconds=0.1,
+        )
+        await asyncio.sleep(0.2)
+        websocket_session.close()
+
+        assert stream.ping_received >= 1
+        assert stream.ping_answered >= 1
+
+    async def test_keepalive_ping_timeout(self):
+        class MockNetworkStream(NetworkStream):
+            def __init__(self) -> None:
+                self.connection = wsproto.connection.Connection(
+                    wsproto.connection.ConnectionType.SERVER
+                )
+                self._should_close = False
+
+            def read(
+                self, max_bytes: int, timeout: typing.Optional[float] = None
+            ) -> bytes:
+                while not self._should_close:
+                    time.sleep(0.1)
+                raise httpcore.ReadError()
+
+            def write(
+                self, buffer: bytes, timeout: typing.Optional[float] = None
+            ) -> None:
+                pass
+
+            def close(self) -> None:
+                self._should_close = True
+
+        stream = MockNetworkStream()
+        with pytest.raises(WebSocketNetworkError):
+            websocket_session = WebSocketSession(
+                stream,
+                keepalive_ping_interval_seconds=0.1,
+                keepalive_ping_timeout_seconds=0.1,
+            )
+            websocket_session.receive()
+
+    async def test_async_keepalive_ping(self):
+        class MockAsyncNetworkStream(AsyncNetworkStream):
+            def __init__(self) -> None:
+                self.connection = wsproto.connection.Connection(
+                    wsproto.connection.ConnectionType.SERVER
+                )
+                self._should_close = False
+                self.ping_received = 0
+                self.ping_answered = 0
+                self.events_to_send: asyncio.Queue[
+                    wsproto.events.Event
+                ] = asyncio.Queue()
+
+            async def read(
+                self, max_bytes: int, timeout: typing.Optional[float] = None
+            ) -> bytes:
+                while not self._should_close:
+                    try:
+                        event = self.events_to_send.get_nowait()
+                        self.ping_answered += 1
+                        return self.connection.send(event)
+                    except asyncio.QueueEmpty:
+                        await asyncio.sleep(0.1)
+                raise httpcore.ReadError()
+
+            async def write(
+                self, buffer: bytes, timeout: typing.Optional[float] = None
+            ) -> None:
+                self.connection.receive_data(buffer)
+                for event in self.connection.events():
+                    if isinstance(event, wsproto.events.Ping):
+                        self.ping_received += 1
+                        await self.events_to_send.put(event.response())
+
+            async def aclose(self) -> None:
+                self._should_close = True
+
+        stream = MockAsyncNetworkStream()
+        websocket_session = AsyncWebSocketSession(
+            stream,
+            keepalive_ping_interval_seconds=0.1,
+            keepalive_ping_timeout_seconds=0.1,
+        )
+        await asyncio.sleep(0.3)
+        await websocket_session.close()
+
+        assert stream.ping_received >= 1
+        assert stream.ping_answered >= 1
+
+    async def test_async_keepalive_ping_timeout(self):
+        class MockAsyncNetworkStream(AsyncNetworkStream):
+            def __init__(self) -> None:
+                self.connection = wsproto.connection.Connection(
+                    wsproto.connection.ConnectionType.SERVER
+                )
+                self._should_close = False
+
+            async def read(
+                self, max_bytes: int, timeout: typing.Optional[float] = None
+            ) -> bytes:
+                while not self._should_close:
+                    await asyncio.sleep(0.1)
+                raise httpcore.ReadError()
+
+            async def write(
+                self, buffer: bytes, timeout: typing.Optional[float] = None
+            ) -> None:
+                pass
+
+            async def aclose(self) -> None:
+                self._should_close = True
+
+        stream = MockAsyncNetworkStream()
+        with pytest.raises(WebSocketNetworkError):
+            websocket_session = AsyncWebSocketSession(
+                stream,
+                keepalive_ping_interval_seconds=0.1,
+                keepalive_ping_timeout_seconds=0.1,
+            )
+            await websocket_session.receive()
 
 
 @pytest.mark.asyncio
