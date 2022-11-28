@@ -8,6 +8,7 @@ from starlette.responses import PlainTextResponse
 from starlette.routing import Route, WebSocketRoute
 from starlette.websockets import WebSocket
 
+from httpx_ws import WebSocketDisconnect
 from httpx_ws.transport import (
     ASGIWebSocketAsyncNetworkStream,
     ASGIWebSocketTransport,
@@ -87,6 +88,14 @@ class TestASGIWebSocketAsyncNetworkStream:
         async with ASGIWebSocketAsyncNetworkStream(app, {}) as stream:
             with pytest.raises(UnhandledASGIMessageType):
                 await stream.read(4096)
+
+    async def test_close_immediately(self):
+        async def app(scope, receive, send):
+            await send({"type": "websocket.close", "code": 1000, "reason": ""})
+
+        with pytest.raises(WebSocketDisconnect):
+            async with ASGIWebSocketAsyncNetworkStream(app, {}):
+                pass
 
 
 @pytest.fixture

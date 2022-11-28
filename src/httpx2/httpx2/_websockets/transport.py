@@ -8,6 +8,8 @@ import wsproto
 from httpcore.backends.base import AsyncNetworkStream
 from httpx import ASGITransport, AsyncByteStream, Request, Response
 
+from httpx_ws._api import WebSocketDisconnect
+
 Scope = typing.MutableMapping[str, typing.Any]
 Message = typing.MutableMapping[str, typing.Any]
 Receive = typing.Callable[[], typing.Awaitable[Message]]
@@ -45,6 +47,8 @@ class ASGIWebSocketAsyncNetworkStream(AsyncNetworkStream):
         _: "Future[None]" = self.portal.start_task_soon(self._run)
         await self.send({"type": "websocket.connect"})
         message = await self.receive()
+        if message["type"] == "websocket.close":
+            raise WebSocketDisconnect(message["code"], message.get("reason"))
         assert message["type"] == "websocket.accept"
         return self
 
