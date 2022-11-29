@@ -1,5 +1,6 @@
 import asyncio
 import base64
+import concurrent.futures
 import contextlib
 import json
 import queue
@@ -22,6 +23,8 @@ from wsproto.connection import CloseReason
 from httpx_ws._ping import AsyncPingManager, PingManager
 
 JSONMode = Literal["text", "binary"]
+TaskFunction = typing.TypeVar("TaskFunction")
+TaskResult = typing.TypeVar("TaskResult")
 
 DEFAULT_MAX_MESSAGE_SIZE_BYTES = 65_536
 DEFAULT_QUEUE_SIZE = 512
@@ -77,6 +80,10 @@ class WebSocketNetworkError(HTTPXWSException):
     typically if the underlying stream has closed or timeout.
     """
 
+    pass
+
+
+class ShouldClose(Exception):
     pass
 
 
@@ -460,7 +467,7 @@ class WebSocketSession:
         """
         try:
             while not self._should_close.is_set():
-                data = self.stream.read(max_bytes=max_bytes)
+                data = self._wait_until_closed(self.stream.read, max_bytes)
                 self.connection.receive_data(data)
                 for event in self.connection.events():
                     if isinstance(event, wsproto.events.Ping):
@@ -476,21 +483,46 @@ class WebSocketSession:
         except (httpcore.ReadError, httpcore.WriteError):
             self.close(CloseReason.INTERNAL_ERROR, "Stream error")
             self._events.put(WebSocketNetworkError())
+        except ShouldClose:
+            pass
 
     def _background_keepalive_ping(
         self, interval_seconds: float, timeout_seconds: typing.Optional[float] = None
     ) -> None:
-        while True:
-            should_close = self._should_close.wait(interval_seconds)
-            if should_close:
-                break
+        try:
+            while not self._should_close.is_set():
+                should_close = self._wait_until_closed(
+                    self._should_close.wait, interval_seconds
+                )
+                if should_close:
+                    raise ShouldClose()
+                pong_callback = self.ping()
+                if timeout_seconds is not None:
+                    acknowledged = self._wait_until_closed(
+                        pong_callback.wait, timeout_seconds
+                    )
+                    if not acknowledged:
+                        self.close(CloseReason.INTERNAL_ERROR, "Keepalive ping timeout")
+                        self._events.put(WebSocketNetworkError())
+        except ShouldClose:
+            pass
 
-            pong_callback = self.ping()
-            if timeout_seconds is not None:
-                acknowledged = pong_callback.wait(timeout_seconds)
-                if not acknowledged:
-                    self.close(CloseReason.INTERNAL_ERROR, "Keepalive ping timeout")
-                    self._events.put(WebSocketNetworkError())
+    def _wait_until_closed(
+        self, callable: typing.Callable[..., TaskResult], *args, **kwargs
+    ) -> TaskResult:
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=2)
+        wait_close_task = executor.submit(self._should_close.wait)
+        todo_task = executor.submit(callable, *args, **kwargs)
+        done, pending = concurrent.futures.wait(  # type: ignore
+            (todo_task, wait_close_task), return_when=concurrent.futures.FIRST_COMPLETED
+        )
+        for task in pending:
+            task.cancel()
+        if wait_close_task in done:
+            raise ShouldClose()
+        result = todo_task.result()
+        executor.shutdown(False)
+        return result
 
 
 class AsyncWebSocketSession:
@@ -874,7 +906,9 @@ class AsyncWebSocketSession:
         """
         try:
             while not self._should_close.is_set():
-                data = await self.stream.read(max_bytes=max_bytes)
+                data = await self._wait_until_closed(
+                    self.stream.read(max_bytes=max_bytes)
+                )
                 self.connection.receive_data(data)
                 for event in self.connection.events():
                     if isinstance(event, wsproto.events.Ping):
@@ -890,25 +924,42 @@ class AsyncWebSocketSession:
         except (httpcore.ReadError, httpcore.WriteError):
             await self.close(CloseReason.INTERNAL_ERROR, "Stream error")
             await self._events.put(WebSocketNetworkError())
+        except ShouldClose:
+            pass
 
     async def _background_keepalive_ping(
         self, interval_seconds: float, timeout_seconds: typing.Optional[float] = None
     ) -> None:
-        while True:
-            try:
-                await asyncio.wait_for(self._should_close.wait(), interval_seconds)
-            except asyncio.TimeoutError:
-                pass
+        try:
+            while not self._should_close.is_set():
+                await self._wait_until_closed(asyncio.sleep(interval_seconds))
+                pong_callback = await self.ping()
+                if timeout_seconds is not None:
+                    try:
+                        await self._wait_until_closed(
+                            asyncio.wait_for(pong_callback.wait(), timeout_seconds)
+                        )
+                    except asyncio.TimeoutError:
+                        await self.close(
+                            CloseReason.INTERNAL_ERROR, "Keepalive ping timeout"
+                        )
+                        await self._events.put(WebSocketNetworkError())
+        except ShouldClose:
+            pass
 
-            pong_callback = await self.ping()
-            if timeout_seconds is not None:
-                try:
-                    await asyncio.wait_for(pong_callback.wait(), timeout_seconds)
-                except asyncio.TimeoutError:
-                    await self.close(
-                        CloseReason.INTERNAL_ERROR, "Keepalive ping timeout"
-                    )
-                    await self._events.put(WebSocketNetworkError())
+    async def _wait_until_closed(
+        self, coro: typing.Coroutine[typing.Any, typing.Any, TaskResult]
+    ) -> TaskResult:
+        wait_close_task = asyncio.create_task(self._should_close.wait())
+        todo_task = asyncio.create_task(coro)
+        done, pending = await asyncio.wait(
+            {todo_task, wait_close_task}, return_when=asyncio.FIRST_COMPLETED
+        )
+        for task in pending:
+            task.cancel()
+        if wait_close_task in done:
+            raise ShouldClose()
+        return todo_task.result()
 
 
 def _get_headers() -> typing.Dict[str, typing.Any]:
