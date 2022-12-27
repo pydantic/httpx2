@@ -1,8 +1,9 @@
 import asyncio
+import contextlib
 import queue
 import time
 import typing
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock, call, patch
 
 import httpcore
 import httpx
@@ -782,3 +783,28 @@ async def test_receive_close(server_factory: ServerFactoryFixture):
             async with aconnect_ws("http://socket/ws", aclient) as aws:
                 with pytest.raises(WebSocketDisconnect):
                     await aws.receive()
+
+
+@pytest.mark.asyncio
+async def test_default_httpx_client():
+    mock_context = contextlib.ExitStack()
+    with patch(
+        "httpx_ws._api._connect_ws", return_value=mock_context
+    ) as mock_connect_ws:
+        with connect_ws("http://socket/ws"):
+            pass
+    mock_connect_ws.assert_called_once()
+    httpx_client = mock_connect_ws.call_args[1]["client"]
+    assert isinstance(httpx_client, httpx.Client)
+    assert httpx_client.is_closed
+
+    mock_async_context = contextlib.AsyncExitStack()
+    with patch(
+        "httpx_ws._api._aconnect_ws", return_value=mock_async_context
+    ) as mock_aconnect_ws:
+        async with aconnect_ws("http://socket/ws"):
+            pass
+    mock_aconnect_ws.assert_called_once()
+    httpx_client = mock_aconnect_ws.call_args[1]["client"]
+    assert isinstance(httpx_client, httpx.AsyncClient)
+    assert httpx_client.is_closed

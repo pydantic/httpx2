@@ -972,6 +972,39 @@ def _get_headers() -> typing.Dict[str, typing.Any]:
 
 
 @contextlib.contextmanager
+def _connect_ws(
+    url: str,
+    client: httpx.Client,
+    *,
+    max_message_size_bytes: int = DEFAULT_MAX_MESSAGE_SIZE_BYTES,
+    queue_size: int = DEFAULT_QUEUE_SIZE,
+    keepalive_ping_interval_seconds: typing.Optional[
+        float
+    ] = DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS,
+    keepalive_ping_timeout_seconds: typing.Optional[
+        float
+    ] = DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
+    **kwargs: typing.Any,
+) -> typing.Generator[WebSocketSession, None, None]:
+    headers = kwargs.pop("headers", {})
+    headers.update(_get_headers())
+
+    with client.stream("GET", url, headers=headers, **kwargs) as response:
+        if response.status_code != 101:
+            raise WebSocketUpgradeError(response)
+
+        session = WebSocketSession(
+            response.extensions["network_stream"],
+            max_message_size_bytes=max_message_size_bytes,
+            queue_size=queue_size,
+            keepalive_ping_interval_seconds=keepalive_ping_interval_seconds,
+            keepalive_ping_timeout_seconds=keepalive_ping_timeout_seconds,
+        )
+        yield session
+        session.close()
+
+
+@contextlib.contextmanager
 def connect_ws(
     url: str,
     client: typing.Optional[httpx.Client] = None,
@@ -1040,15 +1073,54 @@ def connect_ws(
                     print(message)
                     ws.send_text("Hello!")
     """
-    client = httpx.Client() if client is None else client
+    if client is None:
+        with httpx.Client() as client:
+            with _connect_ws(
+                url,
+                client=client,
+                max_message_size_bytes=max_message_size_bytes,
+                queue_size=queue_size,
+                keepalive_ping_interval_seconds=keepalive_ping_interval_seconds,
+                keepalive_ping_timeout_seconds=keepalive_ping_timeout_seconds,
+                **kwargs,
+            ) as websocket:
+                yield websocket
+    else:
+        with _connect_ws(
+            url,
+            client=client,
+            max_message_size_bytes=max_message_size_bytes,
+            queue_size=queue_size,
+            keepalive_ping_interval_seconds=keepalive_ping_interval_seconds,
+            keepalive_ping_timeout_seconds=keepalive_ping_timeout_seconds,
+            **kwargs,
+        ) as websocket:
+            yield websocket
+
+
+@contextlib.asynccontextmanager
+async def _aconnect_ws(
+    url: str,
+    client: httpx.AsyncClient,
+    *,
+    max_message_size_bytes: int = DEFAULT_MAX_MESSAGE_SIZE_BYTES,
+    queue_size: int = DEFAULT_QUEUE_SIZE,
+    keepalive_ping_interval_seconds: typing.Optional[
+        float
+    ] = DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS,
+    keepalive_ping_timeout_seconds: typing.Optional[
+        float
+    ] = DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
+    **kwargs: typing.Any,
+) -> typing.AsyncGenerator[AsyncWebSocketSession, None]:
     headers = kwargs.pop("headers", {})
     headers.update(_get_headers())
 
-    with client.stream("GET", url, headers=headers, **kwargs) as response:
+    async with client.stream("GET", url, headers=headers, **kwargs) as response:
         if response.status_code != 101:
             raise WebSocketUpgradeError(response)
 
-        session = WebSocketSession(
+        session = AsyncWebSocketSession(
             response.extensions["network_stream"],
             max_message_size_bytes=max_message_size_bytes,
             queue_size=queue_size,
@@ -1056,7 +1128,7 @@ def connect_ws(
             keepalive_ping_timeout_seconds=keepalive_ping_timeout_seconds,
         )
         yield session
-        session.close()
+        await session.close()
 
 
 @contextlib.asynccontextmanager
@@ -1128,20 +1200,26 @@ async def aconnect_ws(
                     print(message)
                     await ws.send_text("Hello!")
     """
-    client = httpx.AsyncClient() if client is None else client
-    headers = kwargs.pop("headers", {})
-    headers.update(_get_headers())
-
-    async with client.stream("GET", url, headers=headers, **kwargs) as response:
-        if response.status_code != 101:
-            raise WebSocketUpgradeError(response)
-
-        session = AsyncWebSocketSession(
-            response.extensions["network_stream"],
+    if client is None:
+        async with httpx.AsyncClient() as client:
+            async with _aconnect_ws(
+                url,
+                client=client,
+                max_message_size_bytes=max_message_size_bytes,
+                queue_size=queue_size,
+                keepalive_ping_interval_seconds=keepalive_ping_interval_seconds,
+                keepalive_ping_timeout_seconds=keepalive_ping_timeout_seconds,
+                **kwargs,
+            ) as websocket:
+                yield websocket
+    else:
+        async with _aconnect_ws(
+            url,
+            client=client,
             max_message_size_bytes=max_message_size_bytes,
             queue_size=queue_size,
             keepalive_ping_interval_seconds=keepalive_ping_interval_seconds,
             keepalive_ping_timeout_seconds=keepalive_ping_timeout_seconds,
-        )
-        yield session
-        await session.close()
+            **kwargs,
+        ) as websocket:
+            yield websocket
