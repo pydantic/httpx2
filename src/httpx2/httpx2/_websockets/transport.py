@@ -10,11 +10,11 @@ from httpx import ASGITransport, AsyncByteStream, Request, Response
 
 from httpx_ws._api import WebSocketDisconnect
 
-Scope = typing.MutableMapping[str, typing.Any]
-Message = typing.MutableMapping[str, typing.Any]
+Scope = typing.Dict[str, typing.Any]
+Message = typing.Dict[str, typing.Any]
 Receive = typing.Callable[[], typing.Awaitable[Message]]
-Send = typing.Callable[[Message], typing.Awaitable[None]]
-ASGIApp = typing.Callable[[Scope, Receive, Send], typing.Awaitable[None]]
+Send = typing.Callable[[Scope], typing.Coroutine[None, None, None]]
+ASGIApp = typing.Callable[[Scope, Receive, Send], typing.Coroutine[None, None, None]]
 
 
 class ASGIWebSocketTransportError(Exception):
