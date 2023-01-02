@@ -518,7 +518,7 @@ class WebSocketSession:
         )
         for task in pending:
             task.cancel()
-        if wait_close_task in done:
+        if wait_close_task in done and todo_task not in done:
             raise ShouldClose()
         result = todo_task.result()
         executor.shutdown(False)
@@ -957,7 +957,7 @@ class AsyncWebSocketSession:
         )
         for task in pending:
             task.cancel()
-        if wait_close_task in done:
+        if wait_close_task in done and todo_task not in done:
             raise ShouldClose()
         return todo_task.result()
 
