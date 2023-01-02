@@ -510,9 +510,12 @@ class WebSocketSession:
     def _wait_until_closed(
         self, callable: typing.Callable[..., TaskResult], *args, **kwargs
     ) -> TaskResult:
-        executor = concurrent.futures.ThreadPoolExecutor(max_workers=2)
-        wait_close_task = executor.submit(self._should_close.wait)
-        todo_task = executor.submit(callable, *args, **kwargs)
+        try:
+            executor = concurrent.futures.ThreadPoolExecutor(max_workers=2)
+            wait_close_task = executor.submit(self._should_close.wait)
+            todo_task = executor.submit(callable, *args, **kwargs)
+        except RuntimeError as e:
+            raise ShouldClose() from e
         done, pending = concurrent.futures.wait(  # type: ignore
             (todo_task, wait_close_task), return_when=concurrent.futures.FIRST_COMPLETED
         )
