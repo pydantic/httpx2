@@ -808,3 +808,56 @@ async def test_default_httpx_client():
     httpx_client = mock_aconnect_ws.call_args[1]["client"]
     assert isinstance(httpx_client, httpx.AsyncClient)
     assert httpx_client.is_closed
+
+
+@pytest.mark.asyncio
+async def test_subprotocol():
+    def handler(request):
+        assert (
+            request.headers["sec-websocket-protocol"]
+            == "custom_protocol, unsupported_protocol"
+        )
+
+        return httpx.Response(
+            101,
+            headers={"sec-websocket-protocol": "custom_protocol"},
+            extensions={"network_stream": MagicMock()},
+        )
+
+    def async_handler(request):
+        assert (
+            request.headers["sec-websocket-protocol"]
+            == "custom_protocol, unsupported_protocol"
+        )
+
+        network_stream = MagicMock()
+        async_method_return_value = asyncio.Future()
+        async_method_return_value.set_result(MagicMock())
+        network_stream.write.return_value = async_method_return_value
+        network_stream.aclose.return_value = async_method_return_value
+
+        return httpx.Response(
+            101,
+            headers={"sec-websocket-protocol": "custom_protocol"},
+            extensions={"network_stream": network_stream},
+        )
+
+    with httpx.Client(
+        base_url="http://localhost:8000", transport=httpx.MockTransport(handler)
+    ) as client:
+        with connect_ws(
+            "http://socket/ws",
+            client,
+            subprotocols=["custom_protocol", "unsupported_protocol"],
+        ) as ws:
+            assert ws.subprotocol == "custom_protocol"
+
+    async with httpx.AsyncClient(
+        base_url="http://localhost:8000", transport=httpx.MockTransport(async_handler)
+    ) as client:
+        async with aconnect_ws(
+            "http://socket/ws",
+            client,
+            subprotocols=["custom_protocol", "unsupported_protocol"],
+        ) as aws:
+            assert aws.subprotocol == "custom_protocol"

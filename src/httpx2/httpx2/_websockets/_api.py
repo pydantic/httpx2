@@ -90,7 +90,13 @@ class ShouldClose(Exception):
 class WebSocketSession:
     """
     Sync helper representing an opened WebSocket session.
+
+    Attributes:
+        subprotocol (typing.Optional[str]):
+            Optional protocol that has been accepted by the server.
     """
+
+    subprotocol: typing.Optional[str]
 
     def __init__(
         self,
@@ -104,9 +110,12 @@ class WebSocketSession:
         keepalive_ping_timeout_seconds: typing.Optional[
             float
         ] = DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
+        subprotocol: typing.Optional[str] = None,
     ) -> None:
         self.stream = stream
         self.connection = wsproto.Connection(wsproto.ConnectionType.CLIENT)
+        self.subprotocol = subprotocol
+
         self._events: queue.Queue[
             typing.Union[wsproto.events.Event, HTTPXWSException]
         ] = queue.Queue(queue_size)
@@ -531,7 +540,13 @@ class WebSocketSession:
 class AsyncWebSocketSession:
     """
     Async helper representing an opened WebSocket session.
+
+    Attributes:
+        subprotocol (typing.Optional[str]):
+            Optional protocol that has been accepted by the server.
     """
+
+    subprotocol: typing.Optional[str]
 
     def __init__(
         self,
@@ -545,9 +560,12 @@ class AsyncWebSocketSession:
         keepalive_ping_timeout_seconds: typing.Optional[
             float
         ] = DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
+        subprotocol: typing.Optional[str] = None,
     ) -> None:
         self.stream = stream
         self.connection = wsproto.Connection(wsproto.ConnectionType.CLIENT)
+        self.subprotocol = subprotocol
+
         self._events: asyncio.Queue[
             typing.Union[wsproto.events.Event, HTTPXWSException]
         ] = asyncio.Queue(queue_size)
@@ -965,13 +983,18 @@ class AsyncWebSocketSession:
         return todo_task.result()
 
 
-def _get_headers() -> typing.Dict[str, typing.Any]:
-    return {
+def _get_headers(
+    subprotocols: typing.Optional[typing.List[str]],
+) -> typing.Dict[str, typing.Any]:
+    headers = {
         "connection": "upgrade",
         "upgrade": "websocket",
         "sec-websocket-key": base64.b64encode(secrets.token_bytes(16)).decode("utf-8"),
         "sec-websocket-version": "13",
     }
+    if subprotocols is not None:
+        headers["sec-websocket-protocol"] = ", ".join(subprotocols)
+    return headers
 
 
 @contextlib.contextmanager
@@ -987,14 +1010,17 @@ def _connect_ws(
     keepalive_ping_timeout_seconds: typing.Optional[
         float
     ] = DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
+    subprotocols: typing.Optional[typing.List[str]] = None,
     **kwargs: typing.Any,
 ) -> typing.Generator[WebSocketSession, None, None]:
     headers = kwargs.pop("headers", {})
-    headers.update(_get_headers())
+    headers.update(_get_headers(subprotocols))
 
     with client.stream("GET", url, headers=headers, **kwargs) as response:
         if response.status_code != 101:
             raise WebSocketUpgradeError(response)
+
+        subprotocol = response.headers.get("sec-websocket-protocol")
 
         session = WebSocketSession(
             response.extensions["network_stream"],
@@ -1002,6 +1028,7 @@ def _connect_ws(
             queue_size=queue_size,
             keepalive_ping_interval_seconds=keepalive_ping_interval_seconds,
             keepalive_ping_timeout_seconds=keepalive_ping_timeout_seconds,
+            subprotocol=subprotocol,
         )
         yield session
         session.close()
@@ -1020,6 +1047,7 @@ def connect_ws(
     keepalive_ping_timeout_seconds: typing.Optional[
         float
     ] = DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
+    subprotocols: typing.Optional[typing.List[str]] = None,
     **kwargs: typing.Any,
 ) -> typing.Generator[WebSocketSession, None, None]:
     """
@@ -1052,6 +1080,8 @@ def connect_ws(
             [WebSocketNetworkError][httpx_ws.WebSocketNetworkError]
             will be raised and the connection closed.
             Defaults to 20 seconds.
+        subprotocols:
+            Optional list of suprotocols to negotiate with the server.
         **kwargs:
             Additional keyword arguments that will be passed to
             the [HTTPX stream()](https://www.python-httpx.org/api/#request) method.
@@ -1085,6 +1115,7 @@ def connect_ws(
                 queue_size=queue_size,
                 keepalive_ping_interval_seconds=keepalive_ping_interval_seconds,
                 keepalive_ping_timeout_seconds=keepalive_ping_timeout_seconds,
+                subprotocols=subprotocols,
                 **kwargs,
             ) as websocket:
                 yield websocket
@@ -1096,6 +1127,7 @@ def connect_ws(
             queue_size=queue_size,
             keepalive_ping_interval_seconds=keepalive_ping_interval_seconds,
             keepalive_ping_timeout_seconds=keepalive_ping_timeout_seconds,
+            subprotocols=subprotocols,
             **kwargs,
         ) as websocket:
             yield websocket
@@ -1114,14 +1146,17 @@ async def _aconnect_ws(
     keepalive_ping_timeout_seconds: typing.Optional[
         float
     ] = DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
+    subprotocols: typing.Optional[typing.List[str]] = None,
     **kwargs: typing.Any,
 ) -> typing.AsyncGenerator[AsyncWebSocketSession, None]:
     headers = kwargs.pop("headers", {})
-    headers.update(_get_headers())
+    headers.update(_get_headers(subprotocols))
 
     async with client.stream("GET", url, headers=headers, **kwargs) as response:
         if response.status_code != 101:
             raise WebSocketUpgradeError(response)
+
+        subprotocol = response.headers.get("sec-websocket-protocol")
 
         session = AsyncWebSocketSession(
             response.extensions["network_stream"],
@@ -1129,6 +1164,7 @@ async def _aconnect_ws(
             queue_size=queue_size,
             keepalive_ping_interval_seconds=keepalive_ping_interval_seconds,
             keepalive_ping_timeout_seconds=keepalive_ping_timeout_seconds,
+            subprotocol=subprotocol,
         )
         yield session
         await session.close()
@@ -1147,6 +1183,7 @@ async def aconnect_ws(
     keepalive_ping_timeout_seconds: typing.Optional[
         float
     ] = DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
+    subprotocols: typing.Optional[typing.List[str]] = None,
     **kwargs: typing.Any,
 ) -> typing.AsyncGenerator[AsyncWebSocketSession, None]:
     """
@@ -1179,6 +1216,8 @@ async def aconnect_ws(
             [WebSocketNetworkError][httpx_ws.WebSocketNetworkError]
             will be raised and the connection closed.
             Defaults to 20 seconds.
+        subprotocols:
+            Optional list of suprotocols to negotiate with the server.
         **kwargs:
             Additional keyword arguments that will be passed to
             the [HTTPX stream()](https://www.python-httpx.org/api/#request) method.
@@ -1212,6 +1251,7 @@ async def aconnect_ws(
                 queue_size=queue_size,
                 keepalive_ping_interval_seconds=keepalive_ping_interval_seconds,
                 keepalive_ping_timeout_seconds=keepalive_ping_timeout_seconds,
+                subprotocols=subprotocols,
                 **kwargs,
             ) as websocket:
                 yield websocket
@@ -1223,6 +1263,7 @@ async def aconnect_ws(
             queue_size=queue_size,
             keepalive_ping_interval_seconds=keepalive_ping_interval_seconds,
             keepalive_ping_timeout_seconds=keepalive_ping_timeout_seconds,
+            subprotocols=subprotocols,
             **kwargs,
         ) as websocket:
             yield websocket
