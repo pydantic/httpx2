@@ -97,6 +97,16 @@ class TestASGIWebSocketAsyncNetworkStream:
             async with ASGIWebSocketAsyncNetworkStream(app, {}):
                 pass
 
+    async def test_exception(self):
+        async def app(scope, receive, send):
+            raise Exception("Error")
+
+        with pytest.raises(WebSocketDisconnect) as excinfo:
+            async with ASGIWebSocketAsyncNetworkStream(app, {}):
+                pass
+        assert excinfo.value.code == 1011
+        assert excinfo.value.reason == "Error"
+
 
 @pytest.fixture
 def test_app() -> Starlette:

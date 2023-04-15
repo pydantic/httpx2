@@ -7,6 +7,7 @@ import anyio
 import wsproto
 from httpcore.backends.base import AsyncNetworkStream
 from httpx import ASGITransport, AsyncByteStream, Request, Response
+from wsproto.connection import CloseReason
 
 from httpx_ws._api import WebSocketDisconnect
 
@@ -48,6 +49,7 @@ class ASGIWebSocketAsyncNetworkStream(AsyncNetworkStream):
         await self.send({"type": "websocket.connect"})
         message = await self.receive()
         if message["type"] == "websocket.close":
+            await self.aclose()
             raise WebSocketDisconnect(message["code"], message.get("reason"))
         assert message["type"] == "websocket.accept"
         return self
@@ -116,7 +118,15 @@ class ASGIWebSocketAsyncNetworkStream(AsyncNetworkStream):
         scope = self.scope
         receive = self._asgi_receive
         send = self._asgi_send
-        await self.app(scope, receive, send)
+        try:
+            await self.app(scope, receive, send)
+        except Exception as e:
+            message = {
+                "type": "websocket.close",
+                "code": CloseReason.INTERNAL_ERROR,
+                "reason": str(e),
+            }
+            await self._asgi_send(message)
 
     async def _asgi_receive(self) -> Message:
         while self._receive_queue.empty():
