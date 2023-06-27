@@ -2,15 +2,9 @@ import asyncio
 import contextlib
 import pathlib
 import queue
-import sys
 import tempfile
-from typing import Callable, ContextManager
+from typing import Callable, ContextManager, Literal, Protocol
 from unittest.mock import MagicMock
-
-if sys.version_info < (3, 8):
-    from typing_extensions import Literal, Protocol  # pragma: no cover
-else:
-    from typing import Literal, Protocol  # pragma: no cover
 
 import pytest
 import uvicorn
