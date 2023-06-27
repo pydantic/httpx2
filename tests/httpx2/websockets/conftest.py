@@ -49,10 +49,12 @@ def server_factory(
                 WebSocketRoute("/ws", endpoint=endpoint),
             ]
 
-            async def on_startup():
+            @contextlib.asynccontextmanager
+            async def lifespan(app: Starlette):
                 startup_queue.put(True)
+                yield
 
-            return Starlette(routes=routes, on_startup=[on_startup])
+            return Starlette(routes=routes, lifespan=lifespan)
 
         def create_server(app: Starlette, socket: str):
             config = uvicorn.Config(app, uds=socket, ws=websocket_implementation)
