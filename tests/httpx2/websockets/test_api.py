@@ -9,7 +9,7 @@ import httpcore
 import httpx
 import pytest
 import wsproto
-from httpcore.backends.base import AsyncNetworkStream, NetworkStream
+from httpcore import AsyncNetworkStream, NetworkStream
 from starlette.websockets import WebSocket
 from starlette.websockets import WebSocketDisconnect as StarletteWebSocketDisconnect
 

@@ -5,7 +5,7 @@ from concurrent.futures import Future
 
 import anyio
 import wsproto
-from httpcore.backends.base import AsyncNetworkStream
+from httpcore import AsyncNetworkStream
 from httpx import ASGITransport, AsyncByteStream, Request, Response
 from wsproto.connection import CloseReason
 
