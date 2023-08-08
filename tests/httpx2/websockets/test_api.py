@@ -332,6 +332,51 @@ class TestReceive:
                 except WebSocketDisconnect:
                     pass
 
+    @pytest.mark.parametrize(
+        "full_message,send_method",
+        [
+            (b"A" * 1024 * 1024, "send_bytes"),
+            ("A" * 1024 * 1024, "send_text"),
+        ],
+    )
+    async def test_receive_oversized_message(
+        self,
+        full_message: typing.Union[str, bytes],
+        send_method: str,
+        server_factory: ServerFactoryFixture,
+    ):
+        async def websocket_endpoint(websocket: WebSocket):
+            await websocket.accept()
+            await asyncio.sleep(0.1)  # FIXME: see #7
+
+            method = getattr(websocket, send_method)
+            await method(full_message)
+
+            await websocket.close()
+
+        with server_factory(websocket_endpoint) as socket:
+            with httpx.Client(transport=httpx.HTTPTransport(uds=socket)) as client:
+                try:
+                    with connect_ws(
+                        "http://socket/ws", client, max_message_size_bytes=1024
+                    ) as ws:
+                        event = ws.receive()
+                        assert isinstance(event, wsproto.events.Message)
+                        assert event.data == full_message
+                except WebSocketDisconnect:
+                    pass
+
+            async with httpx.AsyncClient(
+                transport=httpx.AsyncHTTPTransport(uds=socket)
+            ) as aclient:
+                try:
+                    async with aconnect_ws("http://socket/ws", aclient) as aws:
+                        event = await aws.receive()
+                        assert isinstance(event, wsproto.events.Message)
+                        assert event.data == full_message
+                except WebSocketDisconnect:
+                    pass
+
     async def test_receive_text(self, server_factory: ServerFactoryFixture):
         async def websocket_endpoint(websocket: WebSocket):
             await websocket.accept()

@@ -468,6 +468,7 @@ class WebSocketSession:
         Args:
             max_bytes: The maximum chunk size to read at each iteration.
         """
+        partial_message_buffer: typing.Union[str, bytes, None] = None
         try:
             while not self._should_close.is_set():
                 data = self._wait_until_closed(self.stream.read, max_bytes)
@@ -482,6 +483,25 @@ class WebSocketSession:
                         continue
                     if isinstance(event, wsproto.events.CloseConnection):
                         self._should_close.set()
+                    if isinstance(event, wsproto.events.Message):
+                        # Unfinished message: bufferize
+                        if not event.message_finished:
+                            if partial_message_buffer is None:
+                                partial_message_buffer = event.data
+                            else:
+                                partial_message_buffer += event.data
+                        # Finished message but no buffer: just emit the event
+                        elif partial_message_buffer is None:
+                            self._events.put(event)
+                        # Finished message with buffer: emit the full event
+                        else:
+                            event_type = type(event)
+                            full_message_event = event_type(
+                                partial_message_buffer + event.data
+                            )
+                            partial_message_buffer = None
+                            self._events.put(full_message_event)
+                        continue
                     self._events.put(event)
         except (httpcore.ReadError, httpcore.WriteError):
             self.close(CloseReason.INTERNAL_ERROR, "Stream error")
@@ -919,6 +939,7 @@ class AsyncWebSocketSession:
         Args:
             max_bytes: The maximum chunk size to read at each iteration.
         """
+        partial_message_buffer: typing.Union[str, bytes, None] = None
         try:
             while not self._should_close.is_set():
                 data = await self._wait_until_closed(
@@ -935,6 +956,25 @@ class AsyncWebSocketSession:
                         continue
                     if isinstance(event, wsproto.events.CloseConnection):
                         self._should_close.set()
+                    if isinstance(event, wsproto.events.Message):
+                        # Unfinished message: bufferize
+                        if not event.message_finished:
+                            if partial_message_buffer is None:
+                                partial_message_buffer = event.data
+                            else:
+                                partial_message_buffer += event.data
+                        # Finished message but no buffer: just emit the event
+                        elif partial_message_buffer is None:
+                            await self._events.put(event)
+                        # Finished message with buffer: emit the full event
+                        else:
+                            event_type = type(event)
+                            full_message_event = event_type(
+                                partial_message_buffer + event.data
+                            )
+                            partial_message_buffer = None
+                            await self._events.put(full_message_event)
+                        continue
                     await self._events.put(event)
         except (httpcore.ReadError, httpcore.WriteError):
             await self.close(CloseReason.INTERNAL_ERROR, "Stream error")
