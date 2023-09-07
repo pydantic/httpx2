@@ -43,7 +43,7 @@ class ASGIWebSocketAsyncNetworkStream(AsyncNetworkStream):
     async def __aenter__(self) -> "ASGIWebSocketAsyncNetworkStream":
         self.exit_stack = contextlib.ExitStack()
         self.portal = self.exit_stack.enter_context(
-            anyio.start_blocking_portal("asyncio")
+            anyio.from_thread.start_blocking_portal("asyncio")
         )
         _: "Future[None]" = self.portal.start_task_soon(self._run)
         await self.send({"type": "websocket.connect"})
