@@ -7,7 +7,7 @@ import anyio
 import wsproto
 from httpcore import AsyncNetworkStream
 from httpx import ASGITransport, AsyncByteStream, Request, Response
-from wsproto.connection import CloseReason
+from wsproto.frame_protocol import CloseReason
 
 from httpx_ws._api import WebSocketDisconnect
 

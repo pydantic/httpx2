@@ -12,7 +12,7 @@ import httpcore
 import httpx
 import wsproto
 from httpcore import AsyncNetworkStream, NetworkStream
-from wsproto.connection import CloseReason
+from wsproto.frame_protocol import CloseReason
 
 from httpx_ws._ping import AsyncPingManager, PingManager
 
@@ -107,7 +107,7 @@ class WebSocketSession:
         subprotocol: typing.Optional[str] = None,
     ) -> None:
         self.stream = stream
-        self.connection = wsproto.Connection(wsproto.ConnectionType.CLIENT)
+        self.connection = wsproto.connection.Connection(wsproto.ConnectionType.CLIENT)
         self.subprotocol = subprotocol
 
         self._events: queue.Queue[
@@ -577,7 +577,7 @@ class AsyncWebSocketSession:
         subprotocol: typing.Optional[str] = None,
     ) -> None:
         self.stream = stream
-        self.connection = wsproto.Connection(wsproto.ConnectionType.CLIENT)
+        self.connection = wsproto.connection.Connection(wsproto.ConnectionType.CLIENT)
         self.subprotocol = subprotocol
 
         self._events: asyncio.Queue[
