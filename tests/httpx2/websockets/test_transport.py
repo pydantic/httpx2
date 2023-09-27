@@ -8,7 +8,7 @@ from starlette.responses import PlainTextResponse
 from starlette.routing import Route, WebSocketRoute
 from starlette.websockets import WebSocket
 
-from httpx_ws import WebSocketDisconnect
+from httpx_ws import WebSocketDisconnect, aconnect_ws
 from httpx_ws.transport import (
     ASGIWebSocketAsyncNetworkStream,
     ASGIWebSocketTransport,
@@ -153,3 +153,24 @@ class TestASGIWebSocketTransport:
             assert isinstance(
                 response.extensions["network_stream"], ASGIWebSocketAsyncNetworkStream
             )
+
+
+@pytest.mark.asyncio
+async def test_subprotocol_support():
+    async def websocket_endpoint(websocket: WebSocket):
+        await websocket.accept()
+        assert websocket.scope.get("subprotocols") == ["custom_protocol"]
+        await websocket.send_text("SERVER_MESSAGE")
+        await websocket.close()
+
+    app = Starlette(
+        routes=[
+            WebSocketRoute("/ws", endpoint=websocket_endpoint),
+        ]
+    )
+
+    async with httpx.AsyncClient(transport=ASGIWebSocketTransport(app)) as client:
+        async with aconnect_ws(
+            "ws://localhost:8000/ws", client, subprotocols=["custom_protocol"]
+        ) as ws:
+            await ws.receive_text()

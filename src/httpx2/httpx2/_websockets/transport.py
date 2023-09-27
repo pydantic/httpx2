@@ -147,6 +147,12 @@ class ASGIWebSocketTransport(ASGITransport):
         headers = request.headers
 
         if scheme in {"ws", "wss"} or headers.get("upgrade") == "websocket":
+            subprotocols: typing.List[str] = []
+            if (
+                subprotocols_header := headers.get("sec-websocket-protocol")
+            ) is not None:
+                subprotocols = subprotocols_header.split(",")
+
             scope = {
                 "type": "websocket",
                 "path": request.url.path,
@@ -157,6 +163,7 @@ class ASGIWebSocketTransport(ASGITransport):
                 "headers": [(k.lower(), v) for (k, v) in request.headers.raw],
                 "client": self.client,
                 "server": (request.url.host, request.url.port),
+                "subprotocols": subprotocols,
             }
             return await self._handle_ws_request(request, scope)
 
