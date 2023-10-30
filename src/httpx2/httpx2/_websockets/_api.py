@@ -45,9 +45,12 @@ class WebSocketSession:
     Attributes:
         subprotocol (typing.Optional[str]):
             Optional protocol that has been accepted by the server.
+        response (typing.Optional[httpx.Response]):
+            The response received after completing the WebSocket handshake.
     """
 
     subprotocol: typing.Optional[str]
+    response: typing.Optional[httpx.Response]
 
     def __init__(
         self,
@@ -62,10 +65,12 @@ class WebSocketSession:
             float
         ] = DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
         subprotocol: typing.Optional[str] = None,
+        response: typing.Optional[httpx.Response] = None,
     ) -> None:
         self.stream = stream
         self.connection = wsproto.connection.Connection(wsproto.ConnectionType.CLIENT)
         self.subprotocol = subprotocol
+        self.response = response
 
         self._events: queue.Queue[
             typing.Union[wsproto.events.Event, HTTPXWSException]
@@ -533,6 +538,8 @@ class AsyncWebSocketSession:
     Attributes:
         subprotocol (typing.Optional[str]):
             Optional protocol that has been accepted by the server.
+        response (typing.Optional[httpx.Response]):
+            The response received after completing the WebSocket handshake.
     """
 
     subprotocol: typing.Optional[str]
@@ -550,10 +557,12 @@ class AsyncWebSocketSession:
             float
         ] = DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
         subprotocol: typing.Optional[str] = None,
+        response: typing.Optional[httpx.Response] = None,
     ) -> None:
         self.stream = stream
         self.connection = wsproto.connection.Connection(wsproto.ConnectionType.CLIENT)
         self.subprotocol = subprotocol
+        self.response = response
 
         self._send_event, self._receive_event = anyio.create_memory_object_stream[
             typing.Union[wsproto.events.Event, HTTPXWSException]
@@ -1044,6 +1053,7 @@ def _connect_ws(
             keepalive_ping_interval_seconds=keepalive_ping_interval_seconds,
             keepalive_ping_timeout_seconds=keepalive_ping_timeout_seconds,
             subprotocol=subprotocol,
+            response=response,
         ) as session:
             yield session
 
@@ -1179,6 +1189,7 @@ async def _aconnect_ws(
             keepalive_ping_interval_seconds=keepalive_ping_interval_seconds,
             keepalive_ping_timeout_seconds=keepalive_ping_timeout_seconds,
             subprotocol=subprotocol,
+            response=response,
         ) as session:
             yield session
 
