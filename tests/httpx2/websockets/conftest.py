@@ -1,4 +1,3 @@
-import asyncio
 import contextlib
 import pathlib
 import queue
@@ -11,13 +10,6 @@ import uvicorn
 from anyio.from_thread import start_blocking_portal
 from starlette.applications import Starlette
 from starlette.routing import WebSocketRoute
-
-
-@pytest.fixture(scope="session")
-def event_loop():
-    loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
 
 
 @pytest.fixture
