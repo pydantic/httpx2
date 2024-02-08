@@ -47,7 +47,7 @@ def scope(websocket_request_headers: Dict[str, str]) -> Scope:
     }
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 class TestASGIWebSocketAsyncNetworkStream:
     async def test_write(self, scope: Scope):
         received_messages = []
@@ -156,7 +156,7 @@ def test_app() -> Starlette:
     return Starlette(routes=routes)
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 class TestASGIWebSocketTransport:
     async def test_http(self, test_app: Starlette):
         async with ASGIWebSocketTransport(app=test_app) as transport:
@@ -191,7 +191,7 @@ class TestASGIWebSocketTransport:
             )
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_subprotocol_support():
     async def websocket_endpoint(websocket: WebSocket):
         await websocket.accept("custom_protocol")

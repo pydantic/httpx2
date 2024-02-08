@@ -42,7 +42,7 @@ class ASGIWebSocketAsyncNetworkStream(AsyncNetworkStream):
         self.connection.initiate_upgrade_connection(scope["headers"], scope["path"])
 
     async def __aenter__(
-        self
+        self,
     ) -> typing.Tuple["ASGIWebSocketAsyncNetworkStream", bytes]:
         self.exit_stack = contextlib.ExitStack()
         self.portal = self.exit_stack.enter_context(

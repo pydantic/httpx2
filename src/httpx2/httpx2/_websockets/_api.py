@@ -1,4 +1,3 @@
-import asyncio
 import base64
 import concurrent.futures
 import contextlib
@@ -8,6 +7,7 @@ import secrets
 import threading
 import typing
 
+import anyio
 import httpcore
 import httpx
 import wsproto
@@ -580,27 +580,41 @@ class AsyncWebSocketSession:
         self.connection = wsproto.connection.Connection(wsproto.ConnectionType.CLIENT)
         self.subprotocol = subprotocol
 
-        self._events: asyncio.Queue[
+        self._send_event, self._receive_event = anyio.create_memory_object_stream[
             typing.Union[wsproto.events.Event, HTTPXWSException]
-        ] = asyncio.Queue(queue_size)
+        ]()
 
         self._ping_manager = AsyncPingManager()
+        self._should_close = anyio.Event()
 
-        self._should_close = asyncio.Event()
+        self._max_message_size_bytes = max_message_size_bytes
+        self._queue_size = queue_size
+        self._keepalive_ping_interval_seconds = keepalive_ping_interval_seconds
+        self._keepalive_ping_timeout_seconds = keepalive_ping_timeout_seconds
 
-        self._background_receive_task = asyncio.create_task(
-            self._background_receive(max_message_size_bytes)
+    async def __aenter__(self):
+        self._exit_stack = contextlib.AsyncExitStack()
+        self._background_task_group = anyio.create_task_group()
+        await self._exit_stack.enter_async_context(self._background_task_group)
+
+        self._background_task_group.start_soon(
+            self._background_receive, self._max_message_size_bytes
         )
-
-        self._background_keepalive_ping_task: typing.Optional[asyncio.Task] = None
-        if keepalive_ping_interval_seconds is not None:
-            self._background_keepalive_ping_task = asyncio.create_task(
-                self._background_keepalive_ping(
-                    keepalive_ping_interval_seconds, keepalive_ping_timeout_seconds
-                )
+        if self._keepalive_ping_interval_seconds is not None:
+            self._background_task_group.start_soon(
+                self._background_keepalive_ping,
+                self._keepalive_ping_interval_seconds,
+                self._keepalive_ping_timeout_seconds,
             )
 
-    async def ping(self, payload: bytes = b"") -> asyncio.Event:
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        await self.close()
+        self._background_task_group.cancel_scope.cancel()
+        await self._exit_stack.aclose()
+
+    async def ping(self, payload: bytes = b"") -> anyio.Event:
         """
         Send a Ping message.
 
@@ -736,7 +750,7 @@ class AsyncWebSocketSession:
             A raw [wsproto.events.Event][wsproto.events.Event].
 
         Raises:
-            asyncio.TimeoutError: No event was received before the timeout delay.
+            TimeoutError: No event was received before the timeout delay.
             WebSocketDisconnect: The server closed the websocket.
             WebSocketNetworkError: A network error occured.
 
@@ -752,12 +766,13 @@ class AsyncWebSocketSession:
 
                 try:
                     event = await ws.receive(timeout=2.)
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     print("No event received.")
                 except WebSocketDisconnect:
                     print("Connection closed")
         """
-        event = await asyncio.wait_for(self._events.get(), timeout)
+        with anyio.fail_after(timeout):
+            event = await self._receive_event.receive()
         if isinstance(event, HTTPXWSException):
             raise event
         if isinstance(event, wsproto.events.CloseConnection):
@@ -777,7 +792,7 @@ class AsyncWebSocketSession:
             Text data.
 
         Raises:
-            asyncio.TimeoutError: No event was received before the timeout delay.
+            TimeoutError: No event was received before the timeout delay.
             WebSocketDisconnect: The server closed the websocket.
             WebSocketNetworkError: A network error occured.
             WebSocketInvalidTypeReceived: The received event was not a text message.
@@ -794,7 +809,7 @@ class AsyncWebSocketSession:
 
                 try:
                     event = await ws.receive_text(timeout=2.)
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     print("No text received.")
                 except WebSocketDisconnect:
                     print("Connection closed")
@@ -817,7 +832,7 @@ class AsyncWebSocketSession:
             Bytes data.
 
         Raises:
-            asyncio.TimeoutError: No event was received before the timeout delay.
+            TimeoutError: No event was received before the timeout delay.
             WebSocketDisconnect: The server closed the websocket.
             WebSocketNetworkError: A network error occured.
             WebSocketInvalidTypeReceived: The received event was not a bytes message.
@@ -834,7 +849,7 @@ class AsyncWebSocketSession:
 
                 try:
                     data = await ws.receive_bytes(timeout=2.)
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     print("No data received.")
                 except WebSocketDisconnect:
                     print("Connection closed")
@@ -863,7 +878,7 @@ class AsyncWebSocketSession:
             Parsed JSON data.
 
         Raises:
-            asyncio.TimeoutError: No event was received before the timeout delay.
+            TimeoutError: No event was received before the timeout delay.
             WebSocketDisconnect: The server closed the websocket.
             WebSocketNetworkError: A network error occured.
             WebSocketInvalidTypeReceived: The received event
@@ -881,7 +896,7 @@ class AsyncWebSocketSession:
 
                 try:
                     data = await ws.receive_json(timeout=2.)
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     print("No data received.")
                 except WebSocketDisconnect:
                     print("Connection closed")
@@ -942,9 +957,7 @@ class AsyncWebSocketSession:
         partial_message_buffer: typing.Union[str, bytes, None] = None
         try:
             while not self._should_close.is_set():
-                data = await self._wait_until_closed(
-                    self.stream.read(max_bytes=max_bytes)
-                )
+                data = await self.stream.read(max_bytes=max_bytes)
                 self.connection.receive_data(data)
                 for event in self.connection.events():
                     if isinstance(event, wsproto.events.Ping):
@@ -965,7 +978,7 @@ class AsyncWebSocketSession:
                                 partial_message_buffer += event.data
                         # Finished message but no buffer: just emit the event
                         elif partial_message_buffer is None:
-                            await self._events.put(event)
+                            await self._send_event.send(event)
                         # Finished message with buffer: emit the full event
                         else:
                             event_type = type(event)
@@ -973,13 +986,13 @@ class AsyncWebSocketSession:
                                 partial_message_buffer + event.data
                             )
                             partial_message_buffer = None
-                            await self._events.put(full_message_event)
+                            await self._send_event.send(full_message_event)
                         continue
-                    await self._events.put(event)
+                    await self._send_event.send(event)
         except (httpcore.ReadError, httpcore.WriteError):
             await self.close(CloseReason.INTERNAL_ERROR, "Stream error")
-            await self._events.put(WebSocketNetworkError())
-        except ShouldClose:
+            await self._send_event.send(WebSocketNetworkError())
+        except anyio.get_cancelled_exc_class():
             pass
 
     async def _background_keepalive_ping(
@@ -987,34 +1000,19 @@ class AsyncWebSocketSession:
     ) -> None:
         try:
             while not self._should_close.is_set():
-                await self._wait_until_closed(asyncio.sleep(interval_seconds))
+                await anyio.sleep(interval_seconds)
                 pong_callback = await self.ping()
                 if timeout_seconds is not None:
                     try:
-                        await self._wait_until_closed(
-                            asyncio.wait_for(pong_callback.wait(), timeout_seconds)
-                        )
-                    except asyncio.TimeoutError:
+                        with anyio.fail_after(timeout_seconds):
+                            await pong_callback.wait()
+                    except TimeoutError:
                         await self.close(
                             CloseReason.INTERNAL_ERROR, "Keepalive ping timeout"
                         )
-                        await self._events.put(WebSocketNetworkError())
-        except ShouldClose:
+                        await self._send_event.send(WebSocketNetworkError())
+        except anyio.get_cancelled_exc_class():
             pass
-
-    async def _wait_until_closed(
-        self, coro: typing.Coroutine[typing.Any, typing.Any, TaskResult]
-    ) -> TaskResult:
-        wait_close_task = asyncio.create_task(self._should_close.wait())
-        todo_task = asyncio.create_task(coro)
-        done, pending = await asyncio.wait(
-            {todo_task, wait_close_task}, return_when=asyncio.FIRST_COMPLETED
-        )
-        for task in pending:
-            task.cancel()
-        if wait_close_task in done and todo_task not in done:
-            raise ShouldClose()
-        return todo_task.result()
 
 
 def _get_headers(
@@ -1192,16 +1190,15 @@ async def _aconnect_ws(
 
         subprotocol = response.headers.get("sec-websocket-protocol")
 
-        session = AsyncWebSocketSession(
+        async with AsyncWebSocketSession(
             response.extensions["network_stream"],
             max_message_size_bytes=max_message_size_bytes,
             queue_size=queue_size,
             keepalive_ping_interval_seconds=keepalive_ping_interval_seconds,
             keepalive_ping_timeout_seconds=keepalive_ping_timeout_seconds,
             subprotocol=subprotocol,
-        )
-        yield session
-        await session.close()
+        ) as session:
+            yield session
 
 
 @contextlib.asynccontextmanager

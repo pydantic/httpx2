@@ -1,10 +1,10 @@
-import asyncio
 import contextlib
 import queue
 import time
 import typing
 from unittest.mock import MagicMock, call, patch
 
+import anyio
 import httpcore
 import httpx
 import pytest
@@ -27,7 +27,7 @@ from httpx_ws import (
 from tests.conftest import ServerFactoryFixture
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_upgrade_error():
     def handler(request):
         return httpx.Response(400)
@@ -47,7 +47,7 @@ async def test_upgrade_error():
                 pass
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 class TestSend:
     async def test_send_error(self):
         class MockNetworkStream(NetworkStream):
@@ -90,7 +90,7 @@ class TestSend:
                 self, max_bytes: int, timeout: typing.Optional[float] = None
             ) -> bytes:
                 while not self._should_close:
-                    await asyncio.sleep(0.1)
+                    await anyio.sleep(0.1)
                 raise httpcore.ReadError()
 
             async def write(
@@ -102,10 +102,9 @@ class TestSend:
                 self._should_close = True
 
         stream = AsyncMockNetworkStream()
-        websocket_session = AsyncWebSocketSession(stream)
         with pytest.raises(WebSocketNetworkError):
-            await websocket_session.send(wsproto.events.Ping())
-        await websocket_session.close()
+            async with AsyncWebSocketSession(stream) as websocket_session:
+                await websocket_session.send(wsproto.events.Ping())
 
     async def test_send(
         self,
@@ -248,7 +247,7 @@ class TestSend:
         )
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 class TestReceive:
     async def test_receive_error(self):
         class MockNetworkStream(NetworkStream):
@@ -297,15 +296,14 @@ class TestReceive:
                 pass
 
         stream = AsyncMockNetworkStream()
-        websocket_session = AsyncWebSocketSession(stream)
         with pytest.raises(WebSocketNetworkError):
-            await websocket_session.receive()
-        await websocket_session.close()
+            async with AsyncWebSocketSession(stream) as websocket_session:
+                await websocket_session.receive()
 
     async def test_receive(self, server_factory: ServerFactoryFixture):
         async def websocket_endpoint(websocket: WebSocket):
             await websocket.accept()
-            await asyncio.sleep(0.1)  # FIXME: see #7
+            await anyio.sleep(0.1)  # FIXME: see #7
 
             await websocket.send_text("SERVER_MESSAGE")
 
@@ -347,7 +345,7 @@ class TestReceive:
     ):
         async def websocket_endpoint(websocket: WebSocket):
             await websocket.accept()
-            await asyncio.sleep(0.1)  # FIXME: see #7
+            await anyio.sleep(0.1)  # FIXME: see #7
 
             method = getattr(websocket, send_method)
             await method(full_message)
@@ -370,7 +368,11 @@ class TestReceive:
                 transport=httpx.AsyncHTTPTransport(uds=socket)
             ) as aclient:
                 try:
-                    async with aconnect_ws("http://socket/ws", aclient) as aws:
+                    async with aconnect_ws(
+                        "http://socket/ws",
+                        aclient,
+                        keepalive_ping_interval_seconds=None,
+                    ) as aws:
                         event = await aws.receive()
                         assert isinstance(event, wsproto.events.Message)
                         assert event.data == full_message
@@ -380,7 +382,7 @@ class TestReceive:
     async def test_receive_text(self, server_factory: ServerFactoryFixture):
         async def websocket_endpoint(websocket: WebSocket):
             await websocket.accept()
-            await asyncio.sleep(0.1)  # FIXME: see #7
+            await anyio.sleep(0.1)  # FIXME: see #7
 
             await websocket.send_text("SERVER_MESSAGE")
 
@@ -410,7 +412,7 @@ class TestReceive:
     ):
         async def websocket_endpoint(websocket: WebSocket):
             await websocket.accept()
-            await asyncio.sleep(0.1)  # FIXME: see #7
+            await anyio.sleep(0.1)  # FIXME: see #7
 
             await websocket.send_bytes(b"SERVER_MESSAGE")
 
@@ -438,7 +440,7 @@ class TestReceive:
     async def test_receive_bytes(self, server_factory: ServerFactoryFixture):
         async def websocket_endpoint(websocket: WebSocket):
             await websocket.accept()
-            await asyncio.sleep(0.1)  # FIXME: see #7
+            await anyio.sleep(0.1)  # FIXME: see #7
 
             await websocket.send_bytes(b"SERVER_MESSAGE")
 
@@ -468,7 +470,7 @@ class TestReceive:
     ):
         async def websocket_endpoint(websocket: WebSocket):
             await websocket.accept()
-            await asyncio.sleep(0.1)  # FIXME: see #7
+            await anyio.sleep(0.1)  # FIXME: see #7
 
             await websocket.send_text("SERVER_MESSAGE")
 
@@ -493,7 +495,7 @@ class TestReceive:
     ):
         async def websocket_endpoint(websocket: WebSocket):
             await websocket.accept()
-            await asyncio.sleep(0.1)  # FIXME: see #7
+            await anyio.sleep(0.1)  # FIXME: see #7
 
             await websocket.send_json({"message": "SERVER_MESSAGE"}, mode=mode)
 
@@ -519,7 +521,7 @@ class TestReceive:
                     pass
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 class TestReceivePing:
     async def test_receive_ping(self):
         class MockNetworkStream(NetworkStream):
@@ -551,7 +553,7 @@ class TestReceivePing:
 
         stream = MockNetworkStream()
         websocket_session = WebSocketSession(stream)
-        await asyncio.sleep(0.1)
+        await anyio.sleep(0.1)
         websocket_session.close()
 
         received_events = list(stream.connection.events())
@@ -589,9 +591,8 @@ class TestReceivePing:
                 pass
 
         stream = MockAsyncNetworkStream()
-        websocket_session = AsyncWebSocketSession(stream)
-        await asyncio.sleep(0.1)
-        await websocket_session.close()
+        async with AsyncWebSocketSession(stream):
+            await anyio.sleep(0.1)
 
         received_events = list(stream.connection.events())
         assert received_events == [
@@ -600,7 +601,7 @@ class TestReceivePing:
         ]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 class TestKeepalivePing:
     async def test_keepalive_ping(self):
         class MockNetworkStream(NetworkStream):
@@ -643,7 +644,7 @@ class TestKeepalivePing:
             keepalive_ping_interval_seconds=0.1,
             keepalive_ping_timeout_seconds=0.1,
         )
-        await asyncio.sleep(0.2)
+        await anyio.sleep(0.2)
         websocket_session.close()
 
         assert stream.ping_received >= 1
@@ -690,20 +691,21 @@ class TestKeepalivePing:
                 self._should_close = False
                 self.ping_received = 0
                 self.ping_answered = 0
-                self.events_to_send: asyncio.Queue[
-                    wsproto.events.Event
-                ] = asyncio.Queue()
+                (
+                    self.send_events,
+                    self.receive_events,
+                ) = anyio.create_memory_object_stream[wsproto.events.Event]()
 
             async def read(
                 self, max_bytes: int, timeout: typing.Optional[float] = None
             ) -> bytes:
                 while not self._should_close:
                     try:
-                        event = self.events_to_send.get_nowait()
+                        event = self.receive_events.receive_nowait()
                         self.ping_answered += 1
                         return self.connection.send(event)
-                    except asyncio.QueueEmpty:
-                        await asyncio.sleep(0.1)
+                    except anyio.WouldBlock:
+                        await anyio.sleep(0.1)
                 raise httpcore.ReadError()
 
             async def write(
@@ -713,19 +715,18 @@ class TestKeepalivePing:
                 for event in self.connection.events():
                     if isinstance(event, wsproto.events.Ping):
                         self.ping_received += 1
-                        await self.events_to_send.put(event.response())
+                        await self.send_events.send(event.response())
 
             async def aclose(self) -> None:
                 self._should_close = True
 
         stream = MockAsyncNetworkStream()
-        websocket_session = AsyncWebSocketSession(
+        async with AsyncWebSocketSession(
             stream,
             keepalive_ping_interval_seconds=0.1,
             keepalive_ping_timeout_seconds=0.1,
-        )
-        await asyncio.sleep(0.3)
-        await websocket_session.close()
+        ):
+            await anyio.sleep(0.3)
 
         assert stream.ping_received >= 1
         assert stream.ping_answered >= 1
@@ -742,7 +743,7 @@ class TestKeepalivePing:
                 self, max_bytes: int, timeout: typing.Optional[float] = None
             ) -> bytes:
                 while not self._should_close:
-                    await asyncio.sleep(0.1)
+                    await anyio.sleep(0.1)
                 raise httpcore.ReadError()
 
             async def write(
@@ -755,15 +756,15 @@ class TestKeepalivePing:
 
         stream = MockAsyncNetworkStream()
         with pytest.raises(WebSocketNetworkError):
-            websocket_session = AsyncWebSocketSession(
+            async with AsyncWebSocketSession(
                 stream,
                 keepalive_ping_interval_seconds=0.1,
                 keepalive_ping_timeout_seconds=0.1,
-            )
-            await websocket_session.receive()
+            ) as websocket_session:
+                await websocket_session.receive()
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_ping_pong(server_factory: ServerFactoryFixture):
     async def websocket_endpoint(websocket: WebSocket):
         await websocket.accept()
@@ -784,11 +785,11 @@ async def test_ping_pong(server_factory: ServerFactoryFixture):
         ) as aclient:
             async with aconnect_ws("http://socket/ws", aclient) as aws:
                 aping_callback = await aws.ping()
-                aresult = await aping_callback.wait()
-                assert aresult is True
+                await aping_callback.wait()
+                assert aping_callback.is_set()
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_send_close(server_factory: ServerFactoryFixture):
     async def websocket_endpoint(websocket: WebSocket):
         await websocket.accept()
@@ -809,11 +810,11 @@ async def test_send_close(server_factory: ServerFactoryFixture):
                 pass
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_receive_close(server_factory: ServerFactoryFixture):
     async def websocket_endpoint(websocket: WebSocket):
         await websocket.accept()
-        await asyncio.sleep(0.1)  # FIXME: see #7
+        await anyio.sleep(0.1)  # FIXME: see #7
         await websocket.close()
 
     with server_factory(websocket_endpoint) as socket:
@@ -830,7 +831,7 @@ async def test_receive_close(server_factory: ServerFactoryFixture):
                     await aws.receive()
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_default_httpx_client():
     mock_context = contextlib.ExitStack()
     with patch(
@@ -855,7 +856,7 @@ async def test_default_httpx_client():
     assert httpx_client.is_closed
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_subprotocol():
     def handler(request):
         assert (
@@ -866,7 +867,7 @@ async def test_subprotocol():
         return httpx.Response(
             101,
             headers={"sec-websocket-protocol": "custom_protocol"},
-            extensions={"network_stream": MagicMock()},
+            extensions={"network_stream": MagicMock(spec=NetworkStream)},
         )
 
     def async_handler(request):
@@ -875,16 +876,10 @@ async def test_subprotocol():
             == "custom_protocol, unsupported_protocol"
         )
 
-        network_stream = MagicMock()
-        async_method_return_value = asyncio.Future()
-        async_method_return_value.set_result(MagicMock())
-        network_stream.write.return_value = async_method_return_value
-        network_stream.aclose.return_value = async_method_return_value
-
         return httpx.Response(
             101,
             headers={"sec-websocket-protocol": "custom_protocol"},
-            extensions={"network_stream": network_stream},
+            extensions={"network_stream": MagicMock(spec=AsyncNetworkStream)},
         )
 
     with httpx.Client(

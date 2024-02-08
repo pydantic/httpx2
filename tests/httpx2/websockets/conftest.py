@@ -29,7 +29,7 @@ class ServerFactoryFixture(Protocol):
 
 @pytest.fixture
 def server_factory(
-    websocket_implementation: Literal["wsproto", "websockets"]
+    websocket_implementation: Literal["wsproto", "websockets"],
 ) -> ServerFactoryFixture:
     @contextlib.contextmanager
     def _server_factory(endpoint: Callable):
