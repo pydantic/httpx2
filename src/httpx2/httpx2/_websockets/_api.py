@@ -115,21 +115,37 @@ class WebSocketSession:
         ] = queue.Queue(queue_size)
 
         self._ping_manager = PingManager()
-
         self._should_close = threading.Event()
 
+        self._max_message_size_bytes = max_message_size_bytes
+        self._queue_size = queue_size
+        self._keepalive_ping_interval_seconds = keepalive_ping_interval_seconds
+        self._keepalive_ping_timeout_seconds = keepalive_ping_timeout_seconds
+
+    def __enter__(self) -> "WebSocketSession":
         self._background_receive_task = threading.Thread(
-            target=self._background_receive, args=(max_message_size_bytes,)
+            target=self._background_receive, args=(self._max_message_size_bytes,)
         )
         self._background_receive_task.start()
 
         self._background_keepalive_ping_task: typing.Optional[threading.Thread] = None
-        if keepalive_ping_interval_seconds is not None:
+        if self._keepalive_ping_interval_seconds is not None:
             self._background_keepalive_ping_task = threading.Thread(
                 target=self._background_keepalive_ping,
-                args=(keepalive_ping_interval_seconds, keepalive_ping_timeout_seconds),
+                args=(
+                    self._keepalive_ping_interval_seconds,
+                    self._keepalive_ping_timeout_seconds,
+                ),
             )
             self._background_keepalive_ping_task.start()
+
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        self.close()
+        self._background_receive_task.join()
+        if self._background_keepalive_ping_task is not None:
+            self._background_keepalive_ping_task.join()
 
     def ping(self, payload: bytes = b"") -> threading.Event:
         """
@@ -1054,16 +1070,15 @@ def _connect_ws(
 
         subprotocol = response.headers.get("sec-websocket-protocol")
 
-        session = WebSocketSession(
+        with WebSocketSession(
             response.extensions["network_stream"],
             max_message_size_bytes=max_message_size_bytes,
             queue_size=queue_size,
             keepalive_ping_interval_seconds=keepalive_ping_interval_seconds,
             keepalive_ping_timeout_seconds=keepalive_ping_timeout_seconds,
             subprotocol=subprotocol,
-        )
-        yield session
-        session.close()
+        ) as session:
+            yield session
 
 
 @contextlib.contextmanager
