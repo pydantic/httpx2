@@ -83,7 +83,7 @@ class ShouldClose(Exception):
 
 class WebSocketSession:
     """
-    Sync helper representing an opened WebSocket session.
+    Sync context manager representing an opened WebSocket session.
 
     Attributes:
         subprotocol (typing.Optional[str]):
@@ -446,6 +446,8 @@ class WebSocketSession:
         Internally, it'll send the
         [CloseConnection][wsproto.events.CloseConnection] event.
 
+        *This method is automatically called when exiting the context manager.*
+
         Args:
             code:
                 The integer close code to indicate why the connection has closed.
@@ -569,7 +571,7 @@ class WebSocketSession:
 
 class AsyncWebSocketSession:
     """
-    Async helper representing an opened WebSocket session.
+    Async context manager representing an opened WebSocket session.
 
     Attributes:
         subprotocol (typing.Optional[str]):
@@ -931,6 +933,8 @@ class AsyncWebSocketSession:
 
         Internally, it'll send the
         [CloseConnection][wsproto.events.CloseConnection] event.
+
+        *This method is automatically called when exiting the context manager.*
 
         Args:
             code:
