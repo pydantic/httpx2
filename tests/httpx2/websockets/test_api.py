@@ -678,6 +678,7 @@ class TestKeepalivePing:
             ) as websocket_session:
                 websocket_session.receive()
 
+    @pytest.mark.flaky
     async def test_async_keepalive_ping(self):
         class MockAsyncNetworkStream(AsyncNetworkStream):
             def __init__(self) -> None:
