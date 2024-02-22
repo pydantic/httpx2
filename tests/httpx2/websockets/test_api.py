@@ -301,7 +301,6 @@ class TestReceive:
     async def test_receive(self, server_factory: ServerFactoryFixture):
         async def websocket_endpoint(websocket: WebSocket):
             await websocket.accept()
-            await anyio.sleep(0.1)  # FIXME: see #7
 
             await websocket.send_text("SERVER_MESSAGE")
 
@@ -343,7 +342,6 @@ class TestReceive:
     ):
         async def websocket_endpoint(websocket: WebSocket):
             await websocket.accept()
-            await anyio.sleep(0.1)  # FIXME: see #7
 
             method = getattr(websocket, send_method)
             await method(full_message)
@@ -380,7 +378,6 @@ class TestReceive:
     async def test_receive_text(self, server_factory: ServerFactoryFixture):
         async def websocket_endpoint(websocket: WebSocket):
             await websocket.accept()
-            await anyio.sleep(0.1)  # FIXME: see #7
 
             await websocket.send_text("SERVER_MESSAGE")
 
@@ -410,7 +407,6 @@ class TestReceive:
     ):
         async def websocket_endpoint(websocket: WebSocket):
             await websocket.accept()
-            await anyio.sleep(0.1)  # FIXME: see #7
 
             await websocket.send_bytes(b"SERVER_MESSAGE")
 
@@ -438,7 +434,6 @@ class TestReceive:
     async def test_receive_bytes(self, server_factory: ServerFactoryFixture):
         async def websocket_endpoint(websocket: WebSocket):
             await websocket.accept()
-            await anyio.sleep(0.1)  # FIXME: see #7
 
             await websocket.send_bytes(b"SERVER_MESSAGE")
 
@@ -468,7 +463,6 @@ class TestReceive:
     ):
         async def websocket_endpoint(websocket: WebSocket):
             await websocket.accept()
-            await anyio.sleep(0.1)  # FIXME: see #7
 
             await websocket.send_text("SERVER_MESSAGE")
 
@@ -493,7 +487,6 @@ class TestReceive:
     ):
         async def websocket_endpoint(websocket: WebSocket):
             await websocket.accept()
-            await anyio.sleep(0.1)  # FIXME: see #7
 
             await websocket.send_json({"message": "SERVER_MESSAGE"}, mode=mode)
 
@@ -811,7 +804,6 @@ async def test_send_close(server_factory: ServerFactoryFixture):
 async def test_receive_close(server_factory: ServerFactoryFixture):
     async def websocket_endpoint(websocket: WebSocket):
         await websocket.accept()
-        await anyio.sleep(0.1)  # FIXME: see #7
         await websocket.close()
 
     with server_factory(websocket_endpoint) as socket:
