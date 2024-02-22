@@ -14,7 +14,15 @@ import wsproto
 from httpcore import AsyncNetworkStream, NetworkStream
 from wsproto.frame_protocol import CloseReason
 
-from httpx_ws._ping import AsyncPingManager, PingManager
+from ._exceptions import (
+    HTTPXWSException,
+    WebSocketDisconnect,
+    WebSocketInvalidTypeReceived,
+    WebSocketNetworkError,
+    WebSocketUpgradeError,
+)
+from ._ping import AsyncPingManager, PingManager
+from .transport import ASGIWebSocketAsyncNetworkStream
 
 JSONMode = typing.Literal["text", "binary"]
 TaskFunction = typing.TypeVar("TaskFunction")
@@ -24,57 +32,6 @@ DEFAULT_MAX_MESSAGE_SIZE_BYTES = 65_536
 DEFAULT_QUEUE_SIZE = 512
 DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS = 20.0
 DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS = 20.0
-
-
-class HTTPXWSException(Exception):
-    """
-    Base exception class for HTTPX WS.
-    """
-
-    pass
-
-
-class WebSocketUpgradeError(HTTPXWSException):
-    """
-    Raised when the initial connection didn't correctly upgrade to a WebSocket session.
-    """
-
-    def __init__(self, response: httpx.Response) -> None:
-        self.response = response
-
-
-class WebSocketDisconnect(HTTPXWSException):
-    """
-    Raised when the server closed the WebSocket session.
-
-    Args:
-        code:
-            The integer close code to indicate why the connection has closed.
-        reason:
-            Additional reasoning for why the connection has closed.
-    """
-
-    def __init__(self, code: int = 1000, reason: typing.Optional[str] = None) -> None:
-        self.code = code
-        self.reason = reason or ""
-
-
-class WebSocketInvalidTypeReceived(HTTPXWSException):
-    """
-    Raised when a event is not of the expected type.
-    """
-
-    def __init__(self, event: wsproto.events.Event) -> None:
-        self.event = event
-
-
-class WebSocketNetworkError(HTTPXWSException):
-    """
-    Raised when a network error occured,
-    typically if the underlying stream has closed or timeout.
-    """
-
-    pass
 
 
 class ShouldClose(Exception):
@@ -607,8 +564,14 @@ class AsyncWebSocketSession:
 
         self._max_message_size_bytes = max_message_size_bytes
         self._queue_size = queue_size
-        self._keepalive_ping_interval_seconds = keepalive_ping_interval_seconds
-        self._keepalive_ping_timeout_seconds = keepalive_ping_timeout_seconds
+
+        # Always disable keepalive ping when emulating ASGI
+        if isinstance(stream, ASGIWebSocketAsyncNetworkStream):
+            self._keepalive_ping_interval_seconds = None
+            self._keepalive_ping_timeout_seconds = None
+        else:
+            self._keepalive_ping_interval_seconds = keepalive_ping_interval_seconds
+            self._keepalive_ping_timeout_seconds = keepalive_ping_timeout_seconds
 
     async def __aenter__(self):
         self._exit_stack = contextlib.AsyncExitStack()

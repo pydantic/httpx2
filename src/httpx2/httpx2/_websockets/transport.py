@@ -9,7 +9,7 @@ from httpcore import AsyncNetworkStream
 from httpx import ASGITransport, AsyncByteStream, Request, Response
 from wsproto.frame_protocol import CloseReason
 
-from httpx_ws._api import WebSocketDisconnect
+from ._exceptions import WebSocketDisconnect
 
 Scope = typing.Dict[str, typing.Any]
 Message = typing.Dict[str, typing.Any]

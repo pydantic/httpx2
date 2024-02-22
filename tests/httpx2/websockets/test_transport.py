@@ -211,3 +211,21 @@ async def test_subprotocol_support():
         ) as ws:
             await ws.receive_text()
             assert ws.subprotocol == "custom_protocol"
+
+
+@pytest.mark.anyio
+async def test_keepalive_ping_disabled():
+    async def websocket_endpoint(websocket: WebSocket):
+        await websocket.accept()
+        await websocket.receive_text()
+        await websocket.close()
+
+    app = Starlette(
+        routes=[
+            WebSocketRoute("/ws", endpoint=websocket_endpoint),
+        ]
+    )
+
+    async with httpx.AsyncClient(transport=ASGIWebSocketTransport(app)) as client:
+        async with aconnect_ws("ws://localhost:8000/ws", client) as ws:
+            assert ws._keepalive_ping_interval_seconds is None
