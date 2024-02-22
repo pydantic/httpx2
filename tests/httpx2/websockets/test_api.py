@@ -330,8 +330,8 @@ class TestReceive:
     @pytest.mark.parametrize(
         "full_message,send_method",
         [
-            (b"A" * 1024 * 1024, "send_bytes"),
-            ("A" * 1024 * 1024, "send_text"),
+            (b"A" * 1024 * 4, "send_bytes"),
+            ("A" * 1024 * 4, "send_text"),
         ],
     )
     async def test_receive_oversized_message(
