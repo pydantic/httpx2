@@ -46,7 +46,7 @@ class WebSocketSession:
         subprotocol (typing.Optional[str]):
             Optional protocol that has been accepted by the server.
         response (typing.Optional[httpx.Response]):
-            The response received after completing the WebSocket handshake.
+            The webSocket handshake response.
     """
 
     subprotocol: typing.Optional[str]
@@ -64,13 +64,15 @@ class WebSocketSession:
         keepalive_ping_timeout_seconds: typing.Optional[
             float
         ] = DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
-        subprotocol: typing.Optional[str] = None,
         response: typing.Optional[httpx.Response] = None,
     ) -> None:
         self.stream = stream
         self.connection = wsproto.connection.Connection(wsproto.ConnectionType.CLIENT)
-        self.subprotocol = subprotocol
         self.response = response
+        if self.response is not None:
+            self.subprotocol = self.response.headers.get("sec-websocket-protocol")
+        else:
+            self.subprotocol = None
 
         self._events: queue.Queue[
             typing.Union[wsproto.events.Event, HTTPXWSException]
@@ -539,7 +541,7 @@ class AsyncWebSocketSession:
         subprotocol (typing.Optional[str]):
             Optional protocol that has been accepted by the server.
         response (typing.Optional[httpx.Response]):
-            The response received after completing the WebSocket handshake.
+            The webSocket handshake response.
     """
 
     subprotocol: typing.Optional[str]
@@ -557,13 +559,15 @@ class AsyncWebSocketSession:
         keepalive_ping_timeout_seconds: typing.Optional[
             float
         ] = DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
-        subprotocol: typing.Optional[str] = None,
         response: typing.Optional[httpx.Response] = None,
     ) -> None:
         self.stream = stream
         self.connection = wsproto.connection.Connection(wsproto.ConnectionType.CLIENT)
-        self.subprotocol = subprotocol
         self.response = response
+        if self.response is not None:
+            self.subprotocol = self.response.headers.get("sec-websocket-protocol")
+        else:
+            self.subprotocol = None
 
         self._send_event, self._receive_event = anyio.create_memory_object_stream[
             typing.Union[wsproto.events.Event, HTTPXWSException]
@@ -1045,15 +1049,12 @@ def _connect_ws(
         if response.status_code != 101:
             raise WebSocketUpgradeError(response)
 
-        subprotocol = response.headers.get("sec-websocket-protocol")
-
         with WebSocketSession(
             response.extensions["network_stream"],
             max_message_size_bytes=max_message_size_bytes,
             queue_size=queue_size,
             keepalive_ping_interval_seconds=keepalive_ping_interval_seconds,
             keepalive_ping_timeout_seconds=keepalive_ping_timeout_seconds,
-            subprotocol=subprotocol,
             response=response,
         ) as session:
             yield session
@@ -1181,15 +1182,12 @@ async def _aconnect_ws(
         if response.status_code != 101:
             raise WebSocketUpgradeError(response)
 
-        subprotocol = response.headers.get("sec-websocket-protocol")
-
         async with AsyncWebSocketSession(
             response.extensions["network_stream"],
             max_message_size_bytes=max_message_size_bytes,
             queue_size=queue_size,
             keepalive_ping_interval_seconds=keepalive_ping_interval_seconds,
             keepalive_ping_timeout_seconds=keepalive_ping_timeout_seconds,
-            subprotocol=subprotocol,
             response=response,
         ) as session:
             yield session
