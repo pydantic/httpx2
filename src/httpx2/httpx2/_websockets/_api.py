@@ -522,7 +522,8 @@ class WebSocketSession:
         except RuntimeError as e:
             raise ShouldClose() from e
         done, pending = concurrent.futures.wait(  # type: ignore
-            (todo_task, wait_close_task), return_when=concurrent.futures.FIRST_COMPLETED
+            (todo_task, wait_close_task),  # type: ignore
+            return_when=concurrent.futures.FIRST_COMPLETED,
         )
         for task in pending:
             task.cancel()
