@@ -990,27 +990,22 @@ class AsyncWebSocketSession:
         except (httpcore.ReadError, httpcore.WriteError):
             await self.close(CloseReason.INTERNAL_ERROR, "Stream error")
             await self._send_event.send(WebSocketNetworkError())
-        except anyio.get_cancelled_exc_class():
-            pass
 
     async def _background_keepalive_ping(
         self, interval_seconds: float, timeout_seconds: typing.Optional[float] = None
     ) -> None:
-        try:
-            while not self._should_close.is_set():
-                await anyio.sleep(interval_seconds)
-                pong_callback = await self.ping()
-                if timeout_seconds is not None:
-                    try:
-                        with anyio.fail_after(timeout_seconds):
-                            await pong_callback.wait()
-                    except TimeoutError:
-                        await self.close(
-                            CloseReason.INTERNAL_ERROR, "Keepalive ping timeout"
-                        )
-                        await self._send_event.send(WebSocketNetworkError())
-        except anyio.get_cancelled_exc_class():
-            pass
+        while not self._should_close.is_set():
+            await anyio.sleep(interval_seconds)
+            pong_callback = await self.ping()
+            if timeout_seconds is not None:
+                try:
+                    with anyio.fail_after(timeout_seconds):
+                        await pong_callback.wait()
+                except TimeoutError:
+                    await self.close(
+                        CloseReason.INTERNAL_ERROR, "Keepalive ping timeout"
+                    )
+                    await self._send_event.send(WebSocketNetworkError())
 
 
 def _get_headers(
