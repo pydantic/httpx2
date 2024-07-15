@@ -48,7 +48,7 @@ class ASGIWebSocketAsyncNetworkStream(AsyncNetworkStream):
         self.portal = self.exit_stack.enter_context(
             anyio.from_thread.start_blocking_portal("asyncio")
         )
-        _: "Future[None]" = self.portal.start_task_soon(self._run)
+        _: Future[None] = self.portal.start_task_soon(self._run)
 
         await self.send({"type": "websocket.connect"})
         message = await self.receive()
