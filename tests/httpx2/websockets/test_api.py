@@ -780,24 +780,31 @@ async def test_ping_pong(server_factory: ServerFactoryFixture):
 
 
 @pytest.mark.anyio
-async def test_send_close(server_factory: ServerFactoryFixture):
+async def test_send_close(
+    server_factory: ServerFactoryFixture, on_receive_message: MagicMock
+):
     async def websocket_endpoint(websocket: WebSocket):
         await websocket.accept()
         try:
             await websocket.receive_text()
-        except StarletteWebSocketDisconnect:
-            pass
+        except StarletteWebSocketDisconnect as e:
+            print(e)
+            on_receive_message(e.code, e.reason)
 
     with server_factory(websocket_endpoint) as socket:
         with httpx.Client(transport=httpx.HTTPTransport(uds=socket)) as client:
-            with connect_ws("http://socket/ws", client):
-                pass
+            with connect_ws("http://socket/ws", client) as ws:
+                ws.close(code=1001, reason="CLOSE_REASON")
 
         async with httpx.AsyncClient(
             transport=httpx.AsyncHTTPTransport(uds=socket)
         ) as aclient:
-            async with aconnect_ws("http://socket/ws", aclient):
-                pass
+            async with aconnect_ws("http://socket/ws", aclient) as aws:
+                await aws.close(code=1001, reason="CLOSE_REASON")
+
+    on_receive_message.assert_has_calls(
+        [call(1001, "CLOSE_REASON"), call(1001, "CLOSE_REASON")]
+    )
 
 
 @pytest.mark.anyio
