@@ -5,6 +5,7 @@ import json
 import queue
 import secrets
 import threading
+import time
 import typing
 from types import TracebackType
 
@@ -517,22 +518,32 @@ class WebSocketSession:
     def _wait_until_closed(
         self, callable: typing.Callable[..., TaskResult], *args, **kwargs
     ) -> TaskResult:
+        exit_await = threading.Event()
+
+        def wait_close() -> None:
+            while not exit_await.is_set() and not self._should_close.is_set():
+                time.sleep(0.05)
+
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=2)
         try:
-            executor = concurrent.futures.ThreadPoolExecutor(max_workers=2)
-            wait_close_task = executor.submit(self._should_close.wait)
+            wait_close_task = executor.submit(wait_close)
             todo_task = executor.submit(callable, *args, **kwargs)
         except RuntimeError as e:
             raise ShouldClose() from e
-        done, pending = concurrent.futures.wait(  # type: ignore
-            (todo_task, wait_close_task),  # type: ignore
-            return_when=concurrent.futures.FIRST_COMPLETED,
-        )
-        for task in pending:
-            task.cancel()
-        if wait_close_task in done and todo_task not in done:
-            raise ShouldClose()
-        result = todo_task.result()
-        executor.shutdown(False)
+        else:
+            done, _ = concurrent.futures.wait(
+                (todo_task, wait_close_task),  # type: ignore[misc]
+                return_when=concurrent.futures.FIRST_COMPLETED,
+            )
+            if wait_close_task in done:
+                raise ShouldClose()
+            assert todo_task in done
+            if not wait_close_task.cancel():
+                exit_await.set()
+                wait_close_task.result()
+            result = todo_task.result()
+        finally:
+            executor.shutdown(False)
         return result
 
 

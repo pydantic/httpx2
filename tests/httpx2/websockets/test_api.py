@@ -1,5 +1,6 @@
 import contextlib
 import queue
+import threading
 import time
 import typing
 from unittest.mock import MagicMock, call, patch
@@ -330,8 +331,8 @@ class TestReceive:
     @pytest.mark.parametrize(
         "full_message,send_method",
         [
-            (b"A" * 1024 * 4, "send_bytes"),
-            ("A" * 1024 * 4, "send_text"),
+            pytest.param(b"A" * 1024 * 4, "send_bytes", id="bytes"),
+            pytest.param("A" * 1024 * 4, "send_text", id="text"),
         ],
     )
     async def test_receive_oversized_message(
@@ -901,3 +902,32 @@ async def test_subprotocol_and_response():
             assert isinstance(aws.response, httpx.Response)
             assert aws.subprotocol == "custom_protocol"
             assert aws.response.headers["sec-websocket-protocol"] == aws.subprotocol
+
+
+@pytest.mark.anyio
+async def test_threads_wont_hang(server_factory: ServerFactoryFixture) -> None:
+    """
+    Check that all threads spawned in WebSocketSession are properly terminated during
+    a series of messages exchange. This used to be the cause of a memory leak in the
+    connect_ws client, see https://github.com/frankie567/httpx-ws/issues/76.
+    """
+
+    async def websocket_endpoint(websocket: WebSocket) -> None:
+        await websocket.accept()
+        for _ in range(50):
+            await websocket.send_text("SERVER_MESSAGE")
+            await websocket.receive_text()
+        await websocket.close()
+
+    with server_factory(websocket_endpoint) as socket:
+        with httpx.Client(transport=httpx.HTTPTransport(uds=socket)) as client:
+            initial_threads_count = threading.active_count()
+            with connect_ws(
+                "http://socket/ws", client, keepalive_ping_interval_seconds=None
+            ) as ws:
+                for _ in range(50):
+                    ws.receive()
+                    ws.send_text("CLIENT_MESSAGE")
+                time.sleep(0.5)  # Let the websocket endpoint finish its handling.
+                final_threads_count = threading.active_count()
+                assert initial_threads_count == final_threads_count
