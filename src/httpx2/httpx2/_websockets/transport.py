@@ -197,7 +197,7 @@ class ASGIWebSocketTransport(ASGITransport):
         self.scope = scope
         self.exit_stack = contextlib.AsyncExitStack()
         stream, accept_response = await self.exit_stack.enter_async_context(
-            ASGIWebSocketAsyncNetworkStream(self.app, self.scope)
+            ASGIWebSocketAsyncNetworkStream(self.app, self.scope)  # type: ignore[arg-type]
         )
 
         accept_response_lines = accept_response.decode("utf-8").splitlines()
