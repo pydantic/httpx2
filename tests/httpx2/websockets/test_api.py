@@ -928,6 +928,9 @@ async def test_threads_wont_hang(server_factory: ServerFactoryFixture) -> None:
                 for _ in range(50):
                     ws.receive()
                     ws.send_text("CLIENT_MESSAGE")
-                time.sleep(0.5)  # Let the websocket endpoint finish its handling.
-                final_threads_count = threading.active_count()
-                assert initial_threads_count == final_threads_count
+                time.sleep(0.1)  # Let the websocket endpoint finish its handling.
+                threads_count = threading.active_count()
+                assert initial_threads_count + 2 == threads_count
+            time.sleep(0.1)
+            final_threads_count = threading.active_count()
+            assert initial_threads_count == final_threads_count

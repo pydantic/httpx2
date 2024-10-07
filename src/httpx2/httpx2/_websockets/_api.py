@@ -5,7 +5,6 @@ import json
 import queue
 import secrets
 import threading
-import time
 import typing
 from types import TracebackType
 
@@ -83,11 +82,24 @@ class WebSocketSession:
 
         self._ping_manager = PingManager()
         self._should_close = threading.Event()
+        self._should_close_task: typing.Optional[concurrent.futures.Future[bool]] = None
+        self._executor: typing.Optional[concurrent.futures.ThreadPoolExecutor] = None
 
         self._max_message_size_bytes = max_message_size_bytes
         self._queue_size = queue_size
         self._keepalive_ping_interval_seconds = keepalive_ping_interval_seconds
         self._keepalive_ping_timeout_seconds = keepalive_ping_timeout_seconds
+
+    def _get_executor_should_close_task(
+        self,
+    ) -> typing.Tuple[
+        concurrent.futures.ThreadPoolExecutor, "concurrent.futures.Future[bool]"
+    ]:
+        if self._should_close_task is None:
+            self._executor = concurrent.futures.ThreadPoolExecutor()
+            self._should_close_task = self._executor.submit(self._should_close.wait)
+        assert self._executor is not None
+        return self._executor, self._should_close_task
 
     def __enter__(self) -> "WebSocketSession":
         self._background_receive_task = threading.Thread(
@@ -427,6 +439,8 @@ class WebSocketSession:
                 ws.close()
         """
         self._should_close.set()
+        if self._executor is not None:
+            self._executor.shutdown(False)
         if self.connection.state not in {
             wsproto.connection.ConnectionState.LOCAL_CLOSING,
             wsproto.connection.ConnectionState.CLOSED,
@@ -518,32 +532,20 @@ class WebSocketSession:
     def _wait_until_closed(
         self, callable: typing.Callable[..., TaskResult], *args, **kwargs
     ) -> TaskResult:
-        exit_await = threading.Event()
-
-        def wait_close() -> None:
-            while not exit_await.is_set() and not self._should_close.is_set():
-                time.sleep(0.05)
-
-        executor = concurrent.futures.ThreadPoolExecutor(max_workers=2)
         try:
-            wait_close_task = executor.submit(wait_close)
+            executor, should_close_task = self._get_executor_should_close_task()
             todo_task = executor.submit(callable, *args, **kwargs)
         except RuntimeError as e:
             raise ShouldClose() from e
         else:
             done, _ = concurrent.futures.wait(
-                (todo_task, wait_close_task),  # type: ignore[misc]
+                (todo_task, should_close_task),  # type: ignore[misc]
                 return_when=concurrent.futures.FIRST_COMPLETED,
             )
-            if wait_close_task in done:
+            if should_close_task in done:
                 raise ShouldClose()
             assert todo_task in done
-            if not wait_close_task.cancel():
-                exit_await.set()
-                wait_close_task.result()
             result = todo_task.result()
-        finally:
-            executor.shutdown(False)
         return result
 
 
