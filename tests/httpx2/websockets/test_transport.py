@@ -1,6 +1,6 @@
 import base64
 import secrets
-from typing import Any, Dict
+from typing import Any
 
 import httpx
 import pytest
@@ -21,7 +21,7 @@ from httpx_ws.transport import (
 
 
 @pytest.fixture
-def websocket_request_headers() -> Dict[str, str]:
+def websocket_request_headers() -> dict[str, str]:
     return {
         "connection": "upgrade",
         "upgrade": "websocket",
@@ -31,7 +31,7 @@ def websocket_request_headers() -> Dict[str, str]:
 
 
 @pytest.fixture
-def scope(websocket_request_headers: Dict[str, str]) -> Scope:
+def scope(websocket_request_headers: dict[str, str]) -> Scope:
     return {
         "type": "websocket",
         "path": "/ws",
@@ -175,9 +175,9 @@ class TestASGIWebSocketTransport:
     async def test_websocket(
         self,
         url: str,
-        headers: Dict[str, Any],
+        headers: dict[str, Any],
         test_app: Starlette,
-        websocket_request_headers: Dict[str, str],
+        websocket_request_headers: dict[str, str],
     ):
         async with ASGIWebSocketTransport(app=test_app) as transport:
             request = httpx.Request(

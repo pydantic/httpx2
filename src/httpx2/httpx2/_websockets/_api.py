@@ -92,7 +92,7 @@ class WebSocketSession:
 
     def _get_executor_should_close_task(
         self,
-    ) -> typing.Tuple[
+    ) -> tuple[
         concurrent.futures.ThreadPoolExecutor, "concurrent.futures.Future[bool]"
     ]:
         if self._should_close_task is None:
@@ -634,7 +634,7 @@ class AsyncWebSocketSession:
 
     async def __aexit__(
         self,
-        exc_type: typing.Optional[typing.Type[BaseException]],
+        exc_type: typing.Optional[type[BaseException]],
         exc: typing.Optional[BaseException],
         tb: typing.Optional[TracebackType],
     ) -> None:
@@ -1039,8 +1039,8 @@ class AsyncWebSocketSession:
 
 
 def _get_headers(
-    subprotocols: typing.Optional[typing.List[str]],
-) -> typing.Dict[str, typing.Any]:
+    subprotocols: typing.Optional[list[str]],
+) -> dict[str, typing.Any]:
     headers = {
         "connection": "upgrade",
         "upgrade": "websocket",
@@ -1065,7 +1065,7 @@ def _connect_ws(
     keepalive_ping_timeout_seconds: typing.Optional[
         float
     ] = DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
-    subprotocols: typing.Optional[typing.List[str]] = None,
+    subprotocols: typing.Optional[list[str]] = None,
     **kwargs: typing.Any,
 ) -> typing.Generator[WebSocketSession, None, None]:
     headers = kwargs.pop("headers", {})
@@ -1099,7 +1099,7 @@ def connect_ws(
     keepalive_ping_timeout_seconds: typing.Optional[
         float
     ] = DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
-    subprotocols: typing.Optional[typing.List[str]] = None,
+    subprotocols: typing.Optional[list[str]] = None,
     **kwargs: typing.Any,
 ) -> typing.Generator[WebSocketSession, None, None]:
     """
@@ -1198,7 +1198,7 @@ async def _aconnect_ws(
     keepalive_ping_timeout_seconds: typing.Optional[
         float
     ] = DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
-    subprotocols: typing.Optional[typing.List[str]] = None,
+    subprotocols: typing.Optional[list[str]] = None,
     **kwargs: typing.Any,
 ) -> typing.AsyncGenerator[AsyncWebSocketSession, None]:
     headers = kwargs.pop("headers", {})
@@ -1232,7 +1232,7 @@ async def aconnect_ws(
     keepalive_ping_timeout_seconds: typing.Optional[
         float
     ] = DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
-    subprotocols: typing.Optional[typing.List[str]] = None,
+    subprotocols: typing.Optional[list[str]] = None,
     **kwargs: typing.Any,
 ) -> typing.AsyncGenerator[AsyncWebSocketSession, None]:
     """

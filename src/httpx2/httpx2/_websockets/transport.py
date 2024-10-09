@@ -11,8 +11,8 @@ from wsproto.frame_protocol import CloseReason
 
 from ._exceptions import WebSocketDisconnect
 
-Scope = typing.Dict[str, typing.Any]
-Message = typing.Dict[str, typing.Any]
+Scope = dict[str, typing.Any]
+Message = dict[str, typing.Any]
 Receive = typing.Callable[[], typing.Awaitable[Message]]
 Send = typing.Callable[[Scope], typing.Coroutine[None, None, None]]
 ASGIApp = typing.Callable[[Scope, Receive, Send], typing.Coroutine[None, None, None]]
@@ -43,7 +43,7 @@ class ASGIWebSocketAsyncNetworkStream(AsyncNetworkStream):
 
     async def __aenter__(
         self,
-    ) -> typing.Tuple["ASGIWebSocketAsyncNetworkStream", bytes]:
+    ) -> tuple["ASGIWebSocketAsyncNetworkStream", bytes]:
         self.exit_stack = contextlib.ExitStack()
         self.portal = self.exit_stack.enter_context(
             anyio.from_thread.start_blocking_portal("asyncio")
@@ -165,7 +165,7 @@ class ASGIWebSocketTransport(ASGITransport):
         headers = request.headers
 
         if scheme in {"ws", "wss"} or headers.get("upgrade") == "websocket":
-            subprotocols: typing.List[str] = []
+            subprotocols: list[str] = []
             if (
                 subprotocols_header := headers.get("sec-websocket-protocol")
             ) is not None:
@@ -202,7 +202,7 @@ class ASGIWebSocketTransport(ASGITransport):
 
         accept_response_lines = accept_response.decode("utf-8").splitlines()
         headers = [
-            typing.cast(typing.Tuple[str, str], line.split(": ", 1))
+            typing.cast(tuple[str, str], line.split(": ", 1))
             for line in accept_response_lines[1:]
             if line.strip() != ""
         ]

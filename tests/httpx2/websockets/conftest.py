@@ -2,7 +2,7 @@ import contextlib
 import pathlib
 import queue
 import tempfile
-from typing import Callable, ContextManager, Literal, Protocol
+from typing import Callable, Literal, Protocol
 from unittest.mock import MagicMock
 
 import pytest
@@ -23,7 +23,9 @@ def websocket_implementation(request) -> Literal["wsproto", "websockets"]:
 
 
 class ServerFactoryFixture(Protocol):
-    def __call__(self, endpoint: Callable) -> ContextManager[str]: ...
+    def __call__(
+        self, endpoint: Callable
+    ) -> contextlib.AbstractContextManager[str]: ...
 
 
 @pytest.fixture

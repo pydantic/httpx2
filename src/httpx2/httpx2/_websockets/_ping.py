@@ -12,11 +12,11 @@ class PingManagerBase:
 
 class PingManager(PingManagerBase):
     def __init__(self) -> None:
-        self._pings: typing.Dict[bytes, threading.Event] = {}
+        self._pings: dict[bytes, threading.Event] = {}
 
     def create(
         self, ping_id: typing.Optional[bytes] = None
-    ) -> typing.Tuple[bytes, threading.Event]:
+    ) -> tuple[bytes, threading.Event]:
         ping_id = self._generate_id() if not ping_id else ping_id
         event = threading.Event()
         self._pings[ping_id] = event
@@ -29,11 +29,11 @@ class PingManager(PingManagerBase):
 
 class AsyncPingManager(PingManagerBase):
     def __init__(self) -> None:
-        self._pings: typing.Dict[bytes, anyio.Event] = {}
+        self._pings: dict[bytes, anyio.Event] = {}
 
     def create(
         self, ping_id: typing.Optional[bytes] = None
-    ) -> typing.Tuple[bytes, anyio.Event]:
+    ) -> tuple[bytes, anyio.Event]:
         ping_id = self._generate_id() if not ping_id else ping_id
         event = anyio.Event()
         self._pings[ping_id] = event
