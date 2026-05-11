@@ -19,6 +19,9 @@ requires-python = ">=3.8"
 authors = [
     { name = "Tom Christie", email = "tom@tomchristie.com" },
 ]
+maintainers = [
+    { name = "Pydantic Services Inc.", email = "engineering@pydantic.dev" }
+]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Web Environment",
