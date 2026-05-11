@@ -1,6 +1,14 @@
 [build-system]
-requires = ["hatchling", "hatch-fancy-pypi-readme"]
+requires = ["hatchling", "hatch-fancy-pypi-readme", "uv-dynamic-versioning>=0.7.0"]
 build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "uv-dynamic-versioning"
+
+[tool.uv-dynamic-versioning]
+vcs = "git"
+style = "pep440"
+bump = true
 
 [project]
 name = "httpcore2"
@@ -51,9 +59,6 @@ asyncio = [
 Documentation = "https://www.encode.io/httpcore"
 Homepage = "https://www.encode.io/httpcore/"
 Source = "https://github.com/encode/httpcore"
-
-[tool.hatch.version]
-path = "httpcore2/__init__.py"
 
 [tool.hatch.build.targets.sdist]
 include = [

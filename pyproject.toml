@@ -1,6 +1,14 @@
 [build-system]
-requires = ["hatchling", "hatch-fancy-pypi-readme"]
+requires = ["hatchling", "hatch-fancy-pypi-readme", "uv-dynamic-versioning>=0.7.0"]
 build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "uv-dynamic-versioning"
+
+[tool.uv-dynamic-versioning]
+vcs = "git"
+style = "pep440"
+bump = true
 
 [project]
 name = "httpx2"
@@ -107,9 +115,6 @@ httpx2 = "httpx2:main"
 Changelog = "https://github.com/pydantic/httpx2/blob/master/CHANGELOG.md"
 Homepage = "https://github.com/pydantic/httpx2"
 Source = "https://github.com/pydantic/httpx2"
-
-[tool.hatch.version]
-path = "src/httpx2/__version__.py"
 
 [tool.hatch.build.targets.sdist]
 include = [

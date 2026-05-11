@@ -1,3 +1,5 @@
+from importlib.metadata import version
+
 from ._api import request, stream
 from ._async import (
     AsyncConnectionInterface,
@@ -131,7 +133,7 @@ __all__ = [
     "WriteError",
 ]
 
-__version__ = "1.0.9"
+__version__ = version("httpcore2")
 
 
 __locals = locals()
