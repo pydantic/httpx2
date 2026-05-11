@@ -4,20 +4,31 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [UNRELEASED]
+## 2.0.0b1
 
-### Removed
+First release of `httpx2`, a fork of [`httpx`](https://github.com/encode/httpx) maintained by Pydantic. Forked from `httpx 0.28.1` (commit [`b5addb6`](https://github.com/encode/httpx/commit/b5addb6)).
 
-* Drop support for Python 3.8
+### Breaking changes
+
+* **Renamed package**: `httpx` -> `httpx2`. `import httpx` becomes `import httpx2`. The CLI is now `httpx2`, the User-Agent header is `python-httpx2/<version>`, and the logger is `httpx2`. No other public API changed.
+* **Renamed transitive dependency**: `httpcore` -> `httpcore2`, vendored into the same repository as a uv workspace member. Code that imports `httpcore` directly should switch to `httpcore2`. `httpx2` always depends on a specific `httpcore2` version, pinned exactly.
 
 ### Added
 
-* Expose `FunctionAuth` from the public API. (#3699)
+* Expose `FunctionAuth` from the public API. (Inherited from upstream PR [encode/httpx#3699](https://github.com/encode/httpx/pull/3699).)
+
+### Fixed
+
+* Eliminate `PytestUnraisableExceptionWarning` from async generator finalization during stream teardown under trio. ([#137](https://github.com/pydantic/httpx2/pull/137), backporting [encode/httpcore#1019](https://github.com/encode/httpcore/pull/1019) by @agronholm.)
+
+---
+
+Historical entries below are from upstream `encode/httpx`.
 
 ## 0.28.1 (6th December, 2024)
 
 * Fix SSL case where `verify=False` together with client side certificates.
- 
+
 ## 0.28.0 (28th November, 2024)
 
 Be aware that the default *JSON request bodies now use a more compact representation*. This is generally considered a prefered style, tho may require updates to test suites.
