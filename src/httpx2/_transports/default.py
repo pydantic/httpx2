@@ -72,23 +72,23 @@ HTTPCORE_EXC_MAP: dict[type[Exception], type[httpx2.HTTPError]] = {}
 
 
 def _load_httpcore_exceptions() -> dict[type[Exception], type[httpx2.HTTPError]]:
-    import httpcore
+    import httpcore2
 
     return {
-        httpcore.TimeoutException: TimeoutException,
-        httpcore.ConnectTimeout: ConnectTimeout,
-        httpcore.ReadTimeout: ReadTimeout,
-        httpcore.WriteTimeout: WriteTimeout,
-        httpcore.PoolTimeout: PoolTimeout,
-        httpcore.NetworkError: NetworkError,
-        httpcore.ConnectError: ConnectError,
-        httpcore.ReadError: ReadError,
-        httpcore.WriteError: WriteError,
-        httpcore.ProxyError: ProxyError,
-        httpcore.UnsupportedProtocol: UnsupportedProtocol,
-        httpcore.ProtocolError: ProtocolError,
-        httpcore.LocalProtocolError: LocalProtocolError,
-        httpcore.RemoteProtocolError: RemoteProtocolError,
+        httpcore2.TimeoutException: TimeoutException,
+        httpcore2.ConnectTimeout: ConnectTimeout,
+        httpcore2.ReadTimeout: ReadTimeout,
+        httpcore2.WriteTimeout: WriteTimeout,
+        httpcore2.PoolTimeout: PoolTimeout,
+        httpcore2.NetworkError: NetworkError,
+        httpcore2.ConnectError: ConnectError,
+        httpcore2.ReadError: ReadError,
+        httpcore2.WriteError: WriteError,
+        httpcore2.ProxyError: ProxyError,
+        httpcore2.UnsupportedProtocol: UnsupportedProtocol,
+        httpcore2.ProtocolError: ProtocolError,
+        httpcore2.LocalProtocolError: LocalProtocolError,
+        httpcore2.RemoteProtocolError: RemoteProtocolError,
     }
 
 
@@ -106,7 +106,7 @@ def map_httpcore_exceptions() -> typing.Iterator[None]:
             if not isinstance(exc, from_exc):
                 continue
             # We want to map to the most specific exception we can find.
-            # Eg if `exc` is an `httpcore.ReadTimeout`, we want to map to
+            # Eg if `exc` is an `httpcore2.ReadTimeout`, we want to map to
             # `httpx2.ReadTimeout`, not just `httpx2.TimeoutException`.
             if mapped_exc is None or issubclass(to_exc, mapped_exc):
                 mapped_exc = to_exc
@@ -147,13 +147,13 @@ class HTTPTransport(BaseTransport):
         retries: int = 0,
         socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
     ) -> None:
-        import httpcore
+        import httpcore2
 
         proxy = Proxy(url=proxy) if isinstance(proxy, (str, URL)) else proxy
         ssl_context = create_ssl_context(verify=verify, cert=cert, trust_env=trust_env)
 
         if proxy is None:
-            self._pool = httpcore.ConnectionPool(
+            self._pool = httpcore2.ConnectionPool(
                 ssl_context=ssl_context,
                 max_connections=limits.max_connections,
                 max_keepalive_connections=limits.max_keepalive_connections,
@@ -166,8 +166,8 @@ class HTTPTransport(BaseTransport):
                 socket_options=socket_options,
             )
         elif proxy.url.scheme in ("http", "https"):
-            self._pool = httpcore.HTTPProxy(
-                proxy_url=httpcore.URL(
+            self._pool = httpcore2.HTTPProxy(
+                proxy_url=httpcore2.URL(
                     scheme=proxy.url.raw_scheme,
                     host=proxy.url.raw_host,
                     port=proxy.url.port,
@@ -193,8 +193,8 @@ class HTTPTransport(BaseTransport):
                     "Make sure to install httpx using `pip install httpx[socks]`."
                 ) from None
 
-            self._pool = httpcore.SOCKSProxy(
-                proxy_url=httpcore.URL(
+            self._pool = httpcore2.SOCKSProxy(
+                proxy_url=httpcore2.URL(
                     scheme=proxy.url.raw_scheme,
                     host=proxy.url.raw_host,
                     port=proxy.url.port,
@@ -232,11 +232,11 @@ class HTTPTransport(BaseTransport):
         request: Request,
     ) -> Response:
         assert isinstance(request.stream, SyncByteStream)
-        import httpcore
+        import httpcore2
 
-        req = httpcore.Request(
+        req = httpcore2.Request(
             method=request.method,
-            url=httpcore.URL(
+            url=httpcore2.URL(
                 scheme=request.url.raw_scheme,
                 host=request.url.raw_host,
                 port=request.url.port,
@@ -291,13 +291,13 @@ class AsyncHTTPTransport(AsyncBaseTransport):
         retries: int = 0,
         socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
     ) -> None:
-        import httpcore
+        import httpcore2
 
         proxy = Proxy(url=proxy) if isinstance(proxy, (str, URL)) else proxy
         ssl_context = create_ssl_context(verify=verify, cert=cert, trust_env=trust_env)
 
         if proxy is None:
-            self._pool = httpcore.AsyncConnectionPool(
+            self._pool = httpcore2.AsyncConnectionPool(
                 ssl_context=ssl_context,
                 max_connections=limits.max_connections,
                 max_keepalive_connections=limits.max_keepalive_connections,
@@ -310,8 +310,8 @@ class AsyncHTTPTransport(AsyncBaseTransport):
                 socket_options=socket_options,
             )
         elif proxy.url.scheme in ("http", "https"):
-            self._pool = httpcore.AsyncHTTPProxy(
-                proxy_url=httpcore.URL(
+            self._pool = httpcore2.AsyncHTTPProxy(
+                proxy_url=httpcore2.URL(
                     scheme=proxy.url.raw_scheme,
                     host=proxy.url.raw_host,
                     port=proxy.url.port,
@@ -337,8 +337,8 @@ class AsyncHTTPTransport(AsyncBaseTransport):
                     "Make sure to install httpx using `pip install httpx[socks]`."
                 ) from None
 
-            self._pool = httpcore.AsyncSOCKSProxy(
-                proxy_url=httpcore.URL(
+            self._pool = httpcore2.AsyncSOCKSProxy(
+                proxy_url=httpcore2.URL(
                     scheme=proxy.url.raw_scheme,
                     host=proxy.url.raw_host,
                     port=proxy.url.port,
@@ -376,11 +376,11 @@ class AsyncHTTPTransport(AsyncBaseTransport):
         request: Request,
     ) -> Response:
         assert isinstance(request.stream, AsyncByteStream)
-        import httpcore
+        import httpcore2
 
-        req = httpcore.Request(
+        req = httpcore2.Request(
             method=request.method,
-            url=httpcore.URL(
+            url=httpcore2.URL(
                 scheme=request.url.raw_scheme,
                 host=request.url.raw_host,
                 port=request.url.port,

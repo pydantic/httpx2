@@ -94,9 +94,9 @@ def test_httpcore_lazy_loading(server):
     # unload our module if it is already loaded
     if "httpx2" in sys.modules:
         del sys.modules["httpx2"]
-        del sys.modules["httpcore"]
+        del sys.modules["httpcore2"]
     import httpx2
 
-    assert "httpcore" not in sys.modules
+    assert "httpcore2" not in sys.modules
     _response = httpx2.get(server.url)
-    assert "httpcore" in sys.modules
+    assert "httpcore2" in sys.modules

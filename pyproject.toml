@@ -29,7 +29,7 @@ classifiers = [
 ]
 dependencies = [
     "certifi",
-    "httpcore",
+    "httpcore2",
     "anyio",
     "idna",
 ]
@@ -40,10 +40,10 @@ default-groups = ["dev", "docs", "bench"]
 required-version = ">=0.8.6"
 
 [tool.uv.workspace]
-members = ["src/httpcore"]
+members = ["src/httpcore2"]
 
 [tool.uv.sources]
-httpcore = { workspace = true }
+httpcore2 = { workspace = true }
 
 [project.optional-dependencies]
 brotli = [
@@ -68,7 +68,7 @@ zstd = [
 [dependency-groups]
 dev = [
     "httpx2[brotli,cli,http2,socks,zstd]",
-    "httpcore[asyncio,trio,http2,socks]",
+    "httpcore2[asyncio,trio,http2,socks]",
     # Tests
     "chardet==5.2.0",
     "coverage[toml]==7.10.6",

@@ -4,7 +4,7 @@ import typing
 
 import pytest
 
-import httpcore
+import httpcore2
 import httpx2
 
 if typing.TYPE_CHECKING:  # pragma: no cover
@@ -18,10 +18,10 @@ def test_httpcore_all_exceptions_mapped() -> None:
     """
     expected_mapped_httpcore_exceptions = {
         value.__name__
-        for _, value in vars(httpcore).items()
+        for _, value in vars(httpcore2).items()
         if isinstance(value, type)
         and issubclass(value, Exception)
-        and value is not httpcore.ConnectionNotAvailable
+        and value is not httpcore2.ConnectionNotAvailable
     }
 
     httpx_exceptions = {

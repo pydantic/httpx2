@@ -11,7 +11,7 @@ resolution-markers = [
 
 [manifest]
 members = [
-    "httpcore",
+    "httpcore2",
     "httpx2",
 ]
 
@@ -1478,8 +1478,8 @@ wheels = [
 ]
 
 [[package]]
-name = "httpcore"
-source = { editable = "src/httpcore" }
+name = "httpcore2"
+source = { editable = "src/httpcore2" }
 dependencies = [
     { name = "certifi" },
     { name = "h11" },
@@ -1518,7 +1518,7 @@ dependencies = [
     { name = "anyio", version = "4.12.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "anyio", version = "4.13.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "certifi" },
-    { name = "httpcore" },
+    { name = "httpcore2" },
     { name = "idna" },
 ]
 
@@ -1555,7 +1555,7 @@ dev = [
     { name = "chardet" },
     { name = "coverage", extra = ["toml"] },
     { name = "cryptography" },
-    { name = "httpcore", extra = ["asyncio", "http2", "socks", "trio"] },
+    { name = "httpcore2", extra = ["asyncio", "http2", "socks", "trio"] },
     { name = "httpx2", extra = ["brotli", "cli", "http2", "socks", "zstd"] },
     { name = "mypy" },
     { name = "pytest" },
@@ -1583,7 +1583,7 @@ requires-dist = [
     { name = "certifi" },
     { name = "click", marker = "extra == 'cli'", specifier = "==8.*" },
     { name = "h2", marker = "extra == 'http2'", specifier = ">=3,<5" },
-    { name = "httpcore", editable = "src/httpcore" },
+    { name = "httpcore2", editable = "src/httpcore2" },
     { name = "idna" },
     { name = "pygments", marker = "extra == 'cli'", specifier = "==2.*" },
     { name = "rich", marker = "extra == 'cli'", specifier = ">=10,<15" },
@@ -1604,7 +1604,7 @@ dev = [
     { name = "chardet", specifier = "==5.2.0" },
     { name = "coverage", extras = ["toml"], specifier = "==7.10.6" },
     { name = "cryptography", specifier = "==45.0.7" },
-    { name = "httpcore", extras = ["asyncio", "trio", "http2", "socks"], editable = "src/httpcore" },
+    { name = "httpcore2", extras = ["asyncio", "trio", "http2", "socks"], editable = "src/httpcore2" },
     { name = "httpx2", extras = ["brotli", "cli", "http2", "socks", "zstd"] },
     { name = "mypy", specifier = "==1.17.1" },
     { name = "pytest", specifier = "==8.4.1" },

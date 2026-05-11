@@ -1,16 +1,16 @@
 import pytest
 
-import httpcore
+import httpcore2
 import httpx2
 
 
-def url_to_origin(url: str) -> httpcore.URL:
+def url_to_origin(url: str) -> httpcore2.URL:
     """
     Given a URL string, return the origin in the raw tuple format that
     `httpcore` uses for it's representation.
     """
     u = httpx2.URL(url)
-    return httpcore.URL(scheme=u.raw_scheme, host=u.raw_host, port=u.port, target="/")
+    return httpcore2.URL(scheme=u.raw_scheme, host=u.raw_host, port=u.port, target="/")
 
 
 def test_socks_proxy():
@@ -20,12 +20,12 @@ def test_socks_proxy():
         client = httpx2.Client(proxy=proxy)
         transport = client._transport_for_url(url)
         assert isinstance(transport, httpx2.HTTPTransport)
-        assert isinstance(transport._pool, httpcore.SOCKSProxy)
+        assert isinstance(transport._pool, httpcore2.SOCKSProxy)
 
         async_client = httpx2.AsyncClient(proxy=proxy)
         async_transport = async_client._transport_for_url(url)
         assert isinstance(async_transport, httpx2.AsyncHTTPTransport)
-        assert isinstance(async_transport._pool, httpcore.AsyncSOCKSProxy)
+        assert isinstance(async_transport._pool, httpcore2.AsyncSOCKSProxy)
 
 
 PROXY_URL = "http://[::1]"
@@ -95,7 +95,7 @@ def test_transport_for_request(url, proxies, expected):
         assert transport is client._transport
     else:
         assert isinstance(transport, httpx2.HTTPTransport)
-        assert isinstance(transport._pool, httpcore.HTTPProxy)
+        assert isinstance(transport._pool, httpcore2.HTTPProxy)
         assert transport._pool._proxy_url == url_to_origin(expected)
 
 

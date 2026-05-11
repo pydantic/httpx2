@@ -20,7 +20,7 @@ from ._models import Response
 from ._status_codes import codes
 
 if typing.TYPE_CHECKING:
-    import httpcore  # pragma: no cover
+    import httpcore2  # pragma: no cover
 
 
 def print_help() -> None:
@@ -113,7 +113,7 @@ def get_lexer_for_response(response: Response) -> str:
     return ""  # pragma: no cover
 
 
-def format_request_headers(request: httpcore.Request, http2: bool = False) -> str:
+def format_request_headers(request: httpcore2.Request, http2: bool = False) -> str:
     version = "HTTP/2" if http2 else "HTTP/1.1"
     headers = [
         (name.lower() if http2 else name, value) for name, value in request.headers
@@ -144,7 +144,7 @@ def format_response_headers(
     return "\n".join(lines)
 
 
-def print_request_headers(request: httpcore.Request, http2: bool = False) -> None:
+def print_request_headers(request: httpcore2.Request, http2: bool = False) -> None:
     console = rich.console.Console()
     http_text = format_request_headers(request, http2=http2)
     syntax = rich.syntax.Syntax(http_text, "http", theme="ansi_dark", word_wrap=True)
