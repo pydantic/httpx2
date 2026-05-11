@@ -5,6 +5,7 @@ import logging
 import time
 import types
 import typing
+from collections.abc import Generator
 
 import h2.config
 import h2.connection
@@ -21,6 +22,7 @@ from .._exceptions import (
 from .._models import Origin, Request, Response
 from .._synchronization import Lock, Semaphore, ShieldCancellation
 from .._trace import Trace
+from .._utils import safe_iterate
 from .interfaces import ConnectionInterface
 
 logger = logging.getLogger("httpcore.http2")
@@ -258,8 +260,10 @@ class HTTP2Connection(ConnectionInterface):
             return
 
         assert isinstance(request.stream, typing.Iterable)
-        for data in request.stream:
-            self._send_stream_data(request, stream_id, data)
+        with safe_iterate(request.stream) as iterator:
+            for chunk in iterator:
+                self._send_stream_data(request, stream_id, chunk)
+
         self._send_end_stream(request, stream_id)
 
     def _send_stream_data(
@@ -308,7 +312,7 @@ class HTTP2Connection(ConnectionInterface):
 
     def _receive_response_body(
         self, request: Request, stream_id: int
-    ) -> typing.Iterator[bytes]:
+    ) -> Generator[bytes]:
         """
         Iterator that returns the bytes of the response body for a given stream ID.
         """
@@ -568,14 +572,17 @@ class HTTP2ConnectionByteStream:
         self._stream_id = stream_id
         self._closed = False
 
-    def __iter__(self) -> typing.Iterator[bytes]:
+    def __iter__(self) -> Generator[bytes]:
         kwargs = {"request": self._request, "stream_id": self._stream_id}
         try:
             with Trace("receive_response_body", logger, self._request, kwargs):
-                for chunk in self._connection._receive_response_body(
-                    request=self._request, stream_id=self._stream_id
-                ):
-                    yield chunk
+                with safe_iterate(
+                    self._connection._receive_response_body(
+                        request=self._request, stream_id=self._stream_id
+                    )
+                ) as iterator:
+                    for chunk in iterator:
+                        yield chunk
         except BaseException as exc:
             # If we get an exception while streaming the response,
             # we want to close the response (and possibly the connection)

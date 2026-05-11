@@ -3,6 +3,19 @@ from __future__ import annotations
 import select
 import socket
 import sys
+import typing
+from collections.abc import (
+    AsyncGenerator,
+    AsyncIterable,
+    AsyncIterator,
+    Generator,
+    Iterable,
+    Iterator,
+)
+from contextlib import asynccontextmanager, contextmanager
+from inspect import isasyncgen
+
+T = typing.TypeVar("T")
 
 
 def is_socket_readable(sock: socket.socket | None) -> bool:
@@ -35,3 +48,32 @@ def is_socket_readable(sock: socket.socket | None) -> bool:
     p = select.poll()
     p.register(sock_fd, select.POLLIN)
     return bool(p.poll(0))
+
+
+@asynccontextmanager
+async def safe_async_iterate(
+    iterable_or_iterator: AsyncIterable[T] | AsyncIterator[T], /
+) -> AsyncGenerator[AsyncIterator[T]]:
+    iterator = (
+        iterable_or_iterator
+        if isinstance(iterable_or_iterator, AsyncIterator)
+        else iterable_or_iterator.__aiter__()
+    )
+    try:
+        yield iterator
+    finally:
+        if isasyncgen(iterator):
+            await iterator.aclose()
+
+
+@contextmanager
+def safe_iterate(
+    iterable_or_iterator: Iterable[T] | Iterator[T], /
+) -> Generator[Iterator[T], None, None]:
+    # This is boilerplate code, only needed to make unasync happy
+    iterator = (
+        iterable_or_iterator
+        if isinstance(iterable_or_iterator, Iterator)
+        else iterable_or_iterator.__iter__()
+    )
+    yield iterator

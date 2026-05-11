@@ -4,6 +4,9 @@ import base64
 import ssl
 import typing
 import urllib.parse
+from collections.abc import AsyncGenerator
+
+from ._utils import safe_async_iterate
 
 # Functions for typechecking...
 
@@ -151,7 +154,7 @@ class ByteStream:
     def __iter__(self) -> typing.Iterator[bytes]:
         yield self._content
 
-    async def __aiter__(self) -> typing.AsyncIterator[bytes]:
+    async def __aiter__(self) -> AsyncGenerator[bytes]:
         yield self._content
 
     def __repr__(self) -> str:
@@ -463,10 +466,11 @@ class Response:
                 "You should use 'response.read()' instead."
             )
         if not hasattr(self, "_content"):
-            self._content = b"".join([part async for part in self.aiter_stream()])
+            async with safe_async_iterate(self.aiter_stream()) as parts:
+                self._content = b"".join([part async for part in parts])
         return self._content
 
-    async def aiter_stream(self) -> typing.AsyncIterator[bytes]:
+    async def aiter_stream(self) -> AsyncGenerator[bytes]:
         if not isinstance(self.stream, typing.AsyncIterable):  # pragma: nocover
             raise RuntimeError(
                 "Attempted to stream an synchronous response using 'async for ... in "
@@ -479,8 +483,9 @@ class Response:
                 "more than once."
             )
         self._stream_consumed = True
-        async for chunk in self.stream:
-            yield chunk
+        async with safe_async_iterate(self.stream) as iterator:
+            async for chunk in iterator:
+                yield chunk
 
     async def aclose(self) -> None:
         if not isinstance(self.stream, typing.AsyncIterable):  # pragma: nocover

@@ -4,12 +4,14 @@ import ssl
 import sys
 import types
 import typing
+from collections.abc import Generator
 
 from .._backends.sync import SyncBackend
 from .._backends.base import SOCKET_OPTION, NetworkBackend
 from .._exceptions import ConnectionNotAvailable, UnsupportedProtocol
 from .._models import Origin, Proxy, Request, Response
 from .._synchronization import Event, ShieldCancellation, ThreadLock
+from .._utils import safe_iterate
 from .connection import HTTPConnection
 from .interfaces import ConnectionInterface, RequestInterface
 
@@ -398,13 +400,10 @@ class PoolByteStream:
         self._pool = pool
         self._closed = False
 
-    def __iter__(self) -> typing.Iterator[bytes]:
-        try:
-            for part in self._stream:
-                yield part
-        except BaseException as exc:
-            self.close()
-            raise exc from None
+    def __iter__(self) -> Generator[bytes]:
+        with safe_iterate(self._stream) as iterator:
+            for chunk in iterator:
+                yield chunk
 
     def close(self) -> None:
         if not self._closed:

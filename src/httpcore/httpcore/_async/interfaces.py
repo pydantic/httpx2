@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import typing
+from collections.abc import AsyncGenerator
 
 from .._models import (
     URL,
@@ -58,7 +59,7 @@ class AsyncRequestInterface:
         headers: HeaderTypes = None,
         content: bytes | typing.AsyncIterator[bytes] | None = None,
         extensions: Extensions | None = None,
-    ) -> typing.AsyncIterator[Response]:
+    ) -> AsyncGenerator[Response]:
         # Strict type checking on our parameters.
         method = enforce_bytes(method, name="method")
         url = enforce_url(url, name="url")

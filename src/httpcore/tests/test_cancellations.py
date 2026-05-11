@@ -171,7 +171,6 @@ async def test_h11_timeout_during_response():
         assert conn.is_closed()
 
 
-@pytest.mark.xfail
 @pytest.mark.anyio
 async def test_h2_timeout_during_handshake():
     """
@@ -186,7 +185,6 @@ async def test_h2_timeout_during_handshake():
         assert conn.is_closed()
 
 
-@pytest.mark.xfail
 @pytest.mark.anyio
 async def test_h2_timeout_during_request():
     """
@@ -207,7 +205,6 @@ async def test_h2_timeout_during_request():
         assert conn.is_idle()
 
 
-@pytest.mark.xfail
 @pytest.mark.anyio
 async def test_h2_timeout_during_response():
     """

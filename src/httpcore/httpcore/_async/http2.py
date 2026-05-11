@@ -5,6 +5,7 @@ import logging
 import time
 import types
 import typing
+from collections.abc import AsyncGenerator
 
 import h2.config
 import h2.connection
@@ -21,6 +22,7 @@ from .._exceptions import (
 from .._models import Origin, Request, Response
 from .._synchronization import AsyncLock, AsyncSemaphore, AsyncShieldCancellation
 from .._trace import Trace
+from .._utils import safe_async_iterate
 from .interfaces import AsyncConnectionInterface
 
 logger = logging.getLogger("httpcore.http2")
@@ -258,8 +260,10 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
             return
 
         assert isinstance(request.stream, typing.AsyncIterable)
-        async for data in request.stream:
-            await self._send_stream_data(request, stream_id, data)
+        async with safe_async_iterate(request.stream) as iterator:
+            async for chunk in iterator:
+                await self._send_stream_data(request, stream_id, chunk)
+
         await self._send_end_stream(request, stream_id)
 
     async def _send_stream_data(
@@ -308,7 +312,7 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
 
     async def _receive_response_body(
         self, request: Request, stream_id: int
-    ) -> typing.AsyncIterator[bytes]:
+    ) -> AsyncGenerator[bytes]:
         """
         Iterator that returns the bytes of the response body for a given stream ID.
         """
@@ -568,14 +572,17 @@ class HTTP2ConnectionByteStream:
         self._stream_id = stream_id
         self._closed = False
 
-    async def __aiter__(self) -> typing.AsyncIterator[bytes]:
+    async def __aiter__(self) -> AsyncGenerator[bytes]:
         kwargs = {"request": self._request, "stream_id": self._stream_id}
         try:
             async with Trace("receive_response_body", logger, self._request, kwargs):
-                async for chunk in self._connection._receive_response_body(
-                    request=self._request, stream_id=self._stream_id
-                ):
-                    yield chunk
+                async with safe_async_iterate(
+                    self._connection._receive_response_body(
+                        request=self._request, stream_id=self._stream_id
+                    )
+                ) as iterator:
+                    async for chunk in iterator:
+                        yield chunk
         except BaseException as exc:
             # If we get an exception while streaming the response,
             # we want to close the response (and possibly the connection)

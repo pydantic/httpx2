@@ -96,7 +96,7 @@ filterwarnings = ["error"]
 
 [tool.coverage.run]
 omit = [
-    "venv/*", 
+    "venv/*",
     "httpcore/_sync/*"
 ]
 include = ["httpcore/*", "tests/*"]
