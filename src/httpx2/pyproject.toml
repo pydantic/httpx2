@@ -74,10 +74,11 @@ Homepage = "https://github.com/pydantic/httpx2"
 Source = "https://github.com/pydantic/httpx2"
 
 [tool.hatch.build.targets.sdist]
-include = [
-    "/httpx2",
-    "/README.md",
-]
+include = ["/httpx2"]
+
+[tool.hatch.build.targets.sdist.force-include]
+"../../README.md" = "README.md"
+"../../CHANGELOG.md" = "CHANGELOG.md"
 
 [tool.hatch.build.targets.wheel]
 packages = ["httpx2"]
