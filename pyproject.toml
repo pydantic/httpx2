@@ -1,77 +1,14 @@
-[build-system]
-requires = ["hatchling", "hatch-fancy-pypi-readme", "uv-dynamic-versioning>=0.7.0"]
-build-backend = "hatchling.build"
-
-[tool.hatch.version]
-source = "uv-dynamic-versioning"
-
-[tool.uv-dynamic-versioning]
-vcs = "git"
-style = "pep440"
-bump = true
-
-[project]
-name = "httpx2"
-description = "The next generation HTTP client."
-license = "BSD-3-Clause"
-requires-python = ">=3.9"
-authors = [
-    { name = "Tom Christie", email = "tom@tomchristie.com" },
-]
-classifiers = [
-    "Development Status :: 4 - Beta",
-    "Environment :: Web Environment",
-    "Framework :: AsyncIO",
-    "Framework :: Trio",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: BSD License",
-    "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
-    "Topic :: Internet :: WWW/HTTP",
-]
-dependencies = [
-    "certifi",
-    "httpcore2",
-    "anyio",
-    "idna",
-]
-dynamic = ["readme", "version"]
-
 [tool.uv]
+package = false
 default-groups = ["dev", "docs", "bench"]
 required-version = ">=0.8.6"
 
 [tool.uv.workspace]
-members = ["src/httpcore2"]
+members = ["src/httpx2", "src/httpcore2"]
 
 [tool.uv.sources]
 httpcore2 = { workspace = true }
-
-[project.optional-dependencies]
-brotli = [
-    "brotli; platform_python_implementation == 'CPython'",
-    "brotlicffi; platform_python_implementation != 'CPython'",
-]
-cli = [
-    "click==8.*",
-    "pygments==2.*",
-    "rich>=10,<15",
-]
-http2 = [
-    "h2>=3,<5",
-]
-socks = [
-    "socksio==1.*",
-]
-zstd = [
-  "zstandard>=0.18.0",
-]
+httpx2 = { workspace = true }
 
 [dependency-groups]
 dev = [
@@ -107,45 +44,6 @@ bench = [
     "pyinstrument>=4.6.2",
     "urllib3>=2.2.2",
 ]
-
-[project.scripts]
-httpx2 = "httpx2:main"
-
-[project.urls]
-Changelog = "https://github.com/pydantic/httpx2/blob/main/CHANGELOG.md"
-Homepage = "https://github.com/pydantic/httpx2"
-Source = "https://github.com/pydantic/httpx2"
-
-[tool.hatch.build.targets.sdist]
-include = [
-    "/src/httpx2",
-    "/CHANGELOG.md",
-    "/README.md",
-    "/tests",
-]
-
-[tool.hatch.build.targets.wheel]
-packages = ["src/httpx2"]
-
-[tool.hatch.metadata.hooks.fancy-pypi-readme]
-content-type = "text/markdown"
-
-[[tool.hatch.metadata.hooks.fancy-pypi-readme.fragments]]
-path = "README.md"
-
-[[tool.hatch.metadata.hooks.fancy-pypi-readme.fragments]]
-text = "\n## Release Information\n\n"
-
-[[tool.hatch.metadata.hooks.fancy-pypi-readme.fragments]]
-path = "CHANGELOG.md"
-pattern = "\n(###.+?\n)## "
-
-[[tool.hatch.metadata.hooks.fancy-pypi-readme.fragments]]
-text = "\n---\n\n[Full changelog](https://github.com/pydantic/httpx2/blob/main/CHANGELOG.md)\n"
-
-[[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
-pattern = 'src="(docs/img/.*?)"'
-replacement = 'src="https://raw.githubusercontent.com/pydantic/httpx2/main/\1"'
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "PIE"]
