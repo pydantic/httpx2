@@ -100,11 +100,8 @@ markers = ["copied_from(source, changes=None): mark test as copied from somewher
 filterwarnings = ["error"]
 
 [tool.coverage.run]
-omit = [
-    "venv/*",
-    "httpcore2/_sync/*"
-]
-include = ["httpcore2/*", "tests/*"]
+omit = ["httpcore2/_sync/*"]
+source_pkgs = ["httpcore2", "tests"]
 
 [tool.ruff]
 exclude = [

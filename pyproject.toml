@@ -79,5 +79,4 @@ markers = [
 ]
 
 [tool.coverage.run]
-omit = ["venv/*"]
-include = ["src/httpx2/*", "tests/*"]
+source_pkgs = ["httpx2", "tests"]
