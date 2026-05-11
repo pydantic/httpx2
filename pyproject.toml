@@ -65,7 +65,7 @@ disallow_untyped_defs = false
 check_untyped_defs = true
 
 [tool.pytest.ini_options]
-addopts = "-rxXs"
+addopts = "-rxXs --import-mode=importlib"
 testpaths = ["tests"]
 filterwarnings = [
   "error",

@@ -9,7 +9,7 @@ SUBS = [
         "from .._backends.auto import AutoBackend",
         "from .._backends.sync import SyncBackend",
     ),
-    ("import trio as concurrency", "from tests import concurrency"),
+    ("import trio as concurrency", "from tests.httpcore2 import concurrency"),
     ("AsyncIterator", "Iterator"),
     ("Async([A-Z][A-Za-z0-9_]*)", r"\2"),
     ("async def", "def"),

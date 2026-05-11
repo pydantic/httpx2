@@ -4,7 +4,7 @@ import typing
 import hpack
 import hyperframe.frame
 import pytest
-from tests import concurrency
+from tests.httpcore2 import concurrency
 
 import httpcore2
 
