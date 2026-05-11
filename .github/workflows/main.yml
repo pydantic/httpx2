@@ -2,9 +2,9 @@ name: Test Suite
 
 on:
   push:
-    branches: ["master"]
+    branches: ["main"]
   pull_request:
-    branches: ["master", "version-*"]
+    branches: ["main", "version-*"]
 
 permissions:
   contents: read
