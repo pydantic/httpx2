@@ -35,13 +35,15 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Topic :: Internet :: WWW/HTTP",
 ]
+dynamic = ["readme", "version", "dependencies"]
+
+[tool.hatch.metadata.hooks.uv-dynamic-versioning]
 dependencies = [
     "certifi",
-    "httpcore2",
+    "httpcore2=={{ version }}",
     "anyio",
     "idna",
 ]
-dynamic = ["readme", "version"]
 
 [project.optional-dependencies]
 brotli = [
