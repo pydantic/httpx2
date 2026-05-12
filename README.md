@@ -1,8 +1,6 @@
-<p align="center">
-  <a href="https://www.python-httpx.org/"><img width="350" height="208" src="https://raw.githubusercontent.com/encode/httpx/master/docs/img/butterfly.png" alt='HTTPX'></a>
-</p>
+<h1 align="center">HTTPX2</h1>
 
-<p align="center"><strong>HTTPX2</strong> <em>- A next-generation HTTP client for Python.</em></p>
+<p align="center"><em>A next-generation HTTP client for Python.</em></p>
 
 <p align="center">
 <a href="https://github.com/pydantic/httpx2/actions">
