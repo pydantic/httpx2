@@ -52,8 +52,8 @@ There are two widely used Python packages which both handle this functionality:
 Let's take a look at installing autodetection using one of these packages...
 
 ```shell
-$ pip install httpx
-$ pip install chardet
+pip install httpx
+pip install chardet
 ```
 
 Once `chardet` is installed, we can configure a client to use character-set autodetection.

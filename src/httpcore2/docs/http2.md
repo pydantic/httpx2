@@ -15,7 +15,7 @@ When using the `httpcore` client, HTTP/2 support is not enabled by default, beca
 If you're issuing highly concurrent requests you might want to consider trying out our HTTP/2 support. You can do so by first making sure to install the optional HTTP/2 dependencies...
 
 ```shell
-$ pip install 'httpcore[http2]'
+pip install 'httpcore[http2]'
 ```
 
 And then instantiating a connection pool with HTTP/2 support enabled:

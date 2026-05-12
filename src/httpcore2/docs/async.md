@@ -13,13 +13,13 @@ Launching concurrent async tasks is far more resource efficient than spawning mu
 If you're using async with [Python's stdlib `asyncio` support](https://docs.python.org/3/library/asyncio.html), install the optional dependencies using:
 
 ```shell
-$ pip install 'httpcore[asyncio]'
+pip install 'httpcore[asyncio]'
 ```
 
 Alternatively, if you're working with [the Python `trio` package](https://trio.readthedocs.io/en/stable/):
 
 ```shell
-$ pip install 'httpcore[trio]'
+pip install 'httpcore[trio]'
 ```
 
 We highly recommend `trio` for async support. The `trio` project [pioneered the principles of structured concurrency](https://en.wikipedia.org/wiki/Structured_concurrency), and has a more carefully constrained API against which to work from.

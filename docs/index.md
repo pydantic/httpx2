@@ -29,7 +29,7 @@ HTTPX2 is a fully featured HTTP client for Python 3, which provides sync and asy
 Install HTTPX2 using pip:
 
 ```shell
-$ pip install httpx2
+pip install httpx2
 ```
 
 Now, let's get started:
@@ -51,7 +51,7 @@ Or, using the command-line client.
 
 ```shell
 # The command line client is an optional dependency.
-$ pip install 'httpx2[cli]'
+pip install 'httpx2[cli]'
 ```
 
 Which now allows us to use HTTPX2 directly from the command-line...
@@ -131,19 +131,19 @@ inspiration around the lower-level networking details.
 Install with pip:
 
 ```shell
-$ pip install httpx2
+pip install httpx2
 ```
 
 Or, to include the optional HTTP/2 support, use:
 
 ```shell
-$ pip install httpx2[http2]
+pip install 'httpx2[http2]'
 ```
 
 To include the optional brotli and zstandard decoders support, use:
 
 ```shell
-$ pip install httpx2[brotli,zstd]
+pip install 'httpx2[brotli,zstd]'
 ```
 
 HTTPX2 requires Python 3.9+
