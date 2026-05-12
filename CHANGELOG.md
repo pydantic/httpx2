@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2.0.0
+
+Official first release of `httpx2`. No changes since `2.0.0b1`.
+
 ## 2.0.0b1
 
 First release of `httpx2`, a fork of [`httpx`](https://github.com/encode/httpx) maintained by Pydantic. Forked from `httpx 0.28.1` (commit [`b5addb6`](https://github.com/encode/httpx/commit/b5addb6)).
