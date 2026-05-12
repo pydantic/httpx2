@@ -1,8 +1,7 @@
-<blockquote>
-  <p><strong>A note on HTTPX2</strong></p>
-  <p>HTTPX2 is a continuation of the wonderful work started by <a href="https://github.com/lovelydinosaur">@lovelydinosaur</a> and the broader HTTPX community. We're enormously grateful for everything that has gone into HTTPX over the years - it has been a foundational piece of the modern Python ecosystem, and this project would not exist without it.</p>
-  <p>With HTTPX itself seeing limited activity recently, Pydantic Services is picking up stewardship under the HTTPX2 name so that users have a reliably maintained path forward. Our aim is to honour the original project's design, keep it stable for everyone relying on it, and continue evolving it carefully. Thank you to <a href="https://github.com/lovelydinosaur">@lovelydinosaur</a> and every past contributor for laying such a strong foundation. 💙</p>
-</blockquote>
+> [!NOTE]
+> HTTPX2 is a continuation of the wonderful work started by [@lovelydinosaur](https://github.com/lovelydinosaur) and the broader HTTPX community. We're enormously grateful for everything that has gone into HTTPX over the years - it has been a foundational piece of the modern Python ecosystem, and this project would not exist without it.
+>
+> With HTTPX itself seeing limited activity recently, Pydantic Services is picking up stewardship under the HTTPX2 name so that users have a reliably maintained path forward. Our aim is to honour the original project's design, keep it stable for everyone relying on it, and continue evolving it carefully. Thank you to [@lovelydinosaur](https://github.com/lovelydinosaur) and every past contributor for laying such a strong foundation. 💙
 
 ---
 
