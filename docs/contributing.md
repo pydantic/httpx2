@@ -206,8 +206,8 @@ UI options.
 
 At this point the server is ready to start serving requests, you'll need to
 configure HTTPX as described in the
-[proxy section](https://www.python-httpx.org/advanced/proxies/#http-proxies) and
-the [SSL certificates section](https://www.python-httpx.org/advanced/ssl/),
+[proxy section](https://httpx2.pydantic.dev/advanced/proxies/#http-proxies) and
+the [SSL certificates section](https://httpx2.pydantic.dev/advanced/ssl/),
 this is where our previously generated `client.pem` comes in:
 
 ```python

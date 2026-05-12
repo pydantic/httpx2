@@ -63,11 +63,11 @@ Sending a request...
 
 HTTPX2 builds on the well-established usability of `requests`, and gives you:
 
-* A broadly [requests-compatible API](https://www.python-httpx.org/compatibility/).
+* A broadly [requests-compatible API](https://httpx2.pydantic.dev/compatibility/).
 * An integrated command-line client.
-* HTTP/1.1 [and HTTP/2 support](https://www.python-httpx.org/http2/).
-* Standard synchronous interface, but with [async support if you need it](https://www.python-httpx.org/async/).
-* Ability to make requests directly to [WSGI applications](https://www.python-httpx.org/advanced/transports/#wsgi-transport) or [ASGI applications](https://www.python-httpx.org/advanced/transports/#asgi-transport).
+* HTTP/1.1 [and HTTP/2 support](https://httpx2.pydantic.dev/http2/).
+* Standard synchronous interface, but with [async support if you need it](https://httpx2.pydantic.dev/async/).
+* Ability to make requests directly to [WSGI applications](https://httpx2.pydantic.dev/advanced/transports/#wsgi-transport) or [ASGI applications](https://httpx2.pydantic.dev/advanced/transports/#asgi-transport).
 * Strict timeouts everywhere.
 * Fully type annotated.
 * 100% test coverage.
@@ -108,19 +108,19 @@ HTTPX2 requires Python 3.9+.
 
 ## Documentation
 
-Project documentation is available at [https://www.python-httpx.org/](https://www.python-httpx.org/).
+Project documentation is available at [https://httpx2.pydantic.dev/](https://httpx2.pydantic.dev/).
 
-For a run-through of all the basics, head over to the [QuickStart](https://www.python-httpx.org/quickstart/).
+For a run-through of all the basics, head over to the [QuickStart](https://httpx2.pydantic.dev/quickstart/).
 
-For more advanced topics, see the [Advanced Usage](https://www.python-httpx.org/advanced/) section, the [async support](https://www.python-httpx.org/async/) section, or the [HTTP/2](https://www.python-httpx.org/http2/) section.
+For more advanced topics, see the [Advanced Usage](https://httpx2.pydantic.dev/advanced/) section, the [async support](https://httpx2.pydantic.dev/async/) section, or the [HTTP/2](https://httpx2.pydantic.dev/http2/) section.
 
-The [Developer Interface](https://www.python-httpx.org/api/) provides a comprehensive API reference.
+The [Developer Interface](https://httpx2.pydantic.dev/api/) provides a comprehensive API reference.
 
-To find out about tools that integrate with HTTPX, see [Third Party Packages](https://www.python-httpx.org/third_party_packages/).
+To find out about tools that integrate with HTTPX, see [Third Party Packages](https://httpx2.pydantic.dev/third_party_packages/).
 
 ## Contribute
 
-If you want to contribute with HTTPX2 check out the [Contributing Guide](https://www.python-httpx.org/contributing/) to learn how to start.
+If you want to contribute with HTTPX2 check out the [Contributing Guide](https://httpx2.pydantic.dev/contributing/) to learn how to start.
 
 ## Dependencies
 
