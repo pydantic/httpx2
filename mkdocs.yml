@@ -1,6 +1,5 @@
-site_name: HTTPX
+site_name: HTTPX2
 site_description: A next-generation HTTP client for Python.
-site_url: https://www.python-httpx.org/
 
 theme:
     name: 'material'
@@ -18,8 +17,8 @@ theme:
           icon: 'material/lightbulb-outline'
           name: 'Switch to light mode'
 
-repo_name: encode/httpx
-repo_url: https://github.com/encode/httpx/
+repo_name: pydantic/httpx2
+repo_url: https://github.com/pydantic/httpx2/
 edit_uri: ""
 
 nav:
