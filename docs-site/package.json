@@ -1,0 +1,14 @@
+{
+  "name": "httpx2-docs",
+  "version": "0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev"
+	},
+  "packageManager": "pnpm@10.22.0",
+  "dependencies": {
+    "wrangler": "^4.90.1"
+  }
+}

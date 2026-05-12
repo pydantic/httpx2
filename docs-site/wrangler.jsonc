@@ -1,0 +1,11 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "httpx2-docs",
+  "compatibility_date": "2026-05-12",
+  "routes": [
+    { "pattern": "httpx2.pydantic.dev", "custom_domain": true }
+  ],
+  "assets": {
+    "directory": "../site"
+  }
+}

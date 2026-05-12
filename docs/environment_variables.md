@@ -49,7 +49,7 @@ python -c "import httpx; httpx.get('http://example.com')"
 
 # These requests will be sent directly, bypassing the proxy
 python -c "import httpx; httpx.get('http://127.0.0.1:5000/my-api')"
-python -c "import httpx; httpx.get('https://www.python-httpx.org')"
+python -c "import httpx; httpx.get('https://httpx2.pydantic.dev')"
 ```
 
 ## `SSL_CERT_FILE`

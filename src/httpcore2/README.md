@@ -32,13 +32,13 @@ Python 3.8+
 For HTTP/1.1 only support, install with:
 
 ```shell
-$ pip install httpcore
+pip install httpcore
 ```
 
 There are also a number of optional extras available...
 
 ```shell
-$ pip install httpcore['asyncio,trio,http2,socks']
+pip install httpcore['asyncio,trio,http2,socks']
 ```
 
 ## Sending requests
