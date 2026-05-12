@@ -18,7 +18,7 @@ dev = [
     # Tests
     "chardet==5.2.0",
     "coverage[toml]==7.10.6",
-    "cryptography==45.0.7",
+    "cryptography==46.0.7",
     "pytest==8.4.1",
     "pytest-httpbin==2.0.0",
     "pytest-trio==0.8.0",
