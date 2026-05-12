@@ -3,6 +3,7 @@ package = false
 default-groups = ["dev", "docs", "bench"]
 required-version = ">=0.8.6"
 exclude-newer = "7 days"
+exclude-newer-package = { urllib3 = "2026-05-08" }
 
 [tool.uv.workspace]
 members = ["src/httpx2", "src/httpcore2"]
@@ -19,14 +20,14 @@ dev = [
     "chardet==5.2.0",
     "coverage[toml]==7.10.6",
     "cryptography==46.0.7",
-    "pytest==8.4.1",
+    "pytest>=9.0.3",
     "pytest-httpbin==2.0.0",
     "pytest-trio==0.8.0",
     "trio==0.31.0",
     "trio-typing==0.10.0",
     "trustme==1.2.1",
     "uvicorn>=0.35",
-    "werkzeug<3.1",  # See: https://github.com/psf/httpbin/issues/35
+    "werkzeug>=3.1.6",
     # Linting
     "mypy==1.17.1",
     "ruff==0.12.11",
