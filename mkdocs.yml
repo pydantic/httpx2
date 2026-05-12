@@ -3,7 +3,6 @@ site_description: A next-generation HTTP client for Python.
 
 theme:
     name: 'material'
-    custom_dir: 'docs/overrides'
     palette:
       - scheme: 'default'
         media: '(prefers-color-scheme: light)'
