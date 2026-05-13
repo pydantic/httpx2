@@ -1,48 +1,10 @@
-.highlight .gp,
-.highlight .gh,
-.highlight .gu { color: var(--md-code-hl-keyword-color); font-weight: bold; }
-.highlight .go { color: var(--md-code-hl-comment-color); }
-.highlight .gd { color: var(--md-code-hl-string-color); }
-.highlight .gi { color: var(--md-code-hl-name-color); }
-.highlight .gr,
-.highlight .gt { color: var(--md-code-hl-string-color); }
+div.autodoc-docstring {
+  padding-left: 20px;
+  margin-bottom: 30px;
+  border-left: 5px solid rgba(230, 230, 230);
+}
 
-.highlight .o,
-.highlight .ow { color: var(--md-code-hl-operator-color); }
-.highlight .nb,
-.highlight .nf { color: var(--md-code-hl-function-color); }
-.highlight .nc,
-.highlight .ne { color: var(--md-code-hl-constant-color); font-weight: bold; }
-.highlight .nd { color: var(--md-code-hl-special-color); }
-
-.highlight .k,
-.highlight .kc,
-.highlight .kd,
-.highlight .kn,
-.highlight .kp,
-.highlight .kr { color: var(--md-code-hl-keyword-color); }
-
-.highlight .s,
-.highlight .s1,
-.highlight .s2,
-.highlight .sa,
-.highlight .sb,
-.highlight .sc,
-.highlight .se,
-.highlight .sh,
-.highlight .si,
-.highlight .sr { color: var(--md-code-hl-string-color); }
-
-.highlight .m,
-.highlight .mb,
-.highlight .mf,
-.highlight .mh,
-.highlight .mi { color: var(--md-code-hl-number-color); }
-
-.highlight .c,
-.highlight .c1,
-.highlight .ch,
-.highlight .cm,
-.highlight .cp,
-.highlight .cpf,
-.highlight .cs { color: var(--md-code-hl-comment-color); font-style: italic; }
+div.autodoc-members {
+  padding-left: 20px;
+  margin-bottom: 15px;
+}
