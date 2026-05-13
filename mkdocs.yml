@@ -53,6 +53,8 @@ plugins:
   - mkdocstrings:
       handlers:
         python:
+          inventories:
+            - https://docs.python.org/3/objects.inv
           options:
             show_root_heading: true
             show_source: false
