@@ -61,8 +61,10 @@ plugins:
 
 markdown_extensions:
   - admonition
-  - codehilite:
-      css_class: highlight
+  - pymdownx.highlight:
+      use_pygments: true
+      pygments_lang_class: true
+  - pymdownx.superfences
 
 extra_css:
     - css/custom.css
