@@ -49,11 +49,20 @@ nav:
         - Contributing: 'contributing.md'
         - Code of Conduct: 'code_of_conduct.md'
 
+plugins:
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            show_root_heading: true
+            show_source: false
+            show_signature_annotations: true
+            heading_level: 3
+
 markdown_extensions:
   - admonition
   - codehilite:
       css_class: highlight
-  - mkautodoc
 
 extra_css:
     - css/custom.css
