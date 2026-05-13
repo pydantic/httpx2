@@ -135,7 +135,7 @@ As well as these optional installs:
 * `rich` - Rich terminal support. *(Optional, with `httpx2[cli]`)*
 * `click` - Command line client support. *(Optional, with `httpx2[cli]`)*
 * `brotli` or `brotlicffi` - Decoding for "brotli" compressed responses. *(Optional, with `httpx2[brotli]`)*
-* `zstandard` - Decoding for "zstd" compressed responses. *(Optional, with `httpx2[zstd]`)*
+* `zstandard` - Decoding for "zstd" compressed responses on Python 3.13 and below. *(Optional, with `httpx2[zstd]`. On Python 3.14+, `zstd` is supported natively via the stdlib [`compression.zstd`](https://docs.python.org/3/library/compression.zstd.html) module.)*
 
 A huge amount of credit is due to `requests` for the API layout that
 much of this work follows, as well as to `urllib3` for plenty of design
