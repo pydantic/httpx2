@@ -6,9 +6,9 @@ See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Encoding
 
 from __future__ import annotations
 
-import sys
 import codecs
 import io
+import sys
 import typing
 import zlib
 
@@ -28,7 +28,8 @@ except ImportError:  # pragma: no cover
 
 
 # Zstandard support is optional on Python <= 3.13.
-# On Python 3.14, the stdlib includes a built-in zstd implementation, so we can support it without an extra dependency.
+# On Python 3.14, the stdlib includes a built-in zstd implementation, so we can support
+# it without an extra dependency.
 if typing.TYPE_CHECKING:
     if sys.version_info >= (3, 14):
         from compression import zstd as zstandard
