@@ -57,6 +57,8 @@ plugins:
             show_root_heading: true
             show_source: false
             show_signature_annotations: true
+            separate_signature: true
+            line_length: 60
             heading_level: 3
 
 markdown_extensions:
