@@ -1,14 +1,19 @@
 from __future__ import annotations
 
 import io
+import sys
 import typing
 import zlib
 
 import chardet
 import pytest
-import zstandard as zstd
 
 import httpx2
+
+if sys.version_info >= (3, 14):  # pragma: no cover
+    from compression import zstd
+else:  # pragma: no cover
+    import zstandard as zstd
 
 
 def test_deflate():
