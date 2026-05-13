@@ -3,7 +3,7 @@ package = false
 default-groups = ["dev", "docs", "bench"]
 required-version = ">=0.8.6"
 exclude-newer = "7 days"
-exclude-newer-package = { urllib3 = "2026-05-08" }
+exclude-newer-package = { urllib3 = "2026-05-08", zensical = "2026-05-10" }
 
 [tool.uv.workspace]
 members = ["src/httpx2", "src/httpcore2"]
@@ -36,9 +36,8 @@ dev = [
     "twine==6.1.0",
 ]
 docs = [
-    "mkdocs==1.6.1",
-    "mkautodoc==0.2.0",
-    "mkdocs-material==9.6.18",
+    "zensical>=0.0.41",
+    "mkdocstrings[python]>=0.27",
 ]
 bench = [
     "aiohttp>=3.10.2",

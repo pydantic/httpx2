@@ -49,11 +49,25 @@ nav:
         - Contributing: 'contributing.md'
         - Code of Conduct: 'code_of_conduct.md'
 
+plugins:
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            show_root_heading: true
+            show_source: false
+            show_signature_annotations: true
+            separate_signature: true
+            line_length: 60
+            heading_level: 3
+            inherited_members: true
+
 markdown_extensions:
   - admonition
-  - codehilite:
-      css_class: highlight
-  - mkautodoc
+  - pymdownx.highlight:
+      use_pygments: true
+      pygments_lang_class: true
+  - pymdownx.superfences
 
 extra_css:
     - css/custom.css

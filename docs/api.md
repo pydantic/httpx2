@@ -9,43 +9,66 @@
     long-lived connections.
 
 ::: httpx2.request
-    :docstring:
 
 ::: httpx2.get
-    :docstring:
 
 ::: httpx2.options
-    :docstring:
 
 ::: httpx2.head
-    :docstring:
 
 ::: httpx2.post
-    :docstring:
 
 ::: httpx2.put
-    :docstring:
 
 ::: httpx2.patch
-    :docstring:
 
 ::: httpx2.delete
-    :docstring:
 
 ::: httpx2.stream
-    :docstring:
 
 ## `Client`
 
 ::: httpx2.Client
-    :docstring:
-    :members: headers cookies params auth request get head options post put patch delete stream build_request send close
+    options:
+      members:
+        - headers
+        - cookies
+        - params
+        - auth
+        - request
+        - get
+        - head
+        - options
+        - post
+        - put
+        - patch
+        - delete
+        - stream
+        - build_request
+        - send
+        - close
 
 ## `AsyncClient`
 
 ::: httpx2.AsyncClient
-    :docstring:
-    :members: headers cookies params auth request get head options post put patch delete stream build_request send aclose
+    options:
+      members:
+        - headers
+        - cookies
+        - params
+        - auth
+        - request
+        - get
+        - head
+        - options
+        - post
+        - put
+        - patch
+        - delete
+        - stream
+        - build_request
+        - send
+        - aclose
 
 
 ## `Response`
