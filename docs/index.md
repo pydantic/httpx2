@@ -146,4 +146,4 @@ To include the optional brotli and zstandard decoders support, use:
 pip install 'httpx2[brotli,zstd]'
 ```
 
-HTTPX2 requires Python 3.9+
+HTTPX2 requires Python 3.10+
