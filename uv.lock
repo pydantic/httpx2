@@ -1377,7 +1377,7 @@ socks = [
     { name = "socksio" },
 ]
 zstd = [
-    { name = "zstandard" },
+    { name = "zstandard", marker = "python_full_version < '3.14'" },
 ]
 
 [package.metadata]
@@ -1393,7 +1393,7 @@ requires-dist = [
     { name = "pygments", marker = "extra == 'cli'", specifier = "==2.*" },
     { name = "rich", marker = "extra == 'cli'", specifier = ">=10,<15" },
     { name = "socksio", marker = "extra == 'socks'", specifier = "==1.*" },
-    { name = "zstandard", marker = "extra == 'zstd'", specifier = ">=0.18.0" },
+    { name = "zstandard", marker = "python_full_version < '3.14' and extra == 'zstd'", specifier = ">=0.18.0" },
 ]
 provides-extras = ["brotli", "cli", "http2", "socks", "zstd"]
 
