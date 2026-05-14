@@ -43,7 +43,11 @@ Or, using the command-line client.
 pip install 'httpx2[cli]'  # The command line client is an optional dependency.
 ```
 
-Which now allows us to use HTTPX2 directly from the command-line.
+Which now allows us to use HTTPX2 directly from the command-line:
+
+```shell
+httpx2 --help
+```
 
 ## Features
 
