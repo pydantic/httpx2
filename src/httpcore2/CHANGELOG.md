@@ -16,13 +16,13 @@ First release of `httpcore2`, a fork of [`httpcore`](https://github.com/encode/h
 
 * **Renamed package**: `httpcore` -> `httpcore2`. `import httpcore` becomes `import httpcore2`. No other public API changed.
 
+### Fixed
+
+* Fix `max_keepalive_connections` not being properly handled. (Inherited from upstream PR [encode/httpcore#1000](https://github.com/encode/httpcore/pull/1000).)
+
 ---
 
 Historical entries below are from upstream `encode/httpcore`.
-
-## Unreleased
-
-- Fix `max_keepalive_connections` not being properly handled. (#1000)
 
 ## Version 1.0.9 (April 24th, 2025)
 
