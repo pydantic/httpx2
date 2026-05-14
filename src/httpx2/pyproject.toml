@@ -83,6 +83,7 @@ include = ["/httpx2"]
 [tool.hatch.build.targets.sdist.force-include]
 "../../README.md" = "README.md"
 "../../CHANGELOG.md" = "CHANGELOG.md"
+"../../LICENSE.md" = "LICENSE.md"
 
 [tool.hatch.build.targets.wheel]
 packages = ["httpx2"]

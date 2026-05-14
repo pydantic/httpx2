@@ -67,6 +67,7 @@ Source = "https://github.com/encode/httpcore"
 include = [
     "/httpcore2",
     "/CHANGELOG.md",
+    "/LICENSE.md",
     "/README.md",
     "/tests"
 ]
