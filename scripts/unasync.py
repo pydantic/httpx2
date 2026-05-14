@@ -83,8 +83,16 @@ def unasync_dir(in_dir, out_dir, check_only=False):
 
 def main():
     check_only = "--check" in sys.argv
-    unasync_dir("httpcore/_async", "httpcore/_sync", check_only=check_only)
-    unasync_dir("tests/_async", "tests/_sync", check_only=check_only)
+    unasync_dir(
+        "src/httpcore2/httpcore2/_async",
+        "src/httpcore2/httpcore2/_sync",
+        check_only=check_only,
+    )
+    unasync_dir(
+        "tests/httpcore2/_async",
+        "tests/httpcore2/_sync",
+        check_only=check_only,
+    )
 
     if len(USED_SUBS) != len(SUBS):
         unused_subs = [SUBS[i] for i in range(len(SUBS)) if i not in USED_SUBS]

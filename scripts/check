@@ -8,3 +8,4 @@ uv lock --check
 uv run ruff format --check --diff $SOURCE_FILES
 uv run mypy $SOURCE_FILES
 uv run ruff check $SOURCE_FILES
+uv run python scripts/unasync.py --check
