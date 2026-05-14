@@ -26,8 +26,6 @@ with httpx.Client(mounts=proxy_mounts) as client:
     ...
 ```
 
-For detailed information about proxy routing, see the [Routing](#routing) section.
-
 !!! tip "Gotcha"
     In most cases, the proxy URL for the `https://` key _should_ use the `http://` scheme (that's not a typo!).
 
