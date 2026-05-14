@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2.0.0
+
+Official first release of `httpcore2`. No changes since `2.0.0b1`.
+
+## 2.0.0b1
+
+First release of `httpcore2`, a fork of [`httpcore`](https://github.com/encode/httpcore) maintained by Pydantic. Forked from `httpcore 1.0.9`.
+
+### Breaking changes
+
+* **Renamed package**: `httpcore` -> `httpcore2`. `import httpcore` becomes `import httpcore2`. No other public API changed.
+
+---
+
+Historical entries below are from upstream `encode/httpcore`.
+
 ## Unreleased
 
 - Fix `max_keepalive_connections` not being properly handled. (#1000)

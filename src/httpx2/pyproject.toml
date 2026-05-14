@@ -73,16 +73,15 @@ zstd = [
 httpx2 = "httpx2:main"
 
 [project.urls]
-Changelog = "https://github.com/pydantic/httpx2/blob/main/CHANGELOG.md"
+Changelog = "https://github.com/pydantic/httpx2/blob/main/src/httpx2/CHANGELOG.md"
 Homepage = "https://github.com/pydantic/httpx2"
 Source = "https://github.com/pydantic/httpx2"
 
 [tool.hatch.build.targets.sdist]
-include = ["/httpx2"]
+include = ["/httpx2", "/CHANGELOG.md"]
 
 [tool.hatch.build.targets.sdist.force-include]
 "../../README.md" = "README.md"
-"../../CHANGELOG.md" = "CHANGELOG.md"
 "../../LICENSE.md" = "LICENSE.md"
 
 [tool.hatch.build.targets.wheel]
@@ -98,11 +97,11 @@ path = "../../README.md"
 text = "\n## Release Information\n\n"
 
 [[tool.hatch.metadata.hooks.fancy-pypi-readme.fragments]]
-path = "../../CHANGELOG.md"
+path = "CHANGELOG.md"
 pattern = "\n(###.+?\n)## "
 
 [[tool.hatch.metadata.hooks.fancy-pypi-readme.fragments]]
-text = "\n---\n\n[Full changelog](https://github.com/pydantic/httpx2/blob/main/CHANGELOG.md)\n"
+text = "\n---\n\n[Full changelog](https://github.com/pydantic/httpx2/blob/main/src/httpx2/CHANGELOG.md)\n"
 
 [[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
 pattern = 'src="(docs/img/.*?)"'
