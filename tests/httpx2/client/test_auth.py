@@ -66,17 +66,11 @@ class DigestApp:
         challenge_data = {
             "nonce": nonce,
             "qop": self.qop,
-            "opaque": (
-                "ee6378f3ee14ebfd2fff54b70a91a7c9390518047f242ab2271380db0e14bda1"
-            ),
+            "opaque": ("ee6378f3ee14ebfd2fff54b70a91a7c9390518047f242ab2271380db0e14bda1"),
             "algorithm": self.algorithm,
             "stale": "FALSE",
         }
-        challenge_str = ", ".join(
-            '{}="{}"'.format(key, value)
-            for key, value in challenge_data.items()
-            if value
-        )
+        challenge_str = ", ".join('{}="{}"'.format(key, value) for key, value in challenge_data.items() if value)
 
         headers = {
             "www-authenticate": f'Digest realm="httpx@example.org", {challenge_str}',
@@ -97,9 +91,7 @@ class RepeatAuth(httpx2.Auth):
     def __init__(self, repeat: int) -> None:
         self.repeat = repeat
 
-    def auth_flow(
-        self, request: httpx2.Request
-    ) -> typing.Generator[httpx2.Request, httpx2.Response, None]:
+    def auth_flow(self, request: httpx2.Request) -> typing.Generator[httpx2.Request, httpx2.Response, None]:
         nonces = []
 
         for index in range(self.repeat):
@@ -124,9 +116,7 @@ class ResponseBodyAuth(httpx2.Auth):
     def __init__(self, token: str) -> None:
         self.token = token
 
-    def auth_flow(
-        self, request: httpx2.Request
-    ) -> typing.Generator[httpx2.Request, httpx2.Response, None]:
+    def auth_flow(self, request: httpx2.Request) -> typing.Generator[httpx2.Request, httpx2.Response, None]:
         request.headers["Authorization"] = self.token
         response = yield request
         data = response.text
@@ -144,16 +134,12 @@ class SyncOrAsyncAuth(httpx2.Auth):
         self._lock = threading.Lock()
         self._async_lock = anyio.Lock()
 
-    def sync_auth_flow(
-        self, request: httpx2.Request
-    ) -> typing.Generator[httpx2.Request, httpx2.Response, None]:
+    def sync_auth_flow(self, request: httpx2.Request) -> typing.Generator[httpx2.Request, httpx2.Response, None]:
         with self._lock:
             request.headers["Authorization"] = "sync-auth"
         yield request
 
-    async def async_auth_flow(
-        self, request: httpx2.Request
-    ) -> typing.AsyncGenerator[httpx2.Request, httpx2.Response]:
+    async def async_auth_flow(self, request: httpx2.Request) -> typing.AsyncGenerator[httpx2.Request, httpx2.Response]:
         async with self._async_lock:
             request.headers["Authorization"] = "async-auth"
         yield request
@@ -181,9 +167,7 @@ async def test_basic_auth_with_stream() -> None:
     auth = ("user", "password123")
     app = App()
 
-    async with httpx2.AsyncClient(
-        transport=httpx2.MockTransport(app), auth=auth
-    ) as client:
+    async with httpx2.AsyncClient(transport=httpx2.MockTransport(app), auth=auth) as client:
         async with client.stream("GET", url) as response:
             await response.aread()
 
@@ -209,9 +193,7 @@ async def test_basic_auth_on_session() -> None:
     auth = ("user", "password123")
     app = App()
 
-    async with httpx2.AsyncClient(
-        transport=httpx2.MockTransport(app), auth=auth
-    ) as client:
+    async with httpx2.AsyncClient(transport=httpx2.MockTransport(app), auth=auth) as client:
         response = await client.get(url)
 
     assert response.status_code == 200
@@ -248,9 +230,7 @@ def test_netrc_auth_credentials_exist() -> None:
         response = client.get(url)
 
     assert response.status_code == 200
-    assert response.json() == {
-        "auth": "Basic ZXhhbXBsZS11c2VybmFtZTpleGFtcGxlLXBhc3N3b3Jk"
-    }
+    assert response.json() == {"auth": "Basic ZXhhbXBsZS11c2VybmFtZTpleGFtcGxlLXBhc3N3b3Jk"}
 
 
 def test_netrc_auth_credentials_do_not_exist() -> None:
@@ -291,9 +271,7 @@ async def test_auth_disable_per_request() -> None:
     auth = ("user", "password123")
     app = App()
 
-    async with httpx2.AsyncClient(
-        transport=httpx2.MockTransport(app), auth=auth
-    ) as client:
+    async with httpx2.AsyncClient(transport=httpx2.MockTransport(app), auth=auth) as client:
         response = await client.get(url, auth=None)
 
     assert response.status_code == 200
@@ -424,9 +402,7 @@ async def test_digest_auth_401_response_without_digest_auth_header() -> None:
     ],
 )
 @pytest.mark.anyio
-async def test_digest_auth(
-    algorithm: str, expected_hash_length: int, expected_response_length: int
-) -> None:
+async def test_digest_auth(algorithm: str, expected_hash_length: int, expected_response_length: int) -> None:
     url = "https://example.org/"
     auth = httpx2.DigestAuth(username="user", password="password123")
     app = DigestApp(algorithm=algorithm)
@@ -564,12 +540,8 @@ async def test_digest_auth_resets_nonce_count_after_401() -> None:
         assert response_1.status_code == 200
         assert len(response_1.history) == 1
 
-        first_nonce = parse_keqv_list(
-            response_1.request.headers["Authorization"].split(", ")
-        )["nonce"]
-        first_nc = parse_keqv_list(
-            response_1.request.headers["Authorization"].split(", ")
-        )["nc"]
+        first_nonce = parse_keqv_list(response_1.request.headers["Authorization"].split(", "))["nonce"]
+        first_nc = parse_keqv_list(response_1.request.headers["Authorization"].split(", "))["nc"]
 
         # with this we now force a 401 on a subsequent (but initial) request
         app.send_response_after_attempt = 2
@@ -580,17 +552,11 @@ async def test_digest_auth_resets_nonce_count_after_401() -> None:
         assert response_2.status_code == 200
         assert len(response_2.history) == 1
 
-        second_nonce = parse_keqv_list(
-            response_2.request.headers["Authorization"].split(", ")
-        )["nonce"]
-        second_nc = parse_keqv_list(
-            response_2.request.headers["Authorization"].split(", ")
-        )["nc"]
+        second_nonce = parse_keqv_list(response_2.request.headers["Authorization"].split(", "))["nonce"]
+        second_nc = parse_keqv_list(response_2.request.headers["Authorization"].split(", "))["nc"]
 
     assert first_nonce != second_nonce  # ensures that the auth challenge was reset
-    assert (
-        first_nc == second_nc
-    )  # ensures the nonce count is reset when the authentication failed
+    assert first_nc == second_nc  # ensures the nonce count is reset when the authentication failed
 
 
 @pytest.mark.parametrize(

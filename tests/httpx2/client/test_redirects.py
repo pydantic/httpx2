@@ -182,9 +182,7 @@ def test_head_redirect():
 
 def test_relative_redirect():
     client = httpx2.Client(transport=httpx2.MockTransport(redirects))
-    response = client.get(
-        "https://example.org/relative_redirect", follow_redirects=True
-    )
+    response = client.get("https://example.org/relative_redirect", follow_redirects=True)
     assert response.status_code == httpx2.codes.OK
     assert response.url == "https://example.org/"
     assert len(response.history) == 1
@@ -193,9 +191,7 @@ def test_relative_redirect():
 def test_malformed_redirect():
     # https://github.com/encode/httpx/issues/771
     client = httpx2.Client(transport=httpx2.MockTransport(redirects))
-    response = client.get(
-        "http://example.org/malformed_redirect", follow_redirects=True
-    )
+    response = client.get("http://example.org/malformed_redirect", follow_redirects=True)
     assert response.status_code == httpx2.codes.OK
     assert response.url == "https://example.org:443/"
     assert len(response.history) == 1
@@ -209,9 +205,7 @@ def test_invalid_redirect():
 
 def test_no_scheme_redirect():
     client = httpx2.Client(transport=httpx2.MockTransport(redirects))
-    response = client.get(
-        "https://example.org/no_scheme_redirect", follow_redirects=True
-    )
+    response = client.get("https://example.org/no_scheme_redirect", follow_redirects=True)
     assert response.status_code == httpx2.codes.OK
     assert response.url == "https://example.org/"
     assert len(response.history) == 1
@@ -219,9 +213,7 @@ def test_no_scheme_redirect():
 
 def test_fragment_redirect():
     client = httpx2.Client(transport=httpx2.MockTransport(redirects))
-    response = client.get(
-        "https://example.org/relative_redirect#fragment", follow_redirects=True
-    )
+    response = client.get("https://example.org/relative_redirect#fragment", follow_redirects=True)
     assert response.status_code == httpx2.codes.OK
     assert response.url == "https://example.org/#fragment"
     assert len(response.history) == 1
@@ -229,9 +221,7 @@ def test_fragment_redirect():
 
 def test_multiple_redirects():
     client = httpx2.Client(transport=httpx2.MockTransport(redirects))
-    response = client.get(
-        "https://example.org/multiple_redirects?count=20", follow_redirects=True
-    )
+    response = client.get("https://example.org/multiple_redirects?count=20", follow_redirects=True)
     assert response.status_code == httpx2.codes.OK
     assert response.url == "https://example.org/multiple_redirects"
     assert len(response.history) == 20
@@ -245,17 +235,13 @@ def test_multiple_redirects():
 async def test_async_too_many_redirects():
     async with httpx2.AsyncClient(transport=httpx2.MockTransport(redirects)) as client:
         with pytest.raises(httpx2.TooManyRedirects):
-            await client.get(
-                "https://example.org/multiple_redirects?count=21", follow_redirects=True
-            )
+            await client.get("https://example.org/multiple_redirects?count=21", follow_redirects=True)
 
 
 def test_sync_too_many_redirects():
     client = httpx2.Client(transport=httpx2.MockTransport(redirects))
     with pytest.raises(httpx2.TooManyRedirects):
-        client.get(
-            "https://example.org/multiple_redirects?count=21", follow_redirects=True
-        )
+        client.get("https://example.org/multiple_redirects?count=21", follow_redirects=True)
 
 
 def test_redirect_loop():
@@ -381,10 +367,7 @@ def cookie_sessions(request: httpx2.Request) -> httpx2.Response:
         status_code = httpx2.codes.SEE_OTHER
         headers = {
             "location": "/",
-            "set-cookie": (
-                "session=eyJ1c2VybmFtZSI6ICJ0b21; path=/; Max-Age=1209600; "
-                "httponly; samesite=lax"
-            ),
+            "set-cookie": ("session=eyJ1c2VybmFtZSI6ICJ0b21; path=/; Max-Age=1209600; httponly; samesite=lax"),
         }
         return httpx2.Response(status_code, headers=headers)
 
@@ -393,18 +376,13 @@ def cookie_sessions(request: httpx2.Request) -> httpx2.Response:
         status_code = httpx2.codes.SEE_OTHER
         headers = {
             "location": "/",
-            "set-cookie": (
-                "session=null; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; "
-                "httponly; samesite=lax"
-            ),
+            "set-cookie": ("session=null; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; httponly; samesite=lax"),
         }
         return httpx2.Response(status_code, headers=headers)
 
 
 def test_redirect_cookie_behavior():
-    client = httpx2.Client(
-        transport=httpx2.MockTransport(cookie_sessions), follow_redirects=True
-    )
+    client = httpx2.Client(transport=httpx2.MockTransport(cookie_sessions), follow_redirects=True)
 
     # The client is not logged in.
     response = client.get("https://example.com/")
@@ -443,6 +421,4 @@ def test_redirect_custom_scheme():
 async def test_async_invalid_redirect():
     async with httpx2.AsyncClient(transport=httpx2.MockTransport(redirects)) as client:
         with pytest.raises(httpx2.RemoteProtocolError):
-            await client.get(
-                "http://example.org/invalid_redirect", follow_redirects=True
-            )
+            await client.get("http://example.org/invalid_redirect", follow_redirects=True)

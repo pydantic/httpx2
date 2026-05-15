@@ -30,9 +30,7 @@ def application_factory(output: typing.Iterable[bytes]) -> WSGIApplication:
     return wsgiref.validate.validator(application)
 
 
-def echo_body(
-    environ: WSGIEnvironment, start_response: StartResponse
-) -> typing.Iterable[bytes]:
+def echo_body(environ: WSGIEnvironment, start_response: StartResponse) -> typing.Iterable[bytes]:
     status = "200 OK"
     output = environ["wsgi.input"].read()
 
@@ -45,9 +43,7 @@ def echo_body(
     return [output]
 
 
-def echo_body_with_response_stream(
-    environ: WSGIEnvironment, start_response: StartResponse
-) -> typing.Iterable[bytes]:
+def echo_body_with_response_stream(environ: WSGIEnvironment, start_response: StartResponse) -> typing.Iterable[bytes]:
     status = "200 OK"
 
     response_headers = [("Content-Type", "text/plain")]

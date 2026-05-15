@@ -14,9 +14,7 @@ class SlowWriteStream(httpcore2.AsyncNetworkStream):
     the request writing.
     """
 
-    async def write(
-        self, buffer: bytes, timeout: typing.Optional[float] = None
-    ) -> None:
+    async def write(self, buffer: bytes, timeout: typing.Optional[float] = None) -> None:
         await anyio.sleep(999)
 
     async def aclose(self) -> None:
@@ -33,9 +31,7 @@ class HandshakeThenSlowWriteStream(httpcore2.AsyncNetworkStream):
     def __init__(self) -> None:
         self._handshake_complete = False
 
-    async def write(
-        self, buffer: bytes, timeout: typing.Optional[float] = None
-    ) -> None:
+    async def write(self, buffer: bytes, timeout: typing.Optional[float] = None) -> None:
         if not self._handshake_complete:
             self._handshake_complete = True
         else:
@@ -57,9 +53,7 @@ class SlowReadStream(httpcore2.AsyncNetworkStream):
     async def write(self, buffer, timeout=None):
         pass
 
-    async def read(
-        self, max_bytes: int, timeout: typing.Optional[float] = None
-    ) -> bytes:
+    async def read(self, max_bytes: int, timeout: typing.Optional[float] = None) -> bytes:
         if not self._buffer:
             await anyio.sleep(999)
         return self._buffer.pop(0)
@@ -229,9 +223,7 @@ async def test_h2_timeout_during_response():
                 ),
                 flags=["END_HEADERS"],
             ).serialize(),
-            hyperframe.frame.DataFrame(
-                stream_id=1, data=b"Hello, world!...", flags=[]
-            ).serialize(),
+            hyperframe.frame.DataFrame(stream_id=1, data=b"Hello, world!...", flags=[]).serialize(),
         ]
     )
     async with httpcore2.AsyncHTTP2Connection(origin, stream) as conn:

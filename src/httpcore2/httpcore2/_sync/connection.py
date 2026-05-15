@@ -58,9 +58,7 @@ class HTTPConnection(ConnectionInterface):
         self._local_address = local_address
         self._uds = uds
 
-        self._network_backend: NetworkBackend = (
-            SyncBackend() if network_backend is None else network_backend
-        )
+        self._network_backend: NetworkBackend = SyncBackend() if network_backend is None else network_backend
         self._connection: ConnectionInterface | None = None
         self._connect_failed: bool = False
         self._request_lock = Lock()
@@ -68,9 +66,7 @@ class HTTPConnection(ConnectionInterface):
 
     def handle_request(self, request: Request) -> Response:
         if not self.can_handle_request(request.url.origin):
-            raise RuntimeError(
-                f"Attempted to send request to {request.url.origin} on connection to {self._origin}"
-            )
+            raise RuntimeError(f"Attempted to send request to {request.url.origin} on connection to {self._origin}")
 
         try:
             with self._request_lock:
@@ -78,10 +74,7 @@ class HTTPConnection(ConnectionInterface):
                     stream = self._connect(request)
 
                     ssl_object = stream.get_extra_info("ssl_object")
-                    http2_negotiated = (
-                        ssl_object is not None
-                        and ssl_object.selected_alpn_protocol() == "h2"
-                    )
+                    http2_negotiated = ssl_object is not None and ssl_object.selected_alpn_protocol() == "h2"
                     if http2_negotiated or (self._http2 and not self._http1):
                         from .http2 import HTTP2Connection
 
@@ -129,27 +122,18 @@ class HTTPConnection(ConnectionInterface):
                         "timeout": timeout,
                         "socket_options": self._socket_options,
                     }
-                    with Trace(
-                        "connect_unix_socket", logger, request, kwargs
-                    ) as trace:
-                        stream = self._network_backend.connect_unix_socket(
-                            **kwargs
-                        )
+                    with Trace("connect_unix_socket", logger, request, kwargs) as trace:
+                        stream = self._network_backend.connect_unix_socket(**kwargs)
                         trace.return_value = stream
 
                 if self._origin.scheme in (b"https", b"wss"):
-                    ssl_context = (
-                        default_ssl_context()
-                        if self._ssl_context is None
-                        else self._ssl_context
-                    )
+                    ssl_context = default_ssl_context() if self._ssl_context is None else self._ssl_context
                     alpn_protocols = ["http/1.1", "h2"] if self._http2 else ["http/1.1"]
                     ssl_context.set_alpn_protocols(alpn_protocols)
 
                     kwargs = {
                         "ssl_context": ssl_context,
-                        "server_hostname": sni_hostname
-                        or self._origin.host.decode("ascii"),
+                        "server_hostname": sni_hostname or self._origin.host.decode("ascii"),
                         "timeout": timeout,
                     }
                     with Trace("start_tls", logger, request, kwargs) as trace:
@@ -177,11 +161,7 @@ class HTTPConnection(ConnectionInterface):
             # If HTTP/2 support is enabled, and the resulting connection could
             # end up as HTTP/2 then we should indicate the connection as being
             # available to service multiple requests.
-            return (
-                self._http2
-                and (self._origin.scheme == b"https" or not self._http1)
-                and not self._connect_failed
-            )
+            return self._http2 and (self._origin.scheme == b"https" or not self._http1) and not self._connect_failed
         return self._connection.is_available()
 
     def has_expired(self) -> bool:

@@ -54,9 +54,7 @@ class BaseTransport:
 
         Returns a `Response` instance.
         """
-        raise NotImplementedError(
-            "The 'handle_request' method must be implemented."
-        )  # pragma: no cover
+        raise NotImplementedError("The 'handle_request' method must be implemented.")  # pragma: no cover
 
     def close(self) -> None:
         pass
@@ -78,9 +76,7 @@ class AsyncBaseTransport:
         self,
         request: Request,
     ) -> Response:
-        raise NotImplementedError(
-            "The 'handle_async_request' method must be implemented."
-        )  # pragma: no cover
+        raise NotImplementedError("The 'handle_async_request' method must be implemented.")  # pragma: no cover
 
     async def aclose(self) -> None:
         pass

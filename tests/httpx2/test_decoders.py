@@ -153,9 +153,7 @@ def test_multi():
     compressed_body = deflate_compressor.compress(body) + deflate_compressor.flush()
 
     gzip_compressor = zlib.compressobj(9, zlib.DEFLATED, zlib.MAX_WBITS | 16)
-    compressed_body = (
-        gzip_compressor.compress(compressed_body) + gzip_compressor.flush()
-    )
+    compressed_body = gzip_compressor.compress(compressed_body) + gzip_compressor.flush()
 
     headers = [(b"Content-Encoding", b"deflate, gzip")]
     response = httpx2.Response(
@@ -298,9 +296,7 @@ def test_text_decoder_empty_cases():
     ["data", "expected"],
     [((b"Hello,", b" world!"), ["Hello,", " world!"])],
 )
-def test_streaming_text_decoder(
-    data: typing.Iterable[bytes], expected: list[str]
-) -> None:
+def test_streaming_text_decoder(data: typing.Iterable[bytes], expected: list[str]) -> None:
     response = httpx2.Response(200, content=iter(data))
     assert list(response.iter_text()) == expected
 
@@ -313,9 +309,7 @@ def test_line_decoder_nl():
     assert list(response.iter_lines()) == ["a", "", "b", "c"]
 
     # Issue #1033
-    response = httpx2.Response(
-        200, content=[b"", b"12345\n", b"foo ", b"bar ", b"baz\n"]
-    )
+    response = httpx2.Response(200, content=[b"", b"12345\n", b"foo ", b"bar ", b"baz\n"])
     assert list(response.iter_lines()) == ["12345", "foo bar baz"]
 
 
@@ -327,9 +321,7 @@ def test_line_decoder_cr():
     assert list(response.iter_lines()) == ["a", "", "b", "c"]
 
     # Issue #1033
-    response = httpx2.Response(
-        200, content=[b"", b"12345\r", b"foo ", b"bar ", b"baz\r"]
-    )
+    response = httpx2.Response(200, content=[b"", b"12345\r", b"foo ", b"bar ", b"baz\r"])
     assert list(response.iter_lines()) == ["12345", "foo bar baz"]
 
 

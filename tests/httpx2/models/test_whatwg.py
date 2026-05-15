@@ -12,11 +12,7 @@ from httpx2._urlparse import urlparse
 # https://github.com/web-platform-tests/wpt/blob/master/url/resources/urltestdata.json
 with open("tests/httpx2/models/whatwg.json", "r", encoding="utf-8") as input:
     test_cases = json.load(input)
-    test_cases = [
-        item
-        for item in test_cases
-        if not isinstance(item, str) and not item.get("failure")
-    ]
+    test_cases = [item for item in test_cases if not isinstance(item, str) and not item.get("failure")]
 
 
 @pytest.mark.parametrize("test_case", test_cases)

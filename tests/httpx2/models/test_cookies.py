@@ -57,8 +57,7 @@ def test_multiple_set_cookie():
     headers = [
         (
             b"Set-Cookie",
-            b"1P_JAR=2020-08-09-18; expires=Tue, 08-Sep-2099 18:33:35 GMT; "
-            b"path=/; domain=.example.org; Secure",
+            b"1P_JAR=2020-08-09-18; expires=Tue, 08-Sep-2099 18:33:35 GMT; path=/; domain=.example.org; Secure",
         ),
         (
             b"Set-Cookie",
@@ -93,6 +92,5 @@ def test_cookies_repr():
     cookies.set(name="fizz", value="buzz", domain="http://hello.com")
 
     assert repr(cookies) == (
-        "<Cookies[<Cookie foo=bar for http://blah.com />,"
-        " <Cookie fizz=buzz for http://hello.com />]>"
+        "<Cookies[<Cookie foo=bar for http://blah.com />, <Cookie fizz=buzz for http://hello.com />]>"
     )

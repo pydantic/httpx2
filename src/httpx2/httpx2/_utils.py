@@ -40,9 +40,7 @@ def get_environment_proxies() -> dict[str, str | None]:
     for scheme in ("http", "https", "all"):
         if proxy_info.get(scheme):
             hostname = proxy_info[scheme]
-            mounts[f"{scheme}://"] = (
-                hostname if "://" in hostname else f"http://{hostname}"
-            )
+            mounts[f"{scheme}://"] = hostname if "://" in hostname else f"http://{hostname}"
 
     no_proxy_hosts = [host.strip() for host in proxy_info.get("no", "").split(",")]
     for hostname in no_proxy_hosts:
@@ -192,11 +190,7 @@ class URLPattern:
     def matches(self, other: URL) -> bool:
         if self.scheme and self.scheme != other.scheme:
             return False
-        if (
-            self.host
-            and self.host_regex is not None
-            and not self.host_regex.match(other.host)
-        ):
+        if self.host and self.host_regex is not None and not self.host_regex.match(other.host):
             return False
         if self.port is not None and self.port != other.port:
             return False

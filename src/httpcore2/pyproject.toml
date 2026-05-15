@@ -1,5 +1,9 @@
 [build-system]
-requires = ["hatchling", "hatch-fancy-pypi-readme", "uv-dynamic-versioning>=0.7.0"]
+requires = [
+    "hatchling",
+    "hatch-fancy-pypi-readme",
+    "uv-dynamic-versioning>=0.7.0",
+]
 build-backend = "hatchling.build"
 
 [tool.hatch.version]
@@ -16,11 +20,9 @@ dynamic = ["readme", "version"]
 description = "A minimal low-level HTTP client."
 license = "BSD-3-Clause"
 requires-python = ">=3.10"
-authors = [
-    { name = "Tom Christie", email = "tom@tomchristie.com" },
-]
+authors = [{ name = "Tom Christie", email = "tom@tomchristie.com" }]
 maintainers = [
-    { name = "Pydantic Services Inc.", email = "engineering@pydantic.dev" }
+    { name = "Pydantic Services Inc.", email = "engineering@pydantic.dev" },
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -39,24 +41,13 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
     "Topic :: Internet :: WWW/HTTP",
 ]
-dependencies = [
-    "certifi",
-    "h11>=0.16",
-]
+dependencies = ["certifi", "h11>=0.16"]
 
 [project.optional-dependencies]
-http2 = [
-    "h2>=3,<5",
-]
-socks = [
-    "socksio==1.*",
-]
-trio = [
-    "trio>=0.22.0,<1.0",
-]
-asyncio = [
-    "anyio>=4.0,<5.0",
-]
+http2 = ["h2>=3,<5"]
+socks = ["socksio==1.*"]
+trio = ["trio>=0.22.0,<1.0"]
+asyncio = ["anyio>=4.0,<5.0"]
 
 [project.urls]
 Documentation = "https://www.encode.io/httpcore"
@@ -64,13 +55,7 @@ Homepage = "https://www.encode.io/httpcore/"
 Source = "https://github.com/encode/httpcore"
 
 [tool.hatch.build.targets.sdist]
-include = [
-    "/httpcore2",
-    "/CHANGELOG.md",
-    "/LICENSE.md",
-    "/README.md",
-    "/tests"
-]
+include = ["/httpcore2", "/CHANGELOG.md", "/LICENSE.md", "/README.md", "/tests"]
 
 [tool.hatch.metadata.hooks.fancy-pypi-readme]
 content-type = "text/markdown"
@@ -80,44 +65,3 @@ path = "README.md"
 
 [[tool.hatch.metadata.hooks.fancy-pypi-readme.fragments]]
 path = "CHANGELOG.md"
-
-[tool.mypy]
-strict = true
-show_error_codes = true
-
-[[tool.mypy.overrides]]
-module = "tests.*"
-disallow_untyped_defs = false
-check_untyped_defs = true
-
-[[tool.mypy.overrides]]
-module = "h2.*"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "hpack.*"
-ignore_missing_imports = true
-
-[tool.pytest.ini_options]
-addopts = ["-rxXs", "--strict-config", "--strict-markers"]
-markers = ["copied_from(source, changes=None): mark test as copied from somewhere else, along with a description of changes made to accodomate e.g. our test setup"]
-filterwarnings = ["error"]
-
-[tool.coverage.run]
-omit = ["httpcore2/_sync/*"]
-source_pkgs = ["httpcore2", "tests"]
-
-[tool.ruff]
-exclude = [
-    "httpcore2/_sync",
-    "tests/_sync",
-]
-
-[tool.ruff.lint]
-select = ["E", "F", "W", "I"]
-
-[tool.ruff.lint.pycodestyle]
-max-line-length = 120
-
-[tool.ruff.lint.isort]
-combine-as-imports = true

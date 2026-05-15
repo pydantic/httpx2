@@ -192,8 +192,7 @@ class ZStandardDecoder(ContentDecoder):
     def __init__(self) -> None:
         if not _zstandard_installed:  # pragma: no cover
             raise ImportError(
-                "Using 'ZStandardDecoder', ..."
-                "Make sure to install httpx using `pip install httpx[zstd]`."
+                "Using 'ZStandardDecoder', ...Make sure to install httpx using `pip install httpx[zstd]`."
             ) from None
 
         self.decompressor = ZstdDecompressor()
@@ -261,10 +260,7 @@ class ByteChunker:
         self._buffer.write(content)
         if self._buffer.tell() >= self._chunk_size:
             value = self._buffer.getvalue()
-            chunks = [
-                value[i : i + self._chunk_size]
-                for i in range(0, len(value), self._chunk_size)
-            ]
+            chunks = [value[i : i + self._chunk_size] for i in range(0, len(value), self._chunk_size)]
             if len(chunks[-1]) == self._chunk_size:
                 self._buffer.seek(0)
                 self._buffer.truncate()
@@ -300,10 +296,7 @@ class TextChunker:
         self._buffer.write(content)
         if self._buffer.tell() >= self._chunk_size:
             value = self._buffer.getvalue()
-            chunks = [
-                value[i : i + self._chunk_size]
-                for i in range(0, len(value), self._chunk_size)
-            ]
+            chunks = [value[i : i + self._chunk_size] for i in range(0, len(value), self._chunk_size)]
             if len(chunks[-1]) == self._chunk_size:
                 self._buffer.seek(0)
                 self._buffer.truncate()

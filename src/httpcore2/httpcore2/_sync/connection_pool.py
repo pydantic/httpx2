@@ -30,9 +30,7 @@ class PoolRequest:
         self.connection = None
         self._connection_acquired = Event()
 
-    def wait_for_connection(
-        self, timeout: float | None = None
-    ) -> ConnectionInterface:
+    def wait_for_connection(self, timeout: float | None = None) -> ConnectionInterface:
         if self.connection is None:
             self._connection_acquired.wait(timeout=timeout)
         assert self.connection is not None
@@ -93,17 +91,11 @@ class ConnectionPool(RequestInterface):
         """
         self._ssl_context = ssl_context
         self._proxy = proxy
-        self._max_connections = (
-            sys.maxsize if max_connections is None else max_connections
-        )
+        self._max_connections = sys.maxsize if max_connections is None else max_connections
         self._max_keepalive_connections = (
-            sys.maxsize
-            if max_keepalive_connections is None
-            else max_keepalive_connections
+            sys.maxsize if max_keepalive_connections is None else max_keepalive_connections
         )
-        self._max_keepalive_connections = min(
-            self._max_connections, self._max_keepalive_connections
-        )
+        self._max_keepalive_connections = min(self._max_connections, self._max_keepalive_connections)
 
         self._keepalive_expiry = keepalive_expiry
         self._http1 = http1
@@ -112,9 +104,7 @@ class ConnectionPool(RequestInterface):
         self._local_address = local_address
         self._uds = uds
 
-        self._network_backend = (
-            SyncBackend() if network_backend is None else network_backend
-        )
+        self._network_backend = SyncBackend() if network_backend is None else network_backend
         self._socket_options = socket_options
 
         # The mutable state on a connection pool is the queue of incoming requests,
@@ -206,13 +196,9 @@ class ConnectionPool(RequestInterface):
         """
         scheme = request.url.scheme.decode()
         if scheme == "":
-            raise UnsupportedProtocol(
-                "Request URL is missing an 'http://' or 'https://' protocol."
-            )
+            raise UnsupportedProtocol("Request URL is missing an 'http://' or 'https://' protocol.")
         if scheme not in ("http", "https", "ws", "wss"):
-            raise UnsupportedProtocol(
-                f"Request URL has an unsupported protocol '{scheme}://'."
-            )
+            raise UnsupportedProtocol(f"Request URL has an unsupported protocol '{scheme}://'.")
 
         timeouts = request.extensions.get("timeout", {})
         timeout = timeouts.get("pool", None)
@@ -235,9 +221,7 @@ class ConnectionPool(RequestInterface):
 
                 try:
                     # Send the request on the assigned connection.
-                    response = connection.handle_request(
-                        pool_request.request
-                    )
+                    response = connection.handle_request(pool_request.request)
                 except ConnectionNotAvailable:
                     # In some cases a connection may initially be available to
                     # handle a request, but then become unavailable.
@@ -263,9 +247,7 @@ class ConnectionPool(RequestInterface):
         return Response(
             status=response.status,
             headers=response.headers,
-            content=PoolByteStream(
-                stream=response.stream, pool_request=pool_request, pool=self
-            ),
+            content=PoolByteStream(stream=response.stream, pool_request=pool_request, pool=self),
             extensions=response.extensions,
         )
 
@@ -293,8 +275,7 @@ class ConnectionPool(RequestInterface):
                 closing_connections.append(connection)
             elif (
                 connection.is_idle()
-                and sum(connection.is_idle() for connection in self._connections)
-                > self._max_keepalive_connections
+                and sum(connection.is_idle() for connection in self._connections) > self._max_keepalive_connections
             ):
                 # log: "closing idle connection"
                 self._connections.remove(connection)
@@ -309,9 +290,7 @@ class ConnectionPool(RequestInterface):
                 for connection in self._connections
                 if connection.can_handle_request(origin) and connection.is_available()
             ]
-            idle_connections = [
-                connection for connection in self._connections if connection.is_idle()
-            ]
+            idle_connections = [connection for connection in self._connections if connection.is_idle()]
 
             # There are three cases for how we may be able to handle the request:
             #
@@ -369,21 +348,15 @@ class ConnectionPool(RequestInterface):
         class_name = self.__class__.__name__
         with self._optional_thread_lock:
             request_is_queued = [request.is_queued() for request in self._requests]
-            connection_is_idle = [
-                connection.is_idle() for connection in self._connections
-            ]
+            connection_is_idle = [connection.is_idle() for connection in self._connections]
 
             num_active_requests = request_is_queued.count(False)
             num_queued_requests = request_is_queued.count(True)
             num_active_connections = connection_is_idle.count(False)
             num_idle_connections = connection_is_idle.count(True)
 
-        requests_info = (
-            f"Requests: {num_active_requests} active, {num_queued_requests} queued"
-        )
-        connection_info = (
-            f"Connections: {num_active_connections} active, {num_idle_connections} idle"
-        )
+        requests_info = f"Requests: {num_active_requests} active, {num_queued_requests} queued"
+        connection_info = f"Connections: {num_active_connections} active, {num_idle_connections} idle"
 
         return f"<{class_name} [{requests_info} | {connection_info}]>"
 

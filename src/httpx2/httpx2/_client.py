@@ -84,11 +84,7 @@ def _same_origin(url: URL, other: URL) -> bool:
     """
     Return 'True' if the given URLs share the same origin.
     """
-    return (
-        url.scheme == other.scheme
-        and url.host == other.host
-        and _port_or_default(url) == _port_or_default(other)
-    )
+    return url.scheme == other.scheme and url.host == other.host and _port_or_default(url) == _port_or_default(other)
 
 
 class UseClientDefault:
@@ -117,9 +113,7 @@ USE_CLIENT_DEFAULT = UseClientDefault()
 logger = logging.getLogger("httpx2")
 
 USER_AGENT = f"python-httpx2/{__version__}"
-ACCEPT_ENCODING = ", ".join(
-    [key for key in SUPPORTED_DECODERS.keys() if key != "identity"]
-)
+ACCEPT_ENCODING = ", ".join([key for key in SUPPORTED_DECODERS.keys() if key != "identity"])
 
 
 class ClientState(enum.Enum):
@@ -142,9 +136,7 @@ class BoundSyncStream(SyncByteStream):
     ensures the `response.elapsed` is set once the response is closed.
     """
 
-    def __init__(
-        self, stream: SyncByteStream, response: Response, start: float
-    ) -> None:
+    def __init__(self, stream: SyncByteStream, response: Response, start: float) -> None:
         self._stream = stream
         self._response = response
         self._start = start
@@ -165,9 +157,7 @@ class BoundAsyncStream(AsyncByteStream):
     ensures the `response.elapsed` is set once the response is closed.
     """
 
-    def __init__(
-        self, stream: AsyncByteStream, response: Response, start: float
-    ) -> None:
+    def __init__(self, stream: AsyncByteStream, response: Response, start: float) -> None:
         self._stream = stream
         self._response = response
         self._start = start
@@ -236,15 +226,10 @@ class BaseClient:
             return url
         return url.copy_with(raw_path=url.raw_path + b"/")
 
-    def _get_proxy_map(
-        self, proxy: ProxyTypes | None, allow_env_proxies: bool
-    ) -> dict[str, Proxy | None]:
+    def _get_proxy_map(self, proxy: ProxyTypes | None, allow_env_proxies: bool) -> dict[str, Proxy | None]:
         if proxy is None:
             if allow_env_proxies:
-                return {
-                    key: None if url is None else Proxy(url=url)
-                    for key, url in get_environment_proxies().items()
-                }
+                return {key: None if url is None else Proxy(url=url) for key, url in get_environment_proxies().items()}
             return {}
         else:
             proxy = Proxy(url=proxy) if isinstance(proxy, (str, URL)) else proxy
@@ -369,11 +354,7 @@ class BaseClient:
         params = self._merge_queryparams(params)
         extensions = {} if extensions is None else extensions
         if "timeout" not in extensions:
-            timeout = (
-                self.timeout
-                if isinstance(timeout, UseClientDefault)
-                else Timeout(timeout)
-            )
+            timeout = self.timeout if isinstance(timeout, UseClientDefault) else Timeout(timeout)
             extensions = dict(**extensions, timeout=timeout.as_dict())
         return Request(
             method,
@@ -430,9 +411,7 @@ class BaseClient:
         merged_headers.update(headers)
         return merged_headers
 
-    def _merge_queryparams(
-        self, params: QueryParamTypes | None = None
-    ) -> QueryParamTypes | None:
+    def _merge_queryparams(self, params: QueryParamTypes | None = None) -> QueryParamTypes | None:
         """
         Merge a queryparams argument together with any queryparams on the client,
         to create the queryparams used for the outgoing request.
@@ -459,9 +438,7 @@ class BaseClient:
         request: Request,
         auth: AuthTypes | UseClientDefault | None = USE_CLIENT_DEFAULT,
     ) -> Auth:
-        auth = (
-            self._auth if isinstance(auth, UseClientDefault) else self._build_auth(auth)
-        )
+        auth = self._auth if isinstance(auth, UseClientDefault) else self._build_auth(auth)
 
         if auth is not None:
             return auth
@@ -523,9 +500,7 @@ class BaseClient:
         try:
             url = URL(location)
         except InvalidURL as exc:
-            raise RemoteProtocolError(
-                f"Invalid URL in location header: {exc}.", request=request
-            ) from None
+            raise RemoteProtocolError(f"Invalid URL in location header: {exc}.", request=request) from None
 
         # Handle malformed 'Location' headers that are "absolute" form, have no host.
         # See: https://github.com/encode/httpx/issues/771
@@ -570,9 +545,7 @@ class BaseClient:
 
         return headers
 
-    def _redirect_stream(
-        self, request: Request, method: str
-    ) -> SyncByteStream | AsyncByteStream | None:
+    def _redirect_stream(self, request: Request, method: str) -> SyncByteStream | AsyncByteStream | None:
         """
         Return the body that should be used for the redirect request.
         """
@@ -583,11 +556,7 @@ class BaseClient:
 
     def _set_timeout(self, request: Request) -> None:
         if "timeout" not in request.extensions:
-            timeout = (
-                self.timeout
-                if isinstance(self.timeout, UseClientDefault)
-                else Timeout(self.timeout)
-            )
+            timeout = self.timeout if isinstance(self.timeout, UseClientDefault) else Timeout(self.timeout)
             request.extensions = dict(**request.extensions, timeout=timeout.as_dict())
 
 
@@ -711,9 +680,7 @@ class Client(BaseClient):
             for key, proxy in proxy_map.items()
         }
         if mounts is not None:
-            self._mounts.update(
-                {URLPattern(key): transport for key, transport in mounts.items()}
-            )
+            self._mounts.update({URLPattern(key): transport for key, transport in mounts.items()})
 
         self._mounts = dict(sorted(self._mounts.items()))
 
@@ -903,11 +870,7 @@ class Client(BaseClient):
             raise RuntimeError("Cannot send a request, as the client has been closed.")
 
         self._state = ClientState.OPENED
-        follow_redirects = (
-            self.follow_redirects
-            if isinstance(follow_redirects, UseClientDefault)
-            else follow_redirects
-        )
+        follow_redirects = self.follow_redirects if isinstance(follow_redirects, UseClientDefault) else follow_redirects
 
         self._set_timeout(request)
 
@@ -971,9 +934,7 @@ class Client(BaseClient):
     ) -> Response:
         while True:
             if len(history) > self.max_redirects:
-                raise TooManyRedirects(
-                    "Exceeded maximum allowed redirects.", request=request
-                )
+                raise TooManyRedirects("Exceeded maximum allowed redirects.", request=request)
 
             for hook in self._event_hooks["request"]:
                 hook(request)
@@ -1008,9 +969,7 @@ class Client(BaseClient):
         start = time.perf_counter()
 
         if not isinstance(request.stream, SyncByteStream):
-            raise RuntimeError(
-                "Attempted to send an async request with a sync Client instance."
-            )
+            raise RuntimeError("Attempted to send an async request with a sync Client instance.")
 
         with request_context(request=request):
             response = transport.handle_request(request)
@@ -1018,9 +977,7 @@ class Client(BaseClient):
         assert isinstance(response.stream, SyncByteStream)
 
         response.request = request
-        response.stream = BoundSyncStream(
-            response.stream, response=response, start=start
-        )
+        response.stream = BoundSyncStream(response.stream, response=response, start=start)
         self.cookies.extract_cookies(response)
         response.default_encoding = self._default_encoding
 
@@ -1278,9 +1235,7 @@ class Client(BaseClient):
         if self._state != ClientState.UNOPENED:
             msg = {
                 ClientState.OPENED: "Cannot open a client instance more than once.",
-                ClientState.CLOSED: (
-                    "Cannot reopen a client instance, once it has been closed."
-                ),
+                ClientState.CLOSED: ("Cannot reopen a client instance, once it has been closed."),
             }[self._state]
             raise RuntimeError(msg)
 
@@ -1428,9 +1383,7 @@ class AsyncClient(BaseClient):
             for key, proxy in proxy_map.items()
         }
         if mounts is not None:
-            self._mounts.update(
-                {URLPattern(key): transport for key, transport in mounts.items()}
-            )
+            self._mounts.update({URLPattern(key): transport for key, transport in mounts.items()})
         self._mounts = dict(sorted(self._mounts.items()))
 
     def _init_transport(
@@ -1620,11 +1573,7 @@ class AsyncClient(BaseClient):
             raise RuntimeError("Cannot send a request, as the client has been closed.")
 
         self._state = ClientState.OPENED
-        follow_redirects = (
-            self.follow_redirects
-            if isinstance(follow_redirects, UseClientDefault)
-            else follow_redirects
-        )
+        follow_redirects = self.follow_redirects if isinstance(follow_redirects, UseClientDefault) else follow_redirects
 
         self._set_timeout(request)
 
@@ -1688,9 +1637,7 @@ class AsyncClient(BaseClient):
     ) -> Response:
         while True:
             if len(history) > self.max_redirects:
-                raise TooManyRedirects(
-                    "Exceeded maximum allowed redirects.", request=request
-                )
+                raise TooManyRedirects("Exceeded maximum allowed redirects.", request=request)
 
             for hook in self._event_hooks["request"]:
                 await hook(request)
@@ -1726,18 +1673,14 @@ class AsyncClient(BaseClient):
         start = time.perf_counter()
 
         if not isinstance(request.stream, AsyncByteStream):
-            raise RuntimeError(
-                "Attempted to send a sync request with an AsyncClient instance."
-            )
+            raise RuntimeError("Attempted to send a sync request with an AsyncClient instance.")
 
         with request_context(request=request):
             response = await transport.handle_async_request(request)
 
         assert isinstance(response.stream, AsyncByteStream)
         response.request = request
-        response.stream = BoundAsyncStream(
-            response.stream, response=response, start=start
-        )
+        response.stream = BoundAsyncStream(response.stream, response=response, start=start)
         self.cookies.extract_cookies(response)
         response.default_encoding = self._default_encoding
 
@@ -1995,9 +1938,7 @@ class AsyncClient(BaseClient):
         if self._state != ClientState.UNOPENED:
             msg = {
                 ClientState.OPENED: "Cannot open a client instance more than once.",
-                ClientState.CLOSED: (
-                    "Cannot reopen a client instance, once it has been closed."
-                ),
+                ClientState.CLOSED: ("Cannot reopen a client instance, once it has been closed."),
             }[self._state]
             raise RuntimeError(msg)
 

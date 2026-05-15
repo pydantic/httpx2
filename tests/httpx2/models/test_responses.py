@@ -237,9 +237,7 @@ def test_response_no_charset_with_iso_8859_1_content():
     """
     content = "Accented: Österreich abcdefghijklmnopqrstuzwxyz".encode("iso-8859-1")
     headers = {"Content-Type": "text/plain"}
-    response = httpx2.Response(
-        200, content=content, headers=headers, default_encoding=autodetect
-    )
+    response = httpx2.Response(200, content=content, headers=headers, default_encoding=autodetect)
     assert response.text == "Accented: Österreich abcdefghijklmnopqrstuzwxyz"
     assert response.charset_encoding is None
 
@@ -251,9 +249,7 @@ def test_response_no_charset_with_cp_1252_content():
     """
     content = "Euro Currency: € abcdefghijklmnopqrstuzwxyz".encode("cp1252")
     headers = {"Content-Type": "text/plain"}
-    response = httpx2.Response(
-        200, content=content, headers=headers, default_encoding=autodetect
-    )
+    response = httpx2.Response(200, content=content, headers=headers, default_encoding=autodetect)
     assert response.text == "Euro Currency: € abcdefghijklmnopqrstuzwxyz"
     assert response.charset_encoding is None
 
@@ -273,9 +269,7 @@ def test_response_non_text_encoding():
 
 
 def test_response_set_explicit_encoding():
-    headers = {
-        "Content-Type": "text-plain; charset=utf-8"
-    }  # Deliberately incorrect charset
+    headers = {"Content-Type": "text-plain; charset=utf-8"}  # Deliberately incorrect charset
     response = httpx2.Response(
         200,
         content="Latin 1: ÿ".encode("latin-1"),

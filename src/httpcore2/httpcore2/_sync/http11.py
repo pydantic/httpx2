@@ -66,10 +66,7 @@ class HTTP11Connection(ConnectionInterface):
 
     def handle_request(self, request: Request) -> Response:
         if not self.can_handle_request(request.url.origin):
-            raise RuntimeError(
-                f"Attempted to send request to {request.url.origin} on connection "
-                f"to {self._origin}"
-            )
+            raise RuntimeError(f"Attempted to send request to {request.url.origin} on connection to {self._origin}")
 
         with self._state_lock:
             if self._state in (HTTPConnectionState.NEW, HTTPConnectionState.IDLE):
@@ -82,9 +79,7 @@ class HTTP11Connection(ConnectionInterface):
         try:
             kwargs = {"request": request}
             try:
-                with Trace(
-                    "send_request_headers", logger, request, kwargs
-                ) as trace:
+                with Trace("send_request_headers", logger, request, kwargs) as trace:
                     self._send_request_headers(**kwargs)
                 with Trace("send_request_body", logger, request, kwargs) as trace:
                     self._send_request_body(**kwargs)
@@ -96,9 +91,7 @@ class HTTP11Connection(ConnectionInterface):
                 # error response.
                 pass
 
-            with Trace(
-                "receive_response_headers", logger, request, kwargs
-            ) as trace:
+            with Trace("receive_response_headers", logger, request, kwargs) as trace:
                 (
                     http_version,
                     status,
@@ -116,9 +109,7 @@ class HTTP11Connection(ConnectionInterface):
             network_stream = self._network_stream
 
             # CONNECT or Upgrade request
-            if (status == 101) or (
-                (request.method == b"CONNECT") and (200 <= status < 300)
-            ):
+            if (status == 101) or ((request.method == b"CONNECT") and (200 <= status < 300)):
                 network_stream = HTTP11UpgradeStream(network_stream, trailing_data)
 
             return Response(
@@ -180,10 +171,7 @@ class HTTP11Connection(ConnectionInterface):
             event = self._receive_event(timeout=timeout)
             if isinstance(event, h11.Response):
                 break
-            if (
-                isinstance(event, h11.InformationalResponse)
-                and event.status_code == 101
-            ):
+            if isinstance(event, h11.InformationalResponse) and event.status_code == 101:
                 break
 
         http_version = b"HTTP/" + event.http_version
@@ -207,17 +195,13 @@ class HTTP11Connection(ConnectionInterface):
             elif isinstance(event, (h11.EndOfMessage, h11.PAUSED)):
                 break
 
-    def _receive_event(
-        self, timeout: float | None = None
-    ) -> h11.Event | type[h11.PAUSED]:
+    def _receive_event(self, timeout: float | None = None) -> h11.Event | type[h11.PAUSED]:
         while True:
             with map_exceptions({h11.RemoteProtocolError: RemoteProtocolError}):
                 event = self._h11_state.next_event()
 
             if event is h11.NEED_DATA:
-                data = self._network_stream.read(
-                    self.READ_NUM_BYTES, timeout=timeout
-                )
+                data = self._network_stream.read(self.READ_NUM_BYTES, timeout=timeout)
 
                 # If we feed this case through h11 we'll raise an exception like:
                 #
@@ -238,10 +222,7 @@ class HTTP11Connection(ConnectionInterface):
 
     def _response_closed(self) -> None:
         with self._state_lock:
-            if (
-                self._h11_state.our_state is h11.DONE
-                and self._h11_state.their_state is h11.DONE
-            ):
+            if self._h11_state.our_state is h11.DONE and self._h11_state.their_state is h11.DONE:
                 self._state = HTTPConnectionState.IDLE
                 self._h11_state.start_next_cycle()
                 if self._keepalive_expiry is not None:
@@ -279,9 +260,8 @@ class HTTP11Connection(ConnectionInterface):
         # If the HTTP connection is idle but the socket is readable, then the
         # only valid state is that the socket is about to return b"", indicating
         # a server-initiated disconnect.
-        server_disconnected = (
-            self._state == HTTPConnectionState.IDLE
-            and self._network_stream.get_extra_info("is_readable")
+        server_disconnected = self._state == HTTPConnectionState.IDLE and self._network_stream.get_extra_info(
+            "is_readable"
         )
 
         return keepalive_expired or server_disconnected
@@ -294,18 +274,12 @@ class HTTP11Connection(ConnectionInterface):
 
     def info(self) -> str:
         origin = str(self._origin)
-        return (
-            f"{origin!r}, HTTP/1.1, {self._state.name}, "
-            f"Request Count: {self._request_count}"
-        )
+        return f"{origin!r}, HTTP/1.1, {self._state.name}, Request Count: {self._request_count}"
 
     def __repr__(self) -> str:
         class_name = self.__class__.__name__
         origin = str(self._origin)
-        return (
-            f"<{class_name} [{origin!r}, {self._state.name}, "
-            f"Request Count: {self._request_count}]>"
-        )
+        return f"<{class_name} [{origin!r}, {self._state.name}, Request Count: {self._request_count}]>"
 
     # These context managers are not used in the standard flow, but are
     # useful for testing or working with connection instances directly.
@@ -332,9 +306,7 @@ class HTTP11ConnectionByteStream:
         kwargs = {"request": self._request}
         try:
             with Trace("receive_response_body", logger, self._request, kwargs):
-                with safe_iterate(
-                    self._connection._receive_response_body(**kwargs)
-                ) as iterator:
+                with safe_iterate(self._connection._receive_response_body(**kwargs)) as iterator:
                     for chunk in iterator:
                         yield chunk
         except BaseException as exc:

@@ -33,14 +33,10 @@ def current_async_library() -> str:
         raise RuntimeError("Running under an unsupported async environment.")
 
     if environment == "asyncio" and anyio is None:  # pragma: nocover
-        raise RuntimeError(
-            "Running with asyncio requires installation of 'httpcore[asyncio]'."
-        )
+        raise RuntimeError("Running with asyncio requires installation of 'httpcore[asyncio]'.")
 
     if environment == "trio" and trio is None:  # pragma: nocover
-        raise RuntimeError(
-            "Running with trio requires installation of 'httpcore[trio]'."
-        )
+        raise RuntimeError("Running with trio requires installation of 'httpcore[trio]'.")
 
     return environment
 
@@ -163,13 +159,9 @@ class AsyncSemaphore:
         """
         self._backend = current_async_library()
         if self._backend == "trio":
-            self._trio_semaphore = trio.Semaphore(
-                initial_value=self._bound, max_value=self._bound
-            )
+            self._trio_semaphore = trio.Semaphore(initial_value=self._bound, max_value=self._bound)
         elif self._backend == "asyncio":
-            self._anyio_semaphore = anyio.Semaphore(
-                initial_value=self._bound, max_value=self._bound
-            )
+            self._anyio_semaphore = anyio.Semaphore(initial_value=self._bound, max_value=self._bound)
 
     async def acquire(self) -> None:
         if not self._backend:

@@ -115,9 +115,7 @@ async def test_cannot_stream_sync_request(server):
 async def test_raise_for_status(server):
     async with httpx2.AsyncClient() as client:
         for status_code in (200, 400, 404, 500, 505):
-            response = await client.request(
-                "GET", server.url.copy_with(path=f"/status/{status_code}")
-            )
+            response = await client.request("GET", server.url.copy_with(path=f"/status/{status_code}"))
 
             if 400 <= status_code < 600:
                 with pytest.raises(httpx2.HTTPStatusError) as exc_info:
@@ -171,9 +169,7 @@ async def test_100_continue(server):
     content = b"Echo request body"
 
     async with httpx2.AsyncClient() as client:
-        response = await client.post(
-            server.url.copy_with(path="/echo_body"), headers=headers, content=content
-        )
+        response = await client.post(server.url.copy_with(path="/echo_body"), headers=headers, content=content)
 
     assert response.status_code == 200
     assert response.content == content
@@ -235,9 +231,7 @@ async def test_context_managed_transport_and_mount():
 
     transport = Transport(name="transport")
     mounted = Transport(name="mounted")
-    async with httpx2.AsyncClient(
-        transport=transport, mounts={"http://www.example.org": mounted}
-    ):
+    async with httpx2.AsyncClient(transport=transport, mounts={"http://www.example.org": mounted}):
         pass
 
     assert transport.events == [
@@ -355,9 +349,7 @@ async def test_cancellation_during_stream():
                 nonlocal stream_was_closed
                 stream_was_closed = True
 
-        return httpx2.Response(
-            200, headers={"Content-Length": "12"}, stream=CancelledStream()
-        )
+        return httpx2.Response(200, headers={"Content-Length": "12"}, stream=CancelledStream())
 
     transport = httpx2.MockTransport(response_with_cancel_during_stream)
 

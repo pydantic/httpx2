@@ -16,12 +16,8 @@ if typing.TYPE_CHECKING:  # pragma: no cover
 
 _Message = typing.MutableMapping[str, typing.Any]
 _Receive = typing.Callable[[], typing.Awaitable[_Message]]
-_Send = typing.Callable[
-    [typing.MutableMapping[str, typing.Any]], typing.Awaitable[None]
-]
-_ASGIApp = typing.Callable[
-    [typing.MutableMapping[str, typing.Any], _Receive, _Send], typing.Awaitable[None]
-]
+_Send = typing.Callable[[typing.MutableMapping[str, typing.Any]], typing.Awaitable[None]]
+_ASGIApp = typing.Callable[[typing.MutableMapping[str, typing.Any], _Receive, _Send], typing.Awaitable[None]]
 
 __all__ = ["ASGITransport"]
 
@@ -168,7 +164,7 @@ class ASGITransport(AsyncBaseTransport):
 
         try:
             await self.app(scope, receive, send)
-        except Exception:  # noqa: PIE-786
+        except Exception:
             if self.raise_app_exceptions:
                 raise
 

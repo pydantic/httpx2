@@ -66,10 +66,7 @@ class AsyncHTTP11Connection(AsyncConnectionInterface):
 
     async def handle_async_request(self, request: Request) -> Response:
         if not self.can_handle_request(request.url.origin):
-            raise RuntimeError(
-                f"Attempted to send request to {request.url.origin} on connection "
-                f"to {self._origin}"
-            )
+            raise RuntimeError(f"Attempted to send request to {request.url.origin} on connection to {self._origin}")
 
         async with self._state_lock:
             if self._state in (HTTPConnectionState.NEW, HTTPConnectionState.IDLE):
@@ -82,9 +79,7 @@ class AsyncHTTP11Connection(AsyncConnectionInterface):
         try:
             kwargs = {"request": request}
             try:
-                async with Trace(
-                    "send_request_headers", logger, request, kwargs
-                ) as trace:
+                async with Trace("send_request_headers", logger, request, kwargs) as trace:
                     await self._send_request_headers(**kwargs)
                 async with Trace("send_request_body", logger, request, kwargs) as trace:
                     await self._send_request_body(**kwargs)
@@ -96,9 +91,7 @@ class AsyncHTTP11Connection(AsyncConnectionInterface):
                 # error response.
                 pass
 
-            async with Trace(
-                "receive_response_headers", logger, request, kwargs
-            ) as trace:
+            async with Trace("receive_response_headers", logger, request, kwargs) as trace:
                 (
                     http_version,
                     status,
@@ -116,9 +109,7 @@ class AsyncHTTP11Connection(AsyncConnectionInterface):
             network_stream = self._network_stream
 
             # CONNECT or Upgrade request
-            if (status == 101) or (
-                (request.method == b"CONNECT") and (200 <= status < 300)
-            ):
+            if (status == 101) or ((request.method == b"CONNECT") and (200 <= status < 300)):
                 network_stream = AsyncHTTP11UpgradeStream(network_stream, trailing_data)
 
             return Response(
@@ -180,10 +171,7 @@ class AsyncHTTP11Connection(AsyncConnectionInterface):
             event = await self._receive_event(timeout=timeout)
             if isinstance(event, h11.Response):
                 break
-            if (
-                isinstance(event, h11.InformationalResponse)
-                and event.status_code == 101
-            ):
+            if isinstance(event, h11.InformationalResponse) and event.status_code == 101:
                 break
 
         http_version = b"HTTP/" + event.http_version
@@ -207,17 +195,13 @@ class AsyncHTTP11Connection(AsyncConnectionInterface):
             elif isinstance(event, (h11.EndOfMessage, h11.PAUSED)):
                 break
 
-    async def _receive_event(
-        self, timeout: float | None = None
-    ) -> h11.Event | type[h11.PAUSED]:
+    async def _receive_event(self, timeout: float | None = None) -> h11.Event | type[h11.PAUSED]:
         while True:
             with map_exceptions({h11.RemoteProtocolError: RemoteProtocolError}):
                 event = self._h11_state.next_event()
 
             if event is h11.NEED_DATA:
-                data = await self._network_stream.read(
-                    self.READ_NUM_BYTES, timeout=timeout
-                )
+                data = await self._network_stream.read(self.READ_NUM_BYTES, timeout=timeout)
 
                 # If we feed this case through h11 we'll raise an exception like:
                 #
@@ -238,10 +222,7 @@ class AsyncHTTP11Connection(AsyncConnectionInterface):
 
     async def _response_closed(self) -> None:
         async with self._state_lock:
-            if (
-                self._h11_state.our_state is h11.DONE
-                and self._h11_state.their_state is h11.DONE
-            ):
+            if self._h11_state.our_state is h11.DONE and self._h11_state.their_state is h11.DONE:
                 self._state = HTTPConnectionState.IDLE
                 self._h11_state.start_next_cycle()
                 if self._keepalive_expiry is not None:
@@ -279,9 +260,8 @@ class AsyncHTTP11Connection(AsyncConnectionInterface):
         # If the HTTP connection is idle but the socket is readable, then the
         # only valid state is that the socket is about to return b"", indicating
         # a server-initiated disconnect.
-        server_disconnected = (
-            self._state == HTTPConnectionState.IDLE
-            and self._network_stream.get_extra_info("is_readable")
+        server_disconnected = self._state == HTTPConnectionState.IDLE and self._network_stream.get_extra_info(
+            "is_readable"
         )
 
         return keepalive_expired or server_disconnected
@@ -294,18 +274,12 @@ class AsyncHTTP11Connection(AsyncConnectionInterface):
 
     def info(self) -> str:
         origin = str(self._origin)
-        return (
-            f"{origin!r}, HTTP/1.1, {self._state.name}, "
-            f"Request Count: {self._request_count}"
-        )
+        return f"{origin!r}, HTTP/1.1, {self._state.name}, Request Count: {self._request_count}"
 
     def __repr__(self) -> str:
         class_name = self.__class__.__name__
         origin = str(self._origin)
-        return (
-            f"<{class_name} [{origin!r}, {self._state.name}, "
-            f"Request Count: {self._request_count}]>"
-        )
+        return f"<{class_name} [{origin!r}, {self._state.name}, Request Count: {self._request_count}]>"
 
     # These context managers are not used in the standard flow, but are
     # useful for testing or working with connection instances directly.
@@ -332,9 +306,7 @@ class HTTP11ConnectionByteStream:
         kwargs = {"request": self._request}
         try:
             async with Trace("receive_response_body", logger, self._request, kwargs):
-                async with safe_async_iterate(
-                    self._connection._receive_response_body(**kwargs)
-                ) as iterator:
+                async with safe_async_iterate(self._connection._receive_response_body(**kwargs)) as iterator:
                     async for chunk in iterator:
                         yield chunk
         except BaseException as exc:

@@ -43,9 +43,7 @@ def test_generator_with_content_length_header():
         yield b"test 123"  # pragma: no cover
 
     headers = {"Content-Length": "8"}
-    request = httpx2.Request(
-        "POST", "http://example.org", content=content(), headers=headers
-    )
+    request = httpx2.Request("POST", "http://example.org", content=content(), headers=headers)
     assert request.headers == {"Host": "example.org", "Content-Length": "8"}
 
 
@@ -131,9 +129,7 @@ def test_ignore_transfer_encoding_header_if_content_length_exists():
     data = streaming_body(b"abcd")
 
     headers = {"Content-Length": "4"}
-    request = httpx2.Request(
-        "POST", "http://example.org", content=data, headers=headers
-    )
+    request = httpx2.Request("POST", "http://example.org", content=data, headers=headers)
     assert "Transfer-Encoding" not in request.headers
     assert request.headers["Content-Length"] == "4"
 
@@ -159,9 +155,7 @@ def test_override_content_length_header():
     data = streaming_body(b"test 123")
     headers = {"Content-Length": "8"}
 
-    request = httpx2.Request(
-        "POST", "http://example.org", content=data, headers=headers
-    )
+    request = httpx2.Request("POST", "http://example.org", content=data, headers=headers)
     assert request.headers["Content-Length"] == "8"
 
 
@@ -236,9 +230,7 @@ def test_request_params():
     request = httpx2.Request("GET", "http://example.com", params={})
     assert str(request.url) == "http://example.com"
 
-    request = httpx2.Request(
-        "GET", "http://example.com?c=3", params={"a": "1", "b": "2"}
-    )
+    request = httpx2.Request("GET", "http://example.com?c=3", params={"a": "1", "b": "2"})
     assert str(request.url) == "http://example.com?a=1&b=2"
 
     request = httpx2.Request("GET", "http://example.com?a=1", params={})

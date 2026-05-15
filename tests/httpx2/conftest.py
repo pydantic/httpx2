@@ -50,9 +50,7 @@ def clean_environ():
 
 Message = typing.Dict[str, typing.Any]
 Receive = typing.Callable[[], typing.Awaitable[Message]]
-Send = typing.Callable[
-    [typing.Dict[str, typing.Any]], typing.Coroutine[None, None, None]
-]
+Send = typing.Callable[[typing.Dict[str, typing.Any]], typing.Coroutine[None, None, None]]
 Scope = typing.Dict[str, typing.Any]
 
 
@@ -161,10 +159,7 @@ async def echo_binary(scope: Scope, receive: Receive, send: Send) -> None:
 
 
 async def echo_headers(scope: Scope, receive: Receive, send: Send) -> None:
-    body = {
-        name.capitalize().decode(): value.decode()
-        for name, value in scope.get("headers", [])
-    }
+    body = {name.capitalize().decode(): value.decode() for name, value in scope.get("headers", [])}
     await send(
         {
             "type": "http.response.start",
@@ -176,9 +171,7 @@ async def echo_headers(scope: Scope, receive: Receive, send: Send) -> None:
 
 
 async def redirect_301(scope: Scope, receive: Receive, send: Send) -> None:
-    await send(
-        {"type": "http.response.start", "status": 301, "headers": [[b"location", b"/"]]}
-    )
+    await send({"type": "http.response.start", "status": 301, "headers": [[b"location", b"/"]]})
     await send({"type": "http.response.body"})
 
 
@@ -207,9 +200,7 @@ def cert_private_key_file(localhost_cert):
 @pytest.fixture(scope="session")
 def cert_encrypted_private_key_file(localhost_cert):
     # Deserialize the private key and then reserialize with a password
-    private_key = load_pem_private_key(
-        localhost_cert.private_key_pem.bytes(), password=None, backend=default_backend()
-    )
+    private_key = load_pem_private_key(localhost_cert.private_key_pem.bytes(), password=None, backend=default_backend())
     encrypted_private_key_pem = trustme.Blob(
         private_key.private_bytes(
             Encoding.PEM,

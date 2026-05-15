@@ -108,9 +108,7 @@ def test_headers_list_repr():
     Headers should display with a list repr if they include multiple identical keys.
     """
     headers = httpx2.Headers([("custom", "example 1"), ("custom", "example 2")])
-    assert (
-        repr(headers) == "Headers([('custom', 'example 1'), ('custom', 'example 2')])"
-    )
+    assert repr(headers) == "Headers([('custom', 'example 1'), ('custom', 'example 2')])"
 
 
 def test_headers_decode_ascii():

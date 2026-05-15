@@ -19,15 +19,11 @@ def test_httpcore_all_exceptions_mapped() -> None:
     expected_mapped_httpcore_exceptions = {
         value.__name__
         for _, value in vars(httpcore2).items()
-        if isinstance(value, type)
-        and issubclass(value, Exception)
-        and value is not httpcore2.ConnectionNotAvailable
+        if isinstance(value, type) and issubclass(value, Exception) and value is not httpcore2.ConnectionNotAvailable
     }
 
     httpx_exceptions = {
-        value.__name__
-        for _, value in vars(httpx2).items()
-        if isinstance(value, type) and issubclass(value, Exception)
+        value.__name__ for _, value in vars(httpx2).items() if isinstance(value, type) and issubclass(value, Exception)
     }
 
     unmapped_exceptions = expected_mapped_httpcore_exceptions - httpx_exceptions

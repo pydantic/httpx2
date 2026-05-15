@@ -59,9 +59,7 @@ class Auth:
         """
         yield request
 
-    def sync_auth_flow(
-        self, request: Request
-    ) -> typing.Generator[Request, Response, None]:
+    def sync_auth_flow(self, request: Request) -> typing.Generator[Request, Response, None]:
         """
         Execute the authentication flow synchronously.
 
@@ -84,9 +82,7 @@ class Auth:
             except StopIteration:
                 break
 
-    async def async_auth_flow(
-        self, request: Request
-    ) -> typing.AsyncGenerator[Request, Response]:
+    async def async_auth_flow(self, request: Request) -> typing.AsyncGenerator[Request, Response]:
         """
         Execute the authentication flow asynchronously.
 
@@ -161,9 +157,7 @@ class NetRCAuth(Auth):
             yield request
         else:
             # Build a basic auth header with credentials from the netrc file.
-            request.headers["Authorization"] = self._build_auth_header(
-                username=auth_info[0], password=auth_info[2]
-            )
+            request.headers["Authorization"] = self._build_auth_header(username=auth_info[0], password=auth_info[2])
             yield request
 
     def _build_auth_header(self, username: str | bytes, password: str | bytes) -> str:
@@ -192,9 +186,7 @@ class DigestAuth(Auth):
 
     def auth_flow(self, request: Request) -> typing.Generator[Request, Response, None]:
         if self._last_challenge:
-            request.headers["Authorization"] = self._build_auth_header(
-                request, self._last_challenge
-            )
+            request.headers["Authorization"] = self._build_auth_header(request, self._last_challenge)
 
         response = yield request
 
@@ -214,16 +206,12 @@ class DigestAuth(Auth):
         self._last_challenge = self._parse_challenge(request, response, auth_header)
         self._nonce_count = 1
 
-        request.headers["Authorization"] = self._build_auth_header(
-            request, self._last_challenge
-        )
+        request.headers["Authorization"] = self._build_auth_header(request, self._last_challenge)
         if response.cookies:
             Cookies(response.cookies).set_cookie_header(request=request)
         yield request
 
-    def _parse_challenge(
-        self, request: Request, response: Response, auth_header: str
-    ) -> _DigestAuthChallenge:
+    def _parse_challenge(self, request: Request, response: Response, auth_header: str) -> _DigestAuthChallenge:
         """
         Returns a challenge from a Digest WWW-Authenticate header.
         These take the form of:
@@ -245,16 +233,12 @@ class DigestAuth(Auth):
             algorithm = header_dict.get("algorithm", "MD5")
             opaque = header_dict["opaque"].encode() if "opaque" in header_dict else None
             qop = header_dict["qop"].encode() if "qop" in header_dict else None
-            return _DigestAuthChallenge(
-                realm=realm, nonce=nonce, algorithm=algorithm, opaque=opaque, qop=qop
-            )
+            return _DigestAuthChallenge(realm=realm, nonce=nonce, algorithm=algorithm, opaque=opaque, qop=qop)
         except KeyError as exc:
             message = "Malformed Digest WWW-Authenticate header"
             raise ProtocolError(message, request=request) from exc
 
-    def _build_auth_header(
-        self, request: Request, challenge: _DigestAuthChallenge
-    ) -> str:
+    def _build_auth_header(self, request: Request, challenge: _DigestAuthChallenge) -> str:
         hash_func = self._ALGORITHM_TO_HASH_FUNCTION[challenge.algorithm.upper()]
 
         def digest(data: bytes) -> bytes:
@@ -317,11 +301,7 @@ class DigestAuth(Auth):
         for i, (field, value) in enumerate(header_fields.items()):
             if i > 0:
                 header_value += ", "
-            template = (
-                QUOTED_TEMPLATE
-                if field not in NON_QUOTED_FIELDS
-                else NON_QUOTED_TEMPLATE
-            )
+            template = QUOTED_TEMPLATE if field not in NON_QUOTED_FIELDS else NON_QUOTED_TEMPLATE
             header_value += template.format(field, to_str(value))
 
         return header_value

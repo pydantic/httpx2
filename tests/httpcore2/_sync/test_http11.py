@@ -15,9 +15,7 @@ def test_http11_connection():
             b"Hello, world!",
         ]
     )
-    with httpcore2.HTTP11Connection(
-        origin=origin, stream=stream, keepalive_expiry=5.0
-    ) as conn:
+    with httpcore2.HTTP11Connection(origin=origin, stream=stream, keepalive_expiry=5.0) as conn:
         response = conn.request("GET", "https://example.com/")
         assert response.status == 200
         assert response.content == b"Hello, world!"
@@ -26,10 +24,7 @@ def test_http11_connection():
         assert not conn.is_closed()
         assert conn.is_available()
         assert not conn.has_expired()
-        assert (
-            repr(conn)
-            == "<HTTP11Connection ['https://example.com:443', IDLE, Request Count: 1]>"
-        )
+        assert repr(conn) == "<HTTP11Connection ['https://example.com:443', IDLE, Request Count: 1]>"
 
 
 
@@ -56,10 +51,7 @@ def test_http11_connection_unread_response():
         assert conn.is_closed()
         assert not conn.is_available()
         assert not conn.has_expired()
-        assert (
-            repr(conn)
-            == "<HTTP11Connection ['https://example.com:443', CLOSED, Request Count: 1]>"
-        )
+        assert repr(conn) == "<HTTP11Connection ['https://example.com:443', CLOSED, Request Count: 1]>"
 
 
 
@@ -78,10 +70,7 @@ def test_http11_connection_with_remote_protocol_error():
         assert conn.is_closed()
         assert not conn.is_available()
         assert not conn.has_expired()
-        assert (
-            repr(conn)
-            == "<HTTP11Connection ['https://example.com:443', CLOSED, Request Count: 1]>"
-        )
+        assert repr(conn) == "<HTTP11Connection ['https://example.com:443', CLOSED, Request Count: 1]>"
 
 
 
@@ -107,10 +96,7 @@ def test_http11_connection_with_incomplete_response():
         assert conn.is_closed()
         assert not conn.is_available()
         assert not conn.has_expired()
-        assert (
-            repr(conn)
-            == "<HTTP11Connection ['https://example.com:443', CLOSED, Request Count: 1]>"
-        )
+        assert repr(conn) == "<HTTP11Connection ['https://example.com:443', CLOSED, Request Count: 1]>"
 
 
 
@@ -139,10 +125,7 @@ def test_http11_connection_with_local_protocol_error():
         assert conn.is_closed()
         assert not conn.is_available()
         assert not conn.has_expired()
-        assert (
-            repr(conn)
-            == "<HTTP11Connection ['https://example.com:443', CLOSED, Request Count: 1]>"
-        )
+        assert repr(conn) == "<HTTP11Connection ['https://example.com:443', CLOSED, Request Count: 1]>"
 
 
 
@@ -222,9 +205,7 @@ def test_http11_expect_continue():
             b"Hello, world!",
         ]
     )
-    with httpcore2.HTTP11Connection(
-        origin=origin, stream=stream, keepalive_expiry=5.0
-    ) as conn:
+    with httpcore2.HTTP11Connection(origin=origin, stream=stream, keepalive_expiry=5.0) as conn:
         response = conn.request(
             "GET",
             "https://example.com/",
@@ -255,9 +236,7 @@ def test_http11_upgrade_connection():
             b"...",
         ]
     )
-    with httpcore2.HTTP11Connection(
-        origin=origin, stream=stream, keepalive_expiry=5.0
-    ) as conn:
+    with httpcore2.HTTP11Connection(origin=origin, stream=stream, keepalive_expiry=5.0) as conn:
         with conn.stream(
             "GET",
             "wss://example.com/",
@@ -285,19 +264,11 @@ def test_http11_upgrade_with_trailing_data():
         # in which response headers and data are received at once.
         # This means that "foobar" becomes trailing data.
         [
-            (
-                b"HTTP/1.1 101 Switching Protocols\r\n"
-                b"Connection: upgrade\r\n"
-                b"Upgrade: custom\r\n"
-                b"\r\n"
-                b"foobar"
-            ),
+            (b"HTTP/1.1 101 Switching Protocols\r\nConnection: upgrade\r\nUpgrade: custom\r\n\r\nfoobar"),
             b"baz",
         ]
     )
-    with httpcore2.HTTP11Connection(
-        origin=origin, stream=stream, keepalive_expiry=5.0
-    ) as conn:
+    with httpcore2.HTTP11Connection(origin=origin, stream=stream, keepalive_expiry=5.0) as conn:
         with conn.stream(
             "GET",
             "wss://example.com/",
@@ -344,9 +315,7 @@ def test_http11_early_hints():
             b"<html>Hello, world! ...</html>",
         ]
     )
-    with httpcore2.HTTP11Connection(
-        origin=origin, stream=stream, keepalive_expiry=5.0
-    ) as conn:
+    with httpcore2.HTTP11Connection(origin=origin, stream=stream, keepalive_expiry=5.0) as conn:
         response = conn.request(
             "GET",
             "https://example.com/",
@@ -372,9 +341,7 @@ def test_http11_header_sub_100kb():
             b"",
         ]
     )
-    with httpcore2.HTTP11Connection(
-        origin=origin, stream=stream, keepalive_expiry=5.0
-    ) as conn:
+    with httpcore2.HTTP11Connection(origin=origin, stream=stream, keepalive_expiry=5.0) as conn:
         response = conn.request("GET", "https://example.com/")
         assert response.status == 200
         assert response.content == b""

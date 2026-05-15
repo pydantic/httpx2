@@ -65,9 +65,7 @@ def _init_socks5_connection(
     if response.method != auth_method:
         requested = AUTH_METHODS.get(auth_method, "UNKNOWN")
         responded = AUTH_METHODS.get(response.method, "UNKNOWN")
-        raise ProxyError(
-            f"Requested {requested} from proxy server, but got {responded}."
-        )
+        raise ProxyError(f"Requested {requested} from proxy server, but got {responded}.")
 
     if response.method == socksio.socks5.SOCKS5AuthMethod.USERNAME_PASSWORD:
         # Username/password request
@@ -85,11 +83,7 @@ def _init_socks5_connection(
             raise ProxyError("Invalid username/password")
 
     # Connect request
-    conn.send(
-        socksio.socks5.SOCKS5CommandRequest.from_address(
-            socksio.socks5.SOCKS5Command.CONNECT, (host, port)
-        )
-    )
+    conn.send(socksio.socks5.SOCKS5CommandRequest.from_address(socksio.socks5.SOCKS5Command.CONNECT, (host, port)))
     outgoing_bytes = conn.data_to_send()
     stream.write(outgoing_bytes)
 
@@ -206,9 +200,7 @@ class Socks5Connection(ConnectionInterface):
         self._http1 = http1
         self._http2 = http2
 
-        self._network_backend: NetworkBackend = (
-            SyncBackend() if network_backend is None else network_backend
-        )
+        self._network_backend: NetworkBackend = SyncBackend() if network_backend is None else network_backend
         self._connect_lock = Lock()
         self._connection: ConnectionInterface | None = None
         self._connect_failed = False
@@ -238,28 +230,19 @@ class Socks5Connection(ConnectionInterface):
                         "port": self._remote_origin.port,
                         "auth": self._proxy_auth,
                     }
-                    with Trace(
-                        "setup_socks5_connection", logger, request, kwargs
-                    ) as trace:
+                    with Trace("setup_socks5_connection", logger, request, kwargs) as trace:
                         _init_socks5_connection(**kwargs)
                         trace.return_value = stream
 
                     # Upgrade the stream to SSL
                     if self._remote_origin.scheme == b"https":
-                        ssl_context = (
-                            default_ssl_context()
-                            if self._ssl_context is None
-                            else self._ssl_context
-                        )
-                        alpn_protocols = (
-                            ["http/1.1", "h2"] if self._http2 else ["http/1.1"]
-                        )
+                        ssl_context = default_ssl_context() if self._ssl_context is None else self._ssl_context
+                        alpn_protocols = ["http/1.1", "h2"] if self._http2 else ["http/1.1"]
                         ssl_context.set_alpn_protocols(alpn_protocols)
 
                         kwargs = {
                             "ssl_context": ssl_context,
-                            "server_hostname": sni_hostname
-                            or self._remote_origin.host.decode("ascii"),
+                            "server_hostname": sni_hostname or self._remote_origin.host.decode("ascii"),
                             "timeout": timeout,
                         }
                         with Trace("start_tls", logger, request, kwargs) as trace:
@@ -268,15 +251,10 @@ class Socks5Connection(ConnectionInterface):
 
                     # Determine if we should be using HTTP/1.1 or HTTP/2
                     ssl_object = stream.get_extra_info("ssl_object")
-                    http2_negotiated = (
-                        ssl_object is not None
-                        and ssl_object.selected_alpn_protocol() == "h2"
-                    )
+                    http2_negotiated = ssl_object is not None and ssl_object.selected_alpn_protocol() == "h2"
 
                     # Create the HTTP/1.1 or HTTP/2 connection
-                    if http2_negotiated or (
-                        self._http2 and not self._http1
-                    ):  # pragma: nocover
+                    if http2_negotiated or (self._http2 and not self._http1):  # pragma: nocover
                         from .http2 import HTTP2Connection
 
                         self._connection = HTTP2Connection(
@@ -311,9 +289,7 @@ class Socks5Connection(ConnectionInterface):
             # end up as HTTP/2 then we should indicate the connection as being
             # available to service multiple requests.
             return (
-                self._http2
-                and (self._remote_origin.scheme == b"https" or not self._http1)
-                and not self._connect_failed
+                self._http2 and (self._remote_origin.scheme == b"https" or not self._http1) and not self._connect_failed
             )
         return self._connection.is_available()
 

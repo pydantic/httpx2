@@ -31,19 +31,11 @@ def test_queryparams(source):
     assert dict(q) == {"a": "123", "b": "789"}
     assert str(q) == "a=123&a=456&b=789"
     assert repr(q) == "QueryParams('a=123&a=456&b=789')"
-    assert httpx2.QueryParams({"a": "123", "b": "456"}) == httpx2.QueryParams(
-        [("a", "123"), ("b", "456")]
-    )
-    assert httpx2.QueryParams({"a": "123", "b": "456"}) == httpx2.QueryParams(
-        "a=123&b=456"
-    )
-    assert httpx2.QueryParams({"a": "123", "b": "456"}) == httpx2.QueryParams(
-        {"b": "456", "a": "123"}
-    )
+    assert httpx2.QueryParams({"a": "123", "b": "456"}) == httpx2.QueryParams([("a", "123"), ("b", "456")])
+    assert httpx2.QueryParams({"a": "123", "b": "456"}) == httpx2.QueryParams("a=123&b=456")
+    assert httpx2.QueryParams({"a": "123", "b": "456"}) == httpx2.QueryParams({"b": "456", "a": "123"})
     assert httpx2.QueryParams() == httpx2.QueryParams({})
-    assert httpx2.QueryParams([("a", "123"), ("a", "456")]) == httpx2.QueryParams(
-        "a=123&a=456"
-    )
+    assert httpx2.QueryParams([("a", "123"), ("a", "456")]) == httpx2.QueryParams("a=123&a=456")
     assert httpx2.QueryParams({"a": "123", "b": "456"}) != "invalid"
 
     q = httpx2.QueryParams([("a", "123"), ("a", "456")])

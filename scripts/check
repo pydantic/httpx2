@@ -1,6 +1,6 @@
 #!/bin/sh -e
 
-export SOURCE_FILES="src/httpx2 tests/httpx2"
+export SOURCE_FILES="src/httpx2 tests/httpx2 src/httpcore2 tests/httpcore2"
 
 set -x
 

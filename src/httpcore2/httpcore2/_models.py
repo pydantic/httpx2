@@ -80,9 +80,7 @@ def enforce_headers(
         ]
 
     seen_type = type(value).__name__
-    raise TypeError(
-        f"{name} must be a mapping or sequence of two-tuples, but got {seen_type}."
-    )
+    raise TypeError(f"{name} must be a mapping or sequence of two-tuples, but got {seen_type}.")
 
 
 def enforce_stream(
@@ -125,11 +123,7 @@ def include_request_headers(
             header_value = b"%b:%d" % (url.host, url.port)
         headers = [(b"Host", header_value)] + headers
 
-    if (
-        content is not None
-        and b"content-length" not in headers_set
-        and b"transfer-encoding" not in headers_set
-    ):
+    if content is not None and b"content-length" not in headers_set and b"transfer-encoding" not in headers_set:
         if isinstance(content, bytes):
             content_length = str(len(content)).encode("ascii")
             headers += [(b"Content-Length", content_length)]
@@ -272,9 +266,7 @@ class URL:
             self.scheme = parsed.scheme
             self.host = parsed.hostname or b""
             self.port = parsed.port
-            self.target = (parsed.path or b"/") + (
-                b"?" + parsed.query if parsed.query else b""
-            )
+            self.target = (parsed.path or b"/") + (b"?" + parsed.query if parsed.query else b"")
         else:
             self.scheme = enforce_bytes(scheme, name="scheme")
             self.host = enforce_bytes(host, name="host")
@@ -291,9 +283,7 @@ class URL:
             b"socks5": 1080,
             b"socks5h": 1080,
         }[self.scheme]
-        return Origin(
-            scheme=self.scheme, host=self.host, port=self.port or default_port
-        )
+        return Origin(scheme=self.scheme, host=self.host, port=self.port or default_port)
 
     def __eq__(self, other: typing.Any) -> bool:
         return (
@@ -327,10 +317,7 @@ class Request:
         url: URL | bytes | str,
         *,
         headers: HeaderTypes = None,
-        content: bytes
-        | typing.Iterable[bytes]
-        | typing.AsyncIterable[bytes]
-        | None = None,
+        content: bytes | typing.Iterable[bytes] | typing.AsyncIterable[bytes] | None = None,
         extensions: Extensions | None = None,
     ) -> None:
         """
@@ -346,12 +333,8 @@ class Request:
         """
         self.method: bytes = enforce_bytes(method, name="method")
         self.url: URL = enforce_url(url, name="url")
-        self.headers: list[tuple[bytes, bytes]] = enforce_headers(
-            headers, name="headers"
-        )
-        self.stream: typing.Iterable[bytes] | typing.AsyncIterable[bytes] = (
-            enforce_stream(content, name="content")
-        )
+        self.headers: list[tuple[bytes, bytes]] = enforce_headers(headers, name="headers")
+        self.stream: typing.Iterable[bytes] | typing.AsyncIterable[bytes] = enforce_stream(content, name="content")
         self.extensions = {} if extensions is None else extensions
 
         if "target" in self.extensions:
@@ -376,10 +359,7 @@ class Response:
         status: int,
         *,
         headers: HeaderTypes = None,
-        content: bytes
-        | typing.Iterable[bytes]
-        | typing.AsyncIterable[bytes]
-        | None = None,
+        content: bytes | typing.Iterable[bytes] | typing.AsyncIterable[bytes] | None = None,
         extensions: Extensions | None = None,
     ) -> None:
         """
@@ -392,12 +372,8 @@ class Response:
                 `"reason_phrase"`, and `"network_stream"`.
         """
         self.status: int = status
-        self.headers: list[tuple[bytes, bytes]] = enforce_headers(
-            headers, name="headers"
-        )
-        self.stream: typing.Iterable[bytes] | typing.AsyncIterable[bytes] = (
-            enforce_stream(content, name="content")
-        )
+        self.headers: list[tuple[bytes, bytes]] = enforce_headers(headers, name="headers")
+        self.stream: typing.Iterable[bytes] | typing.AsyncIterable[bytes] = enforce_stream(content, name="content")
         self.extensions = {} if extensions is None else extensions
 
         self._stream_consumed = False
@@ -407,8 +383,7 @@ class Response:
         if not hasattr(self, "_content"):
             if isinstance(self.stream, typing.Iterable):
                 raise RuntimeError(
-                    "Attempted to access 'response.content' on a streaming response. "
-                    "Call 'response.read()' first."
+                    "Attempted to access 'response.content' on a streaming response. Call 'response.read()' first."
                 )
             else:
                 raise RuntimeError(
@@ -440,9 +415,7 @@ class Response:
                 "You should use 'async for ... in response.aiter_stream()' instead."
             )
         if self._stream_consumed:
-            raise RuntimeError(
-                "Attempted to call 'for ... in response.iter_stream()' more than once."
-            )
+            raise RuntimeError("Attempted to call 'for ... in response.iter_stream()' more than once.")
         self._stream_consumed = True
         for chunk in self.stream:
             yield chunk
@@ -478,10 +451,7 @@ class Response:
                 "You should use 'for ... in response.iter_stream()' instead."
             )
         if self._stream_consumed:
-            raise RuntimeError(
-                "Attempted to call 'async for ... in response.aiter_stream()' "
-                "more than once."
-            )
+            raise RuntimeError("Attempted to call 'async for ... in response.aiter_stream()' more than once.")
         self._stream_consumed = True
         async with safe_async_iterate(self.stream) as iterator:
             async for chunk in iterator:

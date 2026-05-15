@@ -134,9 +134,7 @@ def test_cannot_stream_async_request(server):
 def test_raise_for_status(server):
     with httpx2.Client() as client:
         for status_code in (200, 400, 404, 500, 505):
-            response = client.request(
-                "GET", server.url.copy_with(path=f"/status/{status_code}")
-            )
+            response = client.request("GET", server.url.copy_with(path=f"/status/{status_code}"))
             if 400 <= status_code < 600:
                 with pytest.raises(httpx2.HTTPStatusError) as exc_info:
                     response.raise_for_status()
@@ -334,10 +332,7 @@ def test_client_closed_state_using_with_block():
 
 
 def echo_raw_headers(request: httpx2.Request) -> httpx2.Response:
-    data = [
-        (name.decode("ascii"), value.decode("ascii"))
-        for name, value in request.headers.raw
-    ]
+    data = [(name.decode("ascii"), value.decode("ascii")) for name, value in request.headers.raw]
     return httpx2.Response(200, json=data)
 
 
@@ -348,9 +343,7 @@ def test_raw_client_header():
     url = "http://example.org/echo_headers"
     headers = {"Example-Header": "example-value"}
 
-    client = httpx2.Client(
-        transport=httpx2.MockTransport(echo_raw_headers), headers=headers
-    )
+    client = httpx2.Client(transport=httpx2.MockTransport(echo_raw_headers), headers=headers)
     response = client.get(url)
 
     assert response.status_code == 200

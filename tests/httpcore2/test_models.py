@@ -9,17 +9,13 @@ import httpcore2
 
 def test_url():
     url = httpcore2.URL("https://www.example.com/")
-    assert url == httpcore2.URL(
-        scheme="https", host="www.example.com", port=None, target="/"
-    )
+    assert url == httpcore2.URL(scheme="https", host="www.example.com", port=None, target="/")
     assert bytes(url) == b"https://www.example.com/"
 
 
 def test_url_with_port():
     url = httpcore2.URL("https://www.example.com:443/")
-    assert url == httpcore2.URL(
-        scheme="https", host="www.example.com", port=443, target="/"
-    )
+    assert url == httpcore2.URL(scheme="https", host="www.example.com", port=443, target="/")
     assert bytes(url) == b"https://www.example.com:443/"
 
 
@@ -63,24 +59,17 @@ def test_request():
     assert request.headers == []
     assert request.extensions == {}
     assert repr(request) == "<Request [b'GET']>"
-    assert (
-        repr(request.url)
-        == "URL(scheme=b'https', host=b'www.example.com', port=None, target=b'/')"
-    )
+    assert repr(request.url) == "URL(scheme=b'https', host=b'www.example.com', port=None, target=b'/')"
     assert repr(request.stream) == "<ByteStream [0 bytes]>"
 
 
 def test_request_with_target_extension():
     extensions = {"target": b"/another_path"}
-    request = httpcore2.Request(
-        "GET", "https://www.example.com/path", extensions=extensions
-    )
+    request = httpcore2.Request("GET", "https://www.example.com/path", extensions=extensions)
     assert request.url.target == b"/another_path"
 
     extensions = {"target": b"/unescaped|path"}
-    request = httpcore2.Request(
-        "GET", "https://www.example.com/path", extensions=extensions
-    )
+    request = httpcore2.Request("GET", "https://www.example.com/path", extensions=extensions)
     assert request.url.target == b"/unescaped|path"
 
 
@@ -99,10 +88,7 @@ def test_request_with_invalid_url():
 def test_request_with_invalid_headers():
     with pytest.raises(TypeError) as exc_info:
         httpcore2.Request("GET", "https://www.example.com/", headers=123)  # type: ignore
-    assert (
-        str(exc_info.value)
-        == "headers must be a mapping or sequence of two-tuples, but got int."
-    )
+    assert str(exc_info.value) == "headers must be a mapping or sequence of two-tuples, but got int."
 
 
 # Response
@@ -144,7 +130,7 @@ def test_response_sync_streaming():
 
     # We streamed the response rather than reading it, so .content is not available.
     with pytest.raises(RuntimeError):
-        response.content
+        _ = response.content
 
     # Once we've streamed the response, we can't access the stream again.
     with pytest.raises(RuntimeError):
@@ -181,9 +167,9 @@ async def test_response_async_streaming():
 
     # We streamed the response rather than reading it, so .content is not available.
     with pytest.raises(RuntimeError):
-        response.content
+        _ = response.content
 
     # Once we've streamed the response, we can't access the stream again.
     with pytest.raises(RuntimeError):
-        async for chunk in response.aiter_stream():
+        async for _chunk in response.aiter_stream():
             pass  # pragma: nocover

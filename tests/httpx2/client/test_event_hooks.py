@@ -24,9 +24,7 @@ def test_event_hooks():
 
     event_hooks = {"request": [on_request], "response": [on_response]}
 
-    with httpx2.Client(
-        event_hooks=event_hooks, transport=httpx2.MockTransport(app)
-    ) as http:
+    with httpx2.Client(event_hooks=event_hooks, transport=httpx2.MockTransport(app)) as http:
         http.get("http://127.0.0.1:8000/", auth=("username", "password"))
 
     assert events == [
@@ -54,9 +52,7 @@ def test_event_hooks_raising_exception(server):
 
     event_hooks = {"response": [raise_on_4xx_5xx]}
 
-    with httpx2.Client(
-        event_hooks=event_hooks, transport=httpx2.MockTransport(app)
-    ) as http:
+    with httpx2.Client(event_hooks=event_hooks, transport=httpx2.MockTransport(app)) as http:
         try:
             http.get("http://127.0.0.1:8000/status/400")
         except httpx2.HTTPStatusError as exc:
@@ -75,9 +71,7 @@ async def test_async_event_hooks():
 
     event_hooks = {"request": [on_request], "response": [on_response]}
 
-    async with httpx2.AsyncClient(
-        event_hooks=event_hooks, transport=httpx2.MockTransport(app)
-    ) as http:
+    async with httpx2.AsyncClient(event_hooks=event_hooks, transport=httpx2.MockTransport(app)) as http:
         await http.get("http://127.0.0.1:8000/", auth=("username", "password"))
 
     assert events == [
@@ -106,9 +100,7 @@ async def test_async_event_hooks_raising_exception():
 
     event_hooks = {"response": [raise_on_4xx_5xx]}
 
-    async with httpx2.AsyncClient(
-        event_hooks=event_hooks, transport=httpx2.MockTransport(app)
-    ) as http:
+    async with httpx2.AsyncClient(event_hooks=event_hooks, transport=httpx2.MockTransport(app)) as http:
         try:
             await http.get("http://127.0.0.1:8000/status/400")
         except httpx2.HTTPStatusError as exc:

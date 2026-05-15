@@ -30,9 +30,7 @@ def print_help() -> None:
     console.print()
     console.print("A next generation HTTP client.", justify="center")
     console.print()
-    console.print(
-        "Usage: [bold]httpx2[/bold] [cyan]<URL> [OPTIONS][/cyan] ", justify="left"
-    )
+    console.print("Usage: [bold]httpx2[/bold] [cyan]<URL> [OPTIONS][/cyan] ", justify="left")
     console.print()
 
     table = rich.table.Table.grid(padding=1, pad_edge=True)
@@ -47,12 +45,8 @@ def print_help() -> None:
         "-p, --params [cyan]<NAME VALUE> ...",
         "Query parameters to include in the request URL.",
     )
-    table.add_row(
-        "-c, --content [cyan]TEXT", "Byte content to include in the request body."
-    )
-    table.add_row(
-        "-d, --data [cyan]<NAME VALUE> ...", "Form data to include in the request body."
-    )
+    table.add_row("-c, --content [cyan]TEXT", "Byte content to include in the request body.")
+    table.add_row("-d, --data [cyan]<NAME VALUE> ...", "Form data to include in the request body.")
     table.add_row(
         "-f, --files [cyan]<NAME FILENAME> ...",
         "Form files to include in the request body.",
@@ -62,9 +56,7 @@ def print_help() -> None:
         "-h, --headers [cyan]<NAME VALUE> ...",
         "Include additional HTTP headers in the request.",
     )
-    table.add_row(
-        "--cookies [cyan]<NAME VALUE> ...", "Cookies to include in the request."
-    )
+    table.add_row("--cookies [cyan]<NAME VALUE> ...", "Cookies to include in the request.")
     table.add_row(
         "--auth [cyan]<USER PASS>",
         "Username and password to include in the request. Specify '-' for the password"
@@ -86,9 +78,7 @@ def print_help() -> None:
 
     table.add_row("--follow-redirects", "Automatically follow redirects.")
     table.add_row("--no-verify", "Disable SSL verification.")
-    table.add_row(
-        "--http2", "Send the request using HTTP/2, if the remote server supports it."
-    )
+    table.add_row("--http2", "Send the request using HTTP/2, if the remote server supports it.")
 
     table.add_row(
         "--download [cyan]FILE",
@@ -105,9 +95,7 @@ def get_lexer_for_response(response: Response) -> str:
     if content_type is not None:
         mime_type, _, _ = content_type.partition(";")
         try:
-            return typing.cast(
-                str, pygments.lexers.get_lexer_for_mimetype(mime_type.strip()).name
-            )
+            return typing.cast(str, pygments.lexers.get_lexer_for_mimetype(mime_type.strip()).name)
         except pygments.util.ClassNotFound:  # pragma: no cover
             pass
     return ""  # pragma: no cover
@@ -115,9 +103,7 @@ def get_lexer_for_response(response: Response) -> str:
 
 def format_request_headers(request: httpcore2.Request, http2: bool = False) -> str:
     version = "HTTP/2" if http2 else "HTTP/1.1"
-    headers = [
-        (name.lower() if http2 else name, value) for name, value in request.headers
-    ]
+    headers = [(name.lower() if http2 else name, value) for name, value in request.headers]
     method = request.method.decode("ascii")
     target = request.url.target.decode("ascii")
     lines = [f"{method} {target} {version}"] + [
@@ -133,11 +119,7 @@ def format_response_headers(
     headers: list[tuple[bytes, bytes]],
 ) -> str:
     version = http_version.decode("ascii")
-    reason = (
-        codes.get_reason_phrase(status)
-        if reason_phrase is None
-        else reason_phrase.decode("ascii")
-    )
+    reason = codes.get_reason_phrase(status) if reason_phrase is None else reason_phrase.decode("ascii")
     lines = [f"{version} {status} {reason}"] + [
         f"{name.decode('ascii')}: {value.decode('ascii')}" for name, value in headers
     ]
@@ -209,9 +191,7 @@ def format_certificate(cert: _PeerCertRetDictType) -> str:  # pragma: no cover
     return "\n".join(lines)
 
 
-def trace(
-    name: str, info: typing.Mapping[str, typing.Any], verbose: bool = False
-) -> None:
+def trace(name: str, info: typing.Mapping[str, typing.Any], verbose: bool = False) -> None:
     console = rich.console.Console()
     if name == "connection.connect_tcp.started" and verbose:
         host = info["host"]

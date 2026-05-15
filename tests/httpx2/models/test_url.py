@@ -32,9 +32,7 @@ def test_complete_url():
     assert url.fragment == "anchor"
 
     assert str(url) == "https://example.org:123/path/to/somewhere?abc=123#anchor"
-    assert (
-        repr(url) == "URL('https://example.org:123/path/to/somewhere?abc=123#anchor')"
-    )
+    assert repr(url) == "URL('https://example.org:123/path/to/somewhere?abc=123#anchor')"
 
 
 def test_url_with_empty_query():
@@ -156,9 +154,7 @@ def test_url_params():
     assert str(url) == "https://example.org:123/path/to/somewhere?a=123"
     assert url.params == httpx2.QueryParams({"a": "123"})
 
-    url = httpx2.URL(
-        "https://example.org:123/path/to/somewhere?b=456", params={"a": "123"}
-    )
+    url = httpx2.URL("https://example.org:123/path/to/somewhere?b=456", params={"a": "123"})
     assert str(url) == "https://example.org:123/path/to/somewhere?a=123"
     assert url.params == httpx2.QueryParams({"a": "123"})
 
@@ -363,18 +359,13 @@ def test_url_excessively_long_component():
 def test_url_non_printing_character_in_url():
     with pytest.raises(httpx2.InvalidURL) as exc:
         httpx2.URL("https://www.example.com/\n")
-    assert str(exc.value) == (
-        "Invalid non-printable ASCII character in URL, '\\n' at position 24."
-    )
+    assert str(exc.value) == ("Invalid non-printable ASCII character in URL, '\\n' at position 24.")
 
 
 def test_url_non_printing_character_in_component():
     with pytest.raises(httpx2.InvalidURL) as exc:
         httpx2.URL("https://www.example.com", path="/\n")
-    assert str(exc.value) == (
-        "Invalid non-printable ASCII character in URL path component, "
-        "'\\n' at position 1."
-    )
+    assert str(exc.value) == ("Invalid non-printable ASCII character in URL path component, '\\n' at position 1.")
 
 
 # Test for url components
@@ -482,12 +473,8 @@ def test_url_join():
     """
     url = httpx2.URL("https://example.org:123/path/to/somewhere")
     assert url.join("/somewhere-else") == "https://example.org:123/somewhere-else"
-    assert (
-        url.join("somewhere-else") == "https://example.org:123/path/to/somewhere-else"
-    )
-    assert (
-        url.join("../somewhere-else") == "https://example.org:123/path/somewhere-else"
-    )
+    assert url.join("somewhere-else") == "https://example.org:123/path/to/somewhere-else"
+    assert url.join("../somewhere-else") == "https://example.org:123/path/somewhere-else"
     assert url.join("../../somewhere-else") == "https://example.org:123/somewhere-else"
 
 

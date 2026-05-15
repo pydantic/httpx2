@@ -21,14 +21,10 @@ async def test_http2_connection():
                 ),
                 flags=["END_HEADERS"],
             ).serialize(),
-            hyperframe.frame.DataFrame(
-                stream_id=1, data=b"Hello, world!", flags=["END_STREAM"]
-            ).serialize(),
+            hyperframe.frame.DataFrame(stream_id=1, data=b"Hello, world!", flags=["END_STREAM"]).serialize(),
         ]
     )
-    async with httpcore2.AsyncHTTP2Connection(
-        origin=origin, stream=stream, keepalive_expiry=5.0
-    ) as conn:
+    async with httpcore2.AsyncHTTP2Connection(origin=origin, stream=stream, keepalive_expiry=5.0) as conn:
         response = await conn.request("GET", "https://example.com/")
         assert response.status == 200
         assert response.content == b"Hello, world!"
@@ -37,13 +33,8 @@ async def test_http2_connection():
         assert conn.is_available()
         assert not conn.is_closed()
         assert not conn.has_expired()
-        assert (
-            conn.info() == "'https://example.com:443', HTTP/2, IDLE, Request Count: 1"
-        )
-        assert (
-            repr(conn)
-            == "<AsyncHTTP2Connection ['https://example.com:443', IDLE, Request Count: 1]>"
-        )
+        assert conn.info() == "'https://example.com:443', HTTP/2, IDLE, Request Count: 1"
+        assert repr(conn) == "<AsyncHTTP2Connection ['https://example.com:443', IDLE, Request Count: 1]>"
 
 
 @pytest.mark.anyio
@@ -62,18 +53,12 @@ async def test_http2_connection_closed():
                 ),
                 flags=["END_HEADERS"],
             ).serialize(),
-            hyperframe.frame.DataFrame(
-                stream_id=1, data=b"Hello, world!", flags=["END_STREAM"]
-            ).serialize(),
+            hyperframe.frame.DataFrame(stream_id=1, data=b"Hello, world!", flags=["END_STREAM"]).serialize(),
             # Connection is closed after the first response
-            hyperframe.frame.GoAwayFrame(
-                stream_id=0, error_code=0, last_stream_id=1
-            ).serialize(),
+            hyperframe.frame.GoAwayFrame(stream_id=0, error_code=0, last_stream_id=1).serialize(),
         ]
     )
-    async with httpcore2.AsyncHTTP2Connection(
-        origin=origin, stream=stream, keepalive_expiry=5.0
-    ) as conn:
+    async with httpcore2.AsyncHTTP2Connection(origin=origin, stream=stream, keepalive_expiry=5.0) as conn:
         await conn.request("GET", "https://example.com/")
 
         with pytest.raises(httpcore2.ConnectionNotAvailable):
@@ -98,9 +83,7 @@ async def test_http2_connection_post_request():
                 ),
                 flags=["END_HEADERS"],
             ).serialize(),
-            hyperframe.frame.DataFrame(
-                stream_id=1, data=b"Hello, world!", flags=["END_STREAM"]
-            ).serialize(),
+            hyperframe.frame.DataFrame(stream_id=1, data=b"Hello, world!", flags=["END_STREAM"]).serialize(),
         ]
     )
     async with httpcore2.AsyncHTTP2Connection(origin=origin, stream=stream) as conn:
@@ -160,9 +143,7 @@ async def test_http2_connection_with_rst_stream():
                 ),
                 flags=["END_HEADERS"],
             ).serialize(),
-            hyperframe.frame.DataFrame(
-                stream_id=3, data=b"Hello, world!", flags=["END_STREAM"]
-            ).serialize(),
+            hyperframe.frame.DataFrame(stream_id=3, data=b"Hello, world!", flags=["END_STREAM"]).serialize(),
             b"",
         ]
     )
@@ -206,9 +187,7 @@ async def test_http2_connection_with_goaway():
                 ),
                 flags=["END_HEADERS"],
             ).serialize(),
-            hyperframe.frame.DataFrame(
-                stream_id=3, data=b"Hello, world!", flags=["END_STREAM"]
-            ).serialize(),
+            hyperframe.frame.DataFrame(stream_id=3, data=b"Hello, world!", flags=["END_STREAM"]).serialize(),
             b"",
         ]
     )
@@ -230,33 +209,17 @@ async def test_http2_connection_with_flow_control():
         [
             hyperframe.frame.SettingsFrame().serialize(),
             # Available flow: 65,535
-            hyperframe.frame.WindowUpdateFrame(
-                stream_id=0, window_increment=10_000
-            ).serialize(),
-            hyperframe.frame.WindowUpdateFrame(
-                stream_id=1, window_increment=10_000
-            ).serialize(),
+            hyperframe.frame.WindowUpdateFrame(stream_id=0, window_increment=10_000).serialize(),
+            hyperframe.frame.WindowUpdateFrame(stream_id=1, window_increment=10_000).serialize(),
             # Available flow: 75,535
-            hyperframe.frame.WindowUpdateFrame(
-                stream_id=0, window_increment=10_000
-            ).serialize(),
-            hyperframe.frame.WindowUpdateFrame(
-                stream_id=1, window_increment=10_000
-            ).serialize(),
+            hyperframe.frame.WindowUpdateFrame(stream_id=0, window_increment=10_000).serialize(),
+            hyperframe.frame.WindowUpdateFrame(stream_id=1, window_increment=10_000).serialize(),
             # Available flow: 85,535
-            hyperframe.frame.WindowUpdateFrame(
-                stream_id=0, window_increment=10_000
-            ).serialize(),
-            hyperframe.frame.WindowUpdateFrame(
-                stream_id=1, window_increment=10_000
-            ).serialize(),
+            hyperframe.frame.WindowUpdateFrame(stream_id=0, window_increment=10_000).serialize(),
+            hyperframe.frame.WindowUpdateFrame(stream_id=1, window_increment=10_000).serialize(),
             # Available flow: 95,535
-            hyperframe.frame.WindowUpdateFrame(
-                stream_id=0, window_increment=10_000
-            ).serialize(),
-            hyperframe.frame.WindowUpdateFrame(
-                stream_id=1, window_increment=10_000
-            ).serialize(),
+            hyperframe.frame.WindowUpdateFrame(stream_id=0, window_increment=10_000).serialize(),
+            hyperframe.frame.WindowUpdateFrame(stream_id=1, window_increment=10_000).serialize(),
             # Available flow: 105,535
             hyperframe.frame.HeadersFrame(
                 stream_id=1,
@@ -268,9 +231,7 @@ async def test_http2_connection_with_flow_control():
                 ),
                 flags=["END_HEADERS"],
             ).serialize(),
-            hyperframe.frame.DataFrame(
-                stream_id=1, data=b"100,000 bytes received", flags=["END_STREAM"]
-            ).serialize(),
+            hyperframe.frame.DataFrame(stream_id=1, data=b"100,000 bytes received", flags=["END_STREAM"]).serialize(),
         ]
     )
     async with httpcore2.AsyncHTTP2Connection(origin=origin, stream=stream) as conn:
@@ -302,9 +263,7 @@ async def test_http2_connection_attempt_close():
                 ),
                 flags=["END_HEADERS"],
             ).serialize(),
-            hyperframe.frame.DataFrame(
-                stream_id=1, data=b"Hello, world!", flags=["END_STREAM"]
-            ).serialize(),
+            hyperframe.frame.DataFrame(stream_id=1, data=b"Hello, world!", flags=["END_STREAM"]).serialize(),
         ]
     )
     async with httpcore2.AsyncHTTP2Connection(origin=origin, stream=stream) as conn:
@@ -356,9 +315,7 @@ async def test_http2_remote_max_streams_update():
             hyperframe.frame.SettingsFrame(
                 settings={hyperframe.frame.SettingsFrame.MAX_CONCURRENT_STREAMS: 50}
             ).serialize(),
-            hyperframe.frame.DataFrame(
-                stream_id=1, data=b"Hello, world...again!", flags=["END_STREAM"]
-            ).serialize(),
+            hyperframe.frame.DataFrame(stream_id=1, data=b"Hello, world...again!", flags=["END_STREAM"]).serialize(),
         ]
     )
     async with httpcore2.AsyncHTTP2Connection(origin=origin, stream=stream) as conn:

@@ -26,9 +26,7 @@ def test_client_queryparams_echo():
     url = "http://example.org/echo_queryparams"
     client_queryparams = "first=str"
     request_queryparams = {"second": "dict"}
-    client = httpx2.Client(
-        transport=httpx2.MockTransport(hello_world), params=client_queryparams
-    )
+    client = httpx2.Client(transport=httpx2.MockTransport(hello_world), params=client_queryparams)
     response = client.get(url, params=request_queryparams)
 
     assert response.status_code == 200

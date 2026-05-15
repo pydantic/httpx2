@@ -49,23 +49,17 @@ def test_load_ssl_config_cert_and_key(cert_pem_file, cert_private_key_file):
 
 
 @pytest.mark.parametrize("password", [b"password", "password"])
-def test_load_ssl_config_cert_and_encrypted_key(
-    cert_pem_file, cert_encrypted_private_key_file, password
-):
+def test_load_ssl_config_cert_and_encrypted_key(cert_pem_file, cert_encrypted_private_key_file, password):
     context = httpx2.create_ssl_context()
     context.load_cert_chain(cert_pem_file, cert_encrypted_private_key_file, password)
     assert context.verify_mode == ssl.VerifyMode.CERT_REQUIRED
     assert context.check_hostname is True
 
 
-def test_load_ssl_config_cert_and_key_invalid_password(
-    cert_pem_file, cert_encrypted_private_key_file
-):
+def test_load_ssl_config_cert_and_key_invalid_password(cert_pem_file, cert_encrypted_private_key_file):
     with pytest.raises(ssl.SSLError):
         context = httpx2.create_ssl_context()
-        context.load_cert_chain(
-            cert_pem_file, cert_encrypted_private_key_file, "password1"
-        )
+        context.load_cert_chain(cert_pem_file, cert_encrypted_private_key_file, "password1")
 
 
 def test_load_ssl_config_cert_without_key_raises(cert_pem_file):
@@ -89,10 +83,7 @@ def test_SSLContext_with_get_request(server, cert_pem_file):
 
 def test_limits_repr():
     limits = httpx2.Limits(max_connections=100)
-    expected = (
-        "Limits(max_connections=100, max_keepalive_connections=None,"
-        " keepalive_expiry=5.0)"
-    )
+    expected = "Limits(max_connections=100, max_keepalive_connections=None, keepalive_expiry=5.0)"
     assert repr(limits) == expected
 
 

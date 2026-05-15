@@ -50,6 +50,4 @@ async def test_async_client_new_request_send_timeout(server):
 
     async with httpx2.AsyncClient(timeout=timeout) as client:
         with pytest.raises(httpx2.TimeoutException):
-            await client.send(
-                httpx2.Request("GET", server.url.copy_with(path="/slow_response"))
-            )
+            await client.send(httpx2.Request("GET", server.url.copy_with(path="/slow_response")))

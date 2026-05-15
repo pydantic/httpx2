@@ -489,9 +489,7 @@ def test_response_invalid_argument():
 def test_ensure_ascii_false_with_french_characters():
     data = {"greeting": "Bonjour, ça va ?"}
     response = httpx2.Response(200, json=data)
-    assert "ça va" in response.text, (
-        "ensure_ascii=False should preserve French accented characters"
-    )
+    assert "ça va" in response.text, "ensure_ascii=False should preserve French accented characters"
     assert response.headers["Content-Type"] == "application/json"
 
 
@@ -508,11 +506,7 @@ def test_allow_nan_false():
     data_with_nan = {"nombre": float("nan")}
     data_with_inf = {"nombre": float("inf")}
 
-    with pytest.raises(
-        ValueError, match="Out of range float values are not JSON compliant"
-    ):
+    with pytest.raises(ValueError, match="Out of range float values are not JSON compliant"):
         httpx2.Response(200, json=data_with_nan)
-    with pytest.raises(
-        ValueError, match="Out of range float values are not JSON compliant"
-    ):
+    with pytest.raises(ValueError, match="Out of range float values are not JSON compliant"):
         httpx2.Response(200, json=data_with_inf)

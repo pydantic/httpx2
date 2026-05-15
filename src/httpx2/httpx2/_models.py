@@ -234,10 +234,7 @@ class Headers(typing.MutableMapping[str, str]):
         occurrences of the same key without concatenating into a single
         comma separated value.
         """
-        return [
-            (key.decode(self.encoding), value.decode(self.encoding))
-            for _, key, value in self._list
-        ]
+        return [(key.decode(self.encoding), value.decode(self.encoding)) for _, key, value in self._list]
 
     def get(self, key: str, default: typing.Any = None) -> typing.Any:
         """
@@ -310,11 +307,7 @@ class Headers(typing.MutableMapping[str, str]):
         set_value = value.encode(self._encoding or "utf-8")
         lookup_key = set_key.lower()
 
-        found_indexes = [
-            idx
-            for idx, (_, item_key, _) in enumerate(self._list)
-            if item_key == lookup_key
-        ]
+        found_indexes = [idx for idx, (_, item_key, _) in enumerate(self._list) if item_key == lookup_key]
 
         for idx in reversed(found_indexes[1:]):
             del self._list[idx]
@@ -331,11 +324,7 @@ class Headers(typing.MutableMapping[str, str]):
         """
         del_key = key.lower().encode(self.encoding)
 
-        pop_indexes = [
-            idx
-            for idx, (_, item_key, _) in enumerate(self._list)
-            if item_key.lower() == del_key
-        ]
+        pop_indexes = [idx for idx, (_, item_key, _) in enumerate(self._list) if item_key.lower() == del_key]
 
         if not pop_indexes:
             raise KeyError(key)
@@ -411,9 +400,7 @@ class Request:
                 files=files,
                 json=json,
                 boundary=get_multipart_boundary_from_content_type(
-                    content_type=content_type.encode(self.headers.encoding)
-                    if content_type
-                    else None
+                    content_type=content_type.encode(self.headers.encoding) if content_type else None
                 ),
             )
             self._prepare(headers)
@@ -448,9 +435,7 @@ class Request:
         auto_headers: list[tuple[bytes, bytes]] = []
 
         has_host = "Host" in self.headers
-        has_content_length = (
-            "Content-Length" in self.headers or "Transfer-Encoding" in self.headers
-        )
+        has_content_length = "Content-Length" in self.headers or "Transfer-Encoding" in self.headers
 
         if not has_host and self.url.host:
             auto_headers.append((b"Host", self.url.netloc))
@@ -499,11 +484,7 @@ class Request:
         return f"<{class_name}({self.method!r}, {url!r})>"
 
     def __getstate__(self) -> dict[str, typing.Any]:
-        return {
-            name: value
-            for name, value in self.__dict__.items()
-            if name not in ["extensions", "stream"]
-        }
+        return {name: value for name, value in self.__dict__.items() if name not in ["extensions", "stream"]}
 
     def __setstate__(self, state: dict[str, typing.Any]) -> None:
         for name, value in state.items():
@@ -582,10 +563,7 @@ class Response:
         cycle to complete.
         """
         if not hasattr(self, "_elapsed"):
-            raise RuntimeError(
-                "'.elapsed' may only be accessed after the response "
-                "has been read or closed."
-            )
+            raise RuntimeError("'.elapsed' may only be accessed after the response has been read or closed.")
         return self._elapsed
 
     @elapsed.setter
@@ -598,9 +576,7 @@ class Response:
         Returns the request instance associated to the current response.
         """
         if self._request is None:
-            raise RuntimeError(
-                "The request instance has not been set on this response."
-            )
+            raise RuntimeError("The request instance has not been set on this response.")
         return self._request
 
     @request.setter
@@ -680,9 +656,7 @@ class Response:
         encoding will throw a ValueError.
         """
         if hasattr(self, "_text"):
-            raise ValueError(
-                "Setting encoding after `text` has been accessed is not allowed."
-            )
+            raise ValueError("Setting encoding after `text` has been accessed is not allowed.")
         self._encoding = value
 
     @property
@@ -798,8 +772,7 @@ class Response:
         request = self._request
         if request is None:
             raise RuntimeError(
-                "Cannot call `raise_for_status` as the request "
-                "instance has not been set on this response."
+                "Cannot call `raise_for_status` as the request instance has not been set on this response."
             )
 
         if self.is_success:
@@ -847,10 +820,7 @@ class Response:
         if header is None:
             return {}
 
-        return {
-            (link.get("rel") or link.get("url")): link
-            for link in _parse_header_links(header)
-        }
+        return {(link.get("rel") or link.get("url")): link for link in _parse_header_links(header)}
 
     @property
     def num_bytes_downloaded(self) -> int:
@@ -979,9 +949,7 @@ class Response:
             self._content = b"".join([part async for part in self.aiter_bytes()])
         return self._content
 
-    async def aiter_bytes(
-        self, chunk_size: int | None = None
-    ) -> typing.AsyncIterator[bytes]:
+    async def aiter_bytes(self, chunk_size: int | None = None) -> typing.AsyncIterator[bytes]:
         """
         A byte-iterator over the decoded response content.
         This allows us to handle gzip, deflate, brotli, and zstd encoded responses.
@@ -1004,9 +972,7 @@ class Response:
                 for chunk in chunker.flush():
                     yield chunk
 
-    async def aiter_text(
-        self, chunk_size: int | None = None
-    ) -> typing.AsyncIterator[str]:
+    async def aiter_text(self, chunk_size: int | None = None) -> typing.AsyncIterator[str]:
         """
         A str-iterator over the decoded response content
         that handles both gzip, deflate, etc but also detects the content's
@@ -1034,9 +1000,7 @@ class Response:
             for line in decoder.flush():
                 yield line
 
-    async def aiter_raw(
-        self, chunk_size: int | None = None
-    ) -> typing.AsyncIterator[bytes]:
+    async def aiter_raw(self, chunk_size: int | None = None) -> typing.AsyncIterator[bytes]:
         """
         A byte-iterator over the raw response content.
         """
@@ -1232,10 +1196,7 @@ class Cookies(typing.MutableMapping[str, str]):
 
     def __repr__(self) -> str:
         cookies_repr = ", ".join(
-            [
-                f"<Cookie {cookie.name}={cookie.value} for {cookie.domain} />"
-                for cookie in self.jar
-            ]
+            [f"<Cookie {cookie.name}={cookie.value} for {cookie.domain} />" for cookie in self.jar]
         )
 
         return f"<Cookies[{cookies_repr}]>"

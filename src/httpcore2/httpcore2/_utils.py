@@ -40,9 +40,7 @@ def is_socket_readable(sock: socket.socket | None) -> bool:
 
     # Use select.select on Windows, and when poll is unavailable and select.poll
     # everywhere else. (E.g. When eventlet is in use. See #327)
-    if (
-        sys.platform == "win32" or getattr(select, "poll", None) is None
-    ):  # pragma: nocover
+    if sys.platform == "win32" or getattr(select, "poll", None) is None:  # pragma: nocover
         rready, _, _ = select.select([sock_fd], [], [], 0)
         return bool(rready)
     p = select.poll()
@@ -55,9 +53,7 @@ async def safe_async_iterate(
     iterable_or_iterator: AsyncIterable[T] | AsyncIterator[T], /
 ) -> AsyncGenerator[AsyncIterator[T]]:
     iterator = (
-        iterable_or_iterator
-        if isinstance(iterable_or_iterator, AsyncIterator)
-        else iterable_or_iterator.__aiter__()
+        iterable_or_iterator if isinstance(iterable_or_iterator, AsyncIterator) else iterable_or_iterator.__aiter__()
     )
     try:
         yield iterator
@@ -67,13 +63,7 @@ async def safe_async_iterate(
 
 
 @contextmanager
-def safe_iterate(
-    iterable_or_iterator: Iterable[T] | Iterator[T], /
-) -> Generator[Iterator[T], None, None]:
+def safe_iterate(iterable_or_iterator: Iterable[T] | Iterator[T], /) -> Generator[Iterator[T], None, None]:
     # This is boilerplate code, only needed to make unasync happy
-    iterator = (
-        iterable_or_iterator
-        if isinstance(iterable_or_iterator, Iterator)
-        else iterable_or_iterator.__iter__()
-    )
+    iterator = iterable_or_iterator if isinstance(iterable_or_iterator, Iterator) else iterable_or_iterator.__iter__()
     yield iterator

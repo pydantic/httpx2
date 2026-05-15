@@ -18,9 +18,7 @@ class Trace:
     ) -> None:
         self.name = name
         self.logger = logger
-        self.trace_extension = (
-            None if request is None else request.extensions.get("trace")
-        )
+        self.trace_extension = None if request is None else request.extensions.get("trace")
         self.debug = self.logger.isEnabledFor(logging.DEBUG)
         self.kwargs = kwargs or {}
         self.return_value: typing.Any = None

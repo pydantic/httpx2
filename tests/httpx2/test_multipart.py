@@ -283,9 +283,9 @@ def test_multipart_encode_files_allows_filenames_as_none() -> None:
         "Content-Length": str(len(request.content)),
     }
     assert request.content == (
-        '--BOUNDARY\r\nContent-Disposition: form-data; name="file"\r\n\r\n'
-        "<file content>\r\n--BOUNDARY--\r\n"
-        "".encode("ascii")
+        '--BOUNDARY\r\nContent-Disposition: form-data; name="file"\r\n\r\n<file content>\r\n--BOUNDARY--\r\n'.encode(
+            "ascii"
+        )
     )
 
 
@@ -297,9 +297,7 @@ def test_multipart_encode_files_allows_filenames_as_none() -> None:
         ("no-extension", "application/octet-stream"),
     ],
 )
-def test_multipart_encode_files_guesses_correct_content_type(
-    file_name: str, expected_content_type: str
-) -> None:
+def test_multipart_encode_files_guesses_correct_content_type(file_name: str, expected_content_type: str) -> None:
     url = "https://www.example.com/"
     headers = {"Content-Type": "multipart/form-data; boundary=BOUNDARY"}
     files = {"file": (file_name, io.BytesIO(b"<file content>"))}

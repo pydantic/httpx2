@@ -80,9 +80,7 @@ class TLSinTLSStream(NetworkStream):  # pragma: no cover
         exc_map: ExceptionMapping = {socket.timeout: ReadTimeout, OSError: ReadError}
         with map_exceptions(exc_map):
             self._sock.settimeout(timeout)
-            return typing.cast(
-                bytes, self._perform_io(functools.partial(self.ssl_obj.read, max_bytes))
-            )
+            return typing.cast(bytes, self._perform_io(functools.partial(self.ssl_obj.read, max_bytes)))
 
     def write(self, buffer: bytes, timeout: float | None = None) -> None:
         exc_map: ExceptionMapping = {socket.timeout: WriteTimeout, OSError: WriteError}
@@ -157,14 +155,10 @@ class SyncStream(NetworkStream):
                     # If the underlying socket has already been upgraded
                     # to the TLS layer (i.e. is an instance of SSLSocket),
                     # we need some additional smarts to support TLS-in-TLS.
-                    return TLSinTLSStream(
-                        self._sock, ssl_context, server_hostname, timeout
-                    )
+                    return TLSinTLSStream(self._sock, ssl_context, server_hostname, timeout)
                 else:
                     self._sock.settimeout(timeout)
-                    sock = ssl_context.wrap_socket(
-                        self._sock, server_hostname=server_hostname
-                    )
+                    sock = ssl_context.wrap_socket(self._sock, server_hostname=server_hostname)
             except Exception as exc:  # pragma: nocover
                 self.close()
                 raise exc
@@ -222,9 +216,7 @@ class SyncBackend(NetworkBackend):
         socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
     ) -> NetworkStream:  # pragma: nocover
         if sys.platform == "win32":
-            raise RuntimeError(
-                "Attempted to connect to a UNIX socket on a Windows system."
-            )
+            raise RuntimeError("Attempted to connect to a UNIX socket on a Windows system.")
         if socket_options is None:
             socket_options = []
 

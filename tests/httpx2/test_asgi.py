@@ -47,9 +47,7 @@ async def echo_body(scope, receive, send):
 
 async def echo_headers(scope, receive, send):
     status = 200
-    output = json.dumps(
-        {"headers": [[k.decode(), v.decode()] for k, v in scope["headers"]]}
-    ).encode("utf-8")
+    output = json.dumps({"headers": [[k.decode(), v.decode()] for k, v in scope["headers"]]}).encode("utf-8")
     headers = [(b"content-type", "text/plain"), (b"content-length", str(len(output)))]
 
     await send({"type": "http.response.start", "status": status, "headers": headers})
@@ -190,9 +188,7 @@ async def test_asgi_disconnect_after_response_complete():
         status = 200
         headers = [(b"content-type", "text/plain")]
 
-        await send(
-            {"type": "http.response.start", "status": status, "headers": headers}
-        )
+        await send({"type": "http.response.start", "status": status, "headers": headers})
         more_body = True
         while more_body:
             message = await receive()

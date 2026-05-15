@@ -75,8 +75,7 @@ def test_logging_redirect_chain(server, caplog):
         (
             "httpx2",
             logging.INFO,
-            "HTTP Request: GET http://127.0.0.1:8000/redirect_301"
-            ' "HTTP/1.1 301 Moved Permanently"',
+            'HTTP Request: GET http://127.0.0.1:8000/redirect_301 "HTTP/1.1 301 Moved Permanently"',
         ),
         (
             "httpx2",

@@ -43,11 +43,7 @@ def merge_headers(
     default_headers = [] if default_headers is None else list(default_headers)
     override_headers = [] if override_headers is None else list(override_headers)
     has_override = set(key.lower() for key, value in override_headers)
-    default_headers = [
-        (key, value)
-        for key, value in default_headers
-        if key.lower() not in has_override
-    ]
+    default_headers = [(key, value) for key, value in default_headers if key.lower() not in has_override]
     return default_headers + override_headers
 
 
@@ -124,12 +120,8 @@ class HTTPProxy(ConnectionPool):  # pragma: nocover
         )
 
         self._proxy_url = enforce_url(proxy_url, name="proxy_url")
-        if (
-            self._proxy_url.scheme == b"http" and proxy_ssl_context is not None
-        ):  # pragma: no cover
-            raise RuntimeError(
-                "The `proxy_ssl_context` argument is not allowed for the http scheme"
-            )
+        if self._proxy_url.scheme == b"http" and proxy_ssl_context is not None:  # pragma: no cover
+            raise RuntimeError("The `proxy_ssl_context` argument is not allowed for the http scheme")
 
         self._ssl_context = ssl_context
         self._proxy_ssl_context = proxy_ssl_context
@@ -139,9 +131,7 @@ class HTTPProxy(ConnectionPool):  # pragma: nocover
             password = enforce_bytes(proxy_auth[1], name="proxy_auth")
             userpass = username + b":" + password
             authorization = b"Basic " + base64.b64encode(userpass)
-            self._proxy_headers = [
-                (b"Proxy-Authorization", authorization)
-            ] + self._proxy_headers
+            self._proxy_headers = [(b"Proxy-Authorization", authorization)] + self._proxy_headers
 
     def create_connection(self, origin: Origin) -> ConnectionInterface:
         if origin.scheme == b"http":
@@ -276,18 +266,14 @@ class TunnelHTTPConnection(ConnectionInterface):
                     port=self._proxy_origin.port,
                     target=target,
                 )
-                connect_headers = merge_headers(
-                    [(b"Host", target), (b"Accept", b"*/*")], self._proxy_headers
-                )
+                connect_headers = merge_headers([(b"Host", target), (b"Accept", b"*/*")], self._proxy_headers)
                 connect_request = Request(
                     method=b"CONNECT",
                     url=connect_url,
                     headers=connect_headers,
                     extensions=request.extensions,
                 )
-                connect_response = self._connection.handle_request(
-                    connect_request
-                )
+                connect_response = self._connection.handle_request(connect_request)
 
                 if connect_response.status < 200 or connect_response.status > 299:
                     reason_bytes = connect_response.extensions.get("reason_phrase", b"")
@@ -299,11 +285,7 @@ class TunnelHTTPConnection(ConnectionInterface):
                 stream = connect_response.extensions["network_stream"]
 
                 # Upgrade the stream to SSL
-                ssl_context = (
-                    default_ssl_context()
-                    if self._ssl_context is None
-                    else self._ssl_context
-                )
+                ssl_context = default_ssl_context() if self._ssl_context is None else self._ssl_context
                 alpn_protocols = ["http/1.1", "h2"] if self._http2 else ["http/1.1"]
                 ssl_context.set_alpn_protocols(alpn_protocols)
 
@@ -318,10 +300,7 @@ class TunnelHTTPConnection(ConnectionInterface):
 
                 # Determine if we should be using HTTP/1.1 or HTTP/2
                 ssl_object = stream.get_extra_info("ssl_object")
-                http2_negotiated = (
-                    ssl_object is not None
-                    and ssl_object.selected_alpn_protocol() == "h2"
-                )
+                http2_negotiated = ssl_object is not None and ssl_object.selected_alpn_protocol() == "h2"
 
                 # Create the HTTP/1.1 or HTTP/2 connection
                 if http2_negotiated or (self._http2 and not self._http1):
