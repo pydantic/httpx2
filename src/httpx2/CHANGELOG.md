@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2.1.0 (May 15th, 2026)
+
+### Removed
+
+* Drop support for Python 3.9. ([#208](https://github.com/pydantic/httpx2/pull/208))
+
+### Added
+
+* Add support for Python 3.14. ([#208](https://github.com/pydantic/httpx2/pull/208))
+* Use stdlib `compression.zstd` for Zstd decompression on Python 3.14+; fall back to the `zstandard` package on older versions. ([#932](https://github.com/pydantic/httpx2/pull/932))
+* Bundle `LICENSE.md` in the sdist. ([#938](https://github.com/pydantic/httpx2/pull/938))
+
 ## 2.0.0
 
 Official first release of `httpx2`. No changes since `2.0.0b1`.
