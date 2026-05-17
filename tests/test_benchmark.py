@@ -19,8 +19,8 @@ LARGE_JSON: dict[str, object] = {
     ],
 }
 LARGE_JSON_BODY = json.dumps(LARGE_JSON).encode()
-LARGE_UPLOAD_BODY = b"x" * 4 * 1024 * 1024  # 4 MB
-LARGE_DOWNLOAD_BODY = b"y" * 4 * 1024 * 1024  # 4 MB
+LARGE_UPLOAD_BODY = b"x" * 16 * 1024 * 1024  # 16 MB
+LARGE_DOWNLOAD_BODY = b"y" * 16 * 1024 * 1024  # 16 MB
 
 
 class _SilentHandler(WSGIRequestHandler):
@@ -67,24 +67,29 @@ def test_bench_url_parse_and_join() -> None:
 
 
 def test_bench_request_build_json() -> None:
-    for _ in range(256):
+    for _ in range(32):
         httpx2.Request("POST", "https://example.org/api", json=LARGE_JSON)
 
 
 def test_bench_client_get_json(server: str) -> None:
     with httpx2.Client(base_url=server) as client:
-        for _ in range(16):
+        client.get("/json")  # warmup: establish connection + prime caches
+        for _ in range(32):
             client.get("/json").json()
 
 
 def test_bench_client_post_large(server: str) -> None:
     with httpx2.Client(base_url=server) as client:
+        client.post("/upload", content=LARGE_UPLOAD_BODY)  # warmup
         for _ in range(8):
             client.post("/upload", content=LARGE_UPLOAD_BODY)
 
 
 def test_bench_client_stream_download(server: str) -> None:
     with httpx2.Client(base_url=server) as client:
+        with client.stream("GET", "/download") as response:  # warmup
+            for _ in response.iter_bytes(chunk_size=65536):
+                pass
         for _ in range(8):
             with client.stream("GET", "/download") as response:
                 for _ in response.iter_bytes(chunk_size=65536):
