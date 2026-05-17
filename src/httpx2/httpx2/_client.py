@@ -51,7 +51,7 @@ from ._utils import URLPattern, get_environment_proxies
 if typing.TYPE_CHECKING:
     import ssl  # pragma: no cover
 
-__all__ = ["USE_CLIENT_DEFAULT", "AsyncClient", "Client"]
+__all__ = ["USE_CLIENT_DEFAULT", "AsyncClient", "Client", "UseClientDefault"]
 
 # The type annotation for @classmethod and context managers here follows PEP 484
 # https://www.python.org/dev/peps/pep-0484/#annotating-instance-and-class-methods

@@ -21,9 +21,11 @@ __all__ = [
     "AsyncClient",
     "AsyncHTTPTransport",
     "Auth",
+    "AuthTypes",
     "BaseTransport",
     "BasicAuth",
     "ByteStream",
+    "CertTypes",
     "Client",
     "CloseError",
     "codes",
@@ -31,14 +33,18 @@ __all__ = [
     "ConnectTimeout",
     "CookieConflict",
     "Cookies",
+    "CookieTypes",
     "create_ssl_context",
     "DecodingError",
     "delete",
     "DigestAuth",
+    "FileContent",
+    "FileTypes",
     "FunctionAuth",
     "get",
     "head",
     "Headers",
+    "HeaderTypes",
     "HTTPError",
     "HTTPStatusError",
     "HTTPTransport",
@@ -52,19 +58,28 @@ __all__ = [
     "patch",
     "PoolTimeout",
     "post",
+    "PrimitiveData",
     "ProtocolError",
     "Proxy",
     "ProxyError",
+    "ProxyTypes",
     "put",
     "QueryParams",
+    "QueryParamTypes",
     "ReadError",
     "ReadTimeout",
     "RemoteProtocolError",
     "request",
     "Request",
+    "RequestContent",
+    "RequestData",
     "RequestError",
+    "RequestExtensions",
+    "RequestFiles",
     "RequestNotRead",
     "Response",
+    "ResponseContent",
+    "ResponseExtensions",
     "ResponseNotRead",
     "stream",
     "StreamClosed",
@@ -73,11 +88,14 @@ __all__ = [
     "SyncByteStream",
     "Timeout",
     "TimeoutException",
+    "TimeoutTypes",
     "TooManyRedirects",
     "TransportError",
     "UnsupportedProtocol",
     "URL",
+    "URLTypes",
     "USE_CLIENT_DEFAULT",
+    "UseClientDefault",
     "WriteError",
     "WriteTimeout",
     "WSGITransport",
@@ -87,7 +105,11 @@ __all__ = [
 __locals = locals()
 for __name in __all__:
     if not __name.startswith("__"):
-        setattr(__locals[__name], "__module__", "httpx2")  # noqa
+        try:
+            setattr(__locals[__name], "__module__", "httpx2")  # noqa
+        except (AttributeError, TypeError):
+            # Type aliases (typing.Union, typing.Optional, ...) don't support __module__ assignment.
+            pass
 
 
 def __getattr__(name: str) -> object:  # pragma: no cover

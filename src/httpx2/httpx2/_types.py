@@ -86,7 +86,27 @@ RequestFiles = Union[Mapping[str, FileTypes], Sequence[Tuple[str, FileTypes]]]
 
 RequestExtensions = Mapping[str, Any]
 
-__all__ = ["AsyncByteStream", "SyncByteStream"]
+__all__ = [
+    "AsyncByteStream",
+    "AuthTypes",
+    "CertTypes",
+    "CookieTypes",
+    "FileContent",
+    "FileTypes",
+    "HeaderTypes",
+    "PrimitiveData",
+    "ProxyTypes",
+    "QueryParamTypes",
+    "RequestContent",
+    "RequestData",
+    "RequestExtensions",
+    "RequestFiles",
+    "ResponseContent",
+    "ResponseExtensions",
+    "SyncByteStream",
+    "TimeoutTypes",
+    "URLTypes",
+]
 
 
 class SyncByteStream:

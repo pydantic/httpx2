@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## Unreleased
+
+### Added
+
+* Promote typing aliases (`URLTypes`, `RequestContent`, `HeaderTypes`, `TimeoutTypes`, `AuthTypes`, `CookieTypes`, `QueryParamTypes`, `RequestFiles`, `ResponseContent`, `RequestData`, `RequestExtensions`, `ResponseExtensions`, `FileContent`, `FileTypes`, `CertTypes`, `ProxyTypes`, `PrimitiveData`) and `UseClientDefault` to the public API. Downstream libraries (Starlette `TestClient`, FastAPI, RESPX, pytest-httpx, ...) can now import these from `httpx2` directly instead of reaching into `httpx2._types` or `httpx2._client`.
+
 ## 2.2.0 (May 16th, 2026)
 
 ### Fixed
