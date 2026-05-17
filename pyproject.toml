@@ -21,6 +21,7 @@ dev = [
   "coverage[toml]==7.10.6",
   "cryptography==46.0.7",
   "pytest>=9.0.3",
+  "pytest-codspeed>=4.1.1",
   "pytest-httpbin==2.0.0",
   "pytest-trio==0.8.0",
   "trio==0.31.0",
@@ -78,8 +79,9 @@ filterwarnings = [
 markers = [
   "copied_from(source, changes=None): mark test as copied from somewhere else, along with a description of changes made to accodomate e.g. our test setup",
   "network: marks tests which require network connection. Used in 3rd-party build environments that have network disabled.",
+  "benchmark: marks CodSpeed benchmark tests under tests/benchmarks/.",
 ]
 
 [tool.coverage.run]
 source_pkgs = ["httpx2", "httpcore2", "tests"]
-omit = ["src/httpcore2/httpcore2/_sync/*"]
+omit = ["src/httpcore2/httpcore2/_sync/*", "tests/benchmarks/*"]
