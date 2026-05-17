@@ -32,5 +32,5 @@ jobs:
       - name: Run the benchmarks
         uses: CodSpeedHQ/action@3194d9a39c4d46684cb44bf7207fc56626aad8fd # v4
         with:
-          mode: instrumentation
+          mode: walltime
           run: uv run pytest tests/test_benchmark.py --codspeed
