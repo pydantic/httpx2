@@ -119,7 +119,7 @@ for __name in __all__:
     if not __name.startswith("__"):
         try:
             setattr(__locals[__name], "__module__", "httpx2")  # noqa
-        except (AttributeError, TypeError):
+        except (AttributeError, TypeError):  # pragma: no cover
             # Type aliases (typing.Union, typing.Optional, ...) don't support __module__ assignment.
             pass
 
