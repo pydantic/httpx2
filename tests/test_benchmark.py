@@ -96,7 +96,7 @@ def test_bench_client_stream_download() -> None:
 
 
 def test_bench_sync_stream_write_large() -> None:
-    payload = b"x" * 4 * 1024 * 1024  # 4 MB
+    payload = b"x" * 64 * 1024 * 1024  # 64 MB
     reader_sock, writer_sock = socket.socketpair()
     try:
         # Small kernel buffers + small reader chunks force many partial sends on Linux,
