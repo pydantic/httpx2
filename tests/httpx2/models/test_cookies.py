@@ -1,4 +1,5 @@
 import http
+from collections.abc import Iterator
 
 import pytest
 
@@ -6,8 +7,40 @@ import httpx2
 
 
 class NonIterableCookieJar(http.cookiejar.CookieJar):
-    def __iter__(self):
-        raise AssertionError("CookieJar.__iter__ should not be used for truthiness")
+    def __iter__(self) -> Iterator[http.cookiejar.Cookie]:
+        raise AssertionError("CookieJar.__iter__ should not be used for truthiness")  # pragma: no cover
+
+
+class IterableOnlyCookieJar(http.cookiejar.CookieJar):
+    def __init__(self, cookies: list[http.cookiejar.Cookie]) -> None:
+        super().__init__()
+        self._iter_cookies = cookies
+        delattr(self, "_cookies")
+
+    def __iter__(self) -> Iterator[http.cookiejar.Cookie]:
+        return iter(self._iter_cookies)
+
+
+def make_cookie(name: str = "name", value: str = "value") -> http.cookiejar.Cookie:
+    return http.cookiejar.Cookie(
+        version=0,
+        name=name,
+        value=value,
+        port=None,
+        port_specified=False,
+        domain="",
+        domain_specified=False,
+        domain_initial_dot=False,
+        path="/",
+        path_specified=True,
+        secure=False,
+        expires=None,
+        discard=True,
+        comment=None,
+        comment_url=None,
+        rest={"HttpOnly": ""},
+        rfc2109=False,
+    )
 
 
 def test_cookies():
@@ -34,6 +67,11 @@ def test_cookies_bool_does_not_iterate_cookie_jar():
     cookies.set("name", "value")
 
     assert bool(cookies) is True
+
+
+def test_cookies_bool_iterates_custom_cookie_jar_without_cookie_store():
+    assert bool(httpx2.Cookies(IterableOnlyCookieJar([]))) is False
+    assert bool(httpx2.Cookies(IterableOnlyCookieJar([make_cookie()]))) is True
 
 
 def test_cookies_update():

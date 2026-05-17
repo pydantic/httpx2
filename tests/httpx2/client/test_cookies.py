@@ -45,6 +45,25 @@ def test_set_per_request_cookie_is_deprecated() -> None:
     assert response.json() == {"cookies": "example-name=example-value"}
 
 
+def test_set_per_request_cookie_merges_with_client_cookies() -> None:
+    url = "http://example.org/echo_cookies"
+    cookies = {"request-name": "request-value"}
+
+    client = httpx2.Client(
+        cookies={"client-name": "client-value"},
+        transport=httpx2.MockTransport(get_and_set_cookies),
+    )
+    with pytest.warns(DeprecationWarning):
+        response = client.get(url, cookies=cookies)
+
+    assert response.status_code == 200
+    cookie_header = response.json()["cookies"]
+    assert set(cookie_header.split("; ")) == {
+        "client-name=client-value",
+        "request-name=request-value",
+    }
+
+
 def test_set_cookie_with_cookiejar() -> None:
     """
     Send a request including a cookie, using a `CookieJar` instance.
