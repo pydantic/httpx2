@@ -5,6 +5,11 @@ import pytest
 import httpx2
 
 
+class NonIterableCookieJar(http.cookiejar.CookieJar):
+    def __iter__(self):
+        raise AssertionError("CookieJar.__iter__ should not be used for truthiness")
+
+
 def test_cookies():
     cookies = httpx2.Cookies({"name": "value"})
     assert cookies["name"] == "value"
@@ -18,6 +23,17 @@ def test_cookies():
     assert len(cookies) == 0
     assert dict(cookies) == {}
     assert bool(cookies) is False
+
+
+def test_cookies_bool_does_not_iterate_cookie_jar():
+    jar = NonIterableCookieJar()
+    cookies = httpx2.Cookies(jar)
+
+    assert bool(cookies) is False
+
+    cookies.set("name", "value")
+
+    assert bool(cookies) is True
 
 
 def test_cookies_update():

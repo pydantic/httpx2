@@ -1190,6 +1190,13 @@ class Cookies(typing.MutableMapping[str, str]):
         return (cookie.name for cookie in self.jar)
 
     def __bool__(self) -> bool:
+        cookie_store = getattr(self.jar, "_cookies", None)
+        if cookie_store is not None:
+            cookie_store = typing.cast(dict[str, dict[str, dict[str, Cookie]]], cookie_store)
+            return any(
+                path_cookies for domain_cookies in cookie_store.values() for path_cookies in domain_cookies.values()
+            )
+
         for _ in self.jar:
             return True
         return False

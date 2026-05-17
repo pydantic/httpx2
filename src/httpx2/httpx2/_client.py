@@ -396,11 +396,15 @@ class BaseClient:
         Merge a cookies argument together with any cookies on the client,
         to create the cookies used for the outgoing request.
         """
-        if cookies or self.cookies:
-            merged_cookies = Cookies(self.cookies)
-            merged_cookies.update(cookies)
-            return merged_cookies
-        return cookies
+        if cookies is None:
+            return Cookies(self.cookies) if self.cookies else None
+
+        if not self.cookies:
+            return Cookies(cookies)
+
+        merged_cookies = Cookies(self.cookies)
+        merged_cookies.update(cookies)
+        return merged_cookies
 
     def _merge_headers(self, headers: HeaderTypes | None = None) -> HeaderTypes | None:
         """
