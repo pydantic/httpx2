@@ -33,4 +33,4 @@ jobs:
         uses: CodSpeedHQ/action@db35df748deb45fdef0960669f57d627c1956c30 # v4
         with:
           mode: instrumentation
-          run: uv run pytest tests/test_benchmark.py --codspeed -n 0
+          run: uv run pytest tests/test_benchmark.py --codspeed
