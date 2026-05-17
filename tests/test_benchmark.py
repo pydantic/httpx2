@@ -27,51 +27,65 @@ JSON_PAYLOAD: dict[str, object] = {
 JSON_BODY = json.dumps(JSON_PAYLOAD).encode()
 GZIPPED_JSON_BODY = gzip.compress(JSON_BODY)
 
+
 def test_bench_url_join() -> None:
-    httpx2.URL(TYPICAL_URL).join("/path/to/resource?key=value")
+    base = httpx2.URL(TYPICAL_URL)
+    for _ in range(64):
+        base.join("/path/to/resource?key=value")
 
 
 def test_bench_request_json_post() -> None:
-    httpx2.Request("POST", TYPICAL_URL, headers=HEADERS, json=JSON_PAYLOAD)
+    for _ in range(16):
+        httpx2.Request("POST", TYPICAL_URL, headers=HEADERS, json=JSON_PAYLOAD)
 
 
 def test_bench_request_multipart() -> None:
-    request = httpx2.Request(
-        "POST",
-        "https://example.org/upload",
-        data={"name": "value", "other": "field", "description": "a longer text field"},
-        files={
-            "small": ("hello.txt", b"x" * 4096, "text/plain"),
-            "large": ("payload.bin", io.BytesIO(b"y" * 65536), "application/octet-stream"),
-        },
-    )
-    request.read()
+    for _ in range(16):
+        request = httpx2.Request(
+            "POST",
+            "https://example.org/upload",
+            data={"name": "value", "other": "field", "description": "a longer text field"},
+            files={
+                "small": ("hello.txt", b"x" * 4096, "text/plain"),
+                "large": ("payload.bin", io.BytesIO(b"y" * 65536), "application/octet-stream"),
+            },
+        )
+        request.read()
 
 
 def test_bench_response_gzip_decode() -> None:
-    response = httpx2.Response(
-        200,
-        headers=[("content-type", "application/json"), ("content-encoding", "gzip")],
-        content=GZIPPED_JSON_BODY,
-    )
-    response.read()
-
-
-def test_bench_response_iter_bytes() -> None:
-    response = httpx2.Response(200, content=b"x" * 8192 * 128)
-    for _ in response.iter_bytes(chunk_size=8192):
-        pass
+    for _ in range(32):
+        response = httpx2.Response(
+            200,
+            headers=[("content-type", "application/json"), ("content-encoding", "gzip")],
+            content=GZIPPED_JSON_BODY,
+        )
+        response.read()
 
 
 def _json_handler(request: httpx2.Request) -> httpx2.Response:
     return httpx2.Response(200, content=JSON_BODY, headers=[("content-type", "application/json")])
 
 
+def _stream_handler(request: httpx2.Request) -> httpx2.Response:
+    return httpx2.Response(200, content=b"x" * 8192 * 128)
+
+
 def test_bench_client_get_json() -> None:
     with httpx2.Client(transport=httpx2.MockTransport(_json_handler)) as client:
-        client.get(TYPICAL_URL).json()
+        for _ in range(8):
+            client.get(TYPICAL_URL).json()
 
 
 def test_bench_client_post_json() -> None:
     with httpx2.Client(transport=httpx2.MockTransport(_json_handler)) as client:
-        client.post(TYPICAL_URL, json=JSON_PAYLOAD)
+        for _ in range(8):
+            client.post(TYPICAL_URL, json=JSON_PAYLOAD)
+
+
+def test_bench_client_get_stream() -> None:
+    with httpx2.Client(transport=httpx2.MockTransport(_stream_handler)) as client:
+        for _ in range(8):
+            with client.stream("GET", TYPICAL_URL) as response:
+                for _ in response.iter_bytes(chunk_size=8192):
+                    pass
