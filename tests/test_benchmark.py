@@ -58,7 +58,7 @@ def test_bench_response_gzip_decode() -> None:
 
 
 def test_bench_response_iter_bytes() -> None:
-    response = httpx2.Response(200, content=b"x" * 1_048_576)
+    response = httpx2.Response(200, content=b"x" * 8192 * 128)
     for _ in response.iter_bytes(chunk_size=8192):
         pass
 
