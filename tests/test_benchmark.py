@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import gzip
+import io
 import json
 
 import pytest
 
 import httpx2
-from httpx2._urlparse import urlparse
 
 pytestmark = pytest.mark.benchmark
 
@@ -27,25 +27,25 @@ JSON_PAYLOAD: dict[str, object] = {
 JSON_BODY = json.dumps(JSON_PAYLOAD).encode()
 GZIPPED_JSON_BODY = gzip.compress(JSON_BODY)
 
-
-def test_bench_urlparse() -> None:
-    urlparse(TYPICAL_URL)
-
-
 def test_bench_url_join() -> None:
     httpx2.URL(TYPICAL_URL).join("/path/to/resource?key=value")
 
 
-def test_bench_queryparams() -> None:
-    httpx2.QueryParams([("a", "1"), ("b", "2"), ("c", "3"), ("d", "4"), ("a", "5")])
-
-
-def test_bench_headers_construct() -> None:
-    httpx2.Headers(HEADERS)
-
-
 def test_bench_request_json_post() -> None:
     httpx2.Request("POST", TYPICAL_URL, headers=HEADERS, json=JSON_PAYLOAD)
+
+
+def test_bench_request_multipart() -> None:
+    request = httpx2.Request(
+        "POST",
+        "https://example.org/upload",
+        data={"name": "value", "other": "field", "description": "a longer text field"},
+        files={
+            "small": ("hello.txt", b"x" * 4096, "text/plain"),
+            "large": ("payload.bin", io.BytesIO(b"y" * 65536), "application/octet-stream"),
+        },
+    )
+    request.read()
 
 
 def test_bench_response_gzip_decode() -> None:
@@ -55,6 +55,12 @@ def test_bench_response_gzip_decode() -> None:
         content=GZIPPED_JSON_BODY,
     )
     response.read()
+
+
+def test_bench_response_iter_bytes() -> None:
+    response = httpx2.Response(200, content=b"x" * 1_048_576)
+    for _ in response.iter_bytes(chunk_size=8192):
+        pass
 
 
 def _json_handler(request: httpx2.Request) -> httpx2.Response:
