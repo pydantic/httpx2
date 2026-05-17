@@ -99,12 +99,17 @@ def test_bench_sync_stream_write_large() -> None:
     payload = b"x" * 4 * 1024 * 1024  # 4 MB
     reader_sock, writer_sock = socket.socketpair()
     try:
+        # Small kernel buffers + small reader chunks force many partial sends on Linux,
+        # which is what exercises the buffer-slicing loop inside SyncStream.write.
+        writer_sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 8192)
+        reader_sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 8192)
+
         drained: list[int] = []
 
         def drain() -> None:
             total = 0
             while True:
-                chunk = reader_sock.recv(65536)
+                chunk = reader_sock.recv(8192)
                 if not chunk:
                     break
                 total += len(chunk)
