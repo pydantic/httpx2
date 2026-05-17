@@ -3,8 +3,6 @@ from __future__ import annotations
 import gzip
 import io
 import json
-import socket
-import threading
 
 import pytest
 
@@ -95,34 +93,30 @@ def test_bench_client_stream_download() -> None:
                     pass
 
 
-def test_bench_sync_stream_write_large() -> None:
-    payload = b"x" * 64 * 1024 * 1024  # 64 MB
-    reader_sock, writer_sock = socket.socketpair()
-    try:
-        # Small kernel buffers + small reader chunks force many partial sends on Linux,
-        # which is what exercises the buffer-slicing loop inside SyncStream.write.
-        writer_sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 8192)
-        reader_sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 8192)
+class _PartialSendSocket:
+    # Returns at most `cap` bytes per send so the SyncStream.write loop iterates
+    # many times over a shrinking buffer. No real I/O - this isolates the cost of
+    # the Python-level slicing pattern from kernel send overhead.
 
-        drained: list[int] = []
+    def __init__(self, cap: int) -> None:
+        self._cap = cap
+        self.bytes_sent = 0
 
-        def drain() -> None:
-            total = 0
-            while True:
-                chunk = reader_sock.recv(8192)
-                if not chunk:
-                    break
-                total += len(chunk)
-            drained.append(total)
+    def settimeout(self, timeout: float | None) -> None:
+        pass
 
-        thread = threading.Thread(target=drain)
-        thread.start()
+    def send(self, data: object) -> int:
+        n = min(len(data), self._cap)  # type: ignore[arg-type]
+        self.bytes_sent += n
+        return n
 
-        stream = SyncStream(writer_sock)
-        stream.write(payload)
-        stream.close()
-        thread.join()
+    def close(self) -> None:
+        pass
 
-        assert drained == [len(payload)]
-    finally:
-        reader_sock.close()
+
+def test_bench_sync_stream_write_microcopy() -> None:
+    payload = b"x" * 4 * 1024 * 1024  # 4 MB
+    fake = _PartialSendSocket(cap=4096)
+    stream = SyncStream(fake)  # type: ignore[arg-type]
+    stream.write(payload)
+    assert fake.bytes_sent == len(payload)
