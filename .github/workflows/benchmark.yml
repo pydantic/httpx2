@@ -4,7 +4,7 @@ on:
   push:
     branches: ["main"]
   pull_request:
-    branches: ["main", "version-*"]
+    branches: ["main"]
 
 permissions:
   id-token: write
