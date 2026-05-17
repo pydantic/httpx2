@@ -94,8 +94,6 @@ Or, to include the optional HTTP/2 support, use:
 pip install httpx2[http2]
 ```
 
-HTTPX2 requires Python 3.10+.
-
 ## Documentation
 
 Project documentation is available at [https://httpx2.pydantic.dev/](https://httpx2.pydantic.dev/).
