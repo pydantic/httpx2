@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2.2.0 (May 16th, 2026)
+
+### Fixed
+
+* Handle multi-frame zstd streams split across chunks. ([#946](https://github.com/pydantic/httpx2/pull/946))
+
+### Changed
+
+* Lazily import the `_main` CLI module to speed up `import httpx2`. ([#947](https://github.com/pydantic/httpx2/pull/947))
+
 ## 2.1.0 (May 15th, 2026)
 
 ### Removed
