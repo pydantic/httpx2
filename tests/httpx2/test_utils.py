@@ -9,7 +9,12 @@ import typing
 import pytest
 
 import httpx2
-from httpx2._utils import URLPattern, get_environment_proxies
+from httpx2._utils import (
+    IPNetPattern,
+    WildcardURLPattern,
+    build_url_pattern,
+    get_environment_proxies,
+)
 
 if typing.TYPE_CHECKING:
     from conftest import TestServer
@@ -134,24 +139,58 @@ def test_get_environment_proxies(environment: dict[str, str], proxies: dict[str,
         ("http://", "https://example.com", False),
         ("all://", "https://example.com:123", True),
         ("", "https://example.com:123", True),
+        ("all://192.168.0.0/24", "http://192.168.0.1", True),
+        ("all://192.168.0.0/24", "https://192.168.1.1", False),
+        ("all://[2001:db8:abcd:0012::]/64", "http://[2001:db8:abcd:12::1]", True),
+        ("all://[2001:db8:abcd:0012::]/64", "http://[2001:db8:abcd:13::1]:8080", False),
     ],
 )
 def test_url_matches(pattern: str, url: str, expected: bool) -> None:
-    url_pattern = URLPattern(pattern)
+    url_pattern = build_url_pattern(pattern)
     assert url_pattern.matches(httpx2.URL(url)) == expected
+
+
+@pytest.mark.parametrize(
+    ["pattern", "url", "expected"],
+    [
+        ("all://192.168.0.0/24", "http://192.168.0.1", True),
+        ("all://192.168.0.1", "http://192.168.0.1", True),
+        ("all://192.168.0.0/24", "foobar", False),
+    ],
+)
+def test_IPNetPattern(pattern: str, url: str, expected: bool) -> None:
+    _, rest = pattern.split("://", 1)
+    ip_pattern = IPNetPattern(rest)
+    assert ip_pattern.matches(httpx2.URL(url)) == expected
+
+
+def test_build_url_pattern() -> None:
+    pattern1 = build_url_pattern("all://192.168.0.0/16")
+    pattern2 = build_url_pattern("all://192.168.0.0/16")
+    pattern3 = build_url_pattern("all://192.168.0.1")
+    assert isinstance(pattern1, IPNetPattern)
+    assert isinstance(pattern2, IPNetPattern)
+    assert isinstance(pattern3, WildcardURLPattern)
+    assert pattern1 == pattern2
+    assert pattern2 != pattern3
+    assert pattern1 < pattern3
+    assert hash(pattern1) == hash(pattern2)
+    assert hash(pattern2) != hash(pattern3)
 
 
 def test_pattern_priority() -> None:
     matchers = [
-        URLPattern("all://"),
-        URLPattern("http://"),
-        URLPattern("http://example.com"),
-        URLPattern("http://example.com:123"),
+        build_url_pattern("all://"),
+        build_url_pattern("http://"),
+        build_url_pattern("http://example.com"),
+        build_url_pattern("http://example.com:123"),
+        build_url_pattern("all://192.168.0.0/16"),
     ]
     random.shuffle(matchers)
     assert sorted(matchers) == [
-        URLPattern("http://example.com:123"),
-        URLPattern("http://example.com"),
-        URLPattern("http://"),
-        URLPattern("all://"),
+        build_url_pattern("all://192.168.0.0/16"),
+        build_url_pattern("http://example.com:123"),
+        build_url_pattern("http://example.com"),
+        build_url_pattern("http://"),
+        build_url_pattern("all://"),
     ]
