@@ -232,8 +232,16 @@ def test_request_params() -> None:
     request = httpx2.Request("GET", "http://example.com", params={})
     assert str(request.url) == "http://example.com"
 
+    # params are appended to, not replacing, any existing query in the URL
     request = httpx2.Request("GET", "http://example.com?c=3", params={"a": "1", "b": "2"})
-    assert str(request.url) == "http://example.com?a=1&b=2"
+    assert str(request.url) == "http://example.com?c=3&a=1&b=2"
 
     request = httpx2.Request("GET", "http://example.com?a=1", params={})
-    assert str(request.url) == "http://example.com"
+    assert str(request.url) == "http://example.com?a=1"
+
+
+def test_request_params_no_double_encoding():
+    # The existing query string must not be reparsed through QueryParams;
+    # doing so risks double-encoding or reordering of existing parameters.
+    request = httpx2.Request("GET", "http://example.com?q=hello%20world", params={"page": "2"})
+    assert str(request.url) == "http://example.com?q=hello%20world&page=2"
