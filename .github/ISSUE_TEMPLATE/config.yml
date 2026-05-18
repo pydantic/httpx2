@@ -5,3 +5,7 @@ contact_links:
   url: https://github.com/pydantic/httpx2/discussions
   about: >
     The "Discussions" forum is where you want to start. 💖
+- name: 💬 Join Slack
+  url: https://logfire.pydantic.dev/docs/join-slack/
+  about: >
+    Join our Slack community to ask questions, get help, and chat about HTTPX2.
