@@ -58,4 +58,3 @@ def test_base_url_with_client_params_request_params_and_url_query():
     request = client.build_request("GET", "users?active=true", params={"page": "2"})
 
     assert str(request.url) == "https://api.example.com/v1/users?active=true&api_key=abc&page=2"
-
