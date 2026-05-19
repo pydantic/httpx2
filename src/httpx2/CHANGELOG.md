@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## Unreleased
+
+### Added
+
+* Add `httpx2.enable_httpx_alias()` as an opt-in migration helper for applications that need `import httpx` to resolve to `httpx2`.
+
 ## 2.2.0 (May 16th, 2026)
 
 ### Fixed

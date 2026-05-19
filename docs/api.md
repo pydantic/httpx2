@@ -26,6 +26,10 @@
 
 ::: httpx2.stream
 
+## Compatibility Helpers
+
+::: httpx2.enable_httpx_alias
+
 ## `Client`
 
 ::: httpx2.Client

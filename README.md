@@ -94,6 +94,24 @@ Or, to include the optional HTTP/2 support, use:
 pip install httpx2[http2]
 ```
 
+### Migrating existing `httpx` imports
+
+HTTPX2 can be explicitly aliased as `httpx` for applications that need a staged
+migration path. This is opt-in, process-local, and must run before anything
+imports `httpx`:
+
+```python
+import httpx2
+
+httpx2.enable_httpx_alias()
+
+import httpx
+```
+
+This will fail if the real `httpx` package is installed in the environment, or
+if another `httpx` module has already been imported. Uninstall `httpx` first, or
+use `import httpx2` directly.
+
 ## Documentation
 
 Project documentation is available at [https://httpx2.pydantic.dev/](https://httpx2.pydantic.dev/).

@@ -1,4 +1,5 @@
 from .__version__ import __description__, __title__, __version__
+from ._alias import *
 from ._api import *
 from ._auth import *
 from ._client import *
@@ -35,6 +36,7 @@ __all__ = [
     "DecodingError",
     "delete",
     "DigestAuth",
+    "enable_httpx_alias",
     "FunctionAuth",
     "get",
     "head",
