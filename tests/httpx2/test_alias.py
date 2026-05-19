@@ -1,6 +1,7 @@
 import sys
 import types
 import typing
+from importlib import metadata
 
 import pytest
 
@@ -11,14 +12,17 @@ from httpx2 import _alias
 @pytest.fixture(autouse=True)
 def restore_httpx_modules() -> typing.Iterator[None]:
     original_modules = {name: module for name, module in sys.modules.items() if _is_httpx_module(name)}
-    for name in original_modules:
-        del sys.modules[name]
+    _remove_httpx_modules()
 
     yield
 
+    _remove_httpx_modules()
+    sys.modules.update(original_modules)
+
+
+def _remove_httpx_modules() -> None:
     for name in [name for name in sys.modules if _is_httpx_module(name)]:
         del sys.modules[name]
-    sys.modules.update(original_modules)
 
 
 def _is_httpx_module(name: str) -> bool:
@@ -31,6 +35,26 @@ def _httpx_distribution_missing() -> bool:
 
 def _httpx_distribution_installed() -> bool:
     return True
+
+
+def test_httpx_distribution_installed_returns_false_when_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    def distribution(name: str) -> object:
+        assert name == "httpx"
+        raise metadata.PackageNotFoundError
+
+    monkeypatch.setattr(metadata, "distribution", distribution)
+
+    assert not _alias._httpx_distribution_installed()
+
+
+def test_httpx_distribution_installed_returns_true_when_found(monkeypatch: pytest.MonkeyPatch) -> None:
+    def distribution(name: str) -> object:
+        assert name == "httpx"
+        return object()
+
+    monkeypatch.setattr(metadata, "distribution", distribution)
+
+    assert _alias._httpx_distribution_installed()
 
 
 def test_enable_httpx_alias(monkeypatch: pytest.MonkeyPatch) -> None:
