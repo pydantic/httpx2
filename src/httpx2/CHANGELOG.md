@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
-* Add `httpx2.enable_httpx_alias()` as an opt-in migration helper for applications that need `import httpx` to resolve to `httpx2`.
+* Add `httpx2.enable_httpx_alias()` as an opt-in migration helper for applications that need `import httpx` to resolve to `httpx2`. ([#968](https://github.com/pydantic/httpx2/pull/968))
 
 ## 2.2.0 (May 16th, 2026)
 
