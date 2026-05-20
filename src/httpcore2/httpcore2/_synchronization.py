@@ -5,7 +5,7 @@ import types
 
 from ._exceptions import ExceptionMapping, PoolTimeout, map_exceptions
 
-# Our async synchronization primatives use either 'anyio' or 'trio' depending
+# Our async synchronization primitives use either 'anyio' or 'trio' depending
 # on if they're running under asyncio or trio.
 
 try:

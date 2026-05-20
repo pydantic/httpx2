@@ -88,7 +88,7 @@ If you use proxies, keep in mind that the `httpcore` package only supports proxi
 
 The `httpcore` package also supports proxies using the SOCKS5 protocol.
 
-Make sure to install the optional dependancy using `pip install 'httpcore[socks]'`.
+Make sure to install the optional dependency using `pip install 'httpcore[socks]'`.
 
 The `SOCKSProxy` class should be using instead of a standard connection pool:
 

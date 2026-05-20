@@ -30,7 +30,7 @@ async def test_connection_pool_with_keepalive():
     )
 
     async with httpcore2.AsyncConnectionPool(network_backend=network_backend, max_keepalive_connections=1) as pool:
-        # Sending an intial request, which once complete will return to the pool, IDLE.
+        # Sending an initial request, which once complete will return to the pool, IDLE.
         async with pool.stream("GET", "https://example.com/") as response:
             info = [repr(c) for c in pool.connections]
             assert info == ["<AsyncHTTPConnection ['https://example.com:443', HTTP/1.1, ACTIVE, Request Count: 1]>"]
@@ -99,7 +99,7 @@ async def test_connection_pool_with_close():
     )
 
     async with httpcore2.AsyncConnectionPool(network_backend=network_backend) as pool:
-        # Sending an intial request, which once complete will not return to the pool.
+        # Sending an initial request, which once complete will not return to the pool.
         async with pool.stream("GET", "https://example.com/", headers={"Connection": "close"}) as response:
             info = [repr(c) for c in pool.connections]
             assert info == ["<AsyncHTTPConnection ['https://example.com:443', HTTP/1.1, ACTIVE, Request Count: 1]>"]
@@ -148,7 +148,7 @@ async def test_connection_pool_with_http2():
     async with httpcore2.AsyncConnectionPool(
         network_backend=network_backend,
     ) as pool:
-        # Sending an intial request, which once complete will return to the pool, IDLE.
+        # Sending an initial request, which once complete will return to the pool, IDLE.
         response = await pool.request("GET", "https://example.com/")
         assert response.status == 200
         assert response.content == b"Hello, world!"
@@ -194,7 +194,7 @@ async def test_connection_pool_with_http2_goaway():
     async with httpcore2.AsyncConnectionPool(
         network_backend=network_backend,
     ) as pool:
-        # Sending an intial request, which once complete will return to the pool, IDLE.
+        # Sending an initial request, which once complete will return to the pool, IDLE.
         response = await pool.request("GET", "https://example.com/")
         assert response.status == 200
         assert response.content == b"Hello, world!"
@@ -420,7 +420,7 @@ async def test_connection_pool_with_immediate_expiry():
         keepalive_expiry=0.0,
         network_backend=network_backend,
     ) as pool:
-        # Sending an intial request, which once complete will not return to the pool.
+        # Sending an initial request, which once complete will not return to the pool.
         async with pool.stream("GET", "https://example.com/") as response:
             info = [repr(c) for c in pool.connections]
             assert info == ["<AsyncHTTPConnection ['https://example.com:443', HTTP/1.1, ACTIVE, Request Count: 1]>"]
@@ -449,7 +449,7 @@ async def test_connection_pool_with_no_keepalive_connections_allowed():
     )
 
     async with httpcore2.AsyncConnectionPool(max_keepalive_connections=0, network_backend=network_backend) as pool:
-        # Sending an intial request, which once complete will not return to the pool.
+        # Sending an initial request, which once complete will not return to the pool.
         async with pool.stream("GET", "https://example.com/") as response:
             info = [repr(c) for c in pool.connections]
             assert info == ["<AsyncHTTPConnection ['https://example.com:443', HTTP/1.1, ACTIVE, Request Count: 1]>"]
