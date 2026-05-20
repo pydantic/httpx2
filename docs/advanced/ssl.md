@@ -2,17 +2,17 @@ When making a request over HTTPS, HTTPX needs to verify the identity of the requ
 
 ### Enabling and disabling verification
 
-By default httpx will verify HTTPS connections, and raise an error for invalid SSL cases...
+By default httpx2 will verify HTTPS connections, and raise an error for invalid SSL cases...
 
 ```pycon
->>> httpx.get("https://expired.badssl.com/")
-httpx.ConnectError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:997)
+>>> httpx2.get("https://expired.badssl.com/")
+httpx2.ConnectError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:997)
 ```
 
 You can disable SSL verification completely and allow insecure requests...
 
 ```pycon
->>> httpx.get("https://expired.badssl.com/", verify=False)
+>>> httpx2.get("https://expired.badssl.com/", verify=False)
 <Response [200 OK]>
 ```
 
@@ -26,12 +26,12 @@ For more complex configurations you can pass an [SSL Context](https://docs.pytho
 
 ```python
 import certifi
-import httpx
+import httpx2
 import ssl
 
 # This SSL context is equivalent to the default `verify=True`.
 ctx = ssl.create_default_context(cafile=certifi.where())
-client = httpx.Client(verify=ctx)
+client = httpx2.Client(verify=ctx)
 ```
 
 Using [the `truststore` package](https://truststore.readthedocs.io/) to support system certificate stores...
@@ -39,22 +39,22 @@ Using [the `truststore` package](https://truststore.readthedocs.io/) to support 
 ```python
 import ssl
 import truststore
-import httpx
+import httpx2
 
 # Use system certificate stores.
 ctx = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-client = httpx.Client(verify=ctx)
+client = httpx2.Client(verify=ctx)
 ```
 
 Loding an alternative certificate verification store using [the standard SSL context API](https://docs.python.org/3/library/ssl.html)...
 
 ```python
-import httpx
+import httpx2
 import ssl
 
 # Use an explicitly configured certificate store.
 ctx = ssl.create_default_context(cafile="path/to/certs.pem")  # Either cafile or capath.
-client = httpx.Client(verify=ctx)
+client = httpx2.Client(verify=ctx)
 ```
 
 ### Client side certificates
@@ -66,12 +66,12 @@ You can specify client-side certificates, using the [`.load_cert_chain()`](https
 ```python
 ctx = ssl.create_default_context()
 ctx.load_cert_chain(certfile="path/to/client.pem")  # Optionally also keyfile or password.
-client = httpx.Client(verify=ctx)
+client = httpx2.Client(verify=ctx)
 ```
 
 ### Working with `SSL_CERT_FILE` and `SSL_CERT_DIR`
 
-`httpx` does respect the `SSL_CERT_FILE` and `SSL_CERT_DIR` environment variables by default. For details, refer to [the section on the environment variables page](../environment_variables.md#ssl_cert_file).
+`httpx2` does respect the `SSL_CERT_FILE` and `SSL_CERT_DIR` environment variables by default. For details, refer to [the section on the environment variables page](../environment_variables.md#ssl_cert_file).
 
 ### Making HTTPS requests to a local server
 
@@ -81,9 +81,9 @@ If you do need to make HTTPS connections to a local server, for example to test 
 
 1. Use [trustme](https://github.com/python-trio/trustme) to generate a pair of server key/cert files, and a client cert file.
 2. Pass the server key/cert files when starting your local server. (This depends on the particular web server you're using. For example, [Uvicorn](https://www.uvicorn.org) provides the `--ssl-keyfile` and `--ssl-certfile` options.)
-3. Configure `httpx` to use the certificates stored in `client.pem`.
+3. Configure `httpx2` to use the certificates stored in `client.pem`.
 
 ```python
 ctx = ssl.create_default_context(cafile="client.pem")
-client = httpx.Client(verify=ctx)
+client = httpx2.Client(verify=ctx)
 ```

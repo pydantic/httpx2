@@ -1,4 +1,4 @@
-HTTPX supports setting up [HTTP proxies](https://en.wikipedia.org/wiki/Proxy_server#Web_proxy_servers) via the `proxy` parameter to be passed on client initialization or top-level API functions like `httpx.get(..., proxy=...)`.
+HTTPX supports setting up [HTTP proxies](https://en.wikipedia.org/wiki/Proxy_server#Web_proxy_servers) via the `proxy` parameter to be passed on client initialization or top-level API functions like `httpx2.get(..., proxy=...)`.
 
 <div align="center">
     <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/27/Open_proxy_h2g2bob.svg/480px-Open_proxy_h2g2bob.svg.png"/>
@@ -10,7 +10,7 @@ HTTPX supports setting up [HTTP proxies](https://en.wikipedia.org/wiki/Proxy_ser
 To route all traffic (HTTP and HTTPS) to a proxy located at `http://localhost:8030`, pass the proxy URL to the client...
 
 ```python
-with httpx.Client(proxy="http://localhost:8030") as client:
+with httpx2.Client(proxy="http://localhost:8030") as client:
     ...
 ```
 
@@ -18,11 +18,11 @@ For more advanced use cases, pass a mounts `dict`. For example, to route HTTP an
 
 ```python
 proxy_mounts = {
-    "http://": httpx.HTTPTransport(proxy="http://localhost:8030"),
-    "https://": httpx.HTTPTransport(proxy="http://localhost:8031"),
+    "http://": httpx2.HTTPTransport(proxy="http://localhost:8030"),
+    "https://": httpx2.HTTPTransport(proxy="http://localhost:8031"),
 }
 
-with httpx.Client(mounts=proxy_mounts) as client:
+with httpx2.Client(mounts=proxy_mounts) as client:
     ...
 ```
 
@@ -40,7 +40,7 @@ For detailed information about how `mounts` routes requests, see the [Routing](t
 Proxy credentials can be passed as the `userinfo` section of the proxy URL. For example:
 
 ```python
-with httpx.Client(proxy="http://username:password@localhost:8030") as client:
+with httpx2.Client(proxy="http://username:password@localhost:8030") as client:
     ...
 ```
 
@@ -73,11 +73,11 @@ This is an optional feature that requires an additional third-party library be i
 You can install SOCKS support using `pip`:
 
 ```shell
-pip install 'httpx[socks]'
+pip install 'httpx2[socks]'
 ```
 
 You can now configure a client to make requests via a proxy using the SOCKS protocol:
 
 ```python
-httpx.Client(proxy='socks5://user:pass@host:port')
+httpx2.Client(proxy='socks5://user:pass@host:port')
 ```

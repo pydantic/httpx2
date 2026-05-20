@@ -1,5 +1,5 @@
 !!! hint
-    If you are coming from Requests, `httpx.Client()` is what you can use instead of `requests.Session()`.
+    If you are coming from Requests, `httpx2.Client()` is what you can use instead of `requests.Session()`.
 
 ## Why use a Client?
 
@@ -34,14 +34,14 @@ The other sections on this page go into further detail about what you can do wit
 The recommended way to use a `Client` is as a context manager. This will ensure that connections are properly cleaned up when leaving the `with` block:
 
 ```python
-with httpx.Client() as client:
+with httpx2.Client() as client:
     ...
 ```
 
 Alternatively, you can explicitly close the connection pool without block-usage using `.close()`:
 
 ```python
-client = httpx.Client()
+client = httpx2.Client()
 try:
     ...
 finally:
@@ -53,19 +53,19 @@ finally:
 Once you have a `Client`, you can send requests using `.get()`, `.post()`, etc. For example:
 
 ```pycon
->>> with httpx.Client() as client:
+>>> with httpx2.Client() as client:
 ...     r = client.get('https://example.com')
 ...
 >>> r
 <Response [200 OK]>
 ```
 
-These methods accept the same arguments as `httpx.get()`, `httpx.post()`, etc. This means that all features documented in the [Quickstart](../quickstart.md) guide are also available at the client level.
+These methods accept the same arguments as `httpx2.get()`, `httpx2.post()`, etc. This means that all features documented in the [Quickstart](../quickstart.md) guide are also available at the client level.
 
 For example, to send a request with custom headers:
 
 ```pycon
->>> with httpx.Client() as client:
+>>> with httpx2.Client() as client:
 ...     headers = {'X-Custom': 'value'}
 ...     r = client.get('https://example.com', headers=headers)
 ...
@@ -82,7 +82,7 @@ For example, to apply a set of custom headers _on every request_:
 ```pycon
 >>> url = 'http://httpbin.org/headers'
 >>> headers = {'user-agent': 'my-app/0.0.1'}
->>> with httpx.Client(headers=headers) as client:
+>>> with httpx2.Client(headers=headers) as client:
 ...     r = client.get(url)
 ...
 >>> r.json()['headers']['User-Agent']
@@ -98,7 +98,7 @@ When a configuration option is provided at both the client-level and request-lev
 ```pycon
 >>> headers = {'X-Auth': 'from-client'}
 >>> params = {'client_id': 'client1'}
->>> with httpx.Client(headers=headers, params=params) as client:
+>>> with httpx2.Client(headers=headers, params=params) as client:
 ...     headers = {'X-Custom': 'from-request'}
 ...     params = {'request_id': 'request1'}
 ...     r = client.get('https://example.com', headers=headers, params=params)
@@ -114,7 +114,7 @@ URL('https://example.com?client_id=client1&request_id=request1')
 - For all other parameters, the request-level value takes priority. For example:
 
 ```pycon
->>> with httpx.Client(auth=('tom', 'mot123')) as client:
+>>> with httpx2.Client(auth=('tom', 'mot123')) as client:
 ...     r = client.get('https://example.com', auth=('alice', 'ecila123'))
 ...
 >>> _, _, auth = r.request.headers['Authorization'].partition(' ')
@@ -132,7 +132,7 @@ Additionally, `Client` accepts some configuration options that aren't available 
 For example, `base_url` allows you to prepend an URL to all outgoing requests:
 
 ```pycon
->>> with httpx.Client(base_url='http://httpbin.org') as client:
+>>> with httpx2.Client(base_url='http://httpbin.org') as client:
 ...     r = client.get('/headers')
 ...
 >>> r.request.url
@@ -148,13 +148,13 @@ For a list of all available client parameters, see the [`Client`](../api.md#clie
 For maximum control on what gets sent over the wire, HTTPX supports building explicit [`Request`](../api.md#request) instances:
 
 ```python
-request = httpx.Request("GET", "https://example.com")
+request = httpx2.Request("GET", "https://example.com")
 ```
 
 To dispatch a `Request` instance across to the network, create a [`Client` instance](#sharing-configuration-across-requests) and use `.send()`:
 
 ```python
-with httpx.Client() as client:
+with httpx2.Client() as client:
     response = client.send(request)
     ...
 ```
@@ -164,7 +164,7 @@ If you need to mix client-level and request-level options in a way that is not s
 ```python
 headers = {"X-Api-Key": "...", "X-Client-ID": "ABC123"}
 
-with httpx.Client(headers=headers) as client:
+with httpx2.Client(headers=headers) as client:
     request = client.build_request("GET", "https://api.example.com")
 
     print(request.headers["X-Client-ID"])  # "ABC123"
@@ -187,12 +187,12 @@ For example, showing a progress bar using the [`tqdm`](https://github.com/tqdm/t
 ```python
 import tempfile
 
-import httpx
+import httpx2
 from tqdm import tqdm
 
 with tempfile.NamedTemporaryFile() as download_file:
     url = "https://speed.hetzner.de/100MB.bin"
-    with httpx.stream("GET", url) as response:
+    with httpx2.stream("GET", url) as response:
         total = int(response.headers["Content-Length"])
 
         with tqdm(total=total, unit_scale=True, unit_divisor=1024, unit="B") as progress:
@@ -209,12 +209,12 @@ Or an alternate example, this time using the [`rich`](https://github.com/willmcg
 
 ```python
 import tempfile
-import httpx
+import httpx2
 import rich.progress
 
 with tempfile.NamedTemporaryFile() as download_file:
     url = "https://speed.hetzner.de/100MB.bin"
-    with httpx.stream("GET", url) as response:
+    with httpx2.stream("GET", url) as response:
         total = int(response.headers["Content-Length"])
 
         with rich.progress.Progress(
@@ -241,7 +241,7 @@ For example, showing a progress bar using the [`tqdm`](https://github.com/tqdm/t
 import io
 import random
 
-import httpx
+import httpx2
 from tqdm import tqdm
 
 
@@ -258,7 +258,7 @@ def gen():
                 bar.update(len(data))
 
 
-httpx.post("https://httpbin.org/post", content=gen())
+httpx2.post("https://httpbin.org/post", content=gen())
 ```
 
 ![tqdm progress bar](../img/tqdm-progress.gif)
@@ -272,7 +272,7 @@ name of the payloads as keys and either tuple of elements or a file-like object 
 ```pycon
 >>> with open('report.xls', 'rb') as report_file:
 ...     files = {'upload-file': ('report.xls', report_file, 'application/vnd.ms-excel')}
-...     r = httpx.post("https://httpbin.org/post", files=files)
+...     r = httpx2.post("https://httpbin.org/post", files=files)
 >>> print(r.text)
 {
   ...
@@ -297,7 +297,7 @@ MIME header field.
 
 ```pycon
 >>> files = {'upload-file': (None, 'text content', 'text/plain')}
->>> r = httpx.post("https://httpbin.org/post", files=files)
+>>> r = httpx2.post("https://httpbin.org/post", files=files)
 >>> print(r.text)
 {
   ...
@@ -324,5 +324,5 @@ For instance this request sends 2 files, `foo.png` and `bar.png` in one request 
 ...         ('images', ('foo.png', foo_file, 'image/png')),
 ...         ('images', ('bar.png', bar_file, 'image/png')),
 ...     ]
-...     r = httpx.post("https://httpbin.org/post", files=files)
+...     r = httpx2.post("https://httpbin.org/post", files=files)
 ```

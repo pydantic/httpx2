@@ -116,7 +116,7 @@
 what gets sent over the wire.*
 
 ```pycon
->>> request = httpx.Request("GET", "https://example.org", headers={'host': 'example.org'})
+>>> request = httpx2.Request("GET", "https://example.org", headers={'host': 'example.org'})
 >>> response = client.send(request)
 ```
 
