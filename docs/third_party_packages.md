@@ -60,6 +60,12 @@ WebSocket support for HTTPX.
 
 Provides a [pytest](https://docs.pytest.org/en/latest/) fixture to mock HTTPX within test cases.
 
+### pytest-HTTPX2
+
+[GitHub](https://github.com/lundberg/pytest-httpx2)
+
+A pytest plugin for mocking out HTTPX2 using RESPX.
+
 ### RESPX
 
 [GitHub](https://github.com/lundberg/respx) - [Documentation](https://lundberg.github.io/respx/)
