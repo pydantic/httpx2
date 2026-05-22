@@ -29,9 +29,7 @@ SUBS = [
     ("@pytest.mark.trio", ""),
     ("AutoBackend", "SyncBackend"),
 ]
-COMPILED_SUBS = [
-    (re.compile(r"(^|\b)" + regex + r"($|\b)"), repl) for regex, repl in SUBS
-]
+COMPILED_SUBS = [(re.compile(r"(^|\b)" + regex + r"($|\b)"), repl) for regex, repl in SUBS]
 
 USED_SUBS = set()
 
@@ -67,7 +65,7 @@ def unasync_file_check(in_path, out_path):
 
 
 def unasync_dir(in_dir, out_dir, check_only=False):
-    for dirpath, dirnames, filenames in os.walk(in_dir):
+    for dirpath, _dirnames, filenames in os.walk(in_dir):
         for filename in filenames:
             if not filename.endswith(".py"):
                 continue
