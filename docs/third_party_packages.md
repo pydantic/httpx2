@@ -56,7 +56,7 @@ WebSocket support for HTTPX.
 
 ### pytest-httpx2
 
-[GitHub](https://github.com/angryfoxx/pytest_httpx) - [Documentation](https://github.com/angryfoxx/pytest_httpx2#about-httpx2)
+[GitHub](https://github.com/angryfoxx/pytest_httpx2) - [Documentation](https://github.com/angryfoxx/pytest_httpx2#about-httpx2)
 
 Provides a [pytest](https://docs.pytest.org/en/latest/) fixture to mock HTTPX within test cases.
 This package is fork of the [pytest-httpx](https://github.com/Colin-b/pytest_httpx) package that compatible with httpx2
