@@ -54,7 +54,7 @@ A retry layer for HTTPX.
 
 WebSocket support for HTTPX.
 
-### pytest-httpx2
+### httpx2-pytest
 
 [GitHub](https://github.com/angryfoxx/httpx2-pytest) - [Documentation](https://github.com/angryfoxx/httpx2-pytest#about-httpx2)
 
