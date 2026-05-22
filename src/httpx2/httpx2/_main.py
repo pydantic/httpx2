@@ -180,8 +180,7 @@ def format_certificate(cert: _PeerCertRetDictType) -> str:  # pragma: no cover
             lines.append(f"*   {key}:")
             for item in value:
                 if key in ("subject", "issuer"):
-                    for sub_item in item:
-                        lines.append(f"*     {sub_item[0]}: {sub_item[1]!r}")
+                    lines.extend(f"*     {sub_item[0]}: {sub_item[1]!r}" for sub_item in item)
                 elif isinstance(item, tuple) and len(item) == 2:
                     lines.append(f"*     {item[0]}: {item[1]!r}")
                 else:

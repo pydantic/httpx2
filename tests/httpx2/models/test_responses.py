@@ -669,9 +669,7 @@ async def test_aiter_lines():
         content=b"Hello,\nworld!",
     )
 
-    content = []
-    async for line in response.aiter_lines():
-        content.append(line)
+    content = [line async for line in response.aiter_lines()]
     assert content == ["Hello,", "world!"]
 
 

@@ -175,7 +175,7 @@ class Headers(typing.MutableMapping[str, str]):
                     try:
                         key.decode(encoding)
                         value.decode(encoding)
-                    except UnicodeDecodeError:
+                    except UnicodeDecodeError:  # noqa: PERF203
                         break
                 else:
                     # The else block runs if 'break' did not occur, meaning

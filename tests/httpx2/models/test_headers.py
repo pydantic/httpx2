@@ -183,8 +183,8 @@ def test_sensitive_headers(header):
     ],
 )
 def test_obfuscate_sensitive_headers(headers, output):
-    as_dict = {k: v for k, v in output}
-    headers_class = httpx2.Headers({k: v for k, v in headers})
+    as_dict = dict(output)
+    headers_class = httpx2.Headers(dict(headers))
     assert repr(headers_class) == f"Headers({as_dict!r})"
 
 

@@ -125,7 +125,7 @@ def test_response_sync_read():
 def test_response_sync_streaming():
     stream = ByteIterator([b"Hello, ", b"world!"])
     response = httpcore2.Response(200, content=stream)
-    content = b"".join([chunk for chunk in response.iter_stream()])
+    content = b"".join(list(response.iter_stream()))
     assert content == b"Hello, world!"
 
     # We streamed the response rather than reading it, so .content is not available.
