@@ -184,8 +184,11 @@ class URL:
         """
         host: str = self._uri_reference.host
 
-        if host.startswith("xn--"):
-            host = idna.decode(host)
+        if any(label.startswith("xn--") for label in host.split(".")):
+            try:
+                host = idna.decode(host)
+            except idna.IDNAError:
+                pass
 
         return host
 
