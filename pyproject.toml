@@ -49,15 +49,27 @@ line-length = 120
 exclude = ["src/httpcore2/httpcore2/_sync", "tests/httpcore2/_sync"]
 
 [tool.ruff.lint]
-select = ["B", "C4", "E", "F", "I", "PERF", "PIE", "W"]
-ignore = ["B904", "B028", "C401", "PERF203"]
+select = ["B", "C4", "C90", "E", "F", "I", "PERF", "PIE", "PL", "W"]
+ignore = ["B904", "B028", "C401", "PERF203", "PLC0415", "PLW1641"]
 
 [tool.ruff.lint.isort]
 combine-as-imports = true
 known-first-party = ["httpx2", "httpcore2"]
 
+[tool.ruff.lint.mccabe]
+max-complexity = 22  # Default is 10
+
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F403", "F405"]
+"scripts/unasync.py" = ["PLW2901"]
+"src/httpx2/httpx2/_models.py" = ["PLW2901"]
+
+[tool.ruff.lint.pylint]
+allow-magic-value-types = ["bytes", "int", "str"]
+max-args = 19  # Default is 5
+max-branches = 23  # Default is 12
+max-statements = 63  # Default is 50
+max-returns = 19  # Default is 6
 
 [tool.mypy]
 ignore_missing_imports = true

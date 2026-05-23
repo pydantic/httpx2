@@ -97,7 +97,7 @@ def main():
 
         print("These patterns were not used:")
         pprint(unused_subs)
-        exit(1)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

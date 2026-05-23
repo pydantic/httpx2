@@ -94,7 +94,7 @@ def _load_httpcore_exceptions() -> dict[type[Exception], type[httpx2.HTTPError]]
 
 @contextlib.contextmanager
 def map_httpcore_exceptions() -> typing.Iterator[None]:
-    global HTTPCORE_EXC_MAP
+    global HTTPCORE_EXC_MAP  # noqa: PLW0603
     if len(HTTPCORE_EXC_MAP) == 0:
         HTTPCORE_EXC_MAP = _load_httpcore_exceptions()
     try:

@@ -40,7 +40,7 @@ if typing.TYPE_CHECKING:
         ZstdDecompressor = functools.partial(_ZstdDecompressor().decompressobj)
 
     _zstandard_installed: bool = True
-else:  # pragma: no cover
+else:  # pragma: no cover # noqa: PLR5501
     if sys.version_info >= (3, 14):
         from compression.zstd import ZstdDecompressor, ZstdError
 
