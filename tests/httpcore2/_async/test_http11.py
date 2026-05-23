@@ -24,6 +24,7 @@ async def test_http11_connection() -> None:
         assert not conn.is_closed()
         assert conn.is_available()
         assert not conn.has_expired()
+        assert conn.is_connected()
         assert repr(conn) == "<AsyncHTTP11Connection ['https://example.com:443', IDLE, Request Count: 1]>"
 
 

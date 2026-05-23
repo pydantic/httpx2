@@ -156,6 +156,9 @@ class AsyncHTTPConnection(AsyncConnectionInterface):
             async with Trace("close", logger, None, {}):
                 await self._connection.aclose()
 
+    def is_connected(self) -> bool:
+        return self._connection is not None and self._connection.is_connected()
+
     def is_available(self) -> bool:
         if self._connection is None:
             # If HTTP/2 support is enabled, and the resulting connection could
