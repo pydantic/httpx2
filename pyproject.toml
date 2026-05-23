@@ -31,7 +31,7 @@ dev = [
   "werkzeug>=3.1.6",
   # Linting
   "mypy==1.17.1",
-  "ruff==0.12.11",
+  "ruff==0.15.13",
   # Packaging
   "build==1.3.0",
   "twine==6.1.0",
@@ -54,6 +54,7 @@ ignore = ["B904", "B028"]
 
 [tool.ruff.lint.isort]
 combine-as-imports = true
+known-first-party = ["httpx2", "httpcore2"]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F403", "F405"]

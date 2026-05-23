@@ -54,7 +54,7 @@ def unasync_file(in_path, out_path):
 def unasync_file_check(in_path, out_path):
     with open(in_path, "r") as in_file:
         with open(out_path, "r") as out_file:
-            for in_line, out_line in zip(in_file.readlines(), out_file.readlines()):
+            for in_line, out_line in zip(in_file.readlines(), out_file.readlines(), strict=True):
                 expected = unasync_line(in_line)
                 if out_line != expected:
                     print(f"unasync mismatch between {in_path!r} and {out_path!r}")
