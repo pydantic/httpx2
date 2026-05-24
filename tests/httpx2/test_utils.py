@@ -11,7 +11,7 @@ import pytest
 import httpx2
 from httpx2._utils import URLPattern, get_environment_proxies
 
-if typing.TYPE_CHECKING:  # pragma: no cover
+if typing.TYPE_CHECKING:
     from conftest import TestServer
 
 

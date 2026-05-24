@@ -9,7 +9,7 @@ import pytest
 
 import httpx2
 
-if typing.TYPE_CHECKING:  # pragma: no cover
+if typing.TYPE_CHECKING:
     from conftest import TestServer
 
 

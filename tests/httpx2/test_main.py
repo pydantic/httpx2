@@ -8,7 +8,7 @@ from click.testing import CliRunner
 import httpx2
 from httpx2._main import main
 
-if typing.TYPE_CHECKING:  # pragma: no cover
+if typing.TYPE_CHECKING:
     from conftest import TestServer
 
 
