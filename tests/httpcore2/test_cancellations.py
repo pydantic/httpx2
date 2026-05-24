@@ -50,7 +50,7 @@ class SlowReadStream(httpcore2.AsyncNetworkStream):
     def __init__(self, buffer: typing.List[bytes]):
         self._buffer = buffer
 
-    async def write(self, buffer, timeout=None):
+    async def write(self, buffer: bytes, timeout: typing.Optional[float] = None) -> None:
         pass
 
     async def read(self, max_bytes: int, timeout: typing.Optional[float] = None) -> bytes:
@@ -58,7 +58,7 @@ class SlowReadStream(httpcore2.AsyncNetworkStream):
             await anyio.sleep(999)
         return self._buffer.pop(0)
 
-    async def aclose(self):
+    async def aclose(self) -> None:
         await anyio.sleep(0)
 
 
@@ -90,7 +90,7 @@ class SlowReadBackend(httpcore2.AsyncNetworkBackend):
 
 
 @pytest.mark.anyio
-async def test_connection_pool_timeout_during_request():
+async def test_connection_pool_timeout_during_request() -> None:
     """
     An async timeout when writing an HTTP/1.1 response on the connection pool
     should leave the pool in a consistent state.
@@ -106,7 +106,7 @@ async def test_connection_pool_timeout_during_request():
 
 
 @pytest.mark.anyio
-async def test_connection_pool_timeout_during_response():
+async def test_connection_pool_timeout_during_response() -> None:
     """
     An async timeout when reading an HTTP/1.1 response on the connection pool
     should leave the pool in a consistent state.
@@ -130,7 +130,7 @@ async def test_connection_pool_timeout_during_response():
 
 
 @pytest.mark.anyio
-async def test_h11_timeout_during_request():
+async def test_h11_timeout_during_request() -> None:
     """
     An async timeout on an HTTP/1.1 during the request writing
     should leave the connection in a neatly closed state.
@@ -144,7 +144,7 @@ async def test_h11_timeout_during_request():
 
 
 @pytest.mark.anyio
-async def test_h11_timeout_during_response():
+async def test_h11_timeout_during_response() -> None:
     """
     An async timeout on an HTTP/1.1 during the response reading
     should leave the connection in a neatly closed state.
@@ -166,7 +166,7 @@ async def test_h11_timeout_during_response():
 
 
 @pytest.mark.anyio
-async def test_h2_timeout_during_handshake():
+async def test_h2_timeout_during_handshake() -> None:
     """
     An async timeout on an HTTP/2 during the initial handshake
     should leave the connection in a neatly closed state.
@@ -180,7 +180,7 @@ async def test_h2_timeout_during_handshake():
 
 
 @pytest.mark.anyio
-async def test_h2_timeout_during_request():
+async def test_h2_timeout_during_request() -> None:
     """
     An async timeout on an HTTP/2 during a request
     should leave the connection in a neatly idle state.
@@ -200,7 +200,7 @@ async def test_h2_timeout_during_request():
 
 
 @pytest.mark.anyio
-async def test_h2_timeout_during_response():
+async def test_h2_timeout_during_response() -> None:
     """
     An async timeout on an HTTP/2 during the response reading
     should leave the connection in a neatly idle state.

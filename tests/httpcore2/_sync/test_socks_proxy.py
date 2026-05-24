@@ -4,7 +4,7 @@ import httpcore2
 
 
 
-def test_socks5_request():
+def test_socks5_request() -> None:
     """
     Send an HTTP request via a SOCKS proxy.
     """
@@ -50,7 +50,7 @@ def test_socks5_request():
 
 
 
-def test_authenticated_socks5_request():
+def test_authenticated_socks5_request() -> None:
     """
     Send an HTTP request via a SOCKS proxy.
     """
@@ -95,7 +95,7 @@ def test_authenticated_socks5_request():
 
 
 
-def test_socks5_request_connect_failed():
+def test_socks5_request_connect_failed() -> None:
     """
     Attempt to send an HTTP request via a SOCKS proxy, resulting in a connect failure.
     """
@@ -122,7 +122,7 @@ def test_socks5_request_connect_failed():
 
 
 
-def test_socks5_request_failed_to_provide_auth():
+def test_socks5_request_failed_to_provide_auth() -> None:
     """
     Attempt to send an HTTP request via an authenticated SOCKS proxy,
     without providing authentication credentials.
@@ -149,7 +149,7 @@ def test_socks5_request_failed_to_provide_auth():
 
 
 
-def test_socks5_request_incorrect_auth():
+def test_socks5_request_incorrect_auth() -> None:
     """
     Attempt to send an HTTP request via an authenticated SOCKS proxy,
     with incorrect authentication credentials.

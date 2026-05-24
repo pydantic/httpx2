@@ -6,7 +6,7 @@ import httpcore2
 
 
 @pytest.mark.anyio
-async def test_http2_connection():
+async def test_http2_connection() -> None:
     origin = httpcore2.Origin(b"https", b"example.com", 443)
     stream = httpcore2.AsyncMockStream(
         [
@@ -38,7 +38,7 @@ async def test_http2_connection():
 
 
 @pytest.mark.anyio
-async def test_http2_connection_closed():
+async def test_http2_connection_closed() -> None:
     origin = httpcore2.Origin(b"https", b"example.com", 443)
     stream = httpcore2.AsyncMockStream(
         [
@@ -68,7 +68,7 @@ async def test_http2_connection_closed():
 
 
 @pytest.mark.anyio
-async def test_http2_connection_post_request():
+async def test_http2_connection_post_request() -> None:
     origin = httpcore2.Origin(b"https", b"example.com", 443)
     stream = httpcore2.AsyncMockStream(
         [
@@ -98,7 +98,7 @@ async def test_http2_connection_post_request():
 
 
 @pytest.mark.anyio
-async def test_http2_connection_with_remote_protocol_error():
+async def test_http2_connection_with_remote_protocol_error() -> None:
     """
     If a remote protocol error occurs, then no response will be returned,
     and the connection will not be reusable.
@@ -111,7 +111,7 @@ async def test_http2_connection_with_remote_protocol_error():
 
 
 @pytest.mark.anyio
-async def test_http2_connection_with_rst_stream():
+async def test_http2_connection_with_rst_stream() -> None:
     """
     If a stream reset occurs, then no response will be returned,
     but the connection will remain reusable for other requests.
@@ -155,7 +155,7 @@ async def test_http2_connection_with_rst_stream():
 
 
 @pytest.mark.anyio
-async def test_http2_connection_with_goaway():
+async def test_http2_connection_with_goaway() -> None:
     """
     If a GoAway frame occurs, then no response will be returned,
     and the connection will not be reusable for other requests.
@@ -203,7 +203,7 @@ async def test_http2_connection_with_goaway():
 
 
 @pytest.mark.anyio
-async def test_http2_connection_with_negative_flow_control_window():
+async def test_http2_connection_with_negative_flow_control_window() -> None:
     """A negative stream flow-control window must be awaited, not sent into.
 
     After the 65535-byte window is exhausted, the server reduces INITIAL_WINDOW_SIZE
@@ -241,7 +241,7 @@ async def test_http2_connection_with_negative_flow_control_window():
 
 
 @pytest.mark.anyio
-async def test_http2_connection_with_flow_control():
+async def test_http2_connection_with_flow_control() -> None:
     origin = httpcore2.Origin(b"https", b"example.com", 443)
     stream = httpcore2.AsyncMockStream(
         [
@@ -283,7 +283,7 @@ async def test_http2_connection_with_flow_control():
 
 
 @pytest.mark.anyio
-async def test_http2_connection_attempt_close():
+async def test_http2_connection_attempt_close() -> None:
     """
     A connection can only be closed when it is idle.
     """
@@ -316,7 +316,7 @@ async def test_http2_connection_attempt_close():
 
 
 @pytest.mark.anyio
-async def test_http2_request_to_incorrect_origin():
+async def test_http2_request_to_incorrect_origin() -> None:
     """
     A connection can only send requests to whichever origin it is connected to.
     """
@@ -328,7 +328,7 @@ async def test_http2_request_to_incorrect_origin():
 
 
 @pytest.mark.anyio
-async def test_http2_remote_max_streams_update():
+async def test_http2_remote_max_streams_update() -> None:
     """
     If the remote server updates the maximum concurrent streams value, we should
     be adjusting how many streams we will allow.

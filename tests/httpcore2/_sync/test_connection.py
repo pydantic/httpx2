@@ -20,7 +20,7 @@ from httpcore2 import (
 
 
 
-def test_http_connection():
+def test_http_connection() -> None:
     origin = Origin(b"https", b"example.com", 443)
     network_backend = MockBackend(
         [
@@ -54,7 +54,7 @@ def test_http_connection():
 
 
 
-def test_concurrent_requests_not_available_on_http11_connections():
+def test_concurrent_requests_not_available_on_http11_connections() -> None:
     """
     Attempting to issue a request against an already active HTTP/1.1 connection
     will raise a `ConnectionNotAvailable` exception.
@@ -78,7 +78,7 @@ def test_concurrent_requests_not_available_on_http11_connections():
 
 @pytest.mark.filterwarnings("ignore::pytest.PytestUnraisableExceptionWarning")
 
-def test_write_error_with_response_sent():
+def test_write_error_with_response_sent() -> None:
     """
     If a server half-closes the connection while the client is sending
     the request, it may still send a response. In this case the client
@@ -129,7 +129,7 @@ def test_write_error_with_response_sent():
 
 
 @pytest.mark.filterwarnings("ignore::pytest.PytestUnraisableExceptionWarning")
-def test_write_error_without_response_sent():
+def test_write_error_without_response_sent() -> None:
     """
     If a server fully closes the connection while the client is sending
     the request, then client should raise an error.
@@ -171,7 +171,7 @@ def test_write_error_without_response_sent():
 
 
 @pytest.mark.filterwarnings("ignore::pytest.PytestUnraisableExceptionWarning")
-def test_http2_connection():
+def test_http2_connection() -> None:
     origin = Origin(b"https", b"example.com", 443)
     network_backend = MockBackend(
         [
@@ -200,7 +200,7 @@ def test_http2_connection():
 
 
 
-def test_request_to_incorrect_origin():
+def test_request_to_incorrect_origin() -> None:
     """
     A connection can only send requests whichever origin it is connected to.
     """
@@ -270,7 +270,7 @@ class NeedsRetryBackend(MockBackend):
 
 
 
-def test_connection_retries():
+def test_connection_retries() -> None:
     origin = Origin(b"https", b"example.com", 443)
     content = [
         b"HTTP/1.1 200 OK\r\n",
@@ -295,7 +295,7 @@ def test_connection_retries():
 
 
 
-def test_connection_retries_tls():
+def test_connection_retries_tls() -> None:
     origin = Origin(b"https", b"example.com", 443)
     content = [
         b"HTTP/1.1 200 OK\r\n",
@@ -320,7 +320,7 @@ def test_connection_retries_tls():
 
 
 
-def test_uds_connections():
+def test_uds_connections() -> None:
     # We're not actually testing Unix Domain Sockets here, because we're just
     # using a mock backend, but at least we're covering the UDS codepath
     # in `connection.py` which we may as well do.

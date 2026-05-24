@@ -10,7 +10,7 @@ import httpcore2
 
 
 @pytest.mark.anyio
-async def test_connection_pool_with_keepalive():
+async def test_connection_pool_with_keepalive() -> None:
     """
     By default HTTP/1.1 requests should be returned to the connection pool.
     """
@@ -83,7 +83,7 @@ async def test_connection_pool_with_keepalive():
 
 
 @pytest.mark.anyio
-async def test_connection_pool_with_close():
+async def test_connection_pool_with_close() -> None:
     """
     HTTP/1.1 requests that include a 'Connection: Close' header should
     not be returned to the connection pool.
@@ -112,7 +112,7 @@ async def test_connection_pool_with_close():
 
 
 @pytest.mark.anyio
-async def test_connection_pool_with_http2():
+async def test_connection_pool_with_http2() -> None:
     """
     Test a connection pool with HTTP/2 requests.
     """
@@ -166,7 +166,7 @@ async def test_connection_pool_with_http2():
 
 
 @pytest.mark.anyio
-async def test_connection_pool_with_http2_goaway():
+async def test_connection_pool_with_http2_goaway() -> None:
     """
     Test a connection pool with HTTP/2 requests, that cleanly disconnects
     with a GoAway frame after the first request.
@@ -215,7 +215,7 @@ async def test_connection_pool_with_http2_goaway():
 
 
 @pytest.mark.anyio
-async def test_trace_request():
+async def test_trace_request() -> None:
     """
     The 'trace' request extension allows for a callback function to inspect the
     internal events that occur while sending a request.
@@ -232,7 +232,7 @@ async def test_trace_request():
 
     called = []
 
-    async def trace(name, kwargs):
+    async def trace(name: str, kwargs: dict[str, typing.Any]) -> None:
         called.append(name)
 
     async with httpcore2.AsyncConnectionPool(network_backend=network_backend) as pool:
@@ -257,7 +257,7 @@ async def test_trace_request():
 
 
 @pytest.mark.anyio
-async def test_debug_request(caplog):
+async def test_debug_request(caplog: pytest.LogCaptureFixture) -> None:
     """
     The 'trace' request extension allows for a callback function to inspect the
     internal events that occur while sending a request.
@@ -325,7 +325,7 @@ async def test_debug_request(caplog):
 
 
 @pytest.mark.anyio
-async def test_connection_pool_with_http_exception():
+async def test_connection_pool_with_http_exception() -> None:
     """
     HTTP/1.1 requests that result in an exception during the connection should
     not be returned to the connection pool.
@@ -334,7 +334,7 @@ async def test_connection_pool_with_http_exception():
 
     called = []
 
-    async def trace(name, kwargs):
+    async def trace(name: str, kwargs: dict[str, typing.Any]) -> None:
         called.append(name)
 
     async with httpcore2.AsyncConnectionPool(network_backend=network_backend) as pool:
@@ -362,7 +362,7 @@ async def test_connection_pool_with_http_exception():
 
 
 @pytest.mark.anyio
-async def test_connection_pool_with_connect_exception():
+async def test_connection_pool_with_connect_exception() -> None:
     """
     HTTP/1.1 requests that result in an exception during connection should not
     be returned to the connection pool.
@@ -383,7 +383,7 @@ async def test_connection_pool_with_connect_exception():
 
     called = []
 
-    async def trace(name, kwargs):
+    async def trace(name: str, kwargs: dict[str, typing.Any]) -> None:
         called.append(name)
 
     async with httpcore2.AsyncConnectionPool(network_backend=network_backend) as pool:
@@ -401,7 +401,7 @@ async def test_connection_pool_with_connect_exception():
 
 
 @pytest.mark.anyio
-async def test_connection_pool_with_immediate_expiry():
+async def test_connection_pool_with_immediate_expiry() -> None:
     """
     Connection pools with keepalive_expiry=0.0 should immediately expire
     keep alive connections.
@@ -433,7 +433,7 @@ async def test_connection_pool_with_immediate_expiry():
 
 
 @pytest.mark.anyio
-async def test_connection_pool_with_no_keepalive_connections_allowed():
+async def test_connection_pool_with_no_keepalive_connections_allowed() -> None:
     """
     When 'max_keepalive_connections=0' is used, IDLE connections should not
     be returned to the pool.
@@ -462,7 +462,7 @@ async def test_connection_pool_with_no_keepalive_connections_allowed():
 
 
 @pytest.mark.trio
-async def test_connection_pool_concurrency():
+async def test_connection_pool_concurrency() -> None:
     """
     HTTP/1.1 requests made in concurrency must not ever exceed the maximum number
     of allowable connection in the pool.
@@ -477,14 +477,14 @@ async def test_connection_pool_concurrency():
         ]
     )
 
-    async def fetch(pool, domain, info_list):
+    async def fetch(pool: httpcore2.AsyncConnectionPool, domain: str, info_list: list[list[str]]) -> None:
         async with pool.stream("GET", f"http://{domain}/") as response:
             info = [repr(c) for c in pool.connections]
             info_list.append(info)
             await response.aread()
 
     async with httpcore2.AsyncConnectionPool(max_connections=1, network_backend=network_backend) as pool:
-        info_list: typing.List[str] = []
+        info_list: typing.List[typing.List[str]] = []
         async with concurrency.open_nursery() as nursery:
             for domain in ["a.com", "b.com", "c.com", "d.com", "e.com"]:
                 nursery.start_soon(fetch, pool, domain, info_list)
@@ -505,7 +505,7 @@ async def test_connection_pool_concurrency():
 
 
 @pytest.mark.trio
-async def test_connection_pool_concurrency_same_domain_closing():
+async def test_connection_pool_concurrency_same_domain_closing() -> None:
     """
     HTTP/1.1 requests made in concurrency must not ever exceed the maximum number
     of allowable connection in the pool.
@@ -521,14 +521,14 @@ async def test_connection_pool_concurrency_same_domain_closing():
         ]
     )
 
-    async def fetch(pool, domain, info_list):
+    async def fetch(pool: httpcore2.AsyncConnectionPool, domain: str, info_list: list[list[str]]) -> None:
         async with pool.stream("GET", f"https://{domain}/") as response:
             info = [repr(c) for c in pool.connections]
             info_list.append(info)
             await response.aread()
 
     async with httpcore2.AsyncConnectionPool(max_connections=1, network_backend=network_backend, http2=True) as pool:
-        info_list: typing.List[str] = []
+        info_list: typing.List[typing.List[str]] = []
         async with concurrency.open_nursery() as nursery:
             for domain in ["a.com", "a.com", "a.com", "a.com", "a.com"]:
                 nursery.start_soon(fetch, pool, domain, info_list)
@@ -542,7 +542,7 @@ async def test_connection_pool_concurrency_same_domain_closing():
 
 
 @pytest.mark.trio
-async def test_connection_pool_concurrency_same_domain_keepalive():
+async def test_connection_pool_concurrency_same_domain_keepalive() -> None:
     """
     HTTP/1.1 requests made in concurrency must not ever exceed the maximum number
     of allowable connection in the pool.
@@ -558,14 +558,14 @@ async def test_connection_pool_concurrency_same_domain_keepalive():
         * 5
     )
 
-    async def fetch(pool, domain, info_list):
+    async def fetch(pool: httpcore2.AsyncConnectionPool, domain: str, info_list: list[list[str]]) -> None:
         async with pool.stream("GET", f"https://{domain}/") as response:
             info = [repr(c) for c in pool.connections]
             info_list.append(info)
             await response.aread()
 
     async with httpcore2.AsyncConnectionPool(max_connections=1, network_backend=network_backend, http2=True) as pool:
-        info_list: typing.List[str] = []
+        info_list: typing.List[typing.List[str]] = []
         async with concurrency.open_nursery() as nursery:
             for domain in ["a.com", "a.com", "a.com", "a.com", "a.com"]:
                 nursery.start_soon(fetch, pool, domain, info_list)
@@ -587,7 +587,7 @@ async def test_connection_pool_concurrency_same_domain_keepalive():
 
 
 @pytest.mark.anyio
-async def test_unsupported_protocol():
+async def test_unsupported_protocol() -> None:
     async with httpcore2.AsyncConnectionPool() as pool:
         with pytest.raises(httpcore2.UnsupportedProtocol):
             await pool.request("GET", "ftp://www.example.com/")
@@ -597,7 +597,7 @@ async def test_unsupported_protocol():
 
 
 @pytest.mark.anyio
-async def test_connection_pool_closed_while_request_in_flight():
+async def test_connection_pool_closed_while_request_in_flight() -> None:
     """
     Closing a connection pool while a request/response is still in-flight
     should raise an error.
@@ -624,7 +624,7 @@ async def test_connection_pool_closed_while_request_in_flight():
 
 
 @pytest.mark.anyio
-async def test_connection_pool_timeout():
+async def test_connection_pool_timeout() -> None:
     """
     Ensure that exceeding max_connections can cause a request to timeout.
     """
@@ -649,7 +649,7 @@ async def test_connection_pool_timeout():
 
 
 @pytest.mark.anyio
-async def test_connection_pool_timeout_zero():
+async def test_connection_pool_timeout_zero() -> None:
     """
     A pool timeout of 0 shouldn't raise a PoolTimeout if there's
     no need to wait on a new connection.
@@ -701,7 +701,7 @@ async def test_connection_pool_timeout_zero():
 
 
 @pytest.mark.anyio
-async def test_http11_upgrade_connection():
+async def test_http11_upgrade_connection() -> None:
     """
     HTTP "101 Switching Protocols" indicates an upgraded connection.
 
@@ -723,7 +723,7 @@ async def test_http11_upgrade_connection():
 
     called = []
 
-    async def trace(name, kwargs):
+    async def trace(name: str, kwargs: dict[str, typing.Any]) -> None:
         called.append(name)
 
     async with httpcore2.AsyncConnectionPool(network_backend=network_backend, max_connections=1) as pool:
