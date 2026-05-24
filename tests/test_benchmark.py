@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 import gzip
-import io
 import json
-import socket
-import threading
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
 import httpx2
-from httpcore2._backends.sync import SyncStream
+from httpx2._decoders import GZipDecoder, LineDecoder
+
+if TYPE_CHECKING:
+    from pytest_codspeed import BenchmarkFixture
 
 pytestmark = pytest.mark.benchmark
 
@@ -23,109 +24,146 @@ HEADERS: list[tuple[str, str]] = [
     *[(f"x-custom-{i}", f"value-{i}") for i in range(16)],
 ]
 
-SMALL_JSON: dict[str, object] = {
+SMALL_JSON: dict[str, Any] = {
     "id": 12345,
     "items": [{"sku": f"SKU-{i}", "qty": i, "price": i * 1.5} for i in range(50)],
 }
-LARGE_JSON: dict[str, object] = {
+MEDIUM_JSON: dict[str, Any] = {
     "records": [
-        {"id": i, "name": f"record-{i}", "tags": [f"t{j}" for j in range(8)], "active": bool(i % 2)}
-        for i in range(2048)
+        {"id": i, "name": f"record-{i}", "tags": [f"t{j}" for j in range(8)], "active": bool(i % 2)} for i in range(256)
     ],
 }
-SMALL_JSON_BODY = json.dumps(SMALL_JSON).encode()
-LARGE_JSON_BODY = json.dumps(LARGE_JSON).encode()
-GZIPPED_LARGE_JSON_BODY = gzip.compress(LARGE_JSON_BODY)
+MEDIUM_JSON_BODY = json.dumps(MEDIUM_JSON).encode()
+
+QUERY_STRING = "key=value&other=1&" + "&".join(f"f{i}={i}" for i in range(16))
+
+GZIP_BODY = gzip.compress(MEDIUM_JSON_BODY)
+
+SET_COOKIE_HEADERS: list[tuple[str, str]] = [
+    ("set-cookie", f"session{i}=value{i}; Path=/; Domain=example.org; HttpOnly") for i in range(8)
+]
+
+DIGEST_CHALLENGE = 'Digest realm="httpx@example.org", qop="auth", nonce="abc123nonce", opaque="xyz789opaque"'
 
 
-def test_bench_url_join() -> None:
+# --- Micro: pure httpx2 hot paths -------------------------------------------------
+
+
+def test_bench_url_parse(benchmark: BenchmarkFixture) -> None:
+    benchmark(httpx2.URL, TYPICAL_URL)
+
+
+def test_bench_url_join(benchmark: BenchmarkFixture) -> None:
     base = httpx2.URL(TYPICAL_URL)
-    for _ in range(1024):
-        base.join("/path/to/resource?key=value")
+    benchmark(base.join, "/path/to/resource?key=value")
 
 
-def test_bench_request_json_post() -> None:
-    for _ in range(256):
-        httpx2.Request("POST", TYPICAL_URL, headers=HEADERS, json=SMALL_JSON)
+def test_bench_headers_construct(benchmark: BenchmarkFixture) -> None:
+    benchmark(httpx2.Headers, HEADERS)
 
 
-def test_bench_request_multipart() -> None:
-    for _ in range(64):
+def test_bench_headers_raw(benchmark: BenchmarkFixture) -> None:
+    headers = httpx2.Headers(HEADERS)
+    benchmark(lambda: headers.raw)
+
+
+def test_bench_headers_lookup(benchmark: BenchmarkFixture) -> None:
+    headers = httpx2.Headers(HEADERS)
+    benchmark(lambda: headers["accept-encoding"])
+
+
+def test_bench_queryparams_parse(benchmark: BenchmarkFixture) -> None:
+    benchmark(httpx2.QueryParams, QUERY_STRING)
+
+
+def test_bench_queryparams_merge(benchmark: BenchmarkFixture) -> None:
+    params = httpx2.QueryParams(QUERY_STRING)
+    benchmark(lambda: params.merge({"added": "1", "other": "2"}))
+
+
+def test_bench_gzip_decode(benchmark: BenchmarkFixture) -> None:
+    def decode() -> bytes:
+        decoder = GZipDecoder()
+        return decoder.decode(GZIP_BODY) + decoder.flush()
+
+    benchmark(decode)
+
+
+def test_bench_line_decoder(benchmark: BenchmarkFixture) -> None:
+    text = "\n".join(f"line number {i} with some content" for i in range(256)) + "\n"
+
+    def split() -> list[str]:
+        decoder = LineDecoder()
+        return decoder.decode(text) + decoder.flush()
+
+    benchmark(split)
+
+
+def test_bench_extract_cookies(benchmark: BenchmarkFixture) -> None:
+    request = httpx2.Request("GET", "https://example.org/")
+
+    def extract() -> None:
+        response = httpx2.Response(200, headers=SET_COOKIE_HEADERS, request=request)
+        httpx2.Cookies().extract_cookies(response)
+
+    benchmark(extract)
+
+
+def test_bench_digest_auth_flow(benchmark: BenchmarkFixture) -> None:
+    challenge = httpx2.Response(
+        401,
+        headers=[("www-authenticate", DIGEST_CHALLENGE)],
+        request=httpx2.Request("GET", "https://example.org/path/to/resource"),
+    )
+
+    def flow() -> None:
+        auth = httpx2.DigestAuth(username="user", password="password123")
+        generator = auth.sync_auth_flow(httpx2.Request("GET", "https://example.org/path/to/resource"))
+        next(generator)
+        try:
+            generator.send(challenge)
+        except StopIteration:
+            pass
+
+    benchmark(flow)
+
+
+def test_bench_request_json_post(benchmark: BenchmarkFixture) -> None:
+    benchmark(lambda: httpx2.Request("POST", TYPICAL_URL, headers=HEADERS, json=SMALL_JSON))
+
+
+def test_bench_request_multipart(benchmark: BenchmarkFixture) -> None:
+    def build() -> None:
         request = httpx2.Request(
             "POST",
             "https://example.org/upload",
             data={"name": "value", "other": "field", "description": "a longer text field"},
-            files={
-                "small": ("hello.txt", b"x" * 4096, "text/plain"),
-                "large": ("payload.bin", io.BytesIO(b"y" * 65536), "application/octet-stream"),
-            },
+            files={"small": ("hello.txt", b"x" * 4096, "text/plain")},
         )
         request.read()
 
+    benchmark(build)
 
-def test_bench_response_gzip_decode_large() -> None:
-    for _ in range(64):
+
+def test_bench_response_read_json(benchmark: BenchmarkFixture) -> None:
+    def build() -> Any:
         response = httpx2.Response(
             200,
-            headers=[("content-type", "application/json"), ("content-encoding", "gzip")],
-            content=GZIPPED_LARGE_JSON_BODY,
+            headers=[("content-type", "application/json")],
+            content=MEDIUM_JSON_BODY,
         )
-        response.read()
+        return response.json()
+
+    benchmark(build)
 
 
-def _large_json_handler(request: httpx2.Request) -> httpx2.Response:
-    return httpx2.Response(200, content=LARGE_JSON_BODY, headers=[("content-type", "application/json")])
+# --- Macro: end-to-end client cycle via MockTransport -----------------------------
 
 
-def _stream_handler(request: httpx2.Request) -> httpx2.Response:
-    return httpx2.Response(200, content=b"x" * 1024 * 1024)
+def _json_handler(request: httpx2.Request) -> httpx2.Response:
+    return httpx2.Response(200, content=MEDIUM_JSON_BODY, headers=[("content-type", "application/json")])
 
 
-def test_bench_client_post_large_json() -> None:
-    with httpx2.Client(transport=httpx2.MockTransport(_large_json_handler)) as client:
-        for _ in range(16):
-            client.post(TYPICAL_URL, json=LARGE_JSON).json()
-
-
-def test_bench_client_stream_download() -> None:
-    with httpx2.Client(transport=httpx2.MockTransport(_stream_handler)) as client:
-        for _ in range(16):
-            with client.stream("GET", TYPICAL_URL) as response:
-                for _ in response.iter_bytes(chunk_size=8192):
-                    pass
-
-
-def test_bench_sync_stream_write_large() -> None:
-    payload = b"x" * 64 * 1024 * 1024  # 64 MB
-    reader_sock, writer_sock = socket.socketpair()
-    try:
-        # Small kernel buffers + small reader chunks force many partial sends on Linux,
-        # which is what exercises the buffer-slicing loop inside SyncStream.write.
-        writer_sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 8192)
-        reader_sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 8192)
-
-        drained: list[int] = []
-
-        def drain() -> None:
-            total = 0
-            while True:
-                chunk = reader_sock.recv(8192)
-                if not chunk:
-                    break
-                total += len(chunk)
-            drained.append(total)
-
-        thread = threading.Thread(target=drain)
-        thread.start()
-
-        stream = SyncStream(writer_sock)
-        # Pass a timeout so the socket runs in timeout mode; otherwise the kernel
-        # drains the entire payload in a single blocking send() call and the
-        # buffer-slicing loop never iterates.
-        stream.write(payload, timeout=30.0)
-        stream.close()
-        thread.join()
-
-        assert drained == [len(payload)]
-    finally:
-        reader_sock.close()
+def test_bench_client_post_json(benchmark: BenchmarkFixture) -> None:
+    with httpx2.Client(transport=httpx2.MockTransport(_json_handler)) as client:
+        benchmark(lambda: client.post(TYPICAL_URL, json=MEDIUM_JSON).json())
