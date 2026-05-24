@@ -86,3 +86,11 @@ markers = [
 [tool.coverage.run]
 source_pkgs = ["httpx2", "httpcore2", "tests"]
 omit = ["src/httpcore2/httpcore2/_sync/*", "tests/test_benchmark.py"]
+
+[tool.coverage.report]
+exclude_also = [
+  "if TYPE_CHECKING:",
+  "if typing.TYPE_CHECKING:",
+  "raise NotImplementedError",
+  "@(typing\\.)?overload",
+]
