@@ -21,7 +21,7 @@ from typing import (
     Union,
 )
 
-if TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:
     from ._auth import Auth  # noqa: F401
     from ._config import Proxy, Timeout  # noqa: F401
     from ._models import Cookies, Headers, Request  # noqa: F401

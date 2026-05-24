@@ -8,7 +8,7 @@ from urllib.request import getproxies
 
 from ._types import PrimitiveData
 
-if typing.TYPE_CHECKING:  # pragma: no cover
+if typing.TYPE_CHECKING:
     from ._urls import URL
 
 
