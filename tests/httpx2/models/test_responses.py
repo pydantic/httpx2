@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import pickle
 import typing
@@ -9,7 +11,7 @@ import httpx2
 
 
 class StreamingBody:
-    def __iter__(self):
+    def __iter__(self) -> typing.Iterator[bytes]:
         yield b"Hello, "
         yield b"world!"
 
@@ -24,11 +26,11 @@ async def async_streaming_body() -> typing.AsyncIterator[bytes]:
     yield b"world!"
 
 
-def autodetect(content):
+def autodetect(content: bytes) -> str | None:
     return chardet.detect(content).get("encoding")
 
 
-def test_response():
+def test_response() -> None:
     response = httpx2.Response(
         200,
         content=b"Hello, world!",
@@ -43,7 +45,7 @@ def test_response():
     assert not response.is_error
 
 
-def test_response_content():
+def test_response_content() -> None:
     response = httpx2.Response(200, content="Hello, world!")
 
     assert response.status_code == 200
@@ -52,7 +54,7 @@ def test_response_content():
     assert response.headers == {"Content-Length": "13"}
 
 
-def test_response_text():
+def test_response_text() -> None:
     response = httpx2.Response(200, text="Hello, world!")
 
     assert response.status_code == 200
@@ -64,7 +66,7 @@ def test_response_text():
     }
 
 
-def test_response_html():
+def test_response_html() -> None:
     response = httpx2.Response(200, html="<html><body>Hello, world!</html></body>")
 
     assert response.status_code == 200
@@ -76,7 +78,7 @@ def test_response_html():
     }
 
 
-def test_response_json():
+def test_response_json() -> None:
     response = httpx2.Response(200, json={"hello": "world"})
 
     assert response.status_code == 200
@@ -88,7 +90,7 @@ def test_response_json():
     }
 
 
-def test_raise_for_status():
+def test_raise_for_status() -> None:
     request = httpx2.Request("GET", "https://example.org")
 
     # 2xx status codes are not an error.
@@ -146,7 +148,7 @@ def test_raise_for_status():
         response.raise_for_status()
 
 
-def test_response_repr():
+def test_response_repr() -> None:
     response = httpx2.Response(
         200,
         content=b"Hello, world!",
@@ -154,7 +156,7 @@ def test_response_repr():
     assert repr(response) == "<Response [200 OK]>"
 
 
-def test_response_content_type_encoding():
+def test_response_content_type_encoding() -> None:
     """
     Use the charset encoding in the Content-Type header if possible.
     """
@@ -169,7 +171,7 @@ def test_response_content_type_encoding():
     assert response.encoding == "latin-1"
 
 
-def test_response_default_to_utf8_encoding():
+def test_response_default_to_utf8_encoding() -> None:
     """
     Default to utf-8 encoding if there is no Content-Type header.
     """
@@ -182,7 +184,7 @@ def test_response_default_to_utf8_encoding():
     assert response.encoding == "utf-8"
 
 
-def test_response_fallback_to_utf8_encoding():
+def test_response_fallback_to_utf8_encoding() -> None:
     """
     Fallback to utf-8 if we get an invalid charset in the Content-Type header.
     """
@@ -197,7 +199,7 @@ def test_response_fallback_to_utf8_encoding():
     assert response.encoding == "utf-8"
 
 
-def test_response_no_charset_with_ascii_content():
+def test_response_no_charset_with_ascii_content() -> None:
     """
     A response with ascii encoded content should decode correctly,
     even with no charset specified.
@@ -214,7 +216,7 @@ def test_response_no_charset_with_ascii_content():
     assert response.text == "Hello, world!"
 
 
-def test_response_no_charset_with_utf8_content():
+def test_response_no_charset_with_utf8_content() -> None:
     """
     A response with UTF-8 encoded content should decode correctly,
     even with no charset specified.
@@ -230,7 +232,7 @@ def test_response_no_charset_with_utf8_content():
     assert response.encoding == "utf-8"
 
 
-def test_response_no_charset_with_iso_8859_1_content():
+def test_response_no_charset_with_iso_8859_1_content() -> None:
     """
     A response with ISO 8859-1 encoded content should decode correctly,
     even with no charset specified, if autodetect is enabled.
@@ -242,7 +244,7 @@ def test_response_no_charset_with_iso_8859_1_content():
     assert response.charset_encoding is None
 
 
-def test_response_no_charset_with_cp_1252_content():
+def test_response_no_charset_with_cp_1252_content() -> None:
     """
     A response with Windows 1252 encoded content should decode correctly,
     even with no charset specified, if autodetect is enabled.
@@ -254,7 +256,7 @@ def test_response_no_charset_with_cp_1252_content():
     assert response.charset_encoding is None
 
 
-def test_response_non_text_encoding():
+def test_response_non_text_encoding() -> None:
     """
     Default to attempting utf-8 encoding for non-text content-type headers.
     """
@@ -268,7 +270,7 @@ def test_response_non_text_encoding():
     assert response.encoding == "utf-8"
 
 
-def test_response_set_explicit_encoding():
+def test_response_set_explicit_encoding() -> None:
     headers = {"Content-Type": "text-plain; charset=utf-8"}  # Deliberately incorrect charset
     response = httpx2.Response(
         200,
@@ -280,7 +282,7 @@ def test_response_set_explicit_encoding():
     assert response.encoding == "latin-1"
 
 
-def test_response_force_encoding():
+def test_response_force_encoding() -> None:
     response = httpx2.Response(
         200,
         content="Snowman: ☃".encode("utf-8"),
@@ -292,7 +294,7 @@ def test_response_force_encoding():
     assert response.encoding == "iso-8859-1"
 
 
-def test_response_force_encoding_after_text_accessed():
+def test_response_force_encoding_after_text_accessed() -> None:
     response = httpx2.Response(
         200,
         content=b"Hello, world!",
@@ -309,7 +311,7 @@ def test_response_force_encoding_after_text_accessed():
         response.encoding = "iso-8859-1"
 
 
-def test_read():
+def test_read() -> None:
     response = httpx2.Response(
         200,
         content=b"Hello, world!",
@@ -327,7 +329,7 @@ def test_read():
     assert response.is_closed
 
 
-def test_empty_read():
+def test_empty_read() -> None:
     response = httpx2.Response(200)
 
     assert response.status_code == 200
@@ -343,7 +345,7 @@ def test_empty_read():
 
 
 @pytest.mark.anyio
-async def test_aread():
+async def test_aread() -> None:
     response = httpx2.Response(
         200,
         content=b"Hello, world!",
@@ -362,7 +364,7 @@ async def test_aread():
 
 
 @pytest.mark.anyio
-async def test_empty_aread():
+async def test_empty_aread() -> None:
     response = httpx2.Response(200)
 
     assert response.status_code == 200
@@ -377,7 +379,7 @@ async def test_empty_aread():
     assert response.is_closed
 
 
-def test_iter_raw():
+def test_iter_raw() -> None:
     response = httpx2.Response(
         200,
         content=streaming_body(),
@@ -389,7 +391,7 @@ def test_iter_raw():
     assert raw == b"Hello, world!"
 
 
-def test_iter_raw_with_chunksize():
+def test_iter_raw_with_chunksize() -> None:
     response = httpx2.Response(200, content=streaming_body())
     parts = list(response.iter_raw(chunk_size=5))
     assert parts == [b"Hello", b", wor", b"ld!"]
@@ -407,7 +409,7 @@ def test_iter_raw_with_chunksize():
     assert parts == [b"Hello, world!"]
 
 
-def test_iter_raw_doesnt_return_empty_chunks():
+def test_iter_raw_doesnt_return_empty_chunks() -> None:
     def streaming_body_with_empty_chunks() -> typing.Iterator[bytes]:
         yield b"Hello, "
         yield b""
@@ -420,7 +422,7 @@ def test_iter_raw_doesnt_return_empty_chunks():
     assert parts == [b"Hello, ", b"world!"]
 
 
-def test_iter_raw_on_iterable():
+def test_iter_raw_on_iterable() -> None:
     response = httpx2.Response(
         200,
         content=StreamingBody(),
@@ -432,7 +434,7 @@ def test_iter_raw_on_iterable():
     assert raw == b"Hello, world!"
 
 
-def test_iter_raw_on_async():
+def test_iter_raw_on_async() -> None:
     response = httpx2.Response(
         200,
         content=async_streaming_body(),
@@ -442,7 +444,7 @@ def test_iter_raw_on_async():
         list(response.iter_raw())
 
 
-def test_close_on_async():
+def test_close_on_async() -> None:
     response = httpx2.Response(
         200,
         content=async_streaming_body(),
@@ -452,7 +454,7 @@ def test_close_on_async():
         response.close()
 
 
-def test_iter_raw_increments_updates_counter():
+def test_iter_raw_increments_updates_counter() -> None:
     response = httpx2.Response(200, content=streaming_body())
 
     num_downloaded = response.num_bytes_downloaded
@@ -462,7 +464,7 @@ def test_iter_raw_increments_updates_counter():
 
 
 @pytest.mark.anyio
-async def test_aiter_raw():
+async def test_aiter_raw() -> None:
     response = httpx2.Response(200, content=async_streaming_body())
 
     raw = b""
@@ -472,7 +474,7 @@ async def test_aiter_raw():
 
 
 @pytest.mark.anyio
-async def test_aiter_raw_with_chunksize():
+async def test_aiter_raw_with_chunksize() -> None:
     response = httpx2.Response(200, content=async_streaming_body())
 
     parts = [part async for part in response.aiter_raw(chunk_size=5)]
@@ -490,7 +492,7 @@ async def test_aiter_raw_with_chunksize():
 
 
 @pytest.mark.anyio
-async def test_aiter_raw_on_sync():
+async def test_aiter_raw_on_sync() -> None:
     response = httpx2.Response(
         200,
         content=streaming_body(),
@@ -501,7 +503,7 @@ async def test_aiter_raw_on_sync():
 
 
 @pytest.mark.anyio
-async def test_aclose_on_sync():
+async def test_aclose_on_sync() -> None:
     response = httpx2.Response(
         200,
         content=streaming_body(),
@@ -512,7 +514,7 @@ async def test_aclose_on_sync():
 
 
 @pytest.mark.anyio
-async def test_aiter_raw_increments_updates_counter():
+async def test_aiter_raw_increments_updates_counter() -> None:
     response = httpx2.Response(200, content=async_streaming_body())
 
     num_downloaded = response.num_bytes_downloaded
@@ -521,7 +523,7 @@ async def test_aiter_raw_increments_updates_counter():
         num_downloaded = response.num_bytes_downloaded
 
 
-def test_iter_bytes():
+def test_iter_bytes() -> None:
     response = httpx2.Response(200, content=b"Hello, world!")
 
     content = b""
@@ -530,7 +532,7 @@ def test_iter_bytes():
     assert content == b"Hello, world!"
 
 
-def test_iter_bytes_with_chunk_size():
+def test_iter_bytes_with_chunk_size() -> None:
     response = httpx2.Response(200, content=streaming_body())
     parts = list(response.iter_bytes(chunk_size=5))
     assert parts == [b"Hello", b", wor", b"ld!"]
@@ -544,13 +546,13 @@ def test_iter_bytes_with_chunk_size():
     assert parts == [b"Hello, world!"]
 
 
-def test_iter_bytes_with_empty_response():
+def test_iter_bytes_with_empty_response() -> None:
     response = httpx2.Response(200, content=b"")
     parts = list(response.iter_bytes())
     assert parts == []
 
 
-def test_iter_bytes_doesnt_return_empty_chunks():
+def test_iter_bytes_doesnt_return_empty_chunks() -> None:
     def streaming_body_with_empty_chunks() -> typing.Iterator[bytes]:
         yield b"Hello, "
         yield b""
@@ -564,7 +566,7 @@ def test_iter_bytes_doesnt_return_empty_chunks():
 
 
 @pytest.mark.anyio
-async def test_aiter_bytes():
+async def test_aiter_bytes() -> None:
     response = httpx2.Response(
         200,
         content=b"Hello, world!",
@@ -577,7 +579,7 @@ async def test_aiter_bytes():
 
 
 @pytest.mark.anyio
-async def test_aiter_bytes_with_chunk_size():
+async def test_aiter_bytes_with_chunk_size() -> None:
     response = httpx2.Response(200, content=async_streaming_body())
     parts = [part async for part in response.aiter_bytes(chunk_size=5)]
     assert parts == [b"Hello", b", wor", b"ld!"]
@@ -591,7 +593,7 @@ async def test_aiter_bytes_with_chunk_size():
     assert parts == [b"Hello, world!"]
 
 
-def test_iter_text():
+def test_iter_text() -> None:
     response = httpx2.Response(
         200,
         content=b"Hello, world!",
@@ -603,7 +605,7 @@ def test_iter_text():
     assert content == "Hello, world!"
 
 
-def test_iter_text_with_chunk_size():
+def test_iter_text_with_chunk_size() -> None:
     response = httpx2.Response(200, content=b"Hello, world!")
     parts = list(response.iter_text(chunk_size=5))
     assert parts == ["Hello", ", wor", "ld!"]
@@ -626,7 +628,7 @@ def test_iter_text_with_chunk_size():
 
 
 @pytest.mark.anyio
-async def test_aiter_text():
+async def test_aiter_text() -> None:
     response = httpx2.Response(
         200,
         content=b"Hello, world!",
@@ -639,7 +641,7 @@ async def test_aiter_text():
 
 
 @pytest.mark.anyio
-async def test_aiter_text_with_chunk_size():
+async def test_aiter_text_with_chunk_size() -> None:
     response = httpx2.Response(200, content=b"Hello, world!")
     parts = [part async for part in response.aiter_text(chunk_size=5)]
     assert parts == ["Hello", ", wor", "ld!"]
@@ -653,7 +655,7 @@ async def test_aiter_text_with_chunk_size():
     assert parts == ["Hello, world!"]
 
 
-def test_iter_lines():
+def test_iter_lines() -> None:
     response = httpx2.Response(
         200,
         content=b"Hello,\nworld!",
@@ -663,7 +665,7 @@ def test_iter_lines():
 
 
 @pytest.mark.anyio
-async def test_aiter_lines():
+async def test_aiter_lines() -> None:
     response = httpx2.Response(
         200,
         content=b"Hello,\nworld!",
@@ -673,7 +675,7 @@ async def test_aiter_lines():
     assert content == ["Hello,", "world!"]
 
 
-def test_sync_streaming_response():
+def test_sync_streaming_response() -> None:
     response = httpx2.Response(
         200,
         content=streaming_body(),
@@ -690,7 +692,7 @@ def test_sync_streaming_response():
 
 
 @pytest.mark.anyio
-async def test_async_streaming_response():
+async def test_async_streaming_response() -> None:
     response = httpx2.Response(
         200,
         content=async_streaming_body(),
@@ -706,7 +708,7 @@ async def test_async_streaming_response():
     assert response.is_closed
 
 
-def test_cannot_read_after_stream_consumed():
+def test_cannot_read_after_stream_consumed() -> None:
     response = httpx2.Response(
         200,
         content=streaming_body(),
@@ -721,7 +723,7 @@ def test_cannot_read_after_stream_consumed():
 
 
 @pytest.mark.anyio
-async def test_cannot_aread_after_stream_consumed():
+async def test_cannot_aread_after_stream_consumed() -> None:
     response = httpx2.Response(
         200,
         content=async_streaming_body(),
@@ -735,7 +737,7 @@ async def test_cannot_aread_after_stream_consumed():
         await response.aread()
 
 
-def test_cannot_read_after_response_closed():
+def test_cannot_read_after_response_closed() -> None:
     response = httpx2.Response(
         200,
         content=streaming_body(),
@@ -747,7 +749,7 @@ def test_cannot_read_after_response_closed():
 
 
 @pytest.mark.anyio
-async def test_cannot_aread_after_response_closed():
+async def test_cannot_aread_after_response_closed() -> None:
     response = httpx2.Response(
         200,
         content=async_streaming_body(),
@@ -759,7 +761,7 @@ async def test_cannot_aread_after_response_closed():
 
 
 @pytest.mark.anyio
-async def test_elapsed_not_available_until_closed():
+async def test_elapsed_not_available_until_closed() -> None:
     response = httpx2.Response(
         200,
         content=async_streaming_body(),
@@ -769,7 +771,7 @@ async def test_elapsed_not_available_until_closed():
         response.elapsed  # noqa: B018
 
 
-def test_unknown_status_code():
+def test_unknown_status_code() -> None:
     response = httpx2.Response(
         600,
     )
@@ -778,7 +780,7 @@ def test_unknown_status_code():
     assert response.text == ""
 
 
-def test_json_with_specified_encoding():
+def test_json_with_specified_encoding() -> None:
     data = {"greeting": "hello", "recipient": "world"}
     content = json.dumps(data).encode("utf-16")
     headers = {"Content-Type": "application/json, charset=utf-16"}
@@ -790,7 +792,7 @@ def test_json_with_specified_encoding():
     assert response.json() == data
 
 
-def test_json_with_options():
+def test_json_with_options() -> None:
     data = {"greeting": "hello", "recipient": "world", "amount": 1}
     content = json.dumps(data).encode("utf-16")
     headers = {"Content-Type": "application/json, charset=utf-16"}
@@ -815,7 +817,7 @@ def test_json_with_options():
         "utf-32-le",
     ],
 )
-def test_json_without_specified_charset(encoding):
+def test_json_without_specified_charset(encoding: str) -> None:
     data = {"greeting": "hello", "recipient": "world"}
     content = json.dumps(data).encode(encoding)
     headers = {"Content-Type": "application/json"}
@@ -840,7 +842,7 @@ def test_json_without_specified_charset(encoding):
         "utf-32-le",
     ],
 )
-def test_json_with_specified_charset(encoding):
+def test_json_with_specified_charset(encoding: str) -> None:
     data = {"greeting": "hello", "recipient": "world"}
     content = json.dumps(data).encode(encoding)
     headers = {"Content-Type": f"application/json; charset={encoding}"}
@@ -868,7 +870,7 @@ def test_json_with_specified_charset(encoding):
         ),
     ],
 )
-def test_link_headers(headers, expected):
+def test_link_headers(headers: dict[str, str], expected: dict[str, dict[str, str]]) -> None:
     response = httpx2.Response(
         200,
         content=None,
@@ -878,7 +880,7 @@ def test_link_headers(headers, expected):
 
 
 @pytest.mark.parametrize("header_value", (b"deflate", b"gzip", b"br"))
-def test_decode_error_with_request(header_value):
+def test_decode_error_with_request(header_value: bytes) -> None:
     headers = [(b"Content-Encoding", header_value)]
     broken_compressed_body = b"xxxxxxxxxxxxxx"
     with pytest.raises(httpx2.DecodingError):
@@ -898,14 +900,14 @@ def test_decode_error_with_request(header_value):
 
 
 @pytest.mark.parametrize("header_value", (b"deflate", b"gzip", b"br"))
-def test_value_error_without_request(header_value):
+def test_value_error_without_request(header_value: bytes) -> None:
     headers = [(b"Content-Encoding", header_value)]
     broken_compressed_body = b"xxxxxxxxxxxxxx"
     with pytest.raises(httpx2.DecodingError):
         httpx2.Response(200, headers=headers, content=broken_compressed_body)
 
 
-def test_response_with_unset_request():
+def test_response_with_unset_request() -> None:
     response = httpx2.Response(200, content=b"Hello, world!")
 
     assert response.status_code == 200
@@ -914,7 +916,7 @@ def test_response_with_unset_request():
     assert not response.is_error
 
 
-def test_set_request_after_init():
+def test_set_request_after_init() -> None:
     response = httpx2.Response(200, content=b"Hello, world!")
 
     response.request = httpx2.Request("GET", "https://www.example.org")
@@ -923,14 +925,14 @@ def test_set_request_after_init():
     assert response.request.url == "https://www.example.org"
 
 
-def test_cannot_access_unset_request():
+def test_cannot_access_unset_request() -> None:
     response = httpx2.Response(200, content=b"Hello, world!")
 
     with pytest.raises(RuntimeError):
         response.request  # noqa: B018
 
 
-def test_generator_with_transfer_encoding_header():
+def test_generator_with_transfer_encoding_header() -> None:
     def content() -> typing.Iterator[bytes]:
         yield b"test 123"  # pragma: no cover
 
@@ -938,7 +940,7 @@ def test_generator_with_transfer_encoding_header():
     assert response.headers == {"Transfer-Encoding": "chunked"}
 
 
-def test_generator_with_content_length_header():
+def test_generator_with_content_length_header() -> None:
     def content() -> typing.Iterator[bytes]:
         yield b"test 123"  # pragma: no cover
 
@@ -947,7 +949,7 @@ def test_generator_with_content_length_header():
     assert response.headers == {"Content-Length": "8"}
 
 
-def test_response_picklable():
+def test_response_picklable() -> None:
     response = httpx2.Response(
         200,
         content=b"Hello, world!",
@@ -966,7 +968,7 @@ def test_response_picklable():
 
 
 @pytest.mark.anyio
-async def test_response_async_streaming_picklable():
+async def test_response_async_streaming_picklable() -> None:
     response = httpx2.Response(200, content=async_streaming_body())
     pickle_response = pickle.loads(pickle.dumps(response))
     with pytest.raises(httpx2.ResponseNotRead):
@@ -985,7 +987,7 @@ async def test_response_async_streaming_picklable():
     assert pickle_response.num_bytes_downloaded == 13
 
 
-def test_response_decode_text_using_autodetect():
+def test_response_decode_text_using_autodetect() -> None:
     # Ensure that a 'default_encoding="autodetect"' on the response allows for
     # encoding autodetection to be used when no "Content-Type: text/plain; charset=..."
     # info is present.
@@ -1010,7 +1012,7 @@ def test_response_decode_text_using_autodetect():
     assert response.text == text
 
 
-def test_response_decode_text_using_explicit_encoding():
+def test_response_decode_text_using_explicit_encoding() -> None:
     # Ensure that a 'default_encoding="..."' on the response is used for text decoding
     # when no "Content-Type: text/plain; charset=..."" info is present.
     #

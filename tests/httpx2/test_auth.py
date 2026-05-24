@@ -11,7 +11,7 @@ import pytest
 import httpx2
 
 
-def test_basic_auth():
+def test_basic_auth() -> None:
     auth = httpx2.BasicAuth(username="user", password="pass")
     request = httpx2.Request("GET", "https://www.example.com")
 
@@ -26,7 +26,7 @@ def test_basic_auth():
         flow.send(response)
 
 
-def test_digest_auth_with_200():
+def test_digest_auth_with_200() -> None:
     auth = httpx2.DigestAuth(username="user", password="pass")
     request = httpx2.Request("GET", "https://www.example.com")
 
@@ -41,7 +41,7 @@ def test_digest_auth_with_200():
         flow.send(response)
 
 
-def test_digest_auth_with_401():
+def test_digest_auth_with_401() -> None:
     auth = httpx2.DigestAuth(username="user", password="pass")
     request = httpx2.Request("GET", "https://www.example.com")
 
@@ -62,7 +62,7 @@ def test_digest_auth_with_401():
         flow.send(response)
 
 
-def test_digest_auth_with_401_nonce_counting():
+def test_digest_auth_with_401_nonce_counting() -> None:
     auth = httpx2.DigestAuth(username="user", password="pass")
     request = httpx2.Request("GET", "https://www.example.com")
 
@@ -105,7 +105,7 @@ def set_cookies(request: httpx2.Request) -> httpx2.Response:
         raise NotImplementedError()  # pragma: no cover
 
 
-def test_digest_auth_setting_cookie_in_request():
+def test_digest_auth_setting_cookie_in_request() -> None:
     url = "https://www.example.com/auth"
     client = httpx2.Client(transport=httpx2.MockTransport(set_cookies))
     request = client.build_request("GET", url)
@@ -129,7 +129,7 @@ def test_digest_auth_setting_cookie_in_request():
         flow.send(response)
 
 
-def test_digest_auth_rfc_2069():
+def test_digest_auth_rfc_2069() -> None:
     # Example from https://datatracker.ietf.org/doc/html/rfc2069#section-2.4
     # with corrected response from https://www.rfc-editor.org/errata/eid749
 
@@ -165,7 +165,7 @@ def test_digest_auth_rfc_2069():
         flow.send(response)
 
 
-def test_digest_auth_rfc_7616_md5(monkeypatch):
+def test_digest_auth_rfc_7616_md5(monkeypatch: pytest.MonkeyPatch) -> None:
     # Example from https://datatracker.ietf.org/doc/html/rfc7616#section-3.9.1
 
     def mock_get_client_nonce(nonce_count: int, nonce: bytes) -> bytes:
@@ -211,7 +211,7 @@ def test_digest_auth_rfc_7616_md5(monkeypatch):
         flow.send(response)
 
 
-def test_digest_auth_rfc_7616_sha_256(monkeypatch):
+def test_digest_auth_rfc_7616_sha_256(monkeypatch: pytest.MonkeyPatch) -> None:
     # Example from https://datatracker.ietf.org/doc/html/rfc7616#section-3.9.1
 
     def mock_get_client_nonce(nonce_count: int, nonce: bytes) -> bytes:

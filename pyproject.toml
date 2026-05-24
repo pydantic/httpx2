@@ -63,11 +63,6 @@ known-first-party = ["httpx2", "httpcore2"]
 ignore_missing_imports = true
 strict = true
 
-[[tool.mypy.overrides]]
-module = "tests.httpx2.*"
-disallow_untyped_defs = false
-check_untyped_defs = true
-
 [tool.pytest.ini_options]
 addopts = "-rxXs --import-mode=importlib"
 testpaths = ["tests"]

@@ -659,7 +659,7 @@ class ConsumeBodyTransport(httpx2.MockTransport):
 
 
 @pytest.mark.anyio
-async def test_digest_auth_unavailable_streaming_body():
+async def test_digest_auth_unavailable_streaming_body() -> None:
     url = "https://example.org/"
     auth = httpx2.DigestAuth(username="user", password="password123")
     app = DigestApp()
