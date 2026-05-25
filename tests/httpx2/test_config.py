@@ -83,6 +83,15 @@ def test_load_ssl_config_no_verify() -> None:
     assert context.check_hostname is False
 
 
+def test_create_ssl_context_verify_str_with_cert(
+    cert_pem_file: str, cert_private_key_file: str, tmp_path: Path
+) -> None:
+    """Cert chain is applied even when `verify` is given as a string path."""
+    missing = str(tmp_path / "missing.pem")
+    with pytest.warns(DeprecationWarning), pytest.raises(OSError):
+        httpx2.create_ssl_context(verify=cert_pem_file, cert=(missing, missing))
+
+
 def test_SSLContext_with_get_request(server: TestServer, cert_pem_file: str) -> None:
     context = httpx2.create_ssl_context()
     context.load_verify_locations(cert_pem_file)
