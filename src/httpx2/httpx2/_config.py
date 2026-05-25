@@ -42,7 +42,7 @@ def create_ssl_context(
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
-    elif isinstance(verify, str):  # pragma: nocover
+    elif isinstance(verify, str):
         message = (
             "`verify=<str>` is deprecated. "
             "Use `verify=ssl.create_default_context(cafile=...)` "
@@ -50,20 +50,20 @@ def create_ssl_context(
         )
         warnings.warn(message, DeprecationWarning)
         if os.path.isdir(verify):
-            ctx = ssl.create_default_context(capath=verify)
+            ctx = ssl.create_default_context(capath=verify)  # pragma: nocover
         else:
             ctx = ssl.create_default_context(cafile=verify)
     else:
         ctx = verify
 
-    if cert:  # pragma: nocover
+    if cert:
         message = (
             "`cert=...` is deprecated. Use `verify=<ssl_context>` instead,"
             "with `.load_cert_chain()` to configure the certificate chain."
         )
         warnings.warn(message, DeprecationWarning)
         if isinstance(cert, str):
-            ctx.load_cert_chain(cert)
+            ctx.load_cert_chain(cert)  # pragma: nocover
         else:
             ctx.load_cert_chain(*cert)
 
