@@ -803,6 +803,7 @@ def test_url_mixed_valid_and_malformed_idna_labels() -> None:
     url = httpx2.URL("https://xn--fiqs8s.xn--pokxncvks/")
     assert url.host == "中国.xn--pokxncvks"
 
+
 def test_url_invalid_idna_host() -> None:
     with pytest.raises(httpx2.InvalidURL) as exc:
         httpx2.URL("https://☃.com/")
