@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import socket
 import threading
 import time
 import typing
@@ -32,7 +33,7 @@ ENVIRONMENT_VARIABLES = {
 
 
 @pytest.fixture(scope="function", autouse=True)
-def clean_environ():
+def clean_environ() -> typing.Iterator[None]:
     """Keeps os.environ clean for every test without having to mock os.environ"""
     original_environ = os.environ.copy()
     os.environ.clear()
@@ -176,29 +177,29 @@ async def redirect_301(scope: Scope, receive: Receive, send: Send) -> None:
 
 
 @pytest.fixture(scope="session")
-def cert_authority():
+def cert_authority() -> trustme.CA:
     return trustme.CA()
 
 
 @pytest.fixture(scope="session")
-def localhost_cert(cert_authority):
+def localhost_cert(cert_authority: trustme.CA) -> trustme.LeafCert:
     return cert_authority.issue_cert("localhost")
 
 
 @pytest.fixture(scope="session")
-def cert_pem_file(localhost_cert):
+def cert_pem_file(localhost_cert: trustme.LeafCert) -> typing.Iterator[str]:
     with localhost_cert.cert_chain_pems[0].tempfile() as tmp:
         yield tmp
 
 
 @pytest.fixture(scope="session")
-def cert_private_key_file(localhost_cert):
+def cert_private_key_file(localhost_cert: trustme.LeafCert) -> typing.Iterator[str]:
     with localhost_cert.private_key_pem.tempfile() as tmp:
         yield tmp
 
 
 @pytest.fixture(scope="session")
-def cert_encrypted_private_key_file(localhost_cert):
+def cert_encrypted_private_key_file(localhost_cert: trustme.LeafCert) -> typing.Iterator[str]:
     # Deserialize the private key and then reserialize with a password
     private_key = load_pem_private_key(localhost_cert.private_key_pem.bytes(), password=None, backend=default_backend())
     encrypted_private_key_pem = trustme.Blob(
@@ -223,7 +224,7 @@ class TestServer(Server):
         # because it can only be done in the main thread.
         pass  # pragma: nocover
 
-    async def serve(self, sockets=None):
+    async def serve(self, sockets: list[socket.socket] | None = None) -> None:
         self.restart_requested = asyncio.Event()
 
         loop = asyncio.get_running_loop()

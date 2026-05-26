@@ -6,7 +6,7 @@ import httpcore2
 
 
 
-def test_http2_connection():
+def test_http2_connection() -> None:
     origin = httpcore2.Origin(b"https", b"example.com", 443)
     stream = httpcore2.MockStream(
         [
@@ -38,7 +38,7 @@ def test_http2_connection():
 
 
 
-def test_http2_connection_closed():
+def test_http2_connection_closed() -> None:
     origin = httpcore2.Origin(b"https", b"example.com", 443)
     stream = httpcore2.MockStream(
         [
@@ -68,7 +68,7 @@ def test_http2_connection_closed():
 
 
 
-def test_http2_connection_post_request():
+def test_http2_connection_post_request() -> None:
     origin = httpcore2.Origin(b"https", b"example.com", 443)
     stream = httpcore2.MockStream(
         [
@@ -98,7 +98,7 @@ def test_http2_connection_post_request():
 
 
 
-def test_http2_connection_with_remote_protocol_error():
+def test_http2_connection_with_remote_protocol_error() -> None:
     """
     If a remote protocol error occurs, then no response will be returned,
     and the connection will not be reusable.
@@ -111,7 +111,7 @@ def test_http2_connection_with_remote_protocol_error():
 
 
 
-def test_http2_connection_with_rst_stream():
+def test_http2_connection_with_rst_stream() -> None:
     """
     If a stream reset occurs, then no response will be returned,
     but the connection will remain reusable for other requests.
@@ -155,7 +155,7 @@ def test_http2_connection_with_rst_stream():
 
 
 
-def test_http2_connection_with_goaway():
+def test_http2_connection_with_goaway() -> None:
     """
     If a GoAway frame occurs, then no response will be returned,
     and the connection will not be reusable for other requests.
@@ -203,7 +203,7 @@ def test_http2_connection_with_goaway():
 
 
 
-def test_http2_connection_with_negative_flow_control_window():
+def test_http2_connection_with_negative_flow_control_window() -> None:
     """A negative stream flow-control window must be awaited, not sent into.
 
     After the 65535-byte window is exhausted, the server reduces INITIAL_WINDOW_SIZE
@@ -241,7 +241,7 @@ def test_http2_connection_with_negative_flow_control_window():
 
 
 
-def test_http2_connection_with_flow_control():
+def test_http2_connection_with_flow_control() -> None:
     origin = httpcore2.Origin(b"https", b"example.com", 443)
     stream = httpcore2.MockStream(
         [
@@ -283,7 +283,7 @@ def test_http2_connection_with_flow_control():
 
 
 
-def test_http2_connection_attempt_close():
+def test_http2_connection_attempt_close() -> None:
     """
     A connection can only be closed when it is idle.
     """
@@ -316,7 +316,7 @@ def test_http2_connection_attempt_close():
 
 
 
-def test_http2_request_to_incorrect_origin():
+def test_http2_request_to_incorrect_origin() -> None:
     """
     A connection can only send requests to whichever origin it is connected to.
     """
@@ -328,7 +328,7 @@ def test_http2_request_to_incorrect_origin():
 
 
 
-def test_http2_remote_max_streams_update():
+def test_http2_remote_max_streams_update() -> None:
     """
     If the remote server updates the maximum concurrent streams value, we should
     be adjusting how many streams we will allow.

@@ -5,7 +5,7 @@ import pytest
 import httpx2
 
 
-def test_cookies():
+def test_cookies() -> None:
     cookies = httpx2.Cookies({"name": "value"})
     assert cookies["name"] == "value"
     assert "name" in cookies
@@ -20,7 +20,7 @@ def test_cookies():
     assert bool(cookies) is False
 
 
-def test_cookies_update():
+def test_cookies_update() -> None:
     cookies = httpx2.Cookies()
     more_cookies = httpx2.Cookies()
     more_cookies.set("name", "value", domain="example.com")
@@ -30,7 +30,7 @@ def test_cookies_update():
     assert cookies.get("name", domain="example.com") == "value"
 
 
-def test_cookies_with_domain():
+def test_cookies_with_domain() -> None:
     cookies = httpx2.Cookies()
     cookies.set("name", "value", domain="example.com")
     cookies.set("name", "value", domain="example.org")
@@ -42,7 +42,7 @@ def test_cookies_with_domain():
     assert len(cookies) == 1
 
 
-def test_cookies_with_domain_and_path():
+def test_cookies_with_domain_and_path() -> None:
     cookies = httpx2.Cookies()
     cookies.set("name", "value", domain="example.com", path="/subpath/1")
     cookies.set("name", "value", domain="example.com", path="/subpath/2")
@@ -52,7 +52,7 @@ def test_cookies_with_domain_and_path():
     assert len(cookies) == 0
 
 
-def test_multiple_set_cookie():
+def test_multiple_set_cookie() -> None:
     jar = http.cookiejar.CookieJar()
     headers = [
         (
@@ -76,7 +76,7 @@ def test_multiple_set_cookie():
     assert len(cookies) == 2
 
 
-def test_cookies_can_be_a_list_of_tuples():
+def test_cookies_can_be_a_list_of_tuples() -> None:
     cookies_val = [("name1", "val1"), ("name2", "val2")]
 
     cookies = httpx2.Cookies(cookies_val)
@@ -86,7 +86,7 @@ def test_cookies_can_be_a_list_of_tuples():
         assert cookies[k] == v
 
 
-def test_cookies_repr():
+def test_cookies_repr() -> None:
     cookies = httpx2.Cookies()
     cookies.set(name="foo", value="bar", domain="http://blah.com")
     cookies.set(name="fizz", value="buzz", domain="http://hello.com")

@@ -18,7 +18,7 @@ from httpcore2 import (
 
 
 @pytest.mark.anyio
-async def test_proxy_forwarding():
+async def test_proxy_forwarding() -> None:
     """
     Send an HTTP request via a proxy.
     """
@@ -61,7 +61,7 @@ async def test_proxy_forwarding():
 
 
 @pytest.mark.anyio
-async def test_proxy_tunneling():
+async def test_proxy_tunneling() -> None:
     """
     Send an HTTPS request via a proxy.
     """
@@ -133,7 +133,7 @@ class HTTP1ThenHTTP2Backend(AsyncMockBackend):
 
 
 @pytest.mark.anyio
-async def test_proxy_tunneling_http2():
+async def test_proxy_tunneling_http2() -> None:
     """
     Send an HTTP/2 request via a proxy.
     """
@@ -184,7 +184,7 @@ async def test_proxy_tunneling_http2():
 
 
 @pytest.mark.anyio
-async def test_proxy_tunneling_with_403():
+async def test_proxy_tunneling_with_403() -> None:
     """
     Send an HTTPS request via a proxy.
     """
@@ -205,7 +205,7 @@ async def test_proxy_tunneling_with_403():
 
 
 @pytest.mark.anyio
-async def test_proxy_tunneling_with_auth():
+async def test_proxy_tunneling_with_auth() -> None:
     """
     Send an authenticated HTTPS request via a proxy.
     """
@@ -234,7 +234,7 @@ async def test_proxy_tunneling_with_auth():
         assert response.content == b"Hello, world!"
 
 
-def test_proxy_headers():
+def test_proxy_headers() -> None:
     proxy = Proxy(
         url="http://localhost:8080/",
         auth=("username", "password"),

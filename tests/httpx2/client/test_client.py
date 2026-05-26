@@ -8,12 +8,15 @@ import pytest
 
 import httpx2
 
+if typing.TYPE_CHECKING:
+    from conftest import TestServer
 
-def autodetect(content):
+
+def autodetect(content: bytes) -> str | None:
     return chardet.detect(content).get("encoding")
 
 
-def test_get(server):
+def test_get(server: TestServer) -> None:
     url = server.url
     with httpx2.Client(http2=True) as http:
         response = http.get(url)
@@ -38,13 +41,13 @@ def test_get(server):
         pytest.param("http://", id="no-host"),
     ],
 )
-def test_get_invalid_url(server, url):
+def test_get_invalid_url(server: TestServer, url: str) -> None:
     with httpx2.Client() as client:
         with pytest.raises((httpx2.UnsupportedProtocol, httpx2.LocalProtocolError)):
             client.get(url)
 
 
-def test_build_request(server):
+def test_build_request(server: TestServer) -> None:
     url = server.url.copy_with(path="/echo_headers")
     headers = {"Custom-header": "value"}
 
@@ -59,7 +62,7 @@ def test_build_request(server):
     assert response.json()["Custom-header"] == "value"
 
 
-def test_build_post_request(server):
+def test_build_post_request(server: TestServer) -> None:
     url = server.url.copy_with(path="/echo_headers")
     headers = {"Custom-header": "value"}
 
@@ -75,21 +78,21 @@ def test_build_post_request(server):
     assert response.json()["Custom-header"] == "value"
 
 
-def test_post(server):
+def test_post(server: TestServer) -> None:
     with httpx2.Client() as client:
         response = client.post(server.url, content=b"Hello, world!")
     assert response.status_code == 200
     assert response.reason_phrase == "OK"
 
 
-def test_post_json(server):
+def test_post_json(server: TestServer) -> None:
     with httpx2.Client() as client:
         response = client.post(server.url, json={"text": "Hello, world!"})
     assert response.status_code == 200
     assert response.reason_phrase == "OK"
 
 
-def test_stream_response(server):
+def test_stream_response(server: TestServer) -> None:
     with httpx2.Client() as client:
         with client.stream("GET", server.url) as response:
             content = response.read()
@@ -97,7 +100,7 @@ def test_stream_response(server):
     assert content == b"Hello, world!"
 
 
-def test_stream_iterator(server):
+def test_stream_iterator(server: TestServer) -> None:
     body = b""
 
     with httpx2.Client() as client:
@@ -109,7 +112,7 @@ def test_stream_iterator(server):
     assert body == b"Hello, world!"
 
 
-def test_raw_iterator(server):
+def test_raw_iterator(server: TestServer) -> None:
     body = b""
 
     with httpx2.Client() as client:
@@ -121,7 +124,7 @@ def test_raw_iterator(server):
     assert body == b"Hello, world!"
 
 
-def test_cannot_stream_async_request(server):
+def test_cannot_stream_async_request(server: TestServer) -> None:
     async def hello_world() -> typing.AsyncIterator[bytes]:  # pragma: no cover
         yield b"Hello, "
         yield b"world!"
@@ -131,7 +134,7 @@ def test_cannot_stream_async_request(server):
             client.post(server.url, content=hello_world())
 
 
-def test_raise_for_status(server):
+def test_raise_for_status(server: TestServer) -> None:
     with httpx2.Client() as client:
         for status_code in (200, 400, 404, 500, 505):
             response = client.request("GET", server.url.copy_with(path=f"/status/{status_code}"))
@@ -144,42 +147,42 @@ def test_raise_for_status(server):
                 assert response.raise_for_status() is response
 
 
-def test_options(server):
+def test_options(server: TestServer) -> None:
     with httpx2.Client() as client:
         response = client.options(server.url)
     assert response.status_code == 200
     assert response.reason_phrase == "OK"
 
 
-def test_head(server):
+def test_head(server: TestServer) -> None:
     with httpx2.Client() as client:
         response = client.head(server.url)
     assert response.status_code == 200
     assert response.reason_phrase == "OK"
 
 
-def test_put(server):
+def test_put(server: TestServer) -> None:
     with httpx2.Client() as client:
         response = client.put(server.url, content=b"Hello, world!")
     assert response.status_code == 200
     assert response.reason_phrase == "OK"
 
 
-def test_patch(server):
+def test_patch(server: TestServer) -> None:
     with httpx2.Client() as client:
         response = client.patch(server.url, content=b"Hello, world!")
     assert response.status_code == 200
     assert response.reason_phrase == "OK"
 
 
-def test_delete(server):
+def test_delete(server: TestServer) -> None:
     with httpx2.Client() as client:
         response = client.delete(server.url)
     assert response.status_code == 200
     assert response.reason_phrase == "OK"
 
 
-def test_base_url(server):
+def test_base_url(server: TestServer) -> None:
     base_url = server.url
     with httpx2.Client(base_url=base_url) as client:
         response = client.get("/")
@@ -187,37 +190,37 @@ def test_base_url(server):
     assert response.url == base_url
 
 
-def test_merge_absolute_url():
+def test_merge_absolute_url() -> None:
     client = httpx2.Client(base_url="https://www.example.com/")
     request = client.build_request("GET", "http://www.example.com/")
     assert request.url == "http://www.example.com/"
 
 
-def test_merge_relative_url():
+def test_merge_relative_url() -> None:
     client = httpx2.Client(base_url="https://www.example.com/")
     request = client.build_request("GET", "/testing/123")
     assert request.url == "https://www.example.com/testing/123"
 
 
-def test_merge_relative_url_with_path():
+def test_merge_relative_url_with_path() -> None:
     client = httpx2.Client(base_url="https://www.example.com/some/path")
     request = client.build_request("GET", "/testing/123")
     assert request.url == "https://www.example.com/some/path/testing/123"
 
 
-def test_merge_relative_url_with_dotted_path():
+def test_merge_relative_url_with_dotted_path() -> None:
     client = httpx2.Client(base_url="https://www.example.com/some/path")
     request = client.build_request("GET", "../testing/123")
     assert request.url == "https://www.example.com/some/testing/123"
 
 
-def test_merge_relative_url_with_path_including_colon():
+def test_merge_relative_url_with_path_including_colon() -> None:
     client = httpx2.Client(base_url="https://www.example.com/some/path")
     request = client.build_request("GET", "/testing:123")
     assert request.url == "https://www.example.com/some/path/testing:123"
 
 
-def test_merge_relative_url_with_encoded_slashes():
+def test_merge_relative_url_with_encoded_slashes() -> None:
     client = httpx2.Client(base_url="https://www.example.com/")
     request = client.build_request("GET", "/testing%2F123")
     assert request.url == "https://www.example.com/testing%2F123"
@@ -227,23 +230,24 @@ def test_merge_relative_url_with_encoded_slashes():
     assert request.url == "https://www.example.com/base%2Fpath/testing"
 
 
-def test_context_managed_transport():
+def test_context_managed_transport() -> None:
     class Transport(httpx2.BaseTransport):
         def __init__(self) -> None:
             self.events: list[str] = []
 
-        def close(self):
+        def close(self) -> None:
             # The base implementation of httpx2.BaseTransport just
             # calls into `.close`, so simple transport cases can just override
             # this method for any cleanup, where more complex cases
             # might want to additionally override `__enter__`/`__exit__`.
             self.events.append("transport.close")
 
-        def __enter__(self):
+        def __enter__(self) -> Transport:
             super().__enter__()
             self.events.append("transport.__enter__")
+            return self
 
-        def __exit__(self, *args):
+        def __exit__(self, *args: typing.Any) -> None:
             super().__exit__(*args)
             self.events.append("transport.__exit__")
 
@@ -258,24 +262,25 @@ def test_context_managed_transport():
     ]
 
 
-def test_context_managed_transport_and_mount():
+def test_context_managed_transport_and_mount() -> None:
     class Transport(httpx2.BaseTransport):
         def __init__(self, name: str) -> None:
             self.name: str = name
             self.events: list[str] = []
 
-        def close(self):
+        def close(self) -> None:
             # The base implementation of httpx2.BaseTransport just
             # calls into `.close`, so simple transport cases can just override
             # this method for any cleanup, where more complex cases
             # might want to additionally override `__enter__`/`__exit__`.
             self.events.append(f"{self.name}.close")
 
-        def __enter__(self):
+        def __enter__(self) -> Transport:
             super().__enter__()
             self.events.append(f"{self.name}.__enter__")
+            return self
 
-        def __exit__(self, *args):
+        def __exit__(self, *args: typing.Any) -> None:
             super().__exit__(*args)
             self.events.append(f"{self.name}.__exit__")
 
@@ -296,11 +301,11 @@ def test_context_managed_transport_and_mount():
     ]
 
 
-def hello_world(request):
+def hello_world(request: httpx2.Request) -> httpx2.Response:
     return httpx2.Response(200, text="Hello, world!")
 
 
-def test_client_closed_state_using_implicit_open():
+def test_client_closed_state_using_implicit_open() -> None:
     client = httpx2.Client(transport=httpx2.MockTransport(hello_world))
 
     assert not client.is_closed
@@ -321,7 +326,7 @@ def test_client_closed_state_using_implicit_open():
             pass  # pragma: no cover
 
 
-def test_client_closed_state_using_with_block():
+def test_client_closed_state_using_with_block() -> None:
     with httpx2.Client(transport=httpx2.MockTransport(hello_world)) as client:
         assert not client.is_closed
         client.get("http://example.com")
@@ -336,7 +341,7 @@ def echo_raw_headers(request: httpx2.Request) -> httpx2.Response:
     return httpx2.Response(200, json=data)
 
 
-def test_raw_client_header():
+def test_raw_client_header() -> None:
     """
     Set a header in the Client.
     """
@@ -367,7 +372,7 @@ def mounted(request: httpx2.Request) -> httpx2.Response:
     return httpx2.Response(200, json=data)
 
 
-def test_mounted_transport():
+def test_mounted_transport() -> None:
     transport = httpx2.MockTransport(unmounted)
     mounts = {"custom://": httpx2.MockTransport(mounted)}
 
@@ -382,7 +387,7 @@ def test_mounted_transport():
     assert response.json() == {"app": "mounted"}
 
 
-def test_all_mounted_transport():
+def test_all_mounted_transport() -> None:
     mounts = {"all://": httpx2.MockTransport(mounted)}
 
     client = httpx2.Client(mounts=mounts)
@@ -392,7 +397,7 @@ def test_all_mounted_transport():
     assert response.json() == {"app": "mounted"}
 
 
-def test_server_extensions(server):
+def test_server_extensions(server: TestServer) -> None:
     url = server.url.copy_with(path="/http_version_2")
     with httpx2.Client(http2=True) as client:
         response = client.get(url)
@@ -400,7 +405,7 @@ def test_server_extensions(server):
     assert response.extensions["http_version"] == b"HTTP/1.1"
 
 
-def test_client_decode_text_using_autodetect():
+def test_client_decode_text_using_autodetect() -> None:
     # Ensure that a 'default_encoding=autodetect' on the response allows for
     # encoding autodetection to be used when no "Content-Type: text/plain; charset=..."
     # info is present.
@@ -414,7 +419,7 @@ def test_client_decode_text_using_autodetect():
         "plus complète le fond du génie français."
     )
 
-    def cp1252_but_no_content_type(request):
+    def cp1252_but_no_content_type(request: httpx2.Request) -> httpx2.Response:
         content = text.encode("ISO-8859-1")
         return httpx2.Response(200, content=content)
 
@@ -428,7 +433,7 @@ def test_client_decode_text_using_autodetect():
         assert response.text == text
 
 
-def test_client_decode_text_using_explicit_encoding():
+def test_client_decode_text_using_explicit_encoding() -> None:
     # Ensure that a 'default_encoding="..."' on the response is used for text decoding
     # when no "Content-Type: text/plain; charset=..."" info is present.
     #
@@ -441,7 +446,7 @@ def test_client_decode_text_using_explicit_encoding():
         "plus complète le fond du génie français."
     )
 
-    def cp1252_but_no_content_type(request):
+    def cp1252_but_no_content_type(request: httpx2.Request) -> httpx2.Response:
         content = text.encode("ISO-8859-1")
         return httpx2.Response(200, content=content)
 

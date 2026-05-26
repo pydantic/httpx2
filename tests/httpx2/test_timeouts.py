@@ -1,10 +1,17 @@
+from __future__ import annotations
+
+import typing
+
 import pytest
 
 import httpx2
 
+if typing.TYPE_CHECKING:
+    from conftest import TestServer
+
 
 @pytest.mark.anyio
-async def test_read_timeout(server):
+async def test_read_timeout(server: TestServer) -> None:
     timeout = httpx2.Timeout(None, read=1e-6)
 
     async with httpx2.AsyncClient(timeout=timeout) as client:
@@ -13,7 +20,7 @@ async def test_read_timeout(server):
 
 
 @pytest.mark.anyio
-async def test_write_timeout(server):
+async def test_write_timeout(server: TestServer) -> None:
     timeout = httpx2.Timeout(None, write=1e-6)
 
     async with httpx2.AsyncClient(timeout=timeout) as client:
@@ -24,7 +31,7 @@ async def test_write_timeout(server):
 
 @pytest.mark.anyio
 @pytest.mark.network
-async def test_connect_timeout(server):
+async def test_connect_timeout(server: TestServer) -> None:
     timeout = httpx2.Timeout(None, connect=1e-6)
 
     async with httpx2.AsyncClient(timeout=timeout) as client:
@@ -34,7 +41,7 @@ async def test_connect_timeout(server):
 
 
 @pytest.mark.anyio
-async def test_pool_timeout(server):
+async def test_pool_timeout(server: TestServer) -> None:
     limits = httpx2.Limits(max_connections=1)
     timeout = httpx2.Timeout(None, pool=1e-4)
 
@@ -45,7 +52,7 @@ async def test_pool_timeout(server):
 
 
 @pytest.mark.anyio
-async def test_async_client_new_request_send_timeout(server):
+async def test_async_client_new_request_send_timeout(server: TestServer) -> None:
     timeout = httpx2.Timeout(1e-6)
 
     async with httpx2.AsyncClient(timeout=timeout) as client:

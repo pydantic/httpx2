@@ -4,7 +4,7 @@ import httpcore2
 
 
 
-def test_http11_connection():
+def test_http11_connection() -> None:
     origin = httpcore2.Origin(b"https", b"example.com", 443)
     stream = httpcore2.MockStream(
         [
@@ -28,7 +28,7 @@ def test_http11_connection():
 
 
 
-def test_http11_connection_unread_response():
+def test_http11_connection_unread_response() -> None:
     """
     If the client releases the response without reading it to termination,
     then the connection will not be reusable.
@@ -55,7 +55,7 @@ def test_http11_connection_unread_response():
 
 
 
-def test_http11_connection_with_remote_protocol_error():
+def test_http11_connection_with_remote_protocol_error() -> None:
     """
     If a remote protocol error occurs, then no response will be returned,
     and the connection will not be reusable.
@@ -74,7 +74,7 @@ def test_http11_connection_with_remote_protocol_error():
 
 
 
-def test_http11_connection_with_incomplete_response():
+def test_http11_connection_with_incomplete_response() -> None:
     """
     We should be gracefully handling the case where the connection ends prematurely.
     """
@@ -100,7 +100,7 @@ def test_http11_connection_with_incomplete_response():
 
 
 
-def test_http11_connection_with_local_protocol_error():
+def test_http11_connection_with_local_protocol_error() -> None:
     """
     If a local protocol error occurs, then no response will be returned,
     and the connection will not be reusable.
@@ -129,7 +129,7 @@ def test_http11_connection_with_local_protocol_error():
 
 
 
-def test_http11_connection_handles_one_active_request():
+def test_http11_connection_handles_one_active_request() -> None:
     """
     Attempting to send a request while one is already in-flight will raise
     a ConnectionNotAvailable exception.
@@ -151,7 +151,7 @@ def test_http11_connection_handles_one_active_request():
 
 
 
-def test_http11_connection_attempt_close():
+def test_http11_connection_attempt_close() -> None:
     """
     A connection can only be closed when it is idle.
     """
@@ -173,7 +173,7 @@ def test_http11_connection_attempt_close():
 
 
 
-def test_http11_request_to_incorrect_origin():
+def test_http11_request_to_incorrect_origin() -> None:
     """
     A connection can only send requests to whichever origin it is connected to.
     """
@@ -185,7 +185,7 @@ def test_http11_request_to_incorrect_origin():
 
 
 
-def test_http11_expect_continue():
+def test_http11_expect_continue() -> None:
     """
     HTTP "100 Continue" is an interim response.
     We simply ignore it and return the final response.
@@ -216,7 +216,7 @@ def test_http11_expect_continue():
 
 
 
-def test_http11_upgrade_connection():
+def test_http11_upgrade_connection() -> None:
     """
     HTTP "101 Switching Protocols" indicates an upgraded connection.
 
@@ -249,7 +249,7 @@ def test_http11_upgrade_connection():
 
 
 
-def test_http11_upgrade_with_trailing_data():
+def test_http11_upgrade_with_trailing_data() -> None:
     """
     HTTP "101 Switching Protocols" indicates an upgraded connection.
 
@@ -292,7 +292,7 @@ def test_http11_upgrade_with_trailing_data():
 
 
 
-def test_http11_early_hints():
+def test_http11_early_hints() -> None:
     """
     HTTP "103 Early Hints" is an interim response.
     We simply ignore it and return the final response.
@@ -326,7 +326,7 @@ def test_http11_early_hints():
 
 
 
-def test_http11_header_sub_100kb():
+def test_http11_header_sub_100kb() -> None:
     """
     A connection should be able to handle a http header size up to 100kB.
     """

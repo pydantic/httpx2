@@ -49,8 +49,8 @@ line-length = 120
 exclude = ["src/httpcore2/httpcore2/_sync", "tests/httpcore2/_sync"]
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "B", "PIE"]
-ignore = ["B904", "B028"]
+select = ["B", "C4", "E", "F", "I", "PERF", "PIE", "W"]
+ignore = ["B904", "B028", "C401", "PERF203"]
 
 [tool.ruff.lint.isort]
 combine-as-imports = true
@@ -62,11 +62,6 @@ known-first-party = ["httpx2", "httpcore2"]
 [tool.mypy]
 ignore_missing_imports = true
 strict = true
-
-[[tool.mypy.overrides]]
-module = "tests.*"
-disallow_untyped_defs = false
-check_untyped_defs = true
 
 [tool.pytest.ini_options]
 addopts = "-rxXs --import-mode=importlib"
@@ -86,3 +81,11 @@ markers = [
 [tool.coverage.run]
 source_pkgs = ["httpx2", "httpcore2", "tests"]
 omit = ["src/httpcore2/httpcore2/_sync/*", "tests/test_benchmark.py"]
+
+[tool.coverage.report]
+exclude_also = [
+  "if TYPE_CHECKING:",
+  "if typing.TYPE_CHECKING:",
+  "raise NotImplementedError",
+  "@(typing\\.)?overload",
+]

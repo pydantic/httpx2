@@ -1,6 +1,13 @@
+from __future__ import annotations
+
+import typing
+
 import pytest
 
 import httpx2
+
+if typing.TYPE_CHECKING:
+    from conftest import TestServer
 
 
 def app(request: httpx2.Request) -> httpx2.Response:
@@ -13,16 +20,19 @@ def app(request: httpx2.Request) -> httpx2.Response:
     return httpx2.Response(200, headers={"server": "testserver"})
 
 
-def test_event_hooks():
+def test_event_hooks() -> None:
     events = []
 
-    def on_request(request):
+    def on_request(request: httpx2.Request) -> None:
         events.append({"event": "request", "headers": dict(request.headers)})
 
-    def on_response(response):
+    def on_response(response: httpx2.Response) -> None:
         events.append({"event": "response", "headers": dict(response.headers)})
 
-    event_hooks = {"request": [on_request], "response": [on_response]}
+    event_hooks: dict[str, list[typing.Callable[..., typing.Any]]] = {
+        "request": [on_request],
+        "response": [on_response],
+    }
 
     with httpx2.Client(event_hooks=event_hooks, transport=httpx2.MockTransport(app)) as http:
         http.get("http://127.0.0.1:8000/", auth=("username", "password"))
@@ -46,8 +56,8 @@ def test_event_hooks():
     ]
 
 
-def test_event_hooks_raising_exception(server):
-    def raise_on_4xx_5xx(response):
+def test_event_hooks_raising_exception(server: TestServer) -> None:
+    def raise_on_4xx_5xx(response: httpx2.Response) -> None:
         response.raise_for_status()
 
     event_hooks = {"response": [raise_on_4xx_5xx]}
@@ -60,16 +70,19 @@ def test_event_hooks_raising_exception(server):
 
 
 @pytest.mark.anyio
-async def test_async_event_hooks():
+async def test_async_event_hooks() -> None:
     events = []
 
-    async def on_request(request):
+    async def on_request(request: httpx2.Request) -> None:
         events.append({"event": "request", "headers": dict(request.headers)})
 
-    async def on_response(response):
+    async def on_response(response: httpx2.Response) -> None:
         events.append({"event": "response", "headers": dict(response.headers)})
 
-    event_hooks = {"request": [on_request], "response": [on_response]}
+    event_hooks: dict[str, list[typing.Callable[..., typing.Any]]] = {
+        "request": [on_request],
+        "response": [on_response],
+    }
 
     async with httpx2.AsyncClient(event_hooks=event_hooks, transport=httpx2.MockTransport(app)) as http:
         await http.get("http://127.0.0.1:8000/", auth=("username", "password"))
@@ -94,8 +107,8 @@ async def test_async_event_hooks():
 
 
 @pytest.mark.anyio
-async def test_async_event_hooks_raising_exception():
-    async def raise_on_4xx_5xx(response):
+async def test_async_event_hooks_raising_exception() -> None:
+    async def raise_on_4xx_5xx(response: httpx2.Response) -> None:
         response.raise_for_status()
 
     event_hooks = {"response": [raise_on_4xx_5xx]}
@@ -107,20 +120,23 @@ async def test_async_event_hooks_raising_exception():
             assert exc.response.is_closed
 
 
-def test_event_hooks_with_redirect():
+def test_event_hooks_with_redirect() -> None:
     """
     A redirect request should trigger additional 'request' and 'response' event hooks.
     """
 
     events = []
 
-    def on_request(request):
+    def on_request(request: httpx2.Request) -> None:
         events.append({"event": "request", "headers": dict(request.headers)})
 
-    def on_response(response):
+    def on_response(response: httpx2.Response) -> None:
         events.append({"event": "response", "headers": dict(response.headers)})
 
-    event_hooks = {"request": [on_request], "response": [on_response]}
+    event_hooks: dict[str, list[typing.Callable[..., typing.Any]]] = {
+        "request": [on_request],
+        "response": [on_response],
+    }
 
     with httpx2.Client(
         event_hooks=event_hooks,
@@ -164,20 +180,23 @@ def test_event_hooks_with_redirect():
 
 
 @pytest.mark.anyio
-async def test_async_event_hooks_with_redirect():
+async def test_async_event_hooks_with_redirect() -> None:
     """
     A redirect request should trigger additional 'request' and 'response' event hooks.
     """
 
     events = []
 
-    async def on_request(request):
+    async def on_request(request: httpx2.Request) -> None:
         events.append({"event": "request", "headers": dict(request.headers)})
 
-    async def on_response(response):
+    async def on_response(response: httpx2.Response) -> None:
         events.append({"event": "response", "headers": dict(response.headers)})
 
-    event_hooks = {"request": [on_request], "response": [on_response]}
+    event_hooks: dict[str, list[typing.Callable[..., typing.Any]]] = {
+        "request": [on_request],
+        "response": [on_response],
+    }
 
     async with httpx2.AsyncClient(
         event_hooks=event_hooks,

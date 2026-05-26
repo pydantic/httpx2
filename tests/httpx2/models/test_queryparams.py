@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+import typing
+
 import pytest
 
 import httpx2
@@ -13,7 +17,7 @@ import httpx2
         (("a", "123"), ("a", "456"), ("b", "789")),
     ],
 )
-def test_queryparams(source):
+def test_queryparams(source: typing.Any) -> None:
     q = httpx2.QueryParams(source)
     assert "a" in q
     assert "A" not in q
@@ -42,7 +46,7 @@ def test_queryparams(source):
     assert httpx2.QueryParams(q) == q
 
 
-def test_queryparam_types():
+def test_queryparam_types() -> None:
     q = httpx2.QueryParams(None)
     assert str(q) == ""
 
@@ -68,7 +72,7 @@ def test_queryparam_types():
     assert str(q) == "a=1&a=2"
 
 
-def test_empty_query_params():
+def test_empty_query_params() -> None:
     q = httpx2.QueryParams({"a": ""})
     assert str(q) == "a="
 
@@ -79,37 +83,37 @@ def test_empty_query_params():
     assert str(q) == "a="
 
 
-def test_queryparam_update_is_hard_deprecated():
+def test_queryparam_update_is_hard_deprecated() -> None:
     q = httpx2.QueryParams("a=123")
     with pytest.raises(RuntimeError):
         q.update({"a": "456"})
 
 
-def test_queryparam_setter_is_hard_deprecated():
+def test_queryparam_setter_is_hard_deprecated() -> None:
     q = httpx2.QueryParams("a=123")
     with pytest.raises(RuntimeError):
         q["a"] = "456"
 
 
-def test_queryparam_set():
+def test_queryparam_set() -> None:
     q = httpx2.QueryParams("a=123")
     q = q.set("a", "456")
     assert q == httpx2.QueryParams("a=456")
 
 
-def test_queryparam_add():
+def test_queryparam_add() -> None:
     q = httpx2.QueryParams("a=123")
     q = q.add("a", "456")
     assert q == httpx2.QueryParams("a=123&a=456")
 
 
-def test_queryparam_remove():
+def test_queryparam_remove() -> None:
     q = httpx2.QueryParams("a=123")
     q = q.remove("a")
     assert q == httpx2.QueryParams("")
 
 
-def test_queryparam_merge():
+def test_queryparam_merge() -> None:
     q = httpx2.QueryParams("a=123")
     q = q.merge({"b": "456"})
     assert q == httpx2.QueryParams("a=123&b=456")
@@ -117,7 +121,7 @@ def test_queryparam_merge():
     assert q == httpx2.QueryParams("a=000&b=456&c=789")
 
 
-def test_queryparams_are_hashable():
+def test_queryparams_are_hashable() -> None:
     params = (
         httpx2.QueryParams("a=123"),
         httpx2.QueryParams({"a": 123}),

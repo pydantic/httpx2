@@ -2,7 +2,10 @@
 #
 # https://url.spec.whatwg.org/
 
+from __future__ import annotations
+
 import json
+import typing
 
 import pytest
 
@@ -16,7 +19,7 @@ with open("tests/httpx2/models/whatwg.json", "r", encoding="utf-8") as input:
 
 
 @pytest.mark.parametrize("test_case", test_cases)
-def test_urlparse(test_case):
+def test_urlparse(test_case: dict[str, typing.Any]) -> None:
     if test_case["href"] in ("a: foo.com", "lolscheme:x x#x%20x"):
         # Skip these two test cases.
         # WHATWG cases where are not using percent-encoding for the space character.

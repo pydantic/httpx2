@@ -113,7 +113,7 @@ def include_request_headers(
     url: "URL",
     content: None | bytes | typing.Iterable[bytes] | typing.AsyncIterable[bytes],
 ) -> list[tuple[bytes, bytes]]:
-    headers_set = set(k.lower() for k, v in headers)
+    headers_set = {k.lower() for k, v in headers}
 
     if b"host" not in headers_set:
         default_port = DEFAULT_PORTS.get(url.scheme)
@@ -404,7 +404,7 @@ class Response:
                 "You should use 'await response.aread()' instead."
             )
         if not hasattr(self, "_content"):
-            self._content = b"".join([part for part in self.iter_stream()])
+            self._content = b"".join(list(self.iter_stream()))
         return self._content
 
     def iter_stream(self) -> typing.Iterator[bytes]:
