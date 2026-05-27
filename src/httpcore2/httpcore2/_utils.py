@@ -20,7 +20,7 @@ T = typing.TypeVar("T")
 
 def is_socket_readable(sock: socket.socket | None) -> bool:
     """
-    Return whether a socket, as identifed by its file descriptor, is readable.
+    Return whether a socket, as identified by its file descriptor, is readable.
     "A socket is readable" means that the read buffer isn't empty, i.e. that calling
     .recv() on it would immediately return some data.
     """

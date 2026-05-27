@@ -22,12 +22,12 @@ response = client.get(url, follow_redirects=True)
 Or else instantiate a client, with redirect following enabled by default...
 
 ```python
-client = httpx.Client(follow_redirects=True)
+client = httpx2.Client(follow_redirects=True)
 ```
 
 ## Client instances
 
-The HTTPX equivalent of `requests.Session` is `httpx.Client`.
+The HTTPX equivalent of `requests.Session` is `httpx2.Client`.
 
 ```python
 session = requests.Session(**kwargs)
@@ -36,7 +36,7 @@ session = requests.Session(**kwargs)
 is generally equivalent to
 
 ```python
-client = httpx.Client(**kwargs)
+client = httpx2.Client(**kwargs)
 ```
 
 ## Request URLs
@@ -60,7 +60,7 @@ while request is not None:
 In HTTPX, this attribute is instead named `response.next_request`. For example:
 
 ```python
-client = httpx.Client()
+client = httpx2.Client()
 request = client.build_request("GET", ...)
 while request is not None:
     response = client.send(request)
@@ -76,14 +76,14 @@ For example, using `content=...` to upload raw content:
 
 ```python
 # Uploading text, bytes, or a bytes iterator.
-httpx.post(..., content=b"Hello, world")
+httpx2.post(..., content=b"Hello, world")
 ```
 
 And using `data=...` to send form data:
 
 ```python
 # Uploading form data.
-httpx.post(..., data={"message": "Hello, world"})
+httpx2.post(..., data={"message": "Hello, world"})
 ```
 
 Using the `data=<text/byte content>` will raise a deprecation warning,
@@ -107,14 +107,14 @@ If using a client instance, then cookies should always be set on the client rath
 This usage is supported:
 
 ```python
-client = httpx.Client(cookies=...)
+client = httpx2.Client(cookies=...)
 client.post(...)
 ```
 
 This usage is **not** supported:
 
 ```python
-client = httpx.Client()
+client = httpx2.Client()
 client.post(..., cookies=...)
 ```
 
@@ -133,7 +133,7 @@ HTTPX provides a `.stream()` interface rather than using `stream=True`. This ens
 For example:
 
 ```python
-with httpx.stream("GET", "https://www.example.com") as response:
+with httpx2.stream("GET", "https://www.example.com") as response:
     ...
 ```
 
@@ -152,7 +152,7 @@ HTTPX defaults to including reasonable [timeouts](quickstart.md#timeouts) for al
 To get the same behavior as Requests, set the `timeout` parameter to `None`:
 
 ```python
-httpx.get('https://www.example.com', timeout=None)
+httpx2.get('https://www.example.com', timeout=None)
 ```
 
 ## Proxy keys
@@ -161,13 +161,13 @@ HTTPX uses the mounts argument for HTTP proxying and transport routing.
 It can do much more than proxies and allows you to configure more than just the proxy route.
 For more detailed documentation, see [Mounting Transports](advanced/transports.md#mounting-transports).
 
-When using `httpx.Client(mounts={...})` to map to a selection of different transports, we use full URL schemes, such as `mounts={"http://": ..., "https://": ...}`.
+When using `httpx2.Client(mounts={...})` to map to a selection of different transports, we use full URL schemes, such as `mounts={"http://": ..., "https://": ...}`.
 
 This is different to the `requests` usage of `proxies={"http": ..., "https": ...}`.
 
-This change is for better consistency with more complex mappings, that might also include domain names, such as `mounts={"all://": ..., httpx.HTTPTransport(proxy="all://www.example.com": None})` which maps all requests onto a proxy, except for requests to "www.example.com" which have an explicit exclusion.
+This change is for better consistency with more complex mappings, that might also include domain names, such as `mounts={"all://": ..., httpx2.HTTPTransport(proxy="all://www.example.com": None})` which maps all requests onto a proxy, except for requests to "www.example.com" which have an explicit exclusion.
 
-Also note that `requests.Session.request(...)` allows a `proxies=...` parameter, whereas `httpx.Client.request(...)` does not allow `mounts=...`.
+Also note that `requests.Session.request(...)` allows a `proxies=...` parameter, whereas `httpx2.Client.request(...)` does not allow `mounts=...`.
 
 ## SSL configuration
 
@@ -182,7 +182,7 @@ The HTTP `GET`, `DELETE`, `HEAD`, and `OPTIONS` methods are specified as not sup
 If you really do need to send request data using these http methods you should use the generic `.request` function instead.
 
 ```python
-httpx.request(
+httpx2.request(
   method="DELETE",
   url="https://www.example.com/",
   content=b'A request body on a DELETE request.'
@@ -197,7 +197,7 @@ We don't support `response.is_ok` since the naming is ambiguous there, and might
 
 There is no notion of [prepared requests](https://requests.readthedocs.io/en/stable/user/advanced/#prepared-requests) in HTTPX. If you need to customize request instantiation, see [Request instances](advanced/clients.md#request-instances).
 
-Besides, `httpx.Request()` does not support the `auth`, `timeout`, `follow_redirects`, `mounts`, `verify` and `cert` parameters. However these are available in `httpx.request`, `httpx.get`, `httpx.post` etc., as well as on [`Client` instances](advanced/clients.md#sharing-configuration-across-requests).
+Besides, `httpx2.Request()` does not support the `auth`, `timeout`, `follow_redirects`, `mounts`, `verify` and `cert` parameters. However these are available in `httpx2.request`, `httpx2.get`, `httpx2.post` etc., as well as on [`Client` instances](advanced/clients.md#sharing-configuration-across-requests).
 
 ## Mocking
 
@@ -217,7 +217,7 @@ On the other hand, HTTPX uses [HTTPCore](https://github.com/encode/httpcore) as 
 
 `requests` omits `params` whose values are `None` (e.g. `requests.get(..., params={"foo": None})`). This is not supported by HTTPX.
 
-For both query params (`params=`) and form data (`data=`), `requests` supports sending a list of tuples (e.g. `requests.get(..., params=[('key1', 'value1'), ('key1', 'value2')])`). This is not supported by HTTPX. Instead, use a dictionary with lists as values. E.g.: `httpx.get(..., params={'key1': ['value1', 'value2']})` or with form data: `httpx.post(..., data={'key1': ['value1', 'value2']})`.
+For both query params (`params=`) and form data (`data=`), `requests` supports sending a list of tuples (e.g. `requests.get(..., params=[('key1', 'value1'), ('key1', 'value2')])`). This is not supported by HTTPX. Instead, use a dictionary with lists as values. E.g.: `httpx2.get(..., params={'key1': ['value1', 'value2']})` or with form data: `httpx2.post(..., data={'key1': ['value1', 'value2']})`.
 
 ## Event Hooks
 
@@ -229,4 +229,4 @@ If you are looking for more control, consider checking out [Custom Transports](a
 
 ## Exceptions and Errors
 
-`requests` exception hierarchy is slightly different to the `httpx` exception hierarchy. `requests` exposes a top level `RequestException`, where as `httpx` exposes a top level `HTTPError`. see the exceptions exposes in requests [here](https://requests.readthedocs.io/en/latest/_modules/requests/exceptions/). See the `httpx` error hierarchy [here](https://httpx2.pydantic.dev/exceptions/).
+`requests` exception hierarchy is slightly different to the `httpx2` exception hierarchy. `requests` exposes a top level `RequestException`, where as `httpx2` exposes a top level `HTTPError`. see the exceptions exposes in requests [here](https://requests.readthedocs.io/en/latest/_modules/requests/exceptions/). See the `httpx2` error hierarchy [here](https://httpx2.pydantic.dev/exceptions/).

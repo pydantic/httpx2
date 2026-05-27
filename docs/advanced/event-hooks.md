@@ -16,18 +16,18 @@ def log_response(response):
     request = response.request
     print(f"Response event hook: {request.method} {request.url} - Status {response.status_code}")
 
-client = httpx.Client(event_hooks={'request': [log_request], 'response': [log_response]})
+client = httpx2.Client(event_hooks={'request': [log_request], 'response': [log_response]})
 ```
 
 You can also use these hooks to install response processing code, such as this
-example, which creates a client instance that always raises `httpx.HTTPStatusError`
+example, which creates a client instance that always raises `httpx2.HTTPStatusError`
 on 4xx and 5xx responses.
 
 ```python
 def raise_on_4xx_5xx(response):
     response.raise_for_status()
 
-client = httpx.Client(event_hooks={'response': [raise_on_4xx_5xx]})
+client = httpx2.Client(event_hooks={'response': [raise_on_4xx_5xx]})
 ```
 
 !!! note
@@ -43,7 +43,7 @@ The hooks are also allowed to modify `request` and `response` objects.
 def add_timestamp(request):
     request.headers['x-request-timestamp'] = datetime.now(tz=datetime.utc).isoformat()
 
-client = httpx.Client(event_hooks={'request': [add_timestamp]})
+client = httpx2.Client(event_hooks={'request': [add_timestamp]})
 ```
 
 Event hooks must always be set as a **list of callables**, and you may register
@@ -54,12 +54,12 @@ is also an `.event_hooks` property, that allows you to inspect and modify
 the installed hooks.
 
 ```python
-client = httpx.Client()
+client = httpx2.Client()
 client.event_hooks['request'] = [log_request]
 client.event_hooks['response'] = [log_response, raise_on_4xx_5xx]
 ```
 
 !!! note
     If you are using HTTPX's async support, then you need to be aware that
-    hooks registered with `httpx.AsyncClient` MUST be async functions,
+    hooks registered with `httpx2.AsyncClient` MUST be async functions,
     rather than plain functions.

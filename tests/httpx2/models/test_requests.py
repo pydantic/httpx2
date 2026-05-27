@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import pickle
 import typing
 
@@ -6,31 +8,31 @@ import pytest
 import httpx2
 
 
-def test_request_repr():
+def test_request_repr() -> None:
     request = httpx2.Request("GET", "http://example.org")
     assert repr(request) == "<Request('GET', 'http://example.org')>"
 
 
-def test_no_content():
+def test_no_content() -> None:
     request = httpx2.Request("GET", "http://example.org")
     assert "Content-Length" not in request.headers
 
 
-def test_content_length_header():
+def test_content_length_header() -> None:
     request = httpx2.Request("POST", "http://example.org", content=b"test 123")
     assert request.headers["Content-Length"] == "8"
 
 
-def test_iterable_content():
+def test_iterable_content() -> None:
     class Content:
-        def __iter__(self):
+        def __iter__(self) -> typing.Iterator[bytes]:
             yield b"test 123"  # pragma: no cover
 
     request = httpx2.Request("POST", "http://example.org", content=Content())
     assert request.headers == {"Host": "example.org", "Transfer-Encoding": "chunked"}
 
 
-def test_generator_with_transfer_encoding_header():
+def test_generator_with_transfer_encoding_header() -> None:
     def content() -> typing.Iterator[bytes]:
         yield b"test 123"  # pragma: no cover
 
@@ -38,7 +40,7 @@ def test_generator_with_transfer_encoding_header():
     assert request.headers == {"Host": "example.org", "Transfer-Encoding": "chunked"}
 
 
-def test_generator_with_content_length_header():
+def test_generator_with_content_length_header() -> None:
     def content() -> typing.Iterator[bytes]:
         yield b"test 123"  # pragma: no cover
 
@@ -47,7 +49,7 @@ def test_generator_with_content_length_header():
     assert request.headers == {"Host": "example.org", "Content-Length": "8"}
 
 
-def test_url_encoded_data():
+def test_url_encoded_data() -> None:
     request = httpx2.Request("POST", "http://example.org", data={"test": "123"})
     request.read()
 
@@ -55,7 +57,7 @@ def test_url_encoded_data():
     assert request.content == b"test=123"
 
 
-def test_json_encoded_data():
+def test_json_encoded_data() -> None:
     request = httpx2.Request("POST", "http://example.org", json={"test": 123})
     request.read()
 
@@ -63,7 +65,7 @@ def test_json_encoded_data():
     assert request.content == b'{"test":123}'
 
 
-def test_headers():
+def test_headers() -> None:
     request = httpx2.Request("POST", "http://example.org", json={"test": 123})
 
     assert request.headers == {
@@ -73,7 +75,7 @@ def test_headers():
     }
 
 
-def test_read_and_stream_data():
+def test_read_and_stream_data() -> None:
     # Ensure a request may still be streamed if it has been read.
     # Needed for cases such as authentication classes that read the request body.
     request = httpx2.Request("POST", "http://example.org", json={"test": 123})
@@ -85,7 +87,7 @@ def test_read_and_stream_data():
 
 
 @pytest.mark.anyio
-async def test_aread_and_stream_data():
+async def test_aread_and_stream_data() -> None:
     # Ensure a request may still be streamed if it has been read.
     # Needed for cases such as authentication classes that read the request body.
     request = httpx2.Request("POST", "http://example.org", json={"test": 123})
@@ -96,7 +98,7 @@ async def test_aread_and_stream_data():
     assert content == request.content
 
 
-def test_cannot_access_streaming_content_without_read():
+def test_cannot_access_streaming_content_without_read() -> None:
     # Ensure that streaming requests
     def streaming_body() -> typing.Iterator[bytes]:  # pragma: no cover
         yield b""
@@ -106,7 +108,7 @@ def test_cannot_access_streaming_content_without_read():
         request.content  # noqa: B018
 
 
-def test_transfer_encoding_header():
+def test_transfer_encoding_header() -> None:
     async def streaming_body(data: bytes) -> typing.AsyncIterator[bytes]:
         yield data  # pragma: no cover
 
@@ -117,7 +119,7 @@ def test_transfer_encoding_header():
     assert request.headers["Transfer-Encoding"] == "chunked"
 
 
-def test_ignore_transfer_encoding_header_if_content_length_exists():
+def test_ignore_transfer_encoding_header_if_content_length_exists() -> None:
     """
     `Transfer-Encoding` should be ignored if `Content-Length` has been set explicitly.
     See https://github.com/encode/httpx/issues/1168
@@ -134,21 +136,21 @@ def test_ignore_transfer_encoding_header_if_content_length_exists():
     assert request.headers["Content-Length"] == "4"
 
 
-def test_override_host_header():
+def test_override_host_header() -> None:
     headers = {"host": "1.2.3.4:80"}
 
     request = httpx2.Request("GET", "http://example.org", headers=headers)
     assert request.headers["Host"] == "1.2.3.4:80"
 
 
-def test_override_accept_encoding_header():
+def test_override_accept_encoding_header() -> None:
     headers = {"Accept-Encoding": "identity"}
 
     request = httpx2.Request("GET", "http://example.org", headers=headers)
     assert request.headers["Accept-Encoding"] == "identity"
 
 
-def test_override_content_length_header():
+def test_override_content_length_header() -> None:
     async def streaming_body(data: bytes) -> typing.AsyncIterator[bytes]:
         yield data  # pragma: no cover
 
@@ -159,7 +161,7 @@ def test_override_content_length_header():
     assert request.headers["Content-Length"] == "8"
 
 
-def test_url():
+def test_url() -> None:
     url = "http://example.org"
     request = httpx2.Request("GET", url)
     assert request.url.scheme == "http"
@@ -175,7 +177,7 @@ def test_url():
     assert request.url.raw_path == b"/abc?foo=bar"
 
 
-def test_request_picklable():
+def test_request_picklable() -> None:
     request = httpx2.Request("POST", "http://example.org", json={"test": 123})
     pickle_request = pickle.loads(pickle.dumps(request))
     assert pickle_request.method == "POST"
@@ -191,7 +193,7 @@ def test_request_picklable():
 
 
 @pytest.mark.anyio
-async def test_request_async_streaming_content_picklable():
+async def test_request_async_streaming_content_picklable() -> None:
     async def streaming_body(data: bytes) -> typing.AsyncIterator[bytes]:
         yield data
 
@@ -209,7 +211,7 @@ async def test_request_async_streaming_content_picklable():
     assert pickle_request.content == b"test 123"
 
 
-def test_request_generator_content_picklable():
+def test_request_generator_content_picklable() -> None:
     def content() -> typing.Iterator[bytes]:
         yield b"test 123"  # pragma: no cover
 
@@ -226,7 +228,7 @@ def test_request_generator_content_picklable():
     assert pickle_request.content == b"test 123"
 
 
-def test_request_params():
+def test_request_params() -> None:
     request = httpx2.Request("GET", "http://example.com", params={})
     assert str(request.url) == "http://example.com"
 

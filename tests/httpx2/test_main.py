@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 import typing
 
@@ -5,6 +7,9 @@ from click.testing import CliRunner
 
 import httpx2
 from httpx2._main import main
+
+if typing.TYPE_CHECKING:
+    from conftest import TestServer
 
 
 def splitlines(output: str) -> typing.Iterable[str]:
@@ -15,14 +20,14 @@ def remove_date_header(lines: typing.Iterable[str]) -> typing.Iterable[str]:
     return [line for line in lines if not line.startswith("date:")]
 
 
-def test_help():
+def test_help() -> None:
     runner = CliRunner()
     result = runner.invoke(main, ["--help"])
     assert result.exit_code == 0
     assert "A next generation HTTP client." in result.output
 
 
-def test_get(server):
+def test_get(server: TestServer) -> None:
     url = str(server.url)
     runner = CliRunner()
     result = runner.invoke(main, [url])
@@ -37,7 +42,7 @@ def test_get(server):
     ]
 
 
-def test_json(server):
+def test_json(server: TestServer) -> None:
     url = str(server.url.copy_with(path="/json"))
     runner = CliRunner()
     result = runner.invoke(main, [url])
@@ -54,7 +59,7 @@ def test_json(server):
     ]
 
 
-def test_binary(server):
+def test_binary(server: TestServer) -> None:
     url = str(server.url.copy_with(path="/echo_binary"))
     runner = CliRunner()
     content = "Hello, world!"
@@ -70,7 +75,7 @@ def test_binary(server):
     ]
 
 
-def test_redirects(server):
+def test_redirects(server: TestServer) -> None:
     url = str(server.url.copy_with(path="/redirect_301"))
     runner = CliRunner()
     result = runner.invoke(main, [url])
@@ -84,7 +89,7 @@ def test_redirects(server):
     ]
 
 
-def test_follow_redirects(server):
+def test_follow_redirects(server: TestServer) -> None:
     url = str(server.url.copy_with(path="/redirect_301"))
     runner = CliRunner()
     result = runner.invoke(main, [url, "--follow-redirects"])
@@ -104,7 +109,7 @@ def test_follow_redirects(server):
     ]
 
 
-def test_post(server):
+def test_post(server: TestServer) -> None:
     url = str(server.url.copy_with(path="/echo_body"))
     runner = CliRunner()
     result = runner.invoke(main, [url, "-m", "POST", "-j", '{"hello": "world"}'])
@@ -119,7 +124,7 @@ def test_post(server):
     ]
 
 
-def test_verbose(server):
+def test_verbose(server: TestServer) -> None:
     url = str(server.url)
     runner = CliRunner()
     result = runner.invoke(main, [url, "-v"])
@@ -143,7 +148,7 @@ def test_verbose(server):
     ]
 
 
-def test_auth(server):
+def test_auth(server: TestServer) -> None:
     url = str(server.url)
     runner = CliRunner()
     result = runner.invoke(main, [url, "-v", "--auth", "username", "password"])
@@ -169,7 +174,7 @@ def test_auth(server):
     ]
 
 
-def test_download(server):
+def test_download(server: TestServer) -> None:
     url = str(server.url)
     runner = CliRunner()
     with runner.isolated_filesystem():
@@ -179,7 +184,7 @@ def test_download(server):
             assert input_file.read() == "Hello, world!"
 
 
-def test_errors():
+def test_errors() -> None:
     runner = CliRunner()
     result = runner.invoke(main, ["invalid://example.org"])
     assert result.exit_code == 1

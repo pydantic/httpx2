@@ -85,9 +85,9 @@ class AsyncHTTP11Connection(AsyncConnectionInterface):
                     await self._send_request_body(**kwargs)
             except WriteError:
                 # If we get a write error while we're writing the request,
-                # then we supress this error and move on to attempting to
+                # then we suppress this error and move on to attempting to
                 # read the response. Servers can sometimes close the request
-                # pre-emptively and then respond with a well formed HTTP
+                # preemptively and then respond with a well formed HTTP
                 # error response.
                 pass
 

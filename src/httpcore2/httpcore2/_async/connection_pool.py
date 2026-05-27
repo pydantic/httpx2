@@ -259,7 +259,7 @@ class AsyncConnectionPool(AsyncRequestInterface):
         Called whenever a new request is added or removed from the pool.
 
         Any closing connections are returned, allowing the I/O for closing
-        those connections to be handled seperately.
+        those connections to be handled separately.
         """
         closing_connections = []
 

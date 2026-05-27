@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+import typing
+
 import pytest
 
 import httpcore2
@@ -13,7 +17,7 @@ def url_to_origin(url: str) -> httpcore2.URL:
     return httpcore2.URL(scheme=u.raw_scheme, host=u.raw_host, port=u.port, target="/")
 
 
-def test_socks_proxy():
+def test_socks_proxy() -> None:
     url = httpx2.URL("http://www.example.com")
 
     for proxy in ("socks5://localhost/", "socks5h://localhost/"):
@@ -85,7 +89,7 @@ PROXY_URL = "http://[::1]"
         ),
     ],
 )
-def test_transport_for_request(url, proxies, expected):
+def test_transport_for_request(url: str, proxies: dict[str, str], expected: str | None) -> None:
     mounts = {key: httpx2.HTTPTransport(proxy=value) for key, value in proxies.items()}
     client = httpx2.Client(mounts=mounts)
 
@@ -101,7 +105,7 @@ def test_transport_for_request(url, proxies, expected):
 
 @pytest.mark.anyio
 @pytest.mark.network
-async def test_async_proxy_close():
+async def test_async_proxy_close() -> None:
     try:
         transport = httpx2.AsyncHTTPTransport(proxy=PROXY_URL)
         client = httpx2.AsyncClient(mounts={"https://": transport})
@@ -111,7 +115,7 @@ async def test_async_proxy_close():
 
 
 @pytest.mark.network
-def test_sync_proxy_close():
+def test_sync_proxy_close() -> None:
     try:
         transport = httpx2.HTTPTransport(proxy=PROXY_URL)
         client = httpx2.Client(mounts={"https://": transport})
@@ -120,7 +124,7 @@ def test_sync_proxy_close():
         client.close()
 
 
-def test_unsupported_proxy_scheme():
+def test_unsupported_proxy_scheme() -> None:
     with pytest.raises(ValueError):
         httpx2.Client(proxy="ftp://127.0.0.1")
 
@@ -223,7 +227,13 @@ def test_unsupported_proxy_scheme():
     ],
 )
 @pytest.mark.parametrize("client_class", [httpx2.Client, httpx2.AsyncClient])
-def test_proxies_environ(monkeypatch, client_class, url, env, expected):
+def test_proxies_environ(
+    monkeypatch: pytest.MonkeyPatch,
+    client_class: type[typing.Any],
+    url: str,
+    env: dict[str, str],
+    expected: str | None,
+) -> None:
     for name, value in env.items():
         monkeypatch.setenv(name, value)
 
@@ -247,7 +257,7 @@ def test_proxies_environ(monkeypatch, client_class, url, env, expected):
         ({"all://": "http://127.0.0.1"}, True),
     ],
 )
-def test_for_deprecated_proxy_params(proxies, is_valid):
+def test_for_deprecated_proxy_params(proxies: dict[str, str], is_valid: bool) -> None:
     mounts = {key: httpx2.HTTPTransport(proxy=value) for key, value in proxies.items()}
 
     if not is_valid:
@@ -257,7 +267,7 @@ def test_for_deprecated_proxy_params(proxies, is_valid):
         httpx2.Client(mounts=mounts)
 
 
-def test_proxy_with_mounts():
+def test_proxy_with_mounts() -> None:
     proxy_transport = httpx2.HTTPTransport(proxy="http://127.0.0.1")
     client = httpx2.Client(mounts={"http://": proxy_transport})
 

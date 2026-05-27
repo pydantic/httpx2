@@ -1,19 +1,20 @@
 import ssl
 
 import pytest
+from pytest_httpbin.serve import Server
 
 import httpcore2
 
 
 @pytest.mark.anyio
-async def test_request(httpbin):
+async def test_request(httpbin: Server) -> None:
     async with httpcore2.AsyncConnectionPool() as pool:
         response = await pool.request("GET", httpbin.url)
         assert response.status == 200
 
 
 @pytest.mark.anyio
-async def test_ssl_request(httpbin_secure):
+async def test_ssl_request(httpbin_secure: Server) -> None:
     ssl_context = ssl.create_default_context()
     ssl_context.check_hostname = False
     ssl_context.verify_mode = ssl.CERT_NONE
@@ -23,7 +24,7 @@ async def test_ssl_request(httpbin_secure):
 
 
 @pytest.mark.anyio
-async def test_extra_info(httpbin_secure):
+async def test_extra_info(httpbin_secure: Server) -> None:
     ssl_context = ssl.create_default_context()
     ssl_context.check_hostname = False
     ssl_context.verify_mode = ssl.CERT_NONE

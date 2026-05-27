@@ -21,6 +21,7 @@ dev = [
   "coverage[toml]==7.10.6",
   "cryptography==46.0.7",
   "pytest>=9.0.3",
+  "pytest-codspeed>=4.1.1",
   "pytest-httpbin==2.0.0",
   "pytest-trio==0.8.0",
   "trio==0.31.0",
@@ -30,7 +31,7 @@ dev = [
   "werkzeug>=3.1.6",
   # Linting
   "mypy==1.17.1",
-  "ruff==0.12.11",
+  "ruff==0.15.13",
   # Packaging
   "build==1.3.0",
   "twine==6.1.0",
@@ -48,11 +49,12 @@ line-length = 120
 exclude = ["src/httpcore2/httpcore2/_sync", "tests/httpcore2/_sync"]
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "B", "PIE"]
-ignore = ["B904", "B028"]
+select = ["B", "C4", "E", "F", "I", "PERF", "PIE", "W"]
+ignore = ["B904", "B028", "C401", "PERF203"]
 
 [tool.ruff.lint.isort]
 combine-as-imports = true
+known-first-party = ["httpx2", "httpcore2"]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F403", "F405"]
@@ -60,11 +62,6 @@ combine-as-imports = true
 [tool.mypy]
 ignore_missing_imports = true
 strict = true
-
-[[tool.mypy.overrides]]
-module = "tests.*"
-disallow_untyped_defs = false
-check_untyped_defs = true
 
 [tool.pytest.ini_options]
 addopts = "-rxXs --import-mode=importlib"
@@ -76,10 +73,19 @@ filterwarnings = [
   "ignore: trio.MultiError is deprecated since Trio 0.22.0:trio.TrioDeprecationWarning",
 ]
 markers = [
-  "copied_from(source, changes=None): mark test as copied from somewhere else, along with a description of changes made to accodomate e.g. our test setup",
+  "copied_from(source, changes=None): mark test as copied from somewhere else, along with a description of changes made to accommodate e.g. our test setup",
   "network: marks tests which require network connection. Used in 3rd-party build environments that have network disabled.",
+  "benchmark: marks CodSpeed benchmark tests under tests/test_benchmark.py.",
 ]
 
 [tool.coverage.run]
 source_pkgs = ["httpx2", "httpcore2", "tests"]
-omit = ["src/httpcore2/httpcore2/_sync/*"]
+omit = ["src/httpcore2/httpcore2/_sync/*", "tests/test_benchmark.py"]
+
+[tool.coverage.report]
+exclude_also = [
+  "if TYPE_CHECKING:",
+  "if typing.TYPE_CHECKING:",
+  "raise NotImplementedError",
+  "@(typing\\.)?overload",
+]

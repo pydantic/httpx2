@@ -4,7 +4,7 @@ import httpcore2
 
 
 @pytest.mark.anyio
-async def test_socks5_request():
+async def test_socks5_request() -> None:
     """
     Send an HTTP request via a SOCKS proxy.
     """
@@ -28,7 +28,7 @@ async def test_socks5_request():
         proxy=httpcore2.Proxy("socks5://localhost:8080/"),
         network_backend=network_backend,
     ) as proxy:
-        # Sending an intial request, which once complete will return to the pool, IDLE.
+        # Sending an initial request, which once complete will return to the pool, IDLE.
         async with proxy.stream("GET", "https://example.com/") as response:
             info = [repr(c) for c in proxy.connections]
             assert info == ["<AsyncSocks5Connection ['https://example.com:443', HTTP/1.1, ACTIVE, Request Count: 1]>"]
@@ -50,7 +50,7 @@ async def test_socks5_request():
 
 
 @pytest.mark.anyio
-async def test_authenticated_socks5_request():
+async def test_authenticated_socks5_request() -> None:
     """
     Send an HTTP request via a SOCKS proxy.
     """
@@ -79,7 +79,7 @@ async def test_authenticated_socks5_request():
         ),
         network_backend=network_backend,
     ) as proxy:
-        # Sending an intial request, which once complete will return to the pool, IDLE.
+        # Sending an initial request, which once complete will return to the pool, IDLE.
         async with proxy.stream("GET", "https://example.com/") as response:
             info = [repr(c) for c in proxy.connections]
             assert info == ["<AsyncSocks5Connection ['https://example.com:443', HTTP/1.1, ACTIVE, Request Count: 1]>"]
@@ -95,7 +95,7 @@ async def test_authenticated_socks5_request():
 
 
 @pytest.mark.anyio
-async def test_socks5_request_connect_failed():
+async def test_socks5_request_connect_failed() -> None:
     """
     Attempt to send an HTTP request via a SOCKS proxy, resulting in a connect failure.
     """
@@ -122,7 +122,7 @@ async def test_socks5_request_connect_failed():
 
 
 @pytest.mark.anyio
-async def test_socks5_request_failed_to_provide_auth():
+async def test_socks5_request_failed_to_provide_auth() -> None:
     """
     Attempt to send an HTTP request via an authenticated SOCKS proxy,
     without providing authentication credentials.
@@ -149,10 +149,10 @@ async def test_socks5_request_failed_to_provide_auth():
 
 
 @pytest.mark.anyio
-async def test_socks5_request_incorrect_auth():
+async def test_socks5_request_incorrect_auth() -> None:
     """
     Attempt to send an HTTP request via an authenticated SOCKS proxy,
-    wit incorrect authentication credentials.
+    with incorrect authentication credentials.
     """
     network_backend = httpcore2.AsyncMockBackend(
         [

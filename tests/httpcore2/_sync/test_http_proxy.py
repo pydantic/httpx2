@@ -18,7 +18,7 @@ from httpcore2 import (
 
 
 
-def test_proxy_forwarding():
+def test_proxy_forwarding() -> None:
     """
     Send an HTTP request via a proxy.
     """
@@ -37,7 +37,7 @@ def test_proxy_forwarding():
         max_connections=10,
         network_backend=network_backend,
     ) as proxy:
-        # Sending an intial request, which once complete will return to the pool, IDLE.
+        # Sending an initial request, which once complete will return to the pool, IDLE.
         with proxy.stream("GET", "http://example.com/") as response:
             info = [repr(c) for c in proxy.connections]
             assert info == [
@@ -61,7 +61,7 @@ def test_proxy_forwarding():
 
 
 
-def test_proxy_tunneling():
+def test_proxy_tunneling() -> None:
     """
     Send an HTTPS request via a proxy.
     """
@@ -82,7 +82,7 @@ def test_proxy_tunneling():
         proxy=Proxy("http://localhost:8080/"),
         network_backend=network_backend,
     ) as proxy:
-        # Sending an intial request, which once complete will return to the pool, IDLE.
+        # Sending an initial request, which once complete will return to the pool, IDLE.
         with proxy.stream("GET", "https://example.com/") as response:
             info = [repr(c) for c in proxy.connections]
             assert info == [
@@ -133,7 +133,7 @@ class HTTP1ThenHTTP2Backend(MockBackend):
 
 
 
-def test_proxy_tunneling_http2():
+def test_proxy_tunneling_http2() -> None:
     """
     Send an HTTP/2 request via a proxy.
     """
@@ -162,7 +162,7 @@ def test_proxy_tunneling_http2():
         network_backend=network_backend,
         http2=True,
     ) as proxy:
-        # Sending an intial request, which once complete will return to the pool, IDLE.
+        # Sending an initial request, which once complete will return to the pool, IDLE.
         with proxy.stream("GET", "https://example.com/") as response:
             info = [repr(c) for c in proxy.connections]
             assert info == ["<TunnelHTTPConnection ['https://example.com:443', HTTP/2, ACTIVE, Request Count: 1]>"]
@@ -184,7 +184,7 @@ def test_proxy_tunneling_http2():
 
 
 
-def test_proxy_tunneling_with_403():
+def test_proxy_tunneling_with_403() -> None:
     """
     Send an HTTPS request via a proxy.
     """
@@ -205,7 +205,7 @@ def test_proxy_tunneling_with_403():
 
 
 
-def test_proxy_tunneling_with_auth():
+def test_proxy_tunneling_with_auth() -> None:
     """
     Send an authenticated HTTPS request via a proxy.
     """
@@ -234,7 +234,7 @@ def test_proxy_tunneling_with_auth():
         assert response.content == b"Hello, world!"
 
 
-def test_proxy_headers():
+def test_proxy_headers() -> None:
     proxy = Proxy(
         url="http://localhost:8080/",
         auth=("username", "password"),

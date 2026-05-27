@@ -5,7 +5,7 @@ export SOURCE_FILES="src/httpx2 tests/httpx2 src/httpcore2 tests/httpcore2"
 set -x
 
 uv lock --check
-uv run ruff format --check --diff $SOURCE_FILES
+uv run ruff format --check --diff
 uv run mypy $SOURCE_FILES
-uv run ruff check $SOURCE_FILES
+uv run ruff check
 uv run python scripts/unasync.py --check

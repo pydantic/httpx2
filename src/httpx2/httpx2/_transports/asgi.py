@@ -6,7 +6,7 @@ from .._models import Request, Response
 from .._types import AsyncByteStream
 from .base import AsyncBaseTransport
 
-if typing.TYPE_CHECKING:  # pragma: no cover
+if typing.TYPE_CHECKING:
     import asyncio
 
     import trio

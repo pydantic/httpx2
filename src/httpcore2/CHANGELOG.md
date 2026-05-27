@@ -64,7 +64,7 @@ Historical entries below are from upstream `encode/httpcore`.
 ## 1.0.5 (March 27th, 2024)
 
 - Handle `EndOfStream` exception for anyio backend. (#899)
-- Allow trio `0.25.*` series in package dependancies. (#903)
+- Allow trio `0.25.*` series in package dependencies. (#903)
 
 ## 1.0.4 (February 21st, 2024)
 
@@ -142,7 +142,7 @@ The project versioning policy is now explicitly governed by SEMVER. See https://
 - Allow `ws` and `wss` schemes. Allows us to properly support websocket upgrade connections. (#625)
 - Forwarding HTTP proxies use a connection-per-remote-host. Required by some proxy implementations. (#637)
 - Don't raise `RuntimeError` when closing a connection pool with active connections. Removes some error cases when cancellations are used. (#631)
-- Lazy import `anyio`, so that it's no longer a hard dependancy, and isn't imported if unused. (#639)
+- Lazy import `anyio`, so that it's no longer a hard dependency, and isn't imported if unused. (#639)
 
 ## 0.16.2 (November 25th, 2022)
 
@@ -200,7 +200,7 @@ The project versioning policy is now explicitly governed by SEMVER. See https://
 ## 0.14.1 (November 12th, 2021)
 
 - `max_connections` becomes optional. (Pull #429)
-- `certifi` is now included in the install dependancies. (Pull #428)
+- `certifi` is now included in the install dependencies. (Pull #428)
 - `h2` is now strictly optional. (Pull #428)
 
 ## 0.14.0 (November 11th, 2021)
@@ -265,7 +265,7 @@ Note that `curio` support is not currently available in 0.14.0. If you're using 
 
 ### Fixed
 
-- More resiliant testing for closed connections. (Pull #311)
+- More resilient testing for closed connections. (Pull #311)
 - Don't raise exceptions on ungraceful connection closes. (Pull #310)
 
 ## 0.13.0 (April 21st, 2021)

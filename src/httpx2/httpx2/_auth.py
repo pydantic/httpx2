@@ -12,7 +12,7 @@ from ._exceptions import ProtocolError
 from ._models import Cookies, Request, Response
 from ._utils import to_bytes, to_str, unquote
 
-if typing.TYPE_CHECKING:  # pragma: no cover
+if typing.TYPE_CHECKING:
     from hashlib import _Hash
 
 

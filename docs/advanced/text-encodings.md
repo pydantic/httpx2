@@ -1,6 +1,6 @@
 When accessing `response.text`, we need to decode the response bytes into a unicode text representation.
 
-By default `httpx` will use `"charset"` information included in the response `Content-Type` header to determine how the response bytes should be decoded into text.
+By default `httpx2` will use `"charset"` information included in the response `Content-Type` header to determine how the response bytes should be decoded into text.
 
 In cases where no charset information is included on the response, the default behaviour is to assume "utf-8" encoding, which is by far the most widely used text encoding on the internet.
 
@@ -9,9 +9,9 @@ In cases where no charset information is included on the response, the default b
 To understand this better let's start by looking at the default behaviour for text decoding...
 
 ```python
-import httpx
+import httpx2
 # Instantiate a client with the default configuration.
-client = httpx.Client()
+client = httpx2.Client()
 # Using the client...
 response = client.get(...)
 print(response.encoding)  # This will either print the charset given in
@@ -27,9 +27,9 @@ This is normally absolutely fine. Most servers will respond with a properly form
 In some cases we might be making requests to a site where no character set information is being set explicitly by the server, but we know what the encoding is. In this case it's best to set the default encoding explicitly on the client.
 
 ```python
-import httpx
+import httpx2
 # Instantiate a client with a Japanese character set as the default encoding.
-client = httpx.Client(default_encoding="shift-jis")
+client = httpx2.Client(default_encoding="shift-jis")
 # Using the client...
 response = client.get(...)
 print(response.encoding)  # This will either print the charset given in
@@ -52,21 +52,21 @@ There are two widely used Python packages which both handle this functionality:
 Let's take a look at installing autodetection using one of these packages...
 
 ```shell
-pip install httpx
+pip install httpx2
 pip install chardet
 ```
 
 Once `chardet` is installed, we can configure a client to use character-set autodetection.
 
 ```python
-import httpx
+import httpx2
 import chardet
 
 def autodetect(content):
     return chardet.detect(content).get("encoding")
 
 # Using a client with character-set autodetection enabled.
-client = httpx.Client(default_encoding=autodetect)
+client = httpx2.Client(default_encoding=autodetect)
 response = client.get(...)
 print(response.encoding)  # This will either print the charset given in
                           # the Content-Type charset, or else the auto-detected

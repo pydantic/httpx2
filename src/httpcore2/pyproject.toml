@@ -47,7 +47,7 @@ dependencies = ["certifi", "h11>=0.16"]
 http2 = ["h2>=3,<5"]
 socks = ["socksio==1.*"]
 trio = ["trio>=0.22.0,<1.0"]
-asyncio = ["anyio>=4.0,<5.0"]
+asyncio = ["anyio>=4.5.0,<5.0"]
 
 [project.urls]
 Documentation = "https://www.encode.io/httpcore"

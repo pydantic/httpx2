@@ -1,12 +1,18 @@
+from __future__ import annotations
+
 import json
 import logging
 import os
 import random
+import typing
 
 import pytest
 
 import httpx2
 from httpx2._utils import URLPattern, get_environment_proxies
+
+if typing.TYPE_CHECKING:
+    from conftest import TestServer
 
 
 @pytest.mark.parametrize(
@@ -22,13 +28,13 @@ from httpx2._utils import URLPattern, get_environment_proxies
         "utf-32-le",
     ),
 )
-def test_encoded(encoding):
+def test_encoded(encoding: str) -> None:
     content = '{"abc": 123}'.encode(encoding)
     response = httpx2.Response(200, content=content)
     assert response.json() == {"abc": 123}
 
 
-def test_bad_utf_like_encoding():
+def test_bad_utf_like_encoding() -> None:
     content = b"\x00\x00\x00\x00"
     response = httpx2.Response(200, content=content)
     with pytest.raises(json.decoder.JSONDecodeError):
@@ -44,13 +50,13 @@ def test_bad_utf_like_encoding():
         ("utf-32-le", "utf-32"),
     ),
 )
-def test_guess_by_bom(encoding, expected):
+def test_guess_by_bom(encoding: str, expected: str) -> None:
     content = '\ufeff{"abc": 123}'.encode(encoding)
     response = httpx2.Response(200, content=content)
     assert response.json() == {"abc": 123}
 
 
-def test_logging_request(server, caplog):
+def test_logging_request(server: TestServer, caplog: pytest.LogCaptureFixture) -> None:
     caplog.set_level(logging.INFO)
     with httpx2.Client() as client:
         response = client.get(server.url)
@@ -65,7 +71,7 @@ def test_logging_request(server, caplog):
     ]
 
 
-def test_logging_redirect_chain(server, caplog):
+def test_logging_redirect_chain(server: TestServer, caplog: pytest.LogCaptureFixture) -> None:
     caplog.set_level(logging.INFO)
     with httpx2.Client(follow_redirects=True) as client:
         response = client.get(server.url.copy_with(path="/redirect_301"))
@@ -105,7 +111,7 @@ def test_logging_redirect_chain(server, caplog):
         ({"no_proxy": "http://github.com"}, {"http://github.com": None}),
     ],
 )
-def test_get_environment_proxies(environment, proxies):
+def test_get_environment_proxies(environment: dict[str, str], proxies: dict[str, str | None]) -> None:
     os.environ.update(environment)
 
     assert get_environment_proxies() == proxies
@@ -128,12 +134,12 @@ def test_get_environment_proxies(environment, proxies):
         ("", "https://example.com:123", True),
     ],
 )
-def test_url_matches(pattern, url, expected):
-    pattern = URLPattern(pattern)
-    assert pattern.matches(httpx2.URL(url)) == expected
+def test_url_matches(pattern: str, url: str, expected: bool) -> None:
+    url_pattern = URLPattern(pattern)
+    assert url_pattern.matches(httpx2.URL(url)) == expected
 
 
-def test_pattern_priority():
+def test_pattern_priority() -> None:
     matchers = [
         URLPattern("all://"),
         URLPattern("http://"),

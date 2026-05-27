@@ -9,27 +9,27 @@ class directly, and pass it to the client instance. One example is the
 `local_address` configuration which is only available via this low-level API.
 
 ```pycon
->>> import httpx
->>> transport = httpx.HTTPTransport(local_address="0.0.0.0")
->>> client = httpx.Client(transport=transport)
+>>> import httpx2
+>>> transport = httpx2.HTTPTransport(local_address="0.0.0.0")
+>>> client = httpx2.Client(transport=transport)
 ```
 
-Connection retries are also available via this interface. Requests will be retried the given number of times in case an `httpx.ConnectError` or an `httpx.ConnectTimeout` occurs, allowing smoother operation under flaky networks. If you need other forms of retry behaviors, such as handling read/write errors or reacting to `503 Service Unavailable`, consider general-purpose tools such as [tenacity](https://github.com/jd/tenacity).
+Connection retries are also available via this interface. Requests will be retried the given number of times in case an `httpx2.ConnectError` or an `httpx2.ConnectTimeout` occurs, allowing smoother operation under flaky networks. If you need other forms of retry behaviors, such as handling read/write errors or reacting to `503 Service Unavailable`, consider general-purpose tools such as [tenacity](https://github.com/jd/tenacity).
 
 ```pycon
->>> import httpx
->>> transport = httpx.HTTPTransport(retries=1)
->>> client = httpx.Client(transport=transport)
+>>> import httpx2
+>>> transport = httpx2.HTTPTransport(retries=1)
+>>> client = httpx2.Client(transport=transport)
 ```
 
 Similarly, instantiating a transport directly provides a `uds` option for
 connecting via a Unix Domain Socket that is only available via this low-level API:
 
 ```pycon
->>> import httpx
+>>> import httpx2
 >>> # Connect to the Docker API via a Unix Socket.
->>> transport = httpx.HTTPTransport(uds="/var/run/docker.sock")
->>> client = httpx.Client(transport=transport)
+>>> transport = httpx2.HTTPTransport(uds="/var/run/docker.sock")
+>>> client = httpx2.Client(transport=transport)
 >>> response = client.get("http://docker/info")
 >>> response.json()
 {"ID": "...", "Containers": 4, "Images": 74, ...}
@@ -37,11 +37,11 @@ connecting via a Unix Domain Socket that is only available via this low-level AP
 
 ## WSGI Transport
 
-You can configure an `httpx` client to call directly into a Python web application using the WSGI protocol.
+You can configure an `httpx2` client to call directly into a Python web application using the WSGI protocol.
 
 This is particularly useful for two main use-cases:
 
-* Using `httpx` as a client inside test cases.
+* Using `httpx2` as a client inside test cases.
 * Mocking out external services during tests or in dev or staging environments.
 
 ### Example
@@ -50,7 +50,7 @@ Here's an example of integrating against a Flask application:
 
 ```python
 from flask import Flask
-import httpx
+import httpx2
 
 
 app = Flask(__name__)
@@ -59,8 +59,8 @@ app = Flask(__name__)
 def hello():
     return "Hello World!"
 
-transport = httpx.WSGITransport(app=app)
-with httpx.Client(transport=transport, base_url="http://testserver") as client:
+transport = httpx2.WSGITransport(app=app)
+with httpx2.Client(transport=transport, base_url="http://testserver") as client:
     r = client.get("/")
     assert r.status_code == 200
     assert r.text == "Hello World!"
@@ -78,18 +78,18 @@ For example:
 
 ```python
 # Instantiate a client that makes WSGI requests with a client IP of "1.2.3.4".
-transport = httpx.WSGITransport(app=app, remote_addr="1.2.3.4")
-with httpx.Client(transport=transport, base_url="http://testserver") as client:
+transport = httpx2.WSGITransport(app=app, remote_addr="1.2.3.4")
+with httpx2.Client(transport=transport, base_url="http://testserver") as client:
     ...
 ```
 
 ## ASGI Transport
 
-You can configure an `httpx` client to call directly into an async Python web application using the ASGI protocol.
+You can configure an `httpx2` client to call directly into an async Python web application using the ASGI protocol.
 
 This is particularly useful for two main use-cases:
 
-* Using `httpx` as a client inside test cases.
+* Using `httpx2` as a client inside test cases.
 * Mocking out external services during tests or in dev or staging environments.
 
 ### Example
@@ -112,9 +112,9 @@ app = Starlette(routes=[Route("/", hello)])
 We can make requests directly against the application, like so:
 
 ```python
-transport = httpx.ASGITransport(app=app)
+transport = httpx2.ASGITransport(app=app)
 
-async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+async with httpx2.AsyncClient(transport=transport, base_url="http://testserver") as client:
     r = await client.get("/")
     assert r.status_code == 200
     assert r.text == "Hello World!"
@@ -133,8 +133,8 @@ For example:
 ```python
 # Instantiate a client that makes ASGI requests with a client IP of "1.2.3.4",
 # on port 123.
-transport = httpx.ASGITransport(app=app, client=("1.2.3.4", 123))
-async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+transport = httpx2.ASGITransport(app=app, client=("1.2.3.4", 123))
+async with httpx2.AsyncClient(transport=transport, base_url="http://testserver") as client:
     ...
 ```
 
@@ -150,8 +150,8 @@ However it is suggested to use `LifespanManager` from [asgi-lifespan](https://gi
 
 A transport instance must implement the low-level Transport API which deals
 with sending a single request, and returning a response. You should either
-subclass `httpx.BaseTransport` to implement a transport to use with `Client`,
-or subclass `httpx.AsyncBaseTransport` to implement a transport to
+subclass `httpx2.BaseTransport` to implement a transport to use with `Client`,
+or subclass `httpx2.AsyncBaseTransport` to implement a transport to
 use with `AsyncClient`.
 
 At the layer of the transport API we're using the familiar `Request` and
@@ -164,42 +164,42 @@ A complete example of a custom transport implementation would be:
 
 ```python
 import json
-import httpx
+import httpx2
 
-class HelloWorldTransport(httpx.BaseTransport):
+class HelloWorldTransport(httpx2.BaseTransport):
     """
     A mock transport that always returns a JSON "Hello, world!" response.
     """
 
     def handle_request(self, request):
-        return httpx.Response(200, json={"text": "Hello, world!"})
+        return httpx2.Response(200, json={"text": "Hello, world!"})
 ```
 
-Or this example, which uses a custom transport and `httpx.Mounts` to always redirect `http://` requests.
+Or this example, which uses a custom transport and `httpx2.Mounts` to always redirect `http://` requests.
 
 ```python
-class HTTPSRedirect(httpx.BaseTransport):
+class HTTPSRedirect(httpx2.BaseTransport):
     """
     A transport that always redirects to HTTPS.
     """
     def handle_request(self, request):
         url = request.url.copy_with(scheme="https")
-        return httpx.Response(303, headers={"Location": str(url)})
+        return httpx2.Response(303, headers={"Location": str(url)})
 
 # A client where any `http` requests are always redirected to `https`
-transport = httpx.Mounts({
+transport = httpx2.Mounts({
     'http://': HTTPSRedirect()
-    'https://': httpx.HTTPTransport()
+    'https://': httpx2.HTTPTransport()
 })
-client = httpx.Client(transport=transport)
+client = httpx2.Client(transport=transport)
 ```
 
 A useful pattern here is custom transport classes that wrap the default HTTP implementation. For example...
 
 ```python
-class DebuggingTransport(httpx.BaseTransport):
+class DebuggingTransport(httpx2.BaseTransport):
     def __init__(self, **kwargs):
-        self._wrapper = httpx.HTTPTransport(**kwargs)
+        self._wrapper = httpx2.HTTPTransport(**kwargs)
 
     def handle_request(self, request):
         print(f">>> {request}")
@@ -211,16 +211,16 @@ class DebuggingTransport(httpx.BaseTransport):
         self._wrapper.close()
 
 transport = DebuggingTransport()
-client = httpx.Client(transport=transport)
+client = httpx2.Client(transport=transport)
 ```
 
 Here's another case, where we're using a round-robin across a number of different proxies...
 
 ```python
-class ProxyRoundRobin(httpx.BaseTransport):
+class ProxyRoundRobin(httpx2.BaseTransport):
     def __init__(self, proxies, **kwargs):
         self._transports = [
-            httpx.HTTPTransport(proxy=proxy, **kwargs)
+            httpx2.HTTPTransport(proxy=proxy, **kwargs)
             for proxy in proxies
         ]
         self._idx = 0
@@ -235,12 +235,12 @@ class ProxyRoundRobin(httpx.BaseTransport):
             transport.close()
 
 proxies = [
-    httpx.Proxy("http://127.0.0.1:8081"),
-    httpx.Proxy("http://127.0.0.1:8082"),
-    httpx.Proxy("http://127.0.0.1:8083"),
+    httpx2.Proxy("http://127.0.0.1:8081"),
+    httpx2.Proxy("http://127.0.0.1:8082"),
+    httpx2.Proxy("http://127.0.0.1:8083"),
 ]
 transport = ProxyRoundRobin(proxies=proxies)
-client = httpx.Client(transport=transport)
+client = httpx2.Client(transport=transport)
 ```
 
 ## Mock transports
@@ -248,25 +248,25 @@ client = httpx.Client(transport=transport)
 During testing it can often be useful to be able to mock out a transport,
 and return pre-determined responses, rather than making actual network requests.
 
-The `httpx.MockTransport` class accepts a handler function, which can be used
+The `httpx2.MockTransport` class accepts a handler function, which can be used
 to map requests onto pre-determined responses:
 
 ```python
 def handler(request):
-    return httpx.Response(200, json={"text": "Hello, world!"})
+    return httpx2.Response(200, json={"text": "Hello, world!"})
 
 
 # Switch to a mock transport, if the TESTING environment variable is set.
 if os.environ.get('TESTING', '').upper() == "TRUE":
-    transport = httpx.MockTransport(handler)
+    transport = httpx2.MockTransport(handler)
 else:
-    transport = httpx.HTTPTransport()
+    transport = httpx2.HTTPTransport()
 
-client = httpx.Client(transport=transport)
+client = httpx2.Client(transport=transport)
 ```
 
 For more advanced use-cases you might want to take a look at either [the third-party
-mocking library, RESPX](https://lundberg.github.io/respx/), or the [pytest-httpx library](https://github.com/Colin-b/pytest_httpx).
+mocking library, RESPX](https://lundberg.github.io/respx/), or the [pytest-httpx2 library](https://github.com/Colin-b/pytest_httpx).
 
 ## Mounting transports
 
@@ -275,9 +275,9 @@ which transport an outgoing request should be routed via, with [the same style
 used for specifying proxy routing](#routing).
 
 ```python
-import httpx
+import httpx2
 
-class HTTPSRedirectTransport(httpx.BaseTransport):
+class HTTPSRedirectTransport(httpx2.BaseTransport):
     """
     A transport that always redirects to HTTPS.
     """
@@ -288,7 +288,7 @@ class HTTPSRedirectTransport(httpx.BaseTransport):
             location = b"https://%s%s" % (host, path)
         else:
             location = b"https://%s:%d%s" % (host, port, path)
-        stream = httpx.ByteStream(b"")
+        stream = httpx2.ByteStream(b"")
         headers = [(b"location", location)]
         extensions = {}
         return 303, headers, stream, extensions
@@ -296,7 +296,7 @@ class HTTPSRedirectTransport(httpx.BaseTransport):
 
 # A client where any `http` requests are always redirected to `https`
 mounts = {'http://': HTTPSRedirectTransport()}
-client = httpx.Client(mounts=mounts)
+client = httpx2.Client(mounts=mounts)
 ```
 
 A couple of other sketches of how you might take advantage of mounted transports...
@@ -305,10 +305,10 @@ Disabling HTTP/2 on a single given domain...
 
 ```python
 mounts = {
-    "all://": httpx.HTTPTransport(http2=True),
-    "all://*example.org": httpx.HTTPTransport()
+    "all://": httpx2.HTTPTransport(http2=True),
+    "all://*example.org": httpx2.HTTPTransport()
 }
-client = httpx.Client(mounts=mounts)
+client = httpx2.Client(mounts=mounts)
 ```
 
 Mocking requests to a given domain:
@@ -317,10 +317,10 @@ Mocking requests to a given domain:
 # All requests to "example.org" should be mocked out.
 # Other requests occur as usual.
 def handler(request):
-    return httpx.Response(200, json={"text": "Hello, World!"})
+    return httpx2.Response(200, json={"text": "Hello, World!"})
 
-mounts = {"all://example.org": httpx.MockTransport(handler)}
-client = httpx.Client(mounts=mounts)
+mounts = {"all://example.org": httpx2.MockTransport(handler)}
+client = httpx2.Client(mounts=mounts)
 ```
 
 Adding support for custom schemes:
@@ -328,7 +328,7 @@ Adding support for custom schemes:
 ```python
 # Support URLs like "file:///Users/sylvia_green/websites/new_client/index.html"
 mounts = {"file://": FileSystemTransport()}
-client = httpx.Client(mounts=mounts)
+client = httpx2.Client(mounts=mounts)
 ```
 
 ### Routing
@@ -345,7 +345,7 @@ Route everything through a transport...
 
 ```python
 mounts = {
-    "all://": httpx.HTTPTransport(proxy="http://localhost:8030"),
+    "all://": httpx2.HTTPTransport(proxy="http://localhost:8030"),
 }
 ```
 
@@ -355,8 +355,8 @@ Route HTTP requests through one transport, and HTTPS requests through another...
 
 ```python
 mounts = {
-    "http://": httpx.HTTPTransport(proxy="http://localhost:8030"),
-    "https://": httpx.HTTPTransport(proxy="http://localhost:8031"),
+    "http://": httpx2.HTTPTransport(proxy="http://localhost:8030"),
+    "https://": httpx2.HTTPTransport(proxy="http://localhost:8031"),
 }
 ```
 
@@ -366,7 +366,7 @@ Proxy all requests on domain "example.com", let other requests pass through...
 
 ```python
 mounts = {
-    "all://example.com": httpx.HTTPTransport(proxy="http://localhost:8030"),
+    "all://example.com": httpx2.HTTPTransport(proxy="http://localhost:8030"),
 }
 ```
 
@@ -374,7 +374,7 @@ Proxy HTTP requests on domain "example.com", let HTTPS and other requests pass t
 
 ```python
 mounts = {
-    "http://example.com": httpx.HTTPTransport(proxy="http://localhost:8030"),
+    "http://example.com": httpx2.HTTPTransport(proxy="http://localhost:8030"),
 }
 ```
 
@@ -382,7 +382,7 @@ Proxy all requests to "example.com" and its subdomains, let other requests pass 
 
 ```python
 mounts = {
-    "all://*example.com": httpx.HTTPTransport(proxy="http://localhost:8030"),
+    "all://*example.com": httpx2.HTTPTransport(proxy="http://localhost:8030"),
 }
 ```
 
@@ -390,7 +390,7 @@ Proxy all requests to strict subdomains of "example.com", let "example.com" and 
 
 ```python
 mounts = {
-    "all://*.example.com": httpx.HTTPTransport(proxy="http://localhost:8030"),
+    "all://*.example.com": httpx2.HTTPTransport(proxy="http://localhost:8030"),
 }
 ```
 
@@ -400,7 +400,7 @@ Proxy HTTPS requests on port 1234 to "example.com"...
 
 ```python
 mounts = {
-    "https://example.com:1234": httpx.HTTPTransport(proxy="http://localhost:8030"),
+    "https://example.com:1234": httpx2.HTTPTransport(proxy="http://localhost:8030"),
 }
 ```
 
@@ -408,7 +408,7 @@ Proxy all requests on port 1234...
 
 ```python
 mounts = {
-    "all://*:1234": httpx.HTTPTransport(proxy="http://localhost:8030"),
+    "all://*:1234": httpx2.HTTPTransport(proxy="http://localhost:8030"),
 }
 ```
 
@@ -421,7 +421,7 @@ To do so, pass `None` as the proxy URL. For example...
 ```python
 mounts = {
     # Route requests through a proxy by default...
-    "all://": httpx.HTTPTransport(proxy="http://localhost:8031"),
+    "all://": httpx2.HTTPTransport(proxy="http://localhost:8031"),
     # Except those for "example.com".
     "all://example.com": None,
 }
@@ -434,14 +434,14 @@ You can combine the routing features outlined above to build complex proxy routi
 ```python
 mounts = {
     # Route all traffic through a proxy by default...
-    "all://": httpx.HTTPTransport(proxy="http://localhost:8030"),
+    "all://": httpx2.HTTPTransport(proxy="http://localhost:8030"),
     # But don't use proxies for HTTPS requests to "domain.io"...
     "https://domain.io": None,
     # And use another proxy for requests to "example.com" and its subdomains...
-    "all://*example.com": httpx.HTTPTransport(proxy="http://localhost:8031"),
+    "all://*example.com": httpx2.HTTPTransport(proxy="http://localhost:8031"),
     # And yet another proxy if HTTP is used,
     # and the "internal" subdomain on port 5550 is requested...
-    "http://internal.example.com:5550": httpx.HTTPTransport(proxy="http://localhost:8032"),
+    "http://internal.example.com:5550": httpx2.HTTPTransport(proxy="http://localhost:8032"),
 }
 ```
 

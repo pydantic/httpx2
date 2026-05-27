@@ -9,10 +9,10 @@ You can set timeouts for an individual request:
 
 ```python
 # Using the top-level API:
-httpx.get('http://example.com/api/v1/example', timeout=10.0)
+httpx2.get('http://example.com/api/v1/example', timeout=10.0)
 
 # Using a client instance:
-with httpx.Client() as client:
+with httpx2.Client() as client:
     client.get("http://example.com/api/v1/example", timeout=10.0)
 ```
 
@@ -20,10 +20,10 @@ Or disable timeouts for an individual request:
 
 ```python
 # Using the top-level API:
-httpx.get('http://example.com/api/v1/example', timeout=None)
+httpx2.get('http://example.com/api/v1/example', timeout=None)
 
 # Using a client instance:
-with httpx.Client() as client:
+with httpx2.Client() as client:
     client.get("http://example.com/api/v1/example", timeout=None)
 ```
 
@@ -33,9 +33,9 @@ You can set a timeout on a client instance, which results in the given
 `timeout` being used as the default for requests made with this client:
 
 ```python
-client = httpx.Client()              # Use a default 5s timeout everywhere.
-client = httpx.Client(timeout=10.0)  # Use a default 10s timeout everywhere.
-client = httpx.Client(timeout=None)  # Disable all timeouts by default.
+client = httpx2.Client()              # Use a default 5s timeout everywhere.
+client = httpx2.Client(timeout=10.0)  # Use a default 10s timeout everywhere.
+client = httpx2.Client(timeout=None)  # Disable all timeouts by default.
 ```
 
 ## Fine tuning the configuration
@@ -64,8 +64,8 @@ You can configure the timeout behavior for any of these values...
 
 ```python
 # A client with a 60s timeout for connecting, and a 10s timeout elsewhere.
-timeout = httpx.Timeout(10.0, connect=60.0)
-client = httpx.Client(timeout=timeout)
+timeout = httpx2.Timeout(10.0, connect=60.0)
+client = httpx2.Client(timeout=timeout)
 
 response = client.get('http://example.com/')
 ```
