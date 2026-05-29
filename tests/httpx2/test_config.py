@@ -77,6 +77,14 @@ def test_load_ssl_config_cert_without_key_raises(cert_pem_file: str) -> None:
         context.load_cert_chain(cert_pem_file)
 
 
+@pytest.mark.parametrize(
+    "cert", [Path("/path/to/cert.pem"), (), ("cert.pem",), ("cert.pem", "key.pem", "password", "extra")]
+)
+def test_load_ssl_config_invalid_cert_type_raises(cert: object) -> None:
+    with pytest.raises(TypeError, match="cert must be a path to a certificate file"):
+        httpx2.create_ssl_context(cert=cert)  # type: ignore[arg-type]
+
+
 def test_load_ssl_config_no_verify() -> None:
     context = httpx2.create_ssl_context(verify=False)
     assert context.verify_mode == ssl.VerifyMode.CERT_NONE

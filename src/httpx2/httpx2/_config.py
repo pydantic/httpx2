@@ -55,16 +55,24 @@ def create_ssl_context(
     else:
         ctx = verify
 
-    if cert:  # pragma: nocover
+    if cert is not None:  # pragma: nocover
+        cert_chain: tuple[str, ...]
+        if isinstance(cert, str):
+            cert_chain = (cert,)
+        elif isinstance(cert, tuple) and len(cert) in (2, 3):
+            cert_chain = cert
+        else:
+            raise TypeError(
+                "cert must be a path to a certificate file or a tuple of "
+                "(certfile, keyfile) or (certfile, keyfile, password)"
+            )
+
         message = (
             "`cert=...` is deprecated. Use `verify=<ssl_context>` instead,"
             "with `.load_cert_chain()` to configure the certificate chain."
         )
         warnings.warn(message, DeprecationWarning)
-        if isinstance(cert, str):
-            ctx.load_cert_chain(cert)
-        else:
-            ctx.load_cert_chain(*cert)
+        ctx.load_cert_chain(*cert_chain)
 
     return ctx
 
