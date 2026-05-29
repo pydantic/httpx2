@@ -32,11 +32,8 @@ jobs:
       - name: Install dependencies
         run: scripts/install
 
-      - name: Build packages
-        run: uv build --all-packages
-
-      - name: Build docs
-        run: uv run zensical build --clean
+      - name: Build package & docs
+        run: scripts/build
 
       - name: Upload package distributions
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
