@@ -48,6 +48,19 @@ nav:
         - Third Party Packages: 'third_party_packages.md'
         - Contributing: 'contributing.md'
         - Code of Conduct: 'code_of_conduct.md'
+    - httpcore2:
+        - Introduction: 'httpcore2/index.md'
+        - Quickstart: 'httpcore2/quickstart.md'
+        - Requests, Responses, and URLs: 'httpcore2/requests-responses-urls.md'
+        - Connection Pools: 'httpcore2/connection-pools.md'
+        - Connections: 'httpcore2/connections.md'
+        - Proxies: 'httpcore2/proxies.md'
+        - HTTP/2: 'httpcore2/http2.md'
+        - Async Support: 'httpcore2/async.md'
+        - Network Backends: 'httpcore2/network-backends.md'
+        - Extensions: 'httpcore2/extensions.md'
+        - Logging: 'httpcore2/logging.md'
+        - Exceptions: 'httpcore2/exceptions.md'
 
 plugins:
   - mkdocstrings:

@@ -1,15 +1,15 @@
 # Connection Pools
 
-While the top-level API provides convenience functions for working with `httpcore`,
+While the top-level API provides convenience functions for working with `httpcore2`,
 in practice you'll almost always want to take advantage of the connection pooling
 functionality that it provides.
 
 To do so, instantiate a pool instance, and use it to send requests:
 
 ```python
-import httpcore
+import httpcore2
 
-http = httpcore.ConnectionPool()
+http = httpcore2.ConnectionPool()
 r = http.request("GET", "https://www.example.com/")
 
 print(r)
@@ -21,11 +21,11 @@ Connection pools support the same `.request()` and `.stream()` APIs [as describe
 We can observe the benefits of connection pooling with a simple script like so:
 
 ```python
-import httpcore
+import httpcore2
 import time
 
 
-http = httpcore.ConnectionPool()
+http = httpcore2.ConnectionPool()
 for counter in range(5):
     started = time.time()
     response = http.request("GET", "https://www.example.com/")
@@ -52,7 +52,7 @@ The connection pool instance is also the main point of configuration. Let's take
 ### SSL configuration
 
 * `ssl_context`: An SSL context to use for verifying connections.
-                 If not specified, the default `httpcore.default_ssl_context()`
+                 If not specified, the default `httpcore2.default_ssl_context()`
                  will be used.
 
 ### Pooling configuration
@@ -93,20 +93,20 @@ Working with a single global instance isn't a bad idea for many use case, since 
 # This is perfectly fine for most purposes.
 # The connection pool will automatically be closed when it is garbage collected,
 # or when the Python interpreter exits.
-http = httpcore.ConnectionPool()
+http = httpcore2.ConnectionPool()
 ```
 
 However, to be more explicit around the resource usage, we can use the connection pool within a context manager:
 
 ```python
-with httpcore.ConnectionPool() as http:
+with httpcore2.ConnectionPool() as http:
     ...
 ```
 
 Or else close the pool explicitly:
 
 ```python
-http = httpcore.ConnectionPool()
+http = httpcore2.ConnectionPool()
 try:
     ...
 finally:
@@ -115,7 +115,7 @@ finally:
 
 ## Thread and task safety
 
-Connection pools are designed to be thread-safe. Similarly, when using `httpcore` in an async context connection pools are task-safe.
+Connection pools are designed to be thread-safe. Similarly, when using `httpcore2` in an async context connection pools are task-safe.
 
 This means that you can have a single connection pool instance shared by multiple threads.
 
@@ -123,9 +123,9 @@ This means that you can have a single connection pool instance shared by multipl
 
 # Reference
 
-## `httpcore.ConnectionPool`
+## `httpcore2.ConnectionPool`
 
-::: httpcore.ConnectionPool
+::: httpcore2.ConnectionPool
     handler: python
     rendering:
         show_source: False
