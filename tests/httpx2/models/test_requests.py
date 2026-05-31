@@ -240,7 +240,7 @@ def test_request_params() -> None:
     assert str(request.url) == "http://example.com?a=1"
 
 
-def test_request_params_no_double_encoding():
+def test_request_params_no_double_encoding() -> None:
     # The existing query string must not be reparsed through QueryParams;
     # doing so risks double-encoding or reordering of existing parameters.
     request = httpx2.Request("GET", "http://example.com?q=hello%20world", params={"page": "2"})
