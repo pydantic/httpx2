@@ -1,0 +1,10 @@
+name = "httpcore2-docs"
+compatibility_date = "2026-05-22"
+
+[[routes]]
+pattern = "httpcore2.pydantic.dev"
+custom_domain = true
+
+[assets]
+directory = "./src/httpcore2/site-httpcore2"
+not_found_handling = "404-page"

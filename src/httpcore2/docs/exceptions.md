@@ -2,17 +2,17 @@
 
 The following exceptions may be raised when sending a request:
 
-* `httpcore.TimeoutException`
-    * `httpcore.PoolTimeout`
-    * `httpcore.ConnectTimeout`
-    * `httpcore.ReadTimeout`
-    * `httpcore.WriteTimeout`
-* `httpcore.NetworkError`
-    * `httpcore.ConnectError`
-    * `httpcore.ReadError`
-    * `httpcore.WriteError`
-* `httpcore.ProtocolError`
-    * `httpcore.RemoteProtocolError`
-    * `httpcore.LocalProtocolError`
-* `httpcore.ProxyError`
-* `httpcore.UnsupportedProtocol`
+* `httpcore2.TimeoutException`
+    * `httpcore2.PoolTimeout`
+    * `httpcore2.ConnectTimeout`
+    * `httpcore2.ReadTimeout`
+    * `httpcore2.WriteTimeout`
+* `httpcore2.NetworkError`
+    * `httpcore2.ConnectError`
+    * `httpcore2.ReadError`
+    * `httpcore2.WriteError`
+* `httpcore2.ProtocolError`
+    * `httpcore2.RemoteProtocolError`
+    * `httpcore2.LocalProtocolError`
+* `httpcore2.ProxyError`
+* `httpcore2.UnsupportedProtocol`

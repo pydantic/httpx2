@@ -1,14 +1,33 @@
-site_name: HTTPCore
+site_name: HTTPCore2
 site_description: A minimal HTTP client for Python.
-site_url: https://www.encode.io/httpcore/
+site_url: https://httpcore2.pydantic.dev/
+site_dir: site-httpcore2
 
-repo_name: encode/httpcore
-repo_url: https://github.com/encode/httpcore/
+theme:
+    name: 'material'
+    palette:
+      - scheme: 'default'
+        media: '(prefers-color-scheme: light)'
+        toggle:
+          icon: 'material/lightbulb'
+          name: "Switch to dark mode"
+      - scheme: 'slate'
+        media: '(prefers-color-scheme: dark)'
+        primary: 'blue'
+        toggle:
+          icon: 'material/lightbulb-outline'
+          name: 'Switch to light mode'
+
+repo_name: pydantic/httpx2
+repo_url: https://github.com/pydantic/httpx2/
+edit_uri: ""
 
 nav:
     - Introduction: 'index.md'
     - Quickstart: 'quickstart.md'
+    - Requests, Responses, and URLs: 'requests-responses-urls.md'
     - Connection Pools: 'connection-pools.md'
+    - Connections: 'connections.md'
     - Proxies: 'proxies.md'
     - HTTP/2: 'http2.md'
     - Async Support: 'async.md'
@@ -17,20 +36,24 @@ nav:
     - Logging: 'logging.md'
     - Exceptions: 'exceptions.md'
 
-theme:
-  name: "material"
-
 plugins:
-    - search
-    - mkdocstrings:
-        default_handler: python
-        watch:
-            - httpcore
-        handlers:
-            python:
-                members_order:
-                    - "source"
+  - mkdocstrings:
+      handlers:
+        python:
+          inventories:
+            - https://docs.python.org/3/objects.inv
+          options:
+            show_root_heading: true
+            show_source: false
+            show_signature_annotations: true
+            separate_signature: true
+            line_length: 60
+            heading_level: 3
+            inherited_members: true
 
 markdown_extensions:
-  - codehilite:
-      css_class: highlight
+  - admonition
+  - pymdownx.highlight:
+      use_pygments: true
+      pygments_lang_class: true
+  - pymdownx.superfences

@@ -5,6 +5,8 @@
 __pycache__/
 htmlcov/
 site/
+site-httpcore2/
+src/httpcore2/site-httpcore2/
 .wrangler/
 *.egg-info/
 venv*/

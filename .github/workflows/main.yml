@@ -83,6 +83,9 @@ jobs:
       - name: Build docs
         run: uv run zensical build --clean
 
+      - name: Build httpcore2 docs
+        run: uv run zensical build --clean -f src/httpcore2/mkdocs.yml
+
       - uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
         id: deploy
         with:
@@ -90,8 +93,16 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: versions upload --tag pr-${{ github.event.pull_request.number }}
 
+      - uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
+        id: deploy-httpcore2
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: versions upload --config wrangler-httpcore2.toml --tag pr-${{ github.event.pull_request.number }}
+
       - name: Comment preview URL
         uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0 # v3.0.4
         with:
           message: |
             **Docs preview:** ${{ steps.deploy.outputs.deployment-url }}
+            **httpcore2 docs preview:** ${{ steps.deploy-httpcore2.outputs.deployment-url }}

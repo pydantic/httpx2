@@ -6,23 +6,23 @@ TODO
 
 # Reference
 
-## `httpcore.HTTPConnection`
+## `httpcore2.HTTPConnection`
 
-::: httpcore.HTTPConnection
+::: httpcore2.HTTPConnection
     handler: python
     rendering:
         show_source: False
 
-## `httpcore.HTTP11Connection`
+## `httpcore2.HTTP11Connection`
 
-::: httpcore.HTTP11Connection
+::: httpcore2.HTTP11Connection
     handler: python
     rendering:
         show_source: False
 
-## `httpcore.HTTP2Connection`
+## `httpcore2.HTTP2Connection`
 
-::: httpcore.HTTP2Connection
+::: httpcore2.HTTP2Connection
     handler: python
     rendering:
         show_source: False
