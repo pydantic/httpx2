@@ -1,0 +1,1284 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A minimal HTTP client for Python.">
+      
+      
+      
+        <link rel="canonical" href="https://httpcore2.pydantic.dev/extensions/">
+      
+      
+        <link rel="prev" href="../network-backends/">
+      
+      
+        <link rel="next" href="../logging/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="zensical-0.0.41">
+    
+    
+      
+        <title>Extensions - HTTPCore2</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../assets/stylesheets/modern/main.fba56155.min.css">
+      
+        
+          
+        
+        <link rel="stylesheet" href="../assets/stylesheets/modern/palette.dfe2e883.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&amp;display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_scope.pathname.endsWith("/")||(__md_scope=new URL(__md_scope.pathname+"/",location)),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,_=__md_scope)=>JSON.parse(t.getItem(_.pathname+"."+e)),__md_set=(e,t,_=localStorage,a=__md_scope)=>{try{_.setItem(a.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-label="Navigation"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#extensions" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="./.." title="HTTPCore2" class="md-header__button md-logo" aria-label="HTTPCore2" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            HTTPCore2
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Extensions
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.47 3 5.74V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.26c1.81-1.27 3-3.36 3-5.74a7 7 0 0 0-7-7M9 21a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-1H9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="blue" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7M9 21v-1h6v1a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1m3-17a5 5 0 0 0-5 5c0 2.05 1.23 3.81 3 4.58V16h4v-2.42c1.77-.77 3-2.53 3-4.58a5 5 0 0 0-5-5"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search" aria-label="Search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+        <a href="https://github.com/pydantic/httpx2/" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    pydantic/httpx2
+  </div>
+</a>
+      
+    </div>
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="./.." title="HTTPCore2" class="md-nav__button md-logo" aria-label="HTTPCore2" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    HTTPCore2
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/pydantic/httpx2/" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    pydantic/httpx2
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="./.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Introduction
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Quickstart
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../requests-responses-urls/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Requests, Responses, and URLs
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connection-pools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Connection Pools
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connections/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Connections
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../proxies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Proxies
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../http2/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  HTTP/2
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../async/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Async Support
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../network-backends/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Network Backends
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Extensions
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="././" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Extensions
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#request-extensions" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Request Extensions
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Request Extensions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#timeout" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>"timeout"</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trace" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>"trace"</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sni_hostname" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>"sni_hostname"</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#target" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>"target"</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#response-extensions" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Response Extensions
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Response Extensions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#http_version" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>"http_version"</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reason_phrase" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>"reason_phrase"</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stream_id" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>"stream_id"</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#network_stream" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>"network_stream"</code>
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="&quot;network_stream&quot;">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#connect-requests" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>CONNECT</code> requests
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#upgrade-requests" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>Upgrade</code> requests
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#extra-network-information" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Extra network information
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../logging/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Logging
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../exceptions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Exceptions
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  
+                    
+                    
+                    
+                      
+                    
+                    
+                      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+                      <div class="md-sidebar-button__wrapper">
+                        <label class="md-sidebar-button" for="__toc"></label>
+                      </div>
+                    
+                  
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#request-extensions" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Request Extensions
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Request Extensions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#timeout" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>"timeout"</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trace" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>"trace"</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sni_hostname" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>"sni_hostname"</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#target" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>"target"</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#response-extensions" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Response Extensions
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Response Extensions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#http_version" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>"http_version"</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reason_phrase" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>"reason_phrase"</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stream_id" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>"stream_id"</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#network_stream" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>"network_stream"</code>
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="&quot;network_stream&quot;">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#connect-requests" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>CONNECT</code> requests
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#upgrade-requests" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>Upgrade</code> requests
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#extra-network-information" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Extra network information
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+  
+  
+
+
+<h1 id="extensions">Extensions</h1>
+<p>The request/response API used by <code>httpcore2</code> is kept deliberately simple and explicit.</p>
+<p>The <code>Request</code> and <code>Response</code> models are pretty slim wrappers around this core API:</p>
+<div class="language-text highlight"><pre><span></span><code># Pseudo-code expressing the essentials of the request/response model.
+(
+    status_code: int,
+    headers: List[Tuple(bytes, bytes)],
+    stream: Iterable[bytes]
+) = handle_request(
+    method: bytes,
+    url: URL,
+    headers: List[Tuple(bytes, bytes)],
+    stream: Iterable[bytes]
+)
+</code></pre></div>
+<p>This is everything that's needed in order to represent an HTTP exchange.</p>
+<p>Well... almost.</p>
+<p>There is a maxim in Computer Science that <em>"All non-trivial abstractions, to some degree, are leaky"</em>. When an expression is leaky, it's important that it ought to at least leak only in well-defined places.</p>
+<p>In order to handle cases that don't otherwise fit inside this core abstraction, <code>httpcore2</code> requests and responses have 'extensions'. These are a dictionary of optional additional information.</p>
+<p>Let's expand on our request/response abstraction...</p>
+<div class="language-text highlight"><pre><span></span><code># Pseudo-code expressing the essentials of the request/response model,
+# plus extensions allowing for additional API that does not fit into
+# this abstraction.
+(
+    status_code: int,
+    headers: List[Tuple(bytes, bytes)],
+    stream: Iterable[bytes],
+    extensions: dict
+) = handle_request(
+    method: bytes,
+    url: URL,
+    headers: List[Tuple(bytes, bytes)],
+    stream: Iterable[bytes],
+    extensions: dict
+)
+</code></pre></div>
+<p>Several extensions are supported both on the request:</p>
+<div class="language-python highlight"><pre><span></span><code><span class="n">r</span> <span class="o">=</span> <span class="n">httpcore2</span><span class="o">.</span><span class="n">request</span><span class="p">(</span>
+    <span class="s2">&quot;GET&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;https://www.example.com&quot;</span><span class="p">,</span>
+    <span class="n">extensions</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;timeout&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;connect&quot;</span><span class="p">:</span> <span class="mf">5.0</span><span class="p">}}</span>
+<span class="p">)</span>
+</code></pre></div>
+<p>And on the response:</p>
+<div class="language-python highlight"><pre><span></span><code><span class="n">r</span> <span class="o">=</span> <span class="n">httpcore2</span><span class="o">.</span><span class="n">request</span><span class="p">(</span><span class="s2">&quot;GET&quot;</span><span class="p">,</span> <span class="s2">&quot;https://www.example.com&quot;</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">extensions</span><span class="p">[</span><span class="s2">&quot;http_version&quot;</span><span class="p">])</span>
+<span class="c1"># When using HTTP/1.1 on the client side, the server HTTP response</span>
+<span class="c1"># could feasibly be one of b&quot;HTTP/0.9&quot;, b&quot;HTTP/1.0&quot;, or b&quot;HTTP/1.1&quot;.</span>
+</code></pre></div>
+<h2 id="request-extensions">Request Extensions</h2>
+<h3 id="timeout"><code>"timeout"</code></h3>
+<p>A dictionary of <code>str: Optional[float]</code> timeout values.</p>
+<p>May include values for <code>'connect'</code>, <code>'read'</code>, <code>'write'</code>, or <code>'pool'</code>.</p>
+<p>For example:</p>
+<div class="language-python highlight"><pre><span></span><code><span class="c1"># Timeout if a connection takes more than 5 seconds to established, or if</span>
+<span class="c1"># we are blocked waiting on the connection pool for more than 10 seconds.</span>
+<span class="n">r</span> <span class="o">=</span> <span class="n">httpcore2</span><span class="o">.</span><span class="n">request</span><span class="p">(</span>
+    <span class="s2">&quot;GET&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;https://www.example.com&quot;</span><span class="p">,</span>
+    <span class="n">extensions</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;timeout&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;connect&quot;</span><span class="p">:</span> <span class="mf">5.0</span><span class="p">,</span> <span class="s2">&quot;pool&quot;</span><span class="p">:</span> <span class="mf">10.0</span><span class="p">}}</span>
+<span class="p">)</span>
+</code></pre></div>
+<h3 id="trace"><code>"trace"</code></h3>
+<p>The trace extension allows a callback handler to be installed to monitor the internal
+flow of events within <code>httpcore2</code>. The simplest way to explain this is with an example:</p>
+<div class="language-python highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">httpcore2</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">log</span><span class="p">(</span><span class="n">event_name</span><span class="p">,</span> <span class="n">info</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">event_name</span><span class="p">,</span> <span class="n">info</span><span class="p">)</span>
+
+<span class="n">r</span> <span class="o">=</span> <span class="n">httpcore2</span><span class="o">.</span><span class="n">request</span><span class="p">(</span><span class="s2">&quot;GET&quot;</span><span class="p">,</span> <span class="s2">&quot;https://www.example.com/&quot;</span><span class="p">,</span> <span class="n">extensions</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;trace&quot;</span><span class="p">:</span> <span class="n">log</span><span class="p">})</span>
+<span class="c1"># connection.connect_tcp.started {&#39;host&#39;: &#39;www.example.com&#39;, &#39;port&#39;: 443, &#39;local_address&#39;: None, &#39;timeout&#39;: None}</span>
+<span class="c1"># connection.connect_tcp.complete {&#39;return_value&#39;: &lt;httpcore2._backends.sync.SyncStream object at 0x1093f94d0&gt;}</span>
+<span class="c1"># connection.start_tls.started {&#39;ssl_context&#39;: &lt;ssl.SSLContext object at 0x1093ee750&gt;, &#39;server_hostname&#39;: b&#39;www.example.com&#39;, &#39;timeout&#39;: None}</span>
+<span class="c1"># connection.start_tls.complete {&#39;return_value&#39;: &lt;httpcore2._backends.sync.SyncStream object at 0x1093f9450&gt;}</span>
+<span class="c1"># http11.send_request_headers.started {&#39;request&#39;: &lt;Request [b&#39;GET&#39;]&gt;}</span>
+<span class="c1"># http11.send_request_headers.complete {&#39;return_value&#39;: None}</span>
+<span class="c1"># http11.send_request_body.started {&#39;request&#39;: &lt;Request [b&#39;GET&#39;]&gt;}</span>
+<span class="c1"># http11.send_request_body.complete {&#39;return_value&#39;: None}</span>
+<span class="c1"># http11.receive_response_headers.started {&#39;request&#39;: &lt;Request [b&#39;GET&#39;]&gt;}</span>
+<span class="c1"># http11.receive_response_headers.complete {&#39;return_value&#39;: (b&#39;HTTP/1.1&#39;, 200, b&#39;OK&#39;, [(b&#39;Age&#39;, b&#39;553715&#39;), (b&#39;Cache-Control&#39;, b&#39;max-age=604800&#39;), (b&#39;Content-Type&#39;, b&#39;text/html; charset=UTF-8&#39;), (b&#39;Date&#39;, b&#39;Thu, 21 Oct 2021 17:08:42 GMT&#39;), (b&#39;Etag&#39;, b&#39;&quot;3147526947+ident&quot;&#39;), (b&#39;Expires&#39;, b&#39;Thu, 28 Oct 2021 17:08:42 GMT&#39;), (b&#39;Last-Modified&#39;, b&#39;Thu, 17 Oct 2019 07:18:26 GMT&#39;), (b&#39;Server&#39;, b&#39;ECS (nyb/1DCD)&#39;), (b&#39;Vary&#39;, b&#39;Accept-Encoding&#39;), (b&#39;X-Cache&#39;, b&#39;HIT&#39;), (b&#39;Content-Length&#39;, b&#39;1256&#39;)])}</span>
+<span class="c1"># http11.receive_response_body.started {&#39;request&#39;: &lt;Request [b&#39;GET&#39;]&gt;}</span>
+<span class="c1"># http11.receive_response_body.complete {&#39;return_value&#39;: None}</span>
+<span class="c1"># http11.response_closed.started {}</span>
+<span class="c1"># http11.response_closed.complete {&#39;return_value&#39;: None}</span>
+</code></pre></div>
+<p>The <code>event_name</code> and <code>info</code> arguments here will be one of the following:</p>
+<ul>
+<li><code>{event_type}.{event_name}.started</code>, <code>&lt;dictionary of keyword arguments&gt;</code></li>
+<li><code>{event_type}.{event_name}.complete</code>, <code>{"return_value": &lt;...&gt;}</code></li>
+<li><code>{event_type}.{event_name}.failed</code>, <code>{"exception": &lt;...&gt;}</code></li>
+</ul>
+<p>Note that when using the async variant of <code>httpcore2</code> the handler function passed to <code>"trace"</code> must be an <code>async def ...</code> function.</p>
+<p>The following event types are currently exposed...</p>
+<p><strong>Establishing the connection</strong></p>
+<ul>
+<li><code>"connection.connect_tcp"</code></li>
+<li><code>"connection.connect_unix_socket"</code></li>
+<li><code>"connection.start_tls"</code></li>
+</ul>
+<p><strong>HTTP/1.1 events</strong></p>
+<ul>
+<li><code>"http11.send_request_headers"</code></li>
+<li><code>"http11.send_request_body"</code></li>
+<li><code>"http11.receive_response"</code></li>
+<li><code>"http11.receive_response_body"</code></li>
+<li><code>"http11.response_closed"</code></li>
+</ul>
+<p><strong>HTTP/2 events</strong></p>
+<ul>
+<li><code>"http2.send_connection_init"</code></li>
+<li><code>"http2.send_request_headers"</code></li>
+<li><code>"http2.send_request_body"</code></li>
+<li><code>"http2.receive_response_headers"</code></li>
+<li><code>"http2.receive_response_body"</code></li>
+<li><code>"http2.response_closed"</code></li>
+</ul>
+<p>The exact set of trace events may be subject to change across different versions of <code>httpcore2</code>. If you need to rely on a particular set of events it is recommended that you pin installation of the package to a fixed version.</p>
+<h3 id="sni_hostname"><code>"sni_hostname"</code></h3>
+<p>The server's hostname, which is used to confirm the hostname supplied by the SSL certificate.</p>
+<p>For example:</p>
+<div class="language-python highlight"><pre><span></span><code><span class="n">headers</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;Host&quot;</span><span class="p">:</span> <span class="s2">&quot;www.encode.io&quot;</span><span class="p">}</span>
+<span class="n">extensions</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;sni_hostname&quot;</span><span class="p">:</span> <span class="s2">&quot;www.encode.io&quot;</span><span class="p">}</span>
+<span class="n">response</span> <span class="o">=</span> <span class="n">httpcore2</span><span class="o">.</span><span class="n">request</span><span class="p">(</span>
+    <span class="s2">&quot;GET&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;https://185.199.108.153&quot;</span><span class="p">,</span>
+    <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">,</span>
+    <span class="n">extensions</span><span class="o">=</span><span class="n">extensions</span>
+<span class="p">)</span>
+</code></pre></div>
+<h3 id="target"><code>"target"</code></h3>
+<p>The target that is used as <a href="https://datatracker.ietf.org/doc/html/rfc2616#section-5.1.2">the HTTP target instead of the URL path</a>.</p>
+<p>This enables support constructing requests that would otherwise be unsupported. In particular...</p>
+<ul>
+<li>Forward proxy requests using an absolute URI.</li>
+<li>Tunneling proxy requests using <code>CONNECT</code> with hostname as the target.</li>
+<li>Server-wide <code>OPTIONS *</code> requests.</li>
+</ul>
+<p>For example:</p>
+<div class="language-python highlight"><pre><span></span><code><span class="n">extensions</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;target&quot;</span><span class="p">:</span> <span class="sa">b</span><span class="s2">&quot;www.encode.io:443&quot;</span><span class="p">}</span>
+<span class="n">response</span> <span class="o">=</span> <span class="n">httpcore2</span><span class="o">.</span><span class="n">request</span><span class="p">(</span>
+    <span class="s2">&quot;CONNECT&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;http://your-tunnel-proxy.com&quot;</span><span class="p">,</span>
+    <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">,</span>
+    <span class="n">extensions</span><span class="o">=</span><span class="n">extensions</span>
+<span class="p">)</span>
+</code></pre></div>
+<h2 id="response-extensions">Response Extensions</h2>
+<h3 id="http_version"><code>"http_version"</code></h3>
+<p>The HTTP version, as bytes. Eg. <code>b"HTTP/1.1"</code>.</p>
+<p>When using HTTP/1.1 the response line includes an explicit version, and the value of this key could feasibly be one of <code>b"HTTP/0.9"</code>, <code>b"HTTP/1.0"</code>, or <code>b"HTTP/1.1"</code>.</p>
+<p>When using HTTP/2 there is no further response versioning included in the protocol, and the value of this key will always be <code>b"HTTP/2"</code>.</p>
+<h3 id="reason_phrase"><code>"reason_phrase"</code></h3>
+<p>The reason-phrase of the HTTP response, as bytes. For example <code>b"OK"</code>. Some servers may include a custom reason phrase, although this is not recommended.</p>
+<p>HTTP/2 onwards does not include a reason phrase on the wire.</p>
+<p>When no key is included, a default based on the status code may be used.</p>
+<h3 id="stream_id"><code>"stream_id"</code></h3>
+<p>When HTTP/2 is being used the <code>"stream_id"</code> response extension can be accessed to determine the ID of the data stream that the response was sent on.</p>
+<h3 id="network_stream"><code>"network_stream"</code></h3>
+<p>The <code>"network_stream"</code> extension allows developers to handle HTTP <code>CONNECT</code> and <code>Upgrade</code> requests, by providing an API that steps outside the standard request/response model, and can directly read or write to the network.</p>
+<p>The interface provided by the network stream:</p>
+<ul>
+<li><code>read(max_bytes, timeout = None) -&gt; bytes</code></li>
+<li><code>write(buffer, timeout = None)</code></li>
+<li><code>close()</code></li>
+<li><code>start_tls(ssl_context, server_hostname = None, timeout = None) -&gt; NetworkStream</code></li>
+<li><code>get_extra_info(info) -&gt; Any</code></li>
+</ul>
+<p>This API can be used as the foundation for working with HTTP proxies, WebSocket upgrades, and other advanced use-cases.</p>
+<p>See the <a href="../network-backends/">network backends documentation</a> for more information on working directly with network streams.</p>
+<h5 id="connect-requests"><code>CONNECT</code> requests</h5>
+<p>A proxy CONNECT request using the network stream:</p>
+<div class="language-python highlight"><pre><span></span><code><span class="c1"># Formulate a CONNECT request...</span>
+<span class="c1">#</span>
+<span class="c1"># This will establish a connection to 127.0.0.1:8080, and then send the following...</span>
+<span class="c1">#</span>
+<span class="c1"># CONNECT http://www.example.com HTTP/1.1</span>
+<span class="n">url</span> <span class="o">=</span> <span class="s2">&quot;http://127.0.0.1:8080&quot;</span>
+<span class="n">extensions</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;target: &quot;</span><span class="n">http</span><span class="p">:</span><span class="o">//</span><span class="n">www</span><span class="o">.</span><span class="n">example</span><span class="o">.</span><span class="n">com</span><span class="s2">&quot;}</span>
+<span class="k">with</span> <span class="n">httpcore2</span><span class="o">.</span><span class="n">stream</span><span class="p">(</span><span class="s2">&quot;CONNECT&quot;</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">extensions</span><span class="o">=</span><span class="n">extensions</span><span class="p">)</span> <span class="k">as</span> <span class="n">response</span><span class="p">:</span>
+    <span class="n">network_stream</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">extensions</span><span class="p">[</span><span class="s2">&quot;network_stream&quot;</span><span class="p">]</span>
+
+    <span class="c1"># Upgrade to an SSL stream...</span>
+    <span class="n">network_stream</span> <span class="o">=</span> <span class="n">network_stream</span><span class="o">.</span><span class="n">start_tls</span><span class="p">(</span>
+        <span class="n">ssl_context</span><span class="o">=</span><span class="n">httpcore2</span><span class="o">.</span><span class="n">default_ssl_context</span><span class="p">(),</span>
+        <span class="n">hostname</span><span class="o">=</span><span class="sa">b</span><span class="s2">&quot;www.example.com&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Manually send an HTTP request over the network stream, and read the response...</span>
+    <span class="c1">#</span>
+    <span class="c1"># For a more complete example see the httpcore2 `TunnelHTTPConnection` implementation.</span>
+    <span class="n">network_stream</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="sa">b</span><span class="s2">&quot;GET / HTTP/1.1</span><span class="se">\r\n</span><span class="s2">Host: example.com</span><span class="se">\r\n\r\n</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">network_stream</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+</code></pre></div>
+<h5 id="upgrade-requests"><code>Upgrade</code> requests</h5>
+<p>Using the <code>wsproto</code> package to handle a websockets session:</p>
+<div class="language-python highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">httpcore2</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">wsproto</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">base64</span>
+
+
+<span class="n">url</span> <span class="o">=</span> <span class="s2">&quot;http://127.0.0.1:8000/&quot;</span>
+<span class="n">headers</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="sa">b</span><span class="s2">&quot;Connection&quot;</span><span class="p">:</span> <span class="sa">b</span><span class="s2">&quot;Upgrade&quot;</span><span class="p">,</span>
+    <span class="sa">b</span><span class="s2">&quot;Upgrade&quot;</span><span class="p">:</span> <span class="sa">b</span><span class="s2">&quot;WebSocket&quot;</span><span class="p">,</span>
+    <span class="sa">b</span><span class="s2">&quot;Sec-WebSocket-Key&quot;</span><span class="p">:</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64encode</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">urandom</span><span class="p">(</span><span class="mi">16</span><span class="p">)),</span>
+    <span class="sa">b</span><span class="s2">&quot;Sec-WebSocket-Version&quot;</span><span class="p">:</span> <span class="sa">b</span><span class="s2">&quot;13&quot;</span>
+<span class="p">}</span>
+<span class="k">with</span> <span class="n">httpcore2</span><span class="o">.</span><span class="n">stream</span><span class="p">(</span><span class="s2">&quot;GET&quot;</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">)</span> <span class="k">as</span> <span class="n">response</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status</span> <span class="o">!=</span> <span class="mi">101</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to upgrade to websockets&quot;</span><span class="p">,</span> <span class="n">response</span><span class="p">)</span>
+
+    <span class="c1"># Get the raw network stream.</span>
+    <span class="n">network_steam</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">extensions</span><span class="p">[</span><span class="s2">&quot;network_stream&quot;</span><span class="p">]</span>
+
+    <span class="c1"># Write a WebSocket text frame to the stream.</span>
+    <span class="n">ws_connection</span> <span class="o">=</span> <span class="n">wsproto</span><span class="o">.</span><span class="n">Connection</span><span class="p">(</span><span class="n">wsproto</span><span class="o">.</span><span class="n">ConnectionType</span><span class="o">.</span><span class="n">CLIENT</span><span class="p">)</span>
+    <span class="n">message</span> <span class="o">=</span> <span class="n">wsproto</span><span class="o">.</span><span class="n">events</span><span class="o">.</span><span class="n">TextMessage</span><span class="p">(</span><span class="s2">&quot;hello, world!&quot;</span><span class="p">)</span>
+    <span class="n">outgoing_data</span> <span class="o">=</span> <span class="n">ws_connection</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+    <span class="n">network_steam</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">outgoing_data</span><span class="p">)</span>
+
+    <span class="c1"># Wait for a response.</span>
+    <span class="n">incoming_data</span> <span class="o">=</span> <span class="n">network_steam</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">max_bytes</span><span class="o">=</span><span class="mi">4096</span><span class="p">)</span>
+    <span class="n">ws_connection</span><span class="o">.</span><span class="n">receive_data</span><span class="p">(</span><span class="n">incoming_data</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">event</span> <span class="ow">in</span> <span class="n">ws_connection</span><span class="o">.</span><span class="n">events</span><span class="p">():</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">event</span><span class="p">,</span> <span class="n">wsproto</span><span class="o">.</span><span class="n">events</span><span class="o">.</span><span class="n">TextMessage</span><span class="p">):</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Got data:&quot;</span><span class="p">,</span> <span class="n">event</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+
+    <span class="c1"># Write a WebSocket close to the stream.</span>
+    <span class="n">message</span> <span class="o">=</span> <span class="n">wsproto</span><span class="o">.</span><span class="n">events</span><span class="o">.</span><span class="n">CloseConnection</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="mi">1000</span><span class="p">)</span>
+    <span class="n">outgoing_data</span> <span class="o">=</span> <span class="n">ws_connection</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+    <span class="n">network_steam</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">outgoing_data</span><span class="p">)</span>
+</code></pre></div>
+<h5 id="extra-network-information">Extra network information</h5>
+<p>The network stream abstraction also allows access to various low-level information that may be exposed by the underlying socket:</p>
+<div class="language-python highlight"><pre><span></span><code><span class="n">response</span> <span class="o">=</span> <span class="n">httpcore2</span><span class="o">.</span><span class="n">request</span><span class="p">(</span><span class="s2">&quot;GET&quot;</span><span class="p">,</span> <span class="s2">&quot;https://www.example.com&quot;</span><span class="p">)</span>
+<span class="n">network_stream</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">extensions</span><span class="p">[</span><span class="s2">&quot;network_stream&quot;</span><span class="p">]</span>
+
+<span class="n">client_addr</span> <span class="o">=</span> <span class="n">network_stream</span><span class="o">.</span><span class="n">get_extra_info</span><span class="p">(</span><span class="s2">&quot;client_addr&quot;</span><span class="p">)</span>
+<span class="n">server_addr</span> <span class="o">=</span> <span class="n">network_stream</span><span class="o">.</span><span class="n">get_extra_info</span><span class="p">(</span><span class="s2">&quot;server_addr&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Client address&quot;</span><span class="p">,</span> <span class="n">client_addr</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Server address&quot;</span><span class="p">,</span> <span class="n">server_addr</span><span class="p">)</span>
+</code></pre></div>
+<p>The socket SSL information is also available through this interface, although you need to ensure that the underlying connection is still open, in order to access it...</p>
+<div class="language-python highlight"><pre><span></span><code><span class="k">with</span> <span class="n">httpcore2</span><span class="o">.</span><span class="n">stream</span><span class="p">(</span><span class="s2">&quot;GET&quot;</span><span class="p">,</span> <span class="s2">&quot;https://www.example.com&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">response</span><span class="p">:</span>
+    <span class="n">network_stream</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">extensions</span><span class="p">[</span><span class="s2">&quot;network_stream&quot;</span><span class="p">]</span>
+
+    <span class="n">ssl_object</span> <span class="o">=</span> <span class="n">network_stream</span><span class="o">.</span><span class="n">get_extra_info</span><span class="p">(</span><span class="s2">&quot;ssl_object&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;TLS version&quot;</span><span class="p">,</span> <span class="n">ssl_object</span><span class="o">.</span><span class="n">version</span><span class="p">())</span>
+</code></pre></div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate":null,"base":"..","features":[],"search":"../assets/javascripts/workers/search.e2d2d235.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.dbc0afdc.min.js"></script>
+      
+    
+  </body>
+</html>

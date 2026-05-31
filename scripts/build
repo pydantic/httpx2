@@ -4,5 +4,5 @@ set -x
 
 uv build --all-packages
 uv run twine check dist/*
-uv run zensical build -c -f mkdocs.yml
-uv run zensical build -c -f src/httpcore2/mkdocs.yml
+uv run zensical build -c -f docs/httpx2/mkdocs.yml
+uv run zensical build -c -f docs/httpcore2/mkdocs.yml

@@ -1,7 +1,7 @@
 site_name: HTTPCore2
 site_description: A minimal HTTP client for Python.
 site_url: https://httpcore2.pydantic.dev/
-site_dir: site-httpcore2
+site_dir: site
 
 theme:
     name: 'material'

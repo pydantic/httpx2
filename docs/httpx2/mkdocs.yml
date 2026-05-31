@@ -1,5 +1,6 @@
 site_name: HTTPX2
 site_description: A next-generation HTTP client for Python.
+site_dir: site
 
 theme:
     name: 'material'

@@ -1,0 +1,1429 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A minimal HTTP client for Python.">
+      
+      
+      
+        <link rel="canonical" href="https://httpcore2.pydantic.dev/async/">
+      
+      
+        <link rel="prev" href="../http2/">
+      
+      
+        <link rel="next" href="../network-backends/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="zensical-0.0.41">
+    
+    
+      
+        <title>Async Support - HTTPCore2</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../assets/stylesheets/modern/main.fba56155.min.css">
+      
+        
+          
+        
+        <link rel="stylesheet" href="../assets/stylesheets/modern/palette.dfe2e883.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&amp;display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_scope.pathname.endsWith("/")||(__md_scope=new URL(__md_scope.pathname+"/",location)),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,_=__md_scope)=>JSON.parse(t.getItem(_.pathname+"."+e)),__md_set=(e,t,_=localStorage,a=__md_scope)=>{try{_.setItem(a.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-label="Navigation"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#async-support" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="./.." title="HTTPCore2" class="md-header__button md-logo" aria-label="HTTPCore2" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            HTTPCore2
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Async Support
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.47 3 5.74V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.26c1.81-1.27 3-3.36 3-5.74a7 7 0 0 0-7-7M9 21a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-1H9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="blue" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7M9 21v-1h6v1a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1m3-17a5 5 0 0 0-5 5c0 2.05 1.23 3.81 3 4.58V16h4v-2.42c1.77-.77 3-2.53 3-4.58a5 5 0 0 0-5-5"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search" aria-label="Search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+        <a href="https://github.com/pydantic/httpx2/" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    pydantic/httpx2
+  </div>
+</a>
+      
+    </div>
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="./.." title="HTTPCore2" class="md-nav__button md-logo" aria-label="HTTPCore2" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    HTTPCore2
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/pydantic/httpx2/" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    pydantic/httpx2
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="./.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Introduction
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Quickstart
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../requests-responses-urls/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Requests, Responses, and URLs
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connection-pools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Connection Pools
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connections/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Connections
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../proxies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Proxies
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../http2/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  HTTP/2
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Async Support
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="././" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Async Support
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#enabling-async-support" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Enabling Async support
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-differences" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        API differences
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="API differences">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sending-requests" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Sending requests
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#streaming-responses" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Streaming responses
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pool-lifespans" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Pool lifespans
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#supported-environments" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Supported environments
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Supported environments">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#asyncio" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        AsyncIO
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trio" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Trio
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#anyio" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        AnyIO
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../network-backends/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Network Backends
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../extensions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Extensions
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../logging/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Logging
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../exceptions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Exceptions
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  
+                    
+                    
+                    
+                      
+                    
+                    
+                      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+                      <div class="md-sidebar-button__wrapper">
+                        <label class="md-sidebar-button" for="__toc"></label>
+                      </div>
+                    
+                  
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#enabling-async-support" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Enabling Async support
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-differences" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        API differences
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="API differences">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sending-requests" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Sending requests
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#streaming-responses" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Streaming responses
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pool-lifespans" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Pool lifespans
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#supported-environments" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Supported environments
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Supported environments">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#asyncio" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        AsyncIO
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trio" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Trio
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#anyio" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        AnyIO
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+  
+  
+
+
+<h1 id="async-support">Async Support</h1>
+<p>HTTPX offers a standard synchronous API by default, but also gives you the option of an async client if you need it.</p>
+<p>Async is a concurrency model that is far more efficient than multi-threading, and can provide significant performance benefits and enable the use of long-lived network connections such as WebSockets.</p>
+<p>If you're working with an async web framework then you'll also want to use an async client for sending outgoing HTTP requests.</p>
+<p>Launching concurrent async tasks is far more resource efficient than spawning multiple threads. The Python interpreter should be able to comfortably handle switching between over 1000 concurrent tasks, while a sensible number of threads in a thread pool might be to enable around 10 or 20 concurrent threads.</p>
+<h2 id="enabling-async-support">Enabling Async support</h2>
+<p>If you're using async with <a href="https://docs.python.org/3/library/asyncio.html">Python's stdlib <code>asyncio</code> support</a>, install the optional dependencies using:</p>
+<div class="language-shell highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s1">&#39;httpcore2[asyncio]&#39;</span>
+</code></pre></div>
+<p>Alternatively, if you're working with <a href="https://trio.readthedocs.io/en/stable/">the Python <code>trio</code> package</a>:</p>
+<div class="language-shell highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s1">&#39;httpcore2[trio]&#39;</span>
+</code></pre></div>
+<p>We highly recommend <code>trio</code> for async support. The <code>trio</code> project <a href="https://en.wikipedia.org/wiki/Structured_concurrency">pioneered the principles of structured concurrency</a>, and has a more carefully constrained API against which to work from.</p>
+<h2 id="api-differences">API differences</h2>
+<p>When using async support, you need make sure to use an async connection pool class:</p>
+<div class="language-python highlight"><pre><span></span><code><span class="c1"># The async variation of `httpcore2.ConnectionPool`</span>
+<span class="k">async</span> <span class="k">with</span> <span class="n">httpcore2</span><span class="o">.</span><span class="n">AsyncConnectionPool</span><span class="p">()</span> <span class="k">as</span> <span class="n">http</span><span class="p">:</span>
+    <span class="o">...</span>
+</code></pre></div>
+<h3 id="sending-requests">Sending requests</h3>
+<p>Sending requests with the async version of <code>httpcore2</code> requires the <code>await</code> keyword:</p>
+<div class="language-python highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">httpcore2</span>
+
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
+    <span class="k">async</span> <span class="k">with</span> <span class="n">httpcore2</span><span class="o">.</span><span class="n">AsyncConnectionPool</span><span class="p">()</span> <span class="k">as</span> <span class="n">http</span><span class="p">:</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="k">await</span> <span class="n">http</span><span class="o">.</span><span class="n">request</span><span class="p">(</span><span class="s2">&quot;GET&quot;</span><span class="p">,</span> <span class="s2">&quot;https://www.example.com/&quot;</span><span class="p">)</span>
+
+
+<span class="n">asyncio</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">main</span><span class="p">())</span>
+</code></pre></div>
+<p>When including content in the request, the content must either be bytes or an <em>async iterable</em> yielding bytes.</p>
+<h3 id="streaming-responses">Streaming responses</h3>
+<p>Streaming responses also require a slightly different interface to the sync version:</p>
+<ul>
+<li><code>with &lt;pool&gt;.stream(...) as response</code> → <code>async with &lt;pool&gt;.stream() as response</code>.</li>
+<li><code>for chunk in response.iter_stream()</code> → <code>async for chunk in response.aiter_stream()</code>.</li>
+<li><code>response.read()</code> → <code>await response.aread()</code>.</li>
+<li><code>response.close()</code> → <code>await response.aclose()</code></li>
+</ul>
+<p>For example:</p>
+<div class="language-python highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">httpcore2</span>
+
+
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
+    <span class="k">async</span> <span class="k">with</span> <span class="n">httpcore2</span><span class="o">.</span><span class="n">AsyncConnectionPool</span><span class="p">()</span> <span class="k">as</span> <span class="n">http</span><span class="p">:</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="n">http</span><span class="o">.</span><span class="n">stream</span><span class="p">(</span><span class="s2">&quot;GET&quot;</span><span class="p">,</span> <span class="s2">&quot;https://www.example.com/&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">response</span><span class="p">:</span>
+            <span class="k">async</span> <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">response</span><span class="o">.</span><span class="n">aiter_stream</span><span class="p">():</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Downloaded: </span><span class="si">{</span><span class="n">chunk</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+
+<span class="n">asyncio</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">main</span><span class="p">())</span>
+</code></pre></div>
+<h3 id="pool-lifespans">Pool lifespans</h3>
+<p>When using <code>httpcore2</code> in an async environment it is strongly recommended that you instantiate and use connection pools using the context managed style:</p>
+<div class="language-python highlight"><pre><span></span><code><span class="k">async</span> <span class="k">with</span> <span class="n">httpcore2</span><span class="o">.</span><span class="n">AsyncConnectionPool</span><span class="p">()</span> <span class="k">as</span> <span class="n">http</span><span class="p">:</span>
+    <span class="o">...</span>
+</code></pre></div>
+<p>To benefit from connection pooling it is recommended that you instantiate a single connection pool in this style, and pass it around throughout your application.</p>
+<p>If you do want to use a connection pool without this style then you'll need to ensure that you explicitly close the pool once it is no longer required:</p>
+<div class="language-python highlight"><pre><span></span><code><span class="k">try</span><span class="p">:</span>
+    <span class="n">http</span> <span class="o">=</span> <span class="n">httpcore2</span><span class="o">.</span><span class="n">AsyncConnectionPool</span><span class="p">()</span>
+    <span class="o">...</span>
+<span class="k">finally</span><span class="p">:</span>
+    <span class="k">await</span> <span class="n">http</span><span class="o">.</span><span class="n">aclose</span><span class="p">()</span>
+</code></pre></div>
+<p>This is a little different to the threaded context, where it's okay to simply instantiate a globally available connection pool, and then allow Python's garbage collection to deal with closing any connections in the pool, once the <code>__del__</code> method is called.</p>
+<p>The reason for this difference is that asynchronous code is not able to run within the context of the synchronous <code>__del__</code> method, so there is no way for connections to be automatically closed at the point of garbage collection. This can lead to unterminated TCP connections still remaining after the Python interpreter quits.</p>
+<h2 id="supported-environments">Supported environments</h2>
+<p>HTTPX supports either <code>asyncio</code> or <code>trio</code> as an async environment.</p>
+<p>It will auto-detect which of those two to use as the backend for socket operations and concurrency primitives.</p>
+<h3 id="asyncio">AsyncIO</h3>
+<p>AsyncIO is Python's <a href="https://docs.python.org/3/library/asyncio.html">built-in library</a> for writing concurrent code with the async/await syntax.</p>
+<p>Let's take a look at sending several outgoing HTTP requests concurrently, using <code>asyncio</code>:</p>
+<div class="language-python highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">httpcore2</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+
+
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">download</span><span class="p">(</span><span class="n">http</span><span class="p">,</span> <span class="n">year</span><span class="p">):</span>
+    <span class="k">await</span> <span class="n">http</span><span class="o">.</span><span class="n">request</span><span class="p">(</span><span class="s2">&quot;GET&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;https://en.wikipedia.org/wiki/</span><span class="si">{</span><span class="n">year</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
+    <span class="k">async</span> <span class="k">with</span> <span class="n">httpcore2</span><span class="o">.</span><span class="n">AsyncConnectionPool</span><span class="p">()</span> <span class="k">as</span> <span class="n">http</span><span class="p">:</span>
+        <span class="n">started</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="c1"># Here we use `asyncio.gather()` in order to run several tasks concurrently...</span>
+        <span class="n">tasks</span> <span class="o">=</span> <span class="p">[</span><span class="n">download</span><span class="p">(</span><span class="n">http</span><span class="p">,</span> <span class="n">year</span><span class="p">)</span> <span class="k">for</span> <span class="n">year</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2000</span><span class="p">,</span> <span class="mi">2020</span><span class="p">)]</span>
+        <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">gather</span><span class="p">(</span><span class="o">*</span><span class="n">tasks</span><span class="p">)</span>
+        <span class="n">complete</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+        <span class="k">for</span> <span class="n">connection</span> <span class="ow">in</span> <span class="n">http</span><span class="o">.</span><span class="n">connections</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">connection</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Complete in </span><span class="si">%.3f</span><span class="s2"> seconds&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">complete</span> <span class="o">-</span> <span class="n">started</span><span class="p">))</span>
+
+
+<span class="n">asyncio</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">main</span><span class="p">())</span>
+</code></pre></div>
+<h3 id="trio">Trio</h3>
+<p>Trio is <a href="https://trio.readthedocs.io/en/stable/">an alternative async library</a>, designed around the <a href="https://en.wikipedia.org/wiki/Structured_concurrency">the principles of structured concurrency</a>.</p>
+<div class="language-python highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">httpcore2</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">trio</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+
+
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">download</span><span class="p">(</span><span class="n">http</span><span class="p">,</span> <span class="n">year</span><span class="p">):</span>
+    <span class="k">await</span> <span class="n">http</span><span class="o">.</span><span class="n">request</span><span class="p">(</span><span class="s2">&quot;GET&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;https://en.wikipedia.org/wiki/</span><span class="si">{</span><span class="n">year</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
+    <span class="k">async</span> <span class="k">with</span> <span class="n">httpcore2</span><span class="o">.</span><span class="n">AsyncConnectionPool</span><span class="p">()</span> <span class="k">as</span> <span class="n">http</span><span class="p">:</span>
+        <span class="n">started</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="n">trio</span><span class="o">.</span><span class="n">open_nursery</span><span class="p">()</span> <span class="k">as</span> <span class="n">nursery</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">year</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2000</span><span class="p">,</span> <span class="mi">2020</span><span class="p">):</span>
+                <span class="n">nursery</span><span class="o">.</span><span class="n">start_soon</span><span class="p">(</span><span class="n">download</span><span class="p">,</span> <span class="n">http</span><span class="p">,</span> <span class="n">year</span><span class="p">)</span>
+        <span class="n">complete</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+        <span class="k">for</span> <span class="n">connection</span> <span class="ow">in</span> <span class="n">http</span><span class="o">.</span><span class="n">connections</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">connection</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Complete in </span><span class="si">%.3f</span><span class="s2"> seconds&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">complete</span> <span class="o">-</span> <span class="n">started</span><span class="p">))</span>
+
+
+<span class="n">trio</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">main</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="anyio">AnyIO</h3>
+<p>AnyIO is an <a href="https://anyio.readthedocs.io/">asynchronous networking and concurrency library</a> that works on top of either asyncio or trio. It blends in with native libraries of your chosen backend (defaults to asyncio).</p>
+<p>The <code>anyio</code> library is designed around the <a href="https://en.wikipedia.org/wiki/Structured_concurrency">the principles of structured concurrency</a>, and brings many of the same correctness and usability benefits that Trio provides, while interoperating with existing <code>asyncio</code> libraries.</p>
+<div class="language-python highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">httpcore2</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">anyio</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+
+
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">download</span><span class="p">(</span><span class="n">http</span><span class="p">,</span> <span class="n">year</span><span class="p">):</span>
+    <span class="k">await</span> <span class="n">http</span><span class="o">.</span><span class="n">request</span><span class="p">(</span><span class="s2">&quot;GET&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;https://en.wikipedia.org/wiki/</span><span class="si">{</span><span class="n">year</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
+    <span class="k">async</span> <span class="k">with</span> <span class="n">httpcore2</span><span class="o">.</span><span class="n">AsyncConnectionPool</span><span class="p">()</span> <span class="k">as</span> <span class="n">http</span><span class="p">:</span>
+        <span class="n">started</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="n">anyio</span><span class="o">.</span><span class="n">create_task_group</span><span class="p">()</span> <span class="k">as</span> <span class="n">task_group</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">year</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2000</span><span class="p">,</span> <span class="mi">2020</span><span class="p">):</span>
+                <span class="n">task_group</span><span class="o">.</span><span class="n">start_soon</span><span class="p">(</span><span class="n">download</span><span class="p">,</span> <span class="n">http</span><span class="p">,</span> <span class="n">year</span><span class="p">)</span>
+        <span class="n">complete</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+        <span class="k">for</span> <span class="n">connection</span> <span class="ow">in</span> <span class="n">http</span><span class="o">.</span><span class="n">connections</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">connection</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Complete in </span><span class="si">%.3f</span><span class="s2"> seconds&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">complete</span> <span class="o">-</span> <span class="n">started</span><span class="p">))</span>
+
+
+<span class="n">anyio</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">main</span><span class="p">)</span>
+</code></pre></div>
+<hr />
+<h1 id="reference">Reference</h1>
+<h2 id="httpcore2asyncconnectionpool"><code>httpcore2.AsyncConnectionPool</code></h2>
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="httpcore2.AsyncConnectionPool" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">httpcore2.AsyncConnectionPool</span>
+
+
+</h3>
+
+
+    <div class="doc doc-contents first">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="httpcore2._async.interfaces.AsyncRequestInterface">AsyncRequestInterface</span></code></p>
+
+
+
+        <p>A connection pool for making HTTP requests.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="httpcore2.AsyncConnectionPool.connections" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">connections</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+</h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="n">connections</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">AsyncConnectionInterface</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Return a list of the connections currently in the pool.</p>
+<p>For example:</p>
+<div class="language-python highlight"><pre><span></span><code><span class="o">&gt;&gt;&gt;</span> <span class="n">pool</span><span class="o">.</span><span class="n">connections</span>
+<span class="p">[</span>
+    <span class="o">&lt;</span><span class="n">AsyncHTTPConnection</span> <span class="p">[</span><span class="s1">&#39;https://example.com:443&#39;</span><span class="p">,</span> <span class="n">HTTP</span><span class="o">/</span><span class="mf">1.1</span><span class="p">,</span> <span class="n">ACTIVE</span><span class="p">,</span> <span class="n">Request</span> <span class="n">Count</span><span class="p">:</span> <span class="mi">6</span><span class="p">]</span><span class="o">&gt;</span><span class="p">,</span>
+    <span class="o">&lt;</span><span class="n">AsyncHTTPConnection</span> <span class="p">[</span><span class="s1">&#39;https://example.com:443&#39;</span><span class="p">,</span> <span class="n">HTTP</span><span class="o">/</span><span class="mf">1.1</span><span class="p">,</span> <span class="n">IDLE</span><span class="p">,</span> <span class="n">Request</span> <span class="n">Count</span><span class="p">:</span> <span class="mi">9</span><span class="p">]</span><span class="o">&gt;</span> <span class="p">,</span>
+    <span class="o">&lt;</span><span class="n">AsyncHTTPConnection</span> <span class="p">[</span><span class="s1">&#39;http://example.com:80&#39;</span><span class="p">,</span> <span class="n">HTTP</span><span class="o">/</span><span class="mf">1.1</span><span class="p">,</span> <span class="n">IDLE</span><span class="p">,</span> <span class="n">Request</span> <span class="n">Count</span><span class="p">:</span> <span class="mi">1</span><span class="p">]</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="p">]</span>
+</code></pre></div>
+
+    </div>
+
+</div>
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="httpcore2.AsyncConnectionPool.__init__" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">__init__</span>
+
+
+</h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">__init__</span><span class="p">(</span>
+    <span class="n">ssl_context</span><span class="p">:</span> <span class="n">SSLContext</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">proxy</span><span class="p">:</span> <span class="n">Proxy</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">max_connections</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
+    <span class="n">max_keepalive_connections</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">keepalive_expiry</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">http1</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">http2</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">retries</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="n">local_address</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">uds</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">network_backend</span><span class="p">:</span> <span class="n">AsyncNetworkBackend</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">socket_options</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">SOCKET_OPTION</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>A connection pool for making HTTP requests.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>ssl_context</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-external" title="ssl.SSLContext" href="https://docs.python.org/3/library/ssl.html#ssl.SSLContext">SSLContext</a> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>An SSL context to use for verifying connections.
+If not specified, the default <code>httpcore2.default_ssl_context()</code>
+will be used.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>max_connections</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The maximum number of concurrent HTTP connections that
+the pool should allow. Any attempt to send a request on a pool that
+would exceed this amount will block until a connection is available.</p>
+              </div>
+            </td>
+            <td>
+                  <code>10</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>max_keepalive_connections</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The maximum number of idle HTTP connections
+that will be maintained in the pool.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>keepalive_expiry</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The duration in seconds that an idle HTTP connection
+may be maintained for before being expired from the pool.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>http1</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A boolean indicating if HTTP/1.1 requests should be supported
+by the connection pool. Defaults to True.</p>
+              </div>
+            </td>
+            <td>
+                  <code>True</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>http2</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A boolean indicating if HTTP/2 requests should be supported by
+the connection pool. Defaults to False.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>retries</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The maximum number of retries when trying to establish a
+connection.</p>
+              </div>
+            </td>
+            <td>
+                  <code>0</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>local_address</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Local address to connect from. Can also be used to connect
+using a particular address family. Using <code>local_address="0.0.0.0"</code>
+will connect using an <code>AF_INET</code> address (IPv4), while using
+<code>local_address="::"</code> will connect using an <code>AF_INET6</code> address (IPv6).</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>uds</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Path to a Unix Domain Socket to use instead of TCP sockets.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>network_backend</code>
+            </td>
+            <td>
+                  <code><span title="httpcore2._backends.base.AsyncNetworkBackend">AsyncNetworkBackend</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A backend instance to use for handling network I/O.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>socket_options</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-external" title="typing.Iterable" href="https://docs.python.org/3/library/typing.html#typing.Iterable">Iterable</a>[<span title="httpcore2._backends.base.SOCKET_OPTION">SOCKET_OPTION</span>] | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Socket options that have to be included
+in the TCP socket when the connection was established.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="httpcore2.AsyncConnectionPool.handle_async_request" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">handle_async_request</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-async"><code>async</code></small>
+  </span>
+
+</h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">handle_async_request</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Send an HTTP request, and return an HTTP response.</p>
+<p>This is the core implementation that is called into by <code>.request()</code> or <code>.stream()</code>.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate":null,"base":"..","features":[],"search":"../assets/javascripts/workers/search.e2d2d235.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.dbc0afdc.min.js"></script>
+      
+    
+  </body>
+</html>

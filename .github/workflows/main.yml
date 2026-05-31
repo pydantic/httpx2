@@ -81,24 +81,24 @@ jobs:
         run: scripts/install
 
       - name: Build docs
-        run: uv run zensical build --clean
+        run: uv run zensical build --clean -f docs/httpx2/mkdocs.yml
 
       - name: Build httpcore2 docs
-        run: uv run zensical build --clean -f src/httpcore2/mkdocs.yml
+        run: uv run zensical build --clean -f docs/httpcore2/mkdocs.yml
 
       - uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
         id: deploy
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: versions upload --tag pr-${{ github.event.pull_request.number }}
+          command: versions upload --config docs/httpx2/wrangler.toml --tag pr-${{ github.event.pull_request.number }}
 
       - uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
         id: deploy-httpcore2
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: versions upload --config wrangler-httpcore2.toml --tag pr-${{ github.event.pull_request.number }}
+          command: versions upload --config docs/httpcore2/wrangler.toml --tag pr-${{ github.event.pull_request.number }}
 
       - name: Comment preview URL
         uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0 # v3.0.4

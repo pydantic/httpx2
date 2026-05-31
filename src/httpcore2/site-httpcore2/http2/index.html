@@ -1,0 +1,1028 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A minimal HTTP client for Python.">
+      
+      
+      
+        <link rel="canonical" href="https://httpcore2.pydantic.dev/http2/">
+      
+      
+        <link rel="prev" href="../proxies/">
+      
+      
+        <link rel="next" href="../async/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="zensical-0.0.41">
+    
+    
+      
+        <title>HTTP/2 - HTTPCore2</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../assets/stylesheets/modern/main.fba56155.min.css">
+      
+        
+          
+        
+        <link rel="stylesheet" href="../assets/stylesheets/modern/palette.dfe2e883.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&amp;display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_scope.pathname.endsWith("/")||(__md_scope=new URL(__md_scope.pathname+"/",location)),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,_=__md_scope)=>JSON.parse(t.getItem(_.pathname+"."+e)),__md_set=(e,t,_=localStorage,a=__md_scope)=>{try{_.setItem(a.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-label="Navigation"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#http2" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="./.." title="HTTPCore2" class="md-header__button md-logo" aria-label="HTTPCore2" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            HTTPCore2
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              HTTP/2
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.47 3 5.74V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.26c1.81-1.27 3-3.36 3-5.74a7 7 0 0 0-7-7M9 21a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-1H9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="blue" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7M9 21v-1h6v1a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1m3-17a5 5 0 0 0-5 5c0 2.05 1.23 3.81 3 4.58V16h4v-2.42c1.77-.77 3-2.53 3-4.58a5 5 0 0 0-5-5"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search" aria-label="Search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+        <a href="https://github.com/pydantic/httpx2/" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    pydantic/httpx2
+  </div>
+</a>
+      
+    </div>
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="./.." title="HTTPCore2" class="md-nav__button md-logo" aria-label="HTTPCore2" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    HTTPCore2
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/pydantic/httpx2/" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    pydantic/httpx2
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="./.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Introduction
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Quickstart
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../requests-responses-urls/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Requests, Responses, and URLs
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connection-pools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Connection Pools
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connections/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Connections
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../proxies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Proxies
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  HTTP/2
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="././" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  HTTP/2
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#enabling-http2" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Enabling HTTP/2
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#inspecting-the-http-version" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Inspecting the HTTP version
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#http2-negotiation" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        HTTP/2 negotiation
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="HTTP&#x2f;2 negotiation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#http2-over-https" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        HTTP/2 over HTTPS
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#http2-over-http" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        HTTP/2 over HTTP
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#prior-knowledge" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Prior Knowledge
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#request-response-headers" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Request &amp; response headers
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#request-headers" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Request headers
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#response-headers" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Response headers
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../async/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Async Support
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../network-backends/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Network Backends
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../extensions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Extensions
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../logging/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Logging
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../exceptions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Exceptions
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  
+                    
+                    
+                    
+                      
+                    
+                    
+                      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+                      <div class="md-sidebar-button__wrapper">
+                        <label class="md-sidebar-button" for="__toc"></label>
+                      </div>
+                    
+                  
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#enabling-http2" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Enabling HTTP/2
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#inspecting-the-http-version" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Inspecting the HTTP version
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#http2-negotiation" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        HTTP/2 negotiation
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="HTTP&#x2f;2 negotiation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#http2-over-https" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        HTTP/2 over HTTPS
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#http2-over-http" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        HTTP/2 over HTTP
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#prior-knowledge" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Prior Knowledge
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#request-response-headers" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Request &amp; response headers
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#request-headers" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Request headers
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#response-headers" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Response headers
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+  
+  
+
+
+<h1 id="http2">HTTP/2</h1>
+<p>HTTP/2 is a major new iteration of the HTTP protocol, that provides a more efficient transport, with potential performance benefits. HTTP/2 does not change the core semantics of the request or response, but alters the way that data is sent to and from the server.</p>
+<p>Rather than the text format that HTTP/1.1 uses, HTTP/2 is a binary format. The binary format provides full request and response multiplexing, and efficient compression of HTTP headers. The stream multiplexing means that where HTTP/1.1 requires one TCP stream for each concurrent request, HTTP/2 allows a single TCP stream to handle multiple concurrent requests.</p>
+<p>HTTP/2 also provides support for functionality such as response prioritization, and server push.</p>
+<p>For a comprehensive guide to HTTP/2 you may want to check out "<a href="https://http2-explained.haxx.se">HTTP2 Explained</a>".</p>
+<h2 id="enabling-http2">Enabling HTTP/2</h2>
+<p>When using the <code>httpcore2</code> client, HTTP/2 support is not enabled by default, because HTTP/1.1 is a mature, battle-hardened transport layer, and our HTTP/1.1 implementation may be considered the more robust option at this point in time. It is possible that a future version of <code>httpcore2</code> may enable HTTP/2 support by default.</p>
+<p>If you're issuing highly concurrent requests you might want to consider trying out our HTTP/2 support. You can do so by first making sure to install the optional HTTP/2 dependencies...</p>
+<div class="language-shell highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s1">&#39;httpcore2[http2]&#39;</span>
+</code></pre></div>
+<p>And then instantiating a connection pool with HTTP/2 support enabled:</p>
+<div class="language-python highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">httpcore2</span>
+
+<span class="n">pool</span> <span class="o">=</span> <span class="n">httpcore2</span><span class="o">.</span><span class="n">ConnectionPool</span><span class="p">(</span><span class="n">http2</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</code></pre></div>
+<p>We can take a look at the difference in behaviour by issuing several outgoing requests in parallel.</p>
+<p>Start out by using a standard HTTP/1.1 connection pool:</p>
+<div class="language-python highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">httpcore2</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">concurrent.futures</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">download</span><span class="p">(</span><span class="n">http</span><span class="p">,</span> <span class="n">year</span><span class="p">):</span>
+    <span class="n">http</span><span class="o">.</span><span class="n">request</span><span class="p">(</span><span class="s2">&quot;GET&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;https://en.wikipedia.org/wiki/</span><span class="si">{</span><span class="n">year</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
+    <span class="k">with</span> <span class="n">httpcore2</span><span class="o">.</span><span class="n">ConnectionPool</span><span class="p">()</span> <span class="k">as</span> <span class="n">http</span><span class="p">:</span>
+        <span class="n">started</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="k">with</span> <span class="n">concurrent</span><span class="o">.</span><span class="n">futures</span><span class="o">.</span><span class="n">ThreadPoolExecutor</span><span class="p">(</span><span class="n">max_workers</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span> <span class="k">as</span> <span class="n">threads</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">year</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2000</span><span class="p">,</span> <span class="mi">2020</span><span class="p">):</span>
+                <span class="n">threads</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="n">download</span><span class="p">,</span> <span class="n">http</span><span class="p">,</span> <span class="n">year</span><span class="p">)</span>
+        <span class="n">complete</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+        <span class="k">for</span> <span class="n">connection</span> <span class="ow">in</span> <span class="n">http</span><span class="o">.</span><span class="n">connections</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">connection</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Complete in </span><span class="si">%.3f</span><span class="s2"> seconds&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">complete</span> <span class="o">-</span> <span class="n">started</span><span class="p">))</span>
+
+
+<span class="n">main</span><span class="p">()</span>
+</code></pre></div>
+<p>If you run this with an HTTP/1.1 connection pool, you ought to see output similar to the following:</p>
+<div class="language-python highlight"><pre><span></span><code><span class="o">&lt;</span><span class="n">HTTPConnection</span> <span class="p">[</span><span class="s1">&#39;https://en.wikipedia.org:443&#39;</span><span class="p">,</span> <span class="n">HTTP</span><span class="o">/</span><span class="mf">1.1</span><span class="p">,</span> <span class="n">IDLE</span><span class="p">,</span> <span class="n">Request</span> <span class="n">Count</span><span class="p">:</span> <span class="mi">2</span><span class="p">]</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="o">&lt;</span><span class="n">HTTPConnection</span> <span class="p">[</span><span class="s1">&#39;https://en.wikipedia.org:443&#39;</span><span class="p">,</span> <span class="n">HTTP</span><span class="o">/</span><span class="mf">1.1</span><span class="p">,</span> <span class="n">IDLE</span><span class="p">,</span> <span class="n">Request</span> <span class="n">Count</span><span class="p">:</span> <span class="mi">3</span><span class="p">]</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="o">&lt;</span><span class="n">HTTPConnection</span> <span class="p">[</span><span class="s1">&#39;https://en.wikipedia.org:443&#39;</span><span class="p">,</span> <span class="n">HTTP</span><span class="o">/</span><span class="mf">1.1</span><span class="p">,</span> <span class="n">IDLE</span><span class="p">,</span> <span class="n">Request</span> <span class="n">Count</span><span class="p">:</span> <span class="mi">6</span><span class="p">]</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="o">&lt;</span><span class="n">HTTPConnection</span> <span class="p">[</span><span class="s1">&#39;https://en.wikipedia.org:443&#39;</span><span class="p">,</span> <span class="n">HTTP</span><span class="o">/</span><span class="mf">1.1</span><span class="p">,</span> <span class="n">IDLE</span><span class="p">,</span> <span class="n">Request</span> <span class="n">Count</span><span class="p">:</span> <span class="mi">5</span><span class="p">]</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="o">&lt;</span><span class="n">HTTPConnection</span> <span class="p">[</span><span class="s1">&#39;https://en.wikipedia.org:443&#39;</span><span class="p">,</span> <span class="n">HTTP</span><span class="o">/</span><span class="mf">1.1</span><span class="p">,</span> <span class="n">IDLE</span><span class="p">,</span> <span class="n">Request</span> <span class="n">Count</span><span class="p">:</span> <span class="mi">1</span><span class="p">]</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="o">&lt;</span><span class="n">HTTPConnection</span> <span class="p">[</span><span class="s1">&#39;https://en.wikipedia.org:443&#39;</span><span class="p">,</span> <span class="n">HTTP</span><span class="o">/</span><span class="mf">1.1</span><span class="p">,</span> <span class="n">IDLE</span><span class="p">,</span> <span class="n">Request</span> <span class="n">Count</span><span class="p">:</span> <span class="mi">1</span><span class="p">]</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="o">&lt;</span><span class="n">HTTPConnection</span> <span class="p">[</span><span class="s1">&#39;https://en.wikipedia.org:443&#39;</span><span class="p">,</span> <span class="n">HTTP</span><span class="o">/</span><span class="mf">1.1</span><span class="p">,</span> <span class="n">IDLE</span><span class="p">,</span> <span class="n">Request</span> <span class="n">Count</span><span class="p">:</span> <span class="mi">1</span><span class="p">]</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="o">&lt;</span><span class="n">HTTPConnection</span> <span class="p">[</span><span class="s1">&#39;https://en.wikipedia.org:443&#39;</span><span class="p">,</span> <span class="n">HTTP</span><span class="o">/</span><span class="mf">1.1</span><span class="p">,</span> <span class="n">IDLE</span><span class="p">,</span> <span class="n">Request</span> <span class="n">Count</span><span class="p">:</span> <span class="mi">1</span><span class="p">]</span><span class="o">&gt;</span>
+<span class="n">Complete</span> <span class="ow">in</span> <span class="mf">0.586</span> <span class="n">seconds</span>
+</code></pre></div>
+<p>We can see that the connection pool required a number of connections in order to handle the parallel requests.</p>
+<p>If we now upgrade our connection pool to support HTTP/2:</p>
+<div class="language-python highlight"><pre><span></span><code><span class="k">with</span> <span class="n">httpcore2</span><span class="o">.</span><span class="n">ConnectionPool</span><span class="p">(</span><span class="n">http2</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="k">as</span> <span class="n">http</span><span class="p">:</span>
+    <span class="o">...</span>
+</code></pre></div>
+<p>And run the same script again, we should end up with something like this:</p>
+<div class="language-python highlight"><pre><span></span><code><span class="o">&lt;</span><span class="n">HTTPConnection</span> <span class="p">[</span><span class="s1">&#39;https://en.wikipedia.org:443&#39;</span><span class="p">,</span> <span class="n">HTTP</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span> <span class="n">IDLE</span><span class="p">,</span> <span class="n">Request</span> <span class="n">Count</span><span class="p">:</span> <span class="mi">20</span><span class="p">]</span><span class="o">&gt;</span>
+<span class="n">Complete</span> <span class="ow">in</span> <span class="mf">0.573</span> <span class="n">seconds</span>
+</code></pre></div>
+<p>All of our requests have been handled over a single connection.</p>
+<p>Switching to HTTP/2 should not <em>necessarily</em> be considered an "upgrade". It is more complex, and requires more computational power, and so particularly in an interpreted language like Python it <em>could</em> be slower in some instances. Moreover, utilising multiple connections may end up connecting to multiple hosts, and could sometimes appear faster to the client, at the cost of requiring more server resources. Enabling HTTP/2 is most likely to be beneficial if you are sending requests in high concurrency, and may often be more well suited to an async context, rather than multi-threading.</p>
+<h2 id="inspecting-the-http-version">Inspecting the HTTP version</h2>
+<p>Enabling HTTP/2 support on the client does not <em>necessarily</em> mean that your requests and responses will be transported over HTTP/2, since both the client <em>and</em> the server need to support HTTP/2. If you connect to a server that only supports HTTP/1.1 the client will use a standard HTTP/1.1 connection instead.</p>
+<p>You can determine which version of the HTTP protocol was used by examining the <code>"http_version"</code> response extension.</p>
+<div class="language-python highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">httpcore2</span>
+
+<span class="n">pool</span> <span class="o">=</span> <span class="n">httpcore2</span><span class="o">.</span><span class="n">ConnectionPool</span><span class="p">(</span><span class="n">http2</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">response</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">request</span><span class="p">(</span><span class="s2">&quot;GET&quot;</span><span class="p">,</span> <span class="s2">&quot;https://www.example.com/&quot;</span><span class="p">)</span>
+
+<span class="c1"># Should be one of b&quot;HTTP/2&quot;, b&quot;HTTP/1.1&quot;, b&quot;HTTP/1.0&quot;, or b&quot;HTTP/0.9&quot;.</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">extensions</span><span class="p">[</span><span class="s2">&quot;http_version&quot;</span><span class="p">])</span>
+</code></pre></div>
+<p>See <a href="../extensions/">the extensions documentation</a> for more details.</p>
+<h2 id="http2-negotiation">HTTP/2 negotiation</h2>
+<p>Robust servers need to support both HTTP/2 and HTTP/1.1 capable clients, and so need some way to "negotiate" with the client which protocol version will be used.</p>
+<h3 id="http2-over-https">HTTP/2 over HTTPS</h3>
+<p>Generally the method used is for the server to advertise if it has HTTP/2 support during the part of the SSL connection handshake. This is known as ALPN - "Application Layer Protocol Negotiation".</p>
+<p>Most browsers only provide HTTP/2 support over HTTPS connections, and this is also the default behaviour that <code>httpcore2</code> provides. If you enable HTTP/2 support you should still expect to see HTTP/1.1 connections for any <code>http://</code> URLs.</p>
+<h3 id="http2-over-http">HTTP/2 over HTTP</h3>
+<p>Servers can optionally also support HTTP/2 over HTTP by supporting the <code>Upgrade: h2c</code> header.</p>
+<p>This mechanism is not supported by <code>httpcore2</code>. It requires an additional round-trip between the client and server, and also requires any request body to be sent twice.</p>
+<h3 id="prior-knowledge">Prior Knowledge</h3>
+<p>If you know in advance that the server you are communicating with will support HTTP/2, then you can enforce that the client uses HTTP/2, without requiring either ALPN support or an HTTP <code>Upgrade: h2c</code> header.</p>
+<p>This is managed by disabling HTTP/1.1 support on the connection pool:</p>
+<div class="language-python highlight"><pre><span></span><code><span class="n">pool</span> <span class="o">=</span> <span class="n">httpcore2</span><span class="o">.</span><span class="n">ConnectionPool</span><span class="p">(</span><span class="n">http1</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">http2</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</code></pre></div>
+<h2 id="request-response-headers">Request &amp; response headers</h2>
+<p>Because HTTP/2 frames the requests and responses somewhat differently to HTTP/1.1, there is a difference in some of the headers that are used.</p>
+<p>In order for the <code>httpcore2</code> library to support both HTTP/1.1 and HTTP/2 transparently, the HTTP/1.1 style is always used throughout the API. Any differences in header styles are only mapped onto HTTP/2 at the internal network layer.</p>
+<h2 id="request-headers">Request headers</h2>
+<p>The following pseudo-headers are used by HTTP/2 in the request:</p>
+<ul>
+<li><code>:method</code> - The request method.</li>
+<li><code>:path</code> - Taken from the URL of the request.</li>
+<li><code>:authority</code> - Equivalent to the <code>Host</code> header in HTTP/1.1. In <code>httpcore2</code> this is represented using the request <code>Host</code> header, which is automatically populated from the request URL if no <code>Host</code> header is explicitly included.</li>
+<li><code>:scheme</code> - Taken from the URL of the request.</li>
+</ul>
+<p>These pseudo-headers are included in <code>httpcore2</code> as part of the <code>request.method</code> and <code>request.url</code> attributes, and through the <code>request.headers["Host"]</code> header. <em>They are not exposed directly by their psuedo-header names.</em></p>
+<p>The one other difference to be aware of is the <code>Transfer-Encoding: chunked</code> header.</p>
+<p>In HTTP/2 this header is never used, since streaming data is framed using a different mechanism.</p>
+<p>In <code>httpcore2</code> the <code>Transfer-Encoding: chunked</code> header is always used to represent the presence of a streaming body on the request, and is automatically populated if required. However the header is only sent if the underlying connection ends up being HTTP/1.1, and is omitted if the underlying connection ends up being HTTP/2.</p>
+<h2 id="response-headers">Response headers</h2>
+<p>The following pseudo-header is used by HTTP/2 in the response:</p>
+<ul>
+<li><code>:status</code> - The response status code.</li>
+</ul>
+<p>In <code>httpcore2</code> this <em>is represented by the <code>response.status</code> attribute, rather than being exposed as a psuedo-header</em>.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate":null,"base":"..","features":[],"search":"../assets/javascripts/workers/search.e2d2d235.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.dbc0afdc.min.js"></script>
+      
+    
+  </body>
+</html>
