@@ -55,10 +55,9 @@ def create_ssl_context(
             "or `verify=ssl.create_default_context(capath=...)` instead."
         )
         warnings.warn(message, DeprecationWarning)
-        if os.path.isdir(verify):
-            ctx = ssl.create_default_context(capath=verify)  # pragma: no cover
-        else:
-            ctx = ssl.create_default_context(cafile=verify)
+        if os.path.isdir(verify):  # pragma: no cover
+            return ssl.create_default_context(capath=verify)
+        return ssl.create_default_context(cafile=verify)
     else:
         ctx = verify
 
