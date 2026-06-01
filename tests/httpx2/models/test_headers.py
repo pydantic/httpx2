@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import pytest
 
 import httpx2
 
 
-def test_headers():
+def test_headers() -> None:
     h = httpx2.Headers([("a", "123"), ("a", "456"), ("b", "789")])
     assert "a" in h
     assert "A" in h
@@ -34,7 +36,7 @@ def test_headers():
     assert repr(h) == "Headers({'a': '123', 'b': '789'})"
 
 
-def test_header_mutations():
+def test_header_mutations() -> None:
     h = httpx2.Headers()
     assert dict(h) == {}
     h["a"] = "1"
@@ -50,44 +52,44 @@ def test_header_mutations():
     assert h.raw == [(b"b", b"4")]
 
 
-def test_copy_headers_method():
+def test_copy_headers_method() -> None:
     headers = httpx2.Headers({"custom": "example"})
     headers_copy = headers.copy()
     assert headers == headers_copy
     assert headers is not headers_copy
 
 
-def test_copy_headers_init():
+def test_copy_headers_init() -> None:
     headers = httpx2.Headers({"custom": "example"})
     headers_copy = httpx2.Headers(headers)
     assert headers == headers_copy
 
 
-def test_headers_insert_retains_ordering():
+def test_headers_insert_retains_ordering() -> None:
     headers = httpx2.Headers({"a": "a", "b": "b", "c": "c"})
     headers["b"] = "123"
     assert list(headers.values()) == ["a", "123", "c"]
 
 
-def test_headers_insert_appends_if_new():
+def test_headers_insert_appends_if_new() -> None:
     headers = httpx2.Headers({"a": "a", "b": "b", "c": "c"})
     headers["d"] = "123"
     assert list(headers.values()) == ["a", "b", "c", "123"]
 
 
-def test_headers_insert_removes_all_existing():
+def test_headers_insert_removes_all_existing() -> None:
     headers = httpx2.Headers([("a", "123"), ("a", "456")])
     headers["a"] = "789"
     assert dict(headers) == {"a": "789"}
 
 
-def test_headers_delete_removes_all_existing():
+def test_headers_delete_removes_all_existing() -> None:
     headers = httpx2.Headers([("a", "123"), ("a", "456")])
     del headers["a"]
     assert dict(headers) == {}
 
 
-def test_headers_dict_repr():
+def test_headers_dict_repr() -> None:
     """
     Headers should display with a dict repr by default.
     """
@@ -95,7 +97,7 @@ def test_headers_dict_repr():
     assert repr(headers) == "Headers({'custom': 'example'})"
 
 
-def test_headers_encoding_in_repr():
+def test_headers_encoding_in_repr() -> None:
     """
     Headers should display an encoding in the repr if required.
     """
@@ -103,7 +105,7 @@ def test_headers_encoding_in_repr():
     assert repr(headers) == "Headers({'custom': 'example ☃'}, encoding='utf-8')"
 
 
-def test_headers_list_repr():
+def test_headers_list_repr() -> None:
     """
     Headers should display with a list repr if they include multiple identical keys.
     """
@@ -111,7 +113,7 @@ def test_headers_list_repr():
     assert repr(headers) == "Headers([('custom', 'example 1'), ('custom', 'example 2')])"
 
 
-def test_headers_decode_ascii():
+def test_headers_decode_ascii() -> None:
     """
     Headers should decode as ascii by default.
     """
@@ -121,7 +123,7 @@ def test_headers_decode_ascii():
     assert headers.encoding == "ascii"
 
 
-def test_headers_decode_utf_8():
+def test_headers_decode_utf_8() -> None:
     """
     Headers containing non-ascii codepoints should default to decoding as utf-8.
     """
@@ -131,7 +133,7 @@ def test_headers_decode_utf_8():
     assert headers.encoding == "utf-8"
 
 
-def test_headers_decode_iso_8859_1():
+def test_headers_decode_iso_8859_1() -> None:
     """
     Headers containing non-UTF-8 codepoints should default to decoding as iso-8859-1.
     """
@@ -141,7 +143,7 @@ def test_headers_decode_iso_8859_1():
     assert headers.encoding == "iso-8859-1"
 
 
-def test_headers_decode_explicit_encoding():
+def test_headers_decode_explicit_encoding() -> None:
     """
     An explicit encoding may be set on headers in order to force a
     particular decoding.
@@ -153,7 +155,7 @@ def test_headers_decode_explicit_encoding():
     assert headers.encoding == "iso-8859-1"
 
 
-def test_multiple_headers():
+def test_multiple_headers() -> None:
     """
     `Headers.get_list` should support both split_commas=False and split_commas=True.
     """
@@ -165,7 +167,7 @@ def test_multiple_headers():
 
 
 @pytest.mark.parametrize("header", ["authorization", "proxy-authorization"])
-def test_sensitive_headers(header):
+def test_sensitive_headers(header: str) -> None:
     """
     Some headers should be obfuscated because they contain sensitive data.
     """
@@ -182,7 +184,7 @@ def test_sensitive_headers(header):
         ([("proxy-authorization", "s3kr3t")], [("proxy-authorization", "[secure]")]),
     ],
 )
-def test_obfuscate_sensitive_headers(headers, output):
+def test_obfuscate_sensitive_headers(headers: list[tuple[str, str]], output: list[tuple[str, str]]) -> None:
     as_dict = dict(output)
     headers_class = httpx2.Headers(dict(headers))
     assert repr(headers_class) == f"Headers({as_dict!r})"
@@ -207,11 +209,11 @@ def test_obfuscate_sensitive_headers(headers, output):
         ("", []),
     ),
 )
-def test_parse_header_links(value, expected):
+def test_parse_header_links(value: str, expected: list[dict[str, str]]) -> None:
     all_links = httpx2.Response(200, headers={"link": value}).links.values()
     assert all(link in all_links for link in expected)
 
 
-def test_parse_header_links_no_link():
+def test_parse_header_links_no_link() -> None:
     all_links = httpx2.Response(200).links
     assert all_links == {}

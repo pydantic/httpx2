@@ -14,7 +14,7 @@ def echo_request_content(request: httpx2.Request) -> httpx2.Response:
 
 
 @pytest.mark.parametrize(("value,output"), (("abc", b"abc"), (b"abc", b"abc")))
-def test_multipart(value, output):
+def test_multipart(value: str | bytes, output: bytes) -> None:
     client = httpx2.Client(transport=httpx2.MockTransport(echo_request_content))
 
     # Test with a single-value 'data' argument, and a plain file 'files' argument.
@@ -95,7 +95,7 @@ def test_multipart_header_without_boundary(header: str) -> None:
 
 
 @pytest.mark.parametrize(("key"), (b"abc", 1, 2.3, None))
-def test_multipart_invalid_key(key):
+def test_multipart_invalid_key(key: typing.Any) -> None:
     client = httpx2.Client(transport=httpx2.MockTransport(echo_request_content))
 
     data = {key: "abc"}
@@ -111,7 +111,7 @@ def test_multipart_invalid_key(key):
 
 
 @pytest.mark.parametrize(("value"), (object(), {"key": "value"}))
-def test_multipart_invalid_value(value):
+def test_multipart_invalid_value(value: typing.Any) -> None:
     client = httpx2.Client(transport=httpx2.MockTransport(echo_request_content))
 
     data = {"text": value}
@@ -121,7 +121,7 @@ def test_multipart_invalid_value(value):
     assert "Invalid type for value" in str(e.value)
 
 
-def test_multipart_file_tuple():
+def test_multipart_file_tuple() -> None:
     client = httpx2.Client(transport=httpx2.MockTransport(echo_request_content))
 
     # Test with a list of values 'data' argument,
@@ -418,7 +418,7 @@ def test_multipart_encode_non_seekable_filelike() -> None:
     )
 
 
-def test_multipart_rewinds_files():
+def test_multipart_rewinds_files() -> None:
     with tempfile.TemporaryFile() as upload:
         upload.write(b"Hello, world!")
 
@@ -438,28 +438,28 @@ def test_multipart_rewinds_files():
 
 
 class TestHeaderParamHTML5Formatting:
-    def test_unicode(self):
+    def test_unicode(self) -> None:
         filename = "n\u00e4me"
         expected = b'filename="n\xc3\xa4me"'
         files = {"upload": (filename, b"<file content>")}
         request = httpx2.Request("GET", "https://www.example.com", files=files)
         assert expected in request.read()
 
-    def test_ascii(self):
+    def test_ascii(self) -> None:
         filename = "name"
         expected = b'filename="name"'
         files = {"upload": (filename, b"<file content>")}
         request = httpx2.Request("GET", "https://www.example.com", files=files)
         assert expected in request.read()
 
-    def test_unicode_escape(self):
+    def test_unicode_escape(self) -> None:
         filename = "hello\\world\u0022"
         expected = b'filename="hello\\\\world%22"'
         files = {"upload": (filename, b"<file content>")}
         request = httpx2.Request("GET", "https://www.example.com", files=files)
         assert expected in request.read()
 
-    def test_unicode_with_control_character(self):
+    def test_unicode_with_control_character(self) -> None:
         filename = "hello\x1a\x1b\x1c"
         expected = b'filename="hello%1A\x1b%1C"'
         files = {"upload": (filename, b"<file content>")}

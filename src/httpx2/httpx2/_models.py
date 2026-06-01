@@ -563,6 +563,9 @@ class Response:
         cycle to complete.
         """
         if not hasattr(self, "_elapsed"):
+            stream_elapsed: datetime.timedelta | None = getattr(self.stream, "elapsed", None)
+            if stream_elapsed is not None:
+                return stream_elapsed
             raise RuntimeError("'.elapsed' may only be accessed after the response has been read or closed.")
         return self._elapsed
 

@@ -1,4 +1,6 @@
 import asyncio
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 import uvicorn
 
@@ -7,7 +9,11 @@ RESP = b"a" * 2000
 SLEEP = 0.01
 
 
-async def app(scope, receive, send):
+async def app(
+    scope: dict[str, Any],
+    receive: Callable[[], Awaitable[dict[str, Any]]],
+    send: Callable[[dict[str, Any]], Awaitable[None]],
+) -> None:
     assert scope["type"] == "http"
     assert scope["path"] == "/req"
     assert not (await receive()).get("more_body", False)

@@ -10,12 +10,12 @@ import pytest
 
 import httpx2
 
-if typing.TYPE_CHECKING:  # pragma: no cover
+if typing.TYPE_CHECKING:
     from _typeshed.wsgi import StartResponse, WSGIApplication, WSGIEnvironment
 
 
 def application_factory(output: typing.Iterable[bytes]) -> WSGIApplication:
-    def application(environ, start_response):
+    def application(environ: WSGIEnvironment, start_response: StartResponse) -> typing.Iterator[bytes]:
         status = "200 OK"
 
         response_headers = [
@@ -81,13 +81,13 @@ def raise_exc(
     return [output]
 
 
-def log_to_wsgi_log_buffer(environ, start_response):
+def log_to_wsgi_log_buffer(environ: WSGIEnvironment, start_response: StartResponse) -> typing.Iterable[bytes]:
     print("test1", file=environ["wsgi.errors"])
     environ["wsgi.errors"].write("test2")
     return echo_body(environ, start_response)
 
 
-def test_wsgi():
+def test_wsgi() -> None:
     transport = httpx2.WSGITransport(app=application_factory([b"Hello, World!"]))
     client = httpx2.Client(transport=transport)
     response = client.get("http://www.example.org/")
@@ -95,7 +95,7 @@ def test_wsgi():
     assert response.text == "Hello, World!"
 
 
-def test_wsgi_upload():
+def test_wsgi_upload() -> None:
     transport = httpx2.WSGITransport(app=echo_body)
     client = httpx2.Client(transport=transport)
     response = client.post("http://www.example.org/", content=b"example")
@@ -103,7 +103,7 @@ def test_wsgi_upload():
     assert response.text == "example"
 
 
-def test_wsgi_upload_with_response_stream():
+def test_wsgi_upload_with_response_stream() -> None:
     transport = httpx2.WSGITransport(app=echo_body_with_response_stream)
     client = httpx2.Client(transport=transport)
     response = client.post("http://www.example.org/", content=b"example")
@@ -111,21 +111,21 @@ def test_wsgi_upload_with_response_stream():
     assert response.text == "example"
 
 
-def test_wsgi_exc():
+def test_wsgi_exc() -> None:
     transport = httpx2.WSGITransport(app=raise_exc)
     client = httpx2.Client(transport=transport)
     with pytest.raises(ValueError):
         client.get("http://www.example.org/")
 
 
-def test_wsgi_http_error():
+def test_wsgi_http_error() -> None:
     transport = httpx2.WSGITransport(app=partial(raise_exc, exc=RuntimeError))
     client = httpx2.Client(transport=transport)
     with pytest.raises(RuntimeError):
         client.get("http://www.example.org/")
 
 
-def test_wsgi_generator():
+def test_wsgi_generator() -> None:
     output = [b"", b"", b"Some content", b" and more content"]
     transport = httpx2.WSGITransport(app=application_factory(output))
     client = httpx2.Client(transport=transport)
@@ -134,7 +134,7 @@ def test_wsgi_generator():
     assert response.text == "Some content and more content"
 
 
-def test_wsgi_generator_empty():
+def test_wsgi_generator_empty() -> None:
     output = [b"", b"", b"", b""]
     transport = httpx2.WSGITransport(app=application_factory(output))
     client = httpx2.Client(transport=transport)
@@ -143,7 +143,7 @@ def test_wsgi_generator_empty():
     assert response.text == ""
 
 
-def test_logging():
+def test_logging() -> None:
     buffer = StringIO()
     transport = httpx2.WSGITransport(app=log_to_wsgi_log_buffer, wsgi_errors=buffer)
     client = httpx2.Client(transport=transport)
@@ -168,7 +168,7 @@ def test_wsgi_server_port(url: str, expected_server_port: str) -> None:
     hello_world_app = application_factory([b"Hello, World!"])
     server_port: str | None = None
 
-    def app(environ, start_response):
+    def app(environ: WSGIEnvironment, start_response: StartResponse) -> typing.Iterable[bytes]:
         nonlocal server_port
         server_port = environ["SERVER_PORT"]
         return hello_world_app(environ, start_response)
@@ -181,10 +181,10 @@ def test_wsgi_server_port(url: str, expected_server_port: str) -> None:
     assert server_port == expected_server_port
 
 
-def test_wsgi_server_protocol():
+def test_wsgi_server_protocol() -> None:
     server_protocol = None
 
-    def app(environ, start_response):
+    def app(environ: WSGIEnvironment, start_response: StartResponse) -> typing.Iterable[bytes]:
         nonlocal server_protocol
         server_protocol = environ["SERVER_PROTOCOL"]
         start_response("200 OK", [("Content-Type", "text/plain")])

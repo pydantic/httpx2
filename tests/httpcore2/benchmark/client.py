@@ -29,7 +29,7 @@ def duration(start: float) -> int:
 
 
 @contextmanager
-def profile():
+def profile() -> Iterator[None]:
     if not PROFILE:
         yield
         return

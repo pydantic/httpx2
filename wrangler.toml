@@ -1,0 +1,10 @@
+name = "httpx2-docs"
+compatibility_date = "2026-05-22"
+
+[[routes]]
+pattern = "httpx2.pydantic.dev"
+custom_domain = true
+
+[assets]
+directory = "./site"
+not_found_handling = "404-page"

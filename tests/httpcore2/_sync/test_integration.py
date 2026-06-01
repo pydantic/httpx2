@@ -1,19 +1,20 @@
 import ssl
 
 import pytest
+from pytest_httpbin.serve import Server
 
 import httpcore2
 
 
 
-def test_request(httpbin):
+def test_request(httpbin: Server) -> None:
     with httpcore2.ConnectionPool() as pool:
         response = pool.request("GET", httpbin.url)
         assert response.status == 200
 
 
 
-def test_ssl_request(httpbin_secure):
+def test_ssl_request(httpbin_secure: Server) -> None:
     ssl_context = ssl.create_default_context()
     ssl_context.check_hostname = False
     ssl_context.verify_mode = ssl.CERT_NONE
@@ -23,7 +24,7 @@ def test_ssl_request(httpbin_secure):
 
 
 
-def test_extra_info(httpbin_secure):
+def test_extra_info(httpbin_secure: Server) -> None:
     ssl_context = ssl.create_default_context()
     ssl_context.check_hostname = False
     ssl_context.verify_mode = ssl.CERT_NONE

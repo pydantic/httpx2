@@ -132,43 +132,43 @@ class ClientState(enum.Enum):
 
 class BoundSyncStream(SyncByteStream):
     """
-    A byte stream that is bound to a given response instance, and that
-    ensures the `response.elapsed` is set once the response is closed.
+    A byte stream that tracks elapsed time for a response. Once closed, the
+    elapsed time is available via the `elapsed` attribute, and the response
+    can read it back from `response.stream.elapsed`.
     """
 
-    def __init__(self, stream: SyncByteStream, response: Response, start: float) -> None:
+    def __init__(self, stream: SyncByteStream, start: float) -> None:
         self._stream = stream
-        self._response = response
         self._start = start
+        self.elapsed: datetime.timedelta | None = None
 
     def __iter__(self) -> typing.Iterator[bytes]:
         for chunk in self._stream:
             yield chunk
 
     def close(self) -> None:
-        elapsed = time.perf_counter() - self._start
-        self._response.elapsed = datetime.timedelta(seconds=elapsed)
+        self.elapsed = datetime.timedelta(seconds=time.perf_counter() - self._start)
         self._stream.close()
 
 
 class BoundAsyncStream(AsyncByteStream):
     """
-    An async byte stream that is bound to a given response instance, and that
-    ensures the `response.elapsed` is set once the response is closed.
+    An async byte stream that tracks elapsed time for a response. Once closed,
+    the elapsed time is available via the `elapsed` attribute, and the response
+    can read it back from `response.stream.elapsed`.
     """
 
-    def __init__(self, stream: AsyncByteStream, response: Response, start: float) -> None:
+    def __init__(self, stream: AsyncByteStream, start: float) -> None:
         self._stream = stream
-        self._response = response
         self._start = start
+        self.elapsed: datetime.timedelta | None = None
 
     async def __aiter__(self) -> typing.AsyncIterator[bytes]:
         async for chunk in self._stream:
             yield chunk
 
     async def aclose(self) -> None:
-        elapsed = time.perf_counter() - self._start
-        self._response.elapsed = datetime.timedelta(seconds=elapsed)
+        self.elapsed = datetime.timedelta(seconds=time.perf_counter() - self._start)
         await self._stream.aclose()
 
 
@@ -977,7 +977,7 @@ class Client(BaseClient):
         assert isinstance(response.stream, SyncByteStream)
 
         response.request = request
-        response.stream = BoundSyncStream(response.stream, response=response, start=start)
+        response.stream = BoundSyncStream(response.stream, start=start)
         self.cookies.extract_cookies(response)
         response.default_encoding = self._default_encoding
 
@@ -1680,7 +1680,7 @@ class AsyncClient(BaseClient):
 
         assert isinstance(response.stream, AsyncByteStream)
         response.request = request
-        response.stream = BoundAsyncStream(response.stream, response=response, start=start)
+        response.stream = BoundAsyncStream(response.stream, start=start)
         self.cookies.extract_cookies(response)
         response.default_encoding = self._default_encoding
 
