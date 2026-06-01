@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling", "hatch-fancy-pypi-readme", "uv-dynamic-versioning>=0.7.0"]
+requires = ["hatchling", "hatch-fancy-pypi-readme", "uv-dynamic-versioning>=0.8.0"]
 build-backend = "hatchling.build"
 
 [tool.hatch.version]
@@ -9,6 +9,7 @@ source = "uv-dynamic-versioning"
 vcs = "git"
 style = "pep440"
 bump = true
+fallback-version = "0.0.0"
 
 [project]
 name = "httpx2"
@@ -42,7 +43,7 @@ dynamic = ["readme", "version", "dependencies"]
 
 [tool.hatch.metadata.hooks.uv-dynamic-versioning]
 dependencies = [
-    "certifi",
+    "truststore>=0.10",
     "httpcore2=={{ version }}",
     "anyio",
     "idna",

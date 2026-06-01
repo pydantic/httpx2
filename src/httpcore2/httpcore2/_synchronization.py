@@ -10,12 +10,12 @@ from ._exceptions import ExceptionMapping, PoolTimeout, map_exceptions
 
 try:
     import trio
-except (ImportError, NotImplementedError):  # pragma: nocover
+except (ImportError, NotImplementedError):  # pragma: no cover
     trio = None  # type: ignore
 
 try:
     import anyio
-except ImportError:  # pragma: nocover
+except ImportError:  # pragma: no cover
     anyio = None  # type: ignore
 
 
@@ -24,18 +24,18 @@ def current_async_library() -> str:
     # See https://sniffio.readthedocs.io/en/latest/
     try:
         import sniffio
-    except ImportError:  # pragma: nocover
+    except ImportError:  # pragma: no cover
         environment = "asyncio"
     else:
         environment = sniffio.current_async_library()
 
-    if environment not in ("asyncio", "trio"):  # pragma: nocover
+    if environment not in ("asyncio", "trio"):  # pragma: no cover
         raise RuntimeError("Running under an unsupported async environment.")
 
-    if environment == "asyncio" and anyio is None:  # pragma: nocover
+    if environment == "asyncio" and anyio is None:  # pragma: no cover
         raise RuntimeError("Running with asyncio requires installation of 'httpcore[asyncio]'.")
 
-    if environment == "trio" and trio is None:  # pragma: nocover
+    if environment == "trio" and trio is None:  # pragma: no cover
         raise RuntimeError("Running with trio requires installation of 'httpcore[trio]'.")
 
     return environment
@@ -280,7 +280,7 @@ class Event:
         if timeout == float("inf"):  # pragma: no cover
             timeout = None
         if not self._event.wait(timeout=timeout):
-            raise PoolTimeout()  # pragma: nocover
+            raise PoolTimeout()  # pragma: no cover
 
 
 class Semaphore:

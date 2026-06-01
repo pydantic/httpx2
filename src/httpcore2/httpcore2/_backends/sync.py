@@ -161,7 +161,7 @@ class SyncStream(NetworkStream):
                 else:
                     self._sock.settimeout(timeout)
                     sock = ssl_context.wrap_socket(self._sock, server_hostname=server_hostname)
-            except Exception as exc:  # pragma: nocover
+            except Exception as exc:  # pragma: no cover
                 self.close()
                 raise exc
         return SyncStream(sock)
@@ -216,7 +216,7 @@ class SyncBackend(NetworkBackend):
         path: str,
         timeout: float | None = None,
         socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
-    ) -> NetworkStream:  # pragma: nocover
+    ) -> NetworkStream:  # pragma: no cover
         if sys.platform == "win32":
             raise RuntimeError("Attempted to connect to a UNIX socket on a Windows system.")
         if socket_options is None:

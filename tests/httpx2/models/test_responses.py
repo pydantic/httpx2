@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime
 import json
 import pickle
 import typing
@@ -769,6 +770,12 @@ async def test_elapsed_not_available_until_closed() -> None:
 
     with pytest.raises(RuntimeError):
         response.elapsed  # noqa: B018
+
+
+def test_elapsed_set_directly() -> None:
+    response = httpx2.Response(200)
+    response.elapsed = datetime.timedelta(seconds=1)
+    assert response.elapsed == datetime.timedelta(seconds=1)
 
 
 def test_unknown_status_code() -> None:

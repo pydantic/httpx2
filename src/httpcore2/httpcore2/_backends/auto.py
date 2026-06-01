@@ -41,10 +41,10 @@ class AutoBackend(AsyncNetworkBackend):
         path: str,
         timeout: float | None = None,
         socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
-    ) -> AsyncNetworkStream:  # pragma: nocover
+    ) -> AsyncNetworkStream:  # pragma: no cover
         await self._init_backend()
         return await self._backend.connect_unix_socket(path, timeout=timeout, socket_options=socket_options)
 
-    async def sleep(self, seconds: float) -> None:  # pragma: nocover
+    async def sleep(self, seconds: float) -> None:  # pragma: no cover
         await self._init_backend()
         return await self._backend.sleep(seconds)

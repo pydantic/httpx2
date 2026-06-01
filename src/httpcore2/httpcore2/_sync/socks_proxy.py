@@ -96,7 +96,7 @@ def _init_socks5_connection(
         raise ProxyError(f"Proxy Server could not connect: {reply_code}.")
 
 
-class SOCKSProxy(ConnectionPool):  # pragma: nocover
+class SOCKSProxy(ConnectionPool):  # pragma: no cover
     """
     A connection pool that sends requests via an HTTP proxy.
     """
@@ -254,7 +254,7 @@ class Socks5Connection(ConnectionInterface):
                     http2_negotiated = ssl_object is not None and ssl_object.selected_alpn_protocol() == "h2"
 
                     # Create the HTTP/1.1 or HTTP/2 connection
-                    if http2_negotiated or (self._http2 and not self._http1):  # pragma: nocover
+                    if http2_negotiated or (self._http2 and not self._http1):  # pragma: no cover
                         from .http2 import HTTP2Connection
 
                         self._connection = HTTP2Connection(
@@ -271,7 +271,7 @@ class Socks5Connection(ConnectionInterface):
                 except Exception as exc:
                     self._connect_failed = True
                     raise exc
-            elif not self._connection.is_available():  # pragma: nocover
+            elif not self._connection.is_available():  # pragma: no cover
                 raise ConnectionNotAvailable()
 
         return self._connection.handle_request(request)
@@ -284,7 +284,7 @@ class Socks5Connection(ConnectionInterface):
             self._connection.close()
 
     def is_available(self) -> bool:
-        if self._connection is None:  # pragma: nocover
+        if self._connection is None:  # pragma: no cover
             # If HTTP/2 support is enabled, and the resulting connection could
             # end up as HTTP/2 then we should indicate the connection as being
             # available to service multiple requests.
@@ -294,22 +294,22 @@ class Socks5Connection(ConnectionInterface):
         return self._connection.is_available()
 
     def has_expired(self) -> bool:
-        if self._connection is None:  # pragma: nocover
+        if self._connection is None:  # pragma: no cover
             return self._connect_failed
         return self._connection.has_expired()
 
     def is_idle(self) -> bool:
-        if self._connection is None:  # pragma: nocover
+        if self._connection is None:  # pragma: no cover
             return self._connect_failed
         return self._connection.is_idle()
 
     def is_closed(self) -> bool:
-        if self._connection is None:  # pragma: nocover
+        if self._connection is None:  # pragma: no cover
             return self._connect_failed
         return self._connection.is_closed()
 
     def info(self) -> str:
-        if self._connection is None:  # pragma: nocover
+        if self._connection is None:  # pragma: no cover
             return "CONNECTION FAILED" if self._connect_failed else "CONNECTING"
         return self._connection.info()
 

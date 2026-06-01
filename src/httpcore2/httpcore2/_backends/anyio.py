@@ -33,7 +33,7 @@ class AnyIOStream(AsyncNetworkStream):
             with anyio.fail_after(timeout):
                 try:
                     return await self._stream.receive(max_bytes=max_bytes)
-                except anyio.EndOfStream:  # pragma: nocover
+                except anyio.EndOfStream:  # pragma: no cover
                     return b""
 
     async def write(self, buffer: bytes, timeout: float | None = None) -> None:
@@ -74,7 +74,7 @@ class AnyIOStream(AsyncNetworkStream):
                         standard_compatible=False,
                         server_side=False,
                     )
-            except Exception as exc:  # pragma: nocover
+            except Exception as exc:  # pragma: no cover
                 await self.aclose()
                 raise exc
         return AnyIOStream(ssl_stream)
@@ -102,7 +102,7 @@ class AnyIOBackend(AsyncNetworkBackend):
         timeout: float | None = None,
         local_address: str | None = None,
         socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
-    ) -> AsyncNetworkStream:  # pragma: nocover
+    ) -> AsyncNetworkStream:  # pragma: no cover
         if socket_options is None:
             socket_options = []
         exc_map = {
@@ -127,7 +127,7 @@ class AnyIOBackend(AsyncNetworkBackend):
         path: str,
         timeout: float | None = None,
         socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
-    ) -> AsyncNetworkStream:  # pragma: nocover
+    ) -> AsyncNetworkStream:  # pragma: no cover
         if socket_options is None:
             socket_options = []
         exc_map = {
@@ -143,4 +143,4 @@ class AnyIOBackend(AsyncNetworkBackend):
         return AnyIOStream(stream)
 
     async def sleep(self, seconds: float) -> None:
-        await anyio.sleep(seconds)  # pragma: nocover
+        await anyio.sleep(seconds)  # pragma: no cover

@@ -28,16 +28,16 @@ def create_ssl_context(
     import ssl
     import warnings
 
-    import certifi
+    import truststore
 
     if verify is True:
-        if trust_env and os.environ.get("SSL_CERT_FILE"):  # pragma: nocover
+        if trust_env and os.environ.get("SSL_CERT_FILE"):  # pragma: no cover
             ctx = ssl.create_default_context(cafile=os.environ["SSL_CERT_FILE"])
-        elif trust_env and os.environ.get("SSL_CERT_DIR"):  # pragma: nocover
+        elif trust_env and os.environ.get("SSL_CERT_DIR"):  # pragma: no cover
             ctx = ssl.create_default_context(capath=os.environ["SSL_CERT_DIR"])
         else:
-            # Default case...
-            ctx = ssl.create_default_context(cafile=certifi.where())
+            # Default case: rely on the system trust store via `truststore`.
+            ctx = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
     elif verify is False:
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         ctx.check_hostname = False
@@ -50,7 +50,7 @@ def create_ssl_context(
         )
         warnings.warn(message, DeprecationWarning)
         if os.path.isdir(verify):
-            ctx = ssl.create_default_context(capath=verify)  # pragma: nocover
+            ctx = ssl.create_default_context(capath=verify)  # pragma: no cover
         else:
             ctx = ssl.create_default_context(cafile=verify)
     else:
@@ -63,7 +63,7 @@ def create_ssl_context(
         )
         warnings.warn(message, DeprecationWarning)
         if isinstance(cert, str):
-            ctx.load_cert_chain(cert)  # pragma: nocover
+            ctx.load_cert_chain(cert)  # pragma: no cover
         else:
             ctx.load_cert_chain(*cert)
 

@@ -128,7 +128,7 @@ def include_request_headers(
             content_length = str(len(content)).encode("ascii")
             headers += [(b"Content-Length", content_length)]
         else:
-            headers += [(b"Transfer-Encoding", b"chunked")]  # pragma: nocover
+            headers += [(b"Transfer-Encoding", b"chunked")]  # pragma: no cover
 
     return headers
 
@@ -398,7 +398,7 @@ class Response:
     # Sync interface...
 
     def read(self) -> bytes:
-        if not isinstance(self.stream, typing.Iterable):  # pragma: nocover
+        if not isinstance(self.stream, typing.Iterable):  # pragma: no cover
             raise RuntimeError(
                 "Attempted to read an asynchronous response using 'response.read()'. "
                 "You should use 'await response.aread()' instead."
@@ -408,7 +408,7 @@ class Response:
         return self._content
 
     def iter_stream(self) -> typing.Iterator[bytes]:
-        if not isinstance(self.stream, typing.Iterable):  # pragma: nocover
+        if not isinstance(self.stream, typing.Iterable):  # pragma: no cover
             raise RuntimeError(
                 "Attempted to stream an asynchronous response using 'for ... in "
                 "response.iter_stream()'. "
@@ -421,7 +421,7 @@ class Response:
             yield chunk
 
     def close(self) -> None:
-        if not isinstance(self.stream, typing.Iterable):  # pragma: nocover
+        if not isinstance(self.stream, typing.Iterable):  # pragma: no cover
             raise RuntimeError(
                 "Attempted to close an asynchronous response using 'response.close()'. "
                 "You should use 'await response.aclose()' instead."
@@ -432,7 +432,7 @@ class Response:
     # Async interface...
 
     async def aread(self) -> bytes:
-        if not isinstance(self.stream, typing.AsyncIterable):  # pragma: nocover
+        if not isinstance(self.stream, typing.AsyncIterable):  # pragma: no cover
             raise RuntimeError(
                 "Attempted to read an synchronous response using "
                 "'await response.aread()'. "
@@ -444,7 +444,7 @@ class Response:
         return self._content
 
     async def aiter_stream(self) -> AsyncGenerator[bytes]:
-        if not isinstance(self.stream, typing.AsyncIterable):  # pragma: nocover
+        if not isinstance(self.stream, typing.AsyncIterable):  # pragma: no cover
             raise RuntimeError(
                 "Attempted to stream an synchronous response using 'async for ... in "
                 "response.aiter_stream()'. "
@@ -458,7 +458,7 @@ class Response:
                 yield chunk
 
     async def aclose(self) -> None:
-        if not isinstance(self.stream, typing.AsyncIterable):  # pragma: nocover
+        if not isinstance(self.stream, typing.AsyncIterable):  # pragma: no cover
             raise RuntimeError(
                 "Attempted to close a synchronous response using "
                 "'await response.aclose()'. "

@@ -461,6 +461,43 @@ async def test_connection_pool_with_no_keepalive_connections_allowed() -> None:
         assert info == []
 
 
+@pytest.mark.anyio
+async def test_connection_pool_closes_idle_connection_for_different_origin() -> None:
+    """
+    When the pool is at 'max_connections' and an incoming request is for an
+    origin with no reusable connection, an IDLE connection to a different
+    origin is closed to make room for the new connection.
+    """
+    network_backend = httpcore2.AsyncMockBackend(
+        [
+            b"HTTP/1.1 200 OK\r\n",
+            b"Content-Type: plain/text\r\n",
+            b"Content-Length: 13\r\n",
+            b"\r\n",
+            b"Hello, world!",
+            b"HTTP/1.1 200 OK\r\n",
+            b"Content-Type: plain/text\r\n",
+            b"Content-Length: 13\r\n",
+            b"\r\n",
+            b"Hello, world!",
+        ]
+    )
+
+    async with httpcore2.AsyncConnectionPool(network_backend=network_backend, max_connections=1) as pool:
+        # An initial request to a.com leaves a single IDLE connection in the pool.
+        response = await pool.request("GET", "https://a.com/")
+        assert response.status == 200
+        info = [repr(c) for c in pool.connections]
+        assert info == ["<AsyncHTTPConnection ['https://a.com:443', HTTP/1.1, IDLE, Request Count: 1]>"]
+
+        # A request to b.com cannot reuse the a.com connection and the pool is full,
+        # so the IDLE a.com connection is closed and replaced with a b.com connection.
+        response = await pool.request("GET", "https://b.com/")
+        assert response.status == 200
+        info = [repr(c) for c in pool.connections]
+        assert info == ["<AsyncHTTPConnection ['https://b.com:443', HTTP/1.1, IDLE, Request Count: 1]>"]
+
+
 @pytest.mark.trio
 async def test_connection_pool_concurrency() -> None:
     """

@@ -6,7 +6,7 @@ from .interfaces import AsyncConnectionInterface
 
 try:
     from .http2 import AsyncHTTP2Connection
-except ImportError:  # pragma: nocover
+except ImportError:  # pragma: no cover
 
     class AsyncHTTP2Connection:  # type: ignore
         def __init__(self, *args, **kwargs) -> None:  # type: ignore
@@ -18,7 +18,7 @@ except ImportError:  # pragma: nocover
 
 try:
     from .socks_proxy import AsyncSOCKSProxy
-except ImportError:  # pragma: nocover
+except ImportError:  # pragma: no cover
 
     class AsyncSOCKSProxy:  # type: ignore
         def __init__(self, *args, **kwargs) -> None:  # type: ignore

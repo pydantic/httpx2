@@ -222,7 +222,7 @@ class TestServer(Server):
     def install_signal_handlers(self) -> None:
         # Disable the default installation of handlers for signals such as SIGTERM,
         # because it can only be done in the main thread.
-        pass  # pragma: nocover
+        pass  # pragma: no cover
 
     async def serve(self, sockets: list[socket.socket] | None = None) -> None:
         self.restart_requested = asyncio.Event()
@@ -273,7 +273,7 @@ def serve_in_thread(server: TestServer) -> typing.Iterator[TestServer]:
 
 
 @pytest.fixture(scope="session")
-def server() -> typing.Iterator[TestServer]:
-    config = Config(app=app, lifespan="off", loop="asyncio")
+def server(free_tcp_port_factory: typing.Callable[[], int]) -> typing.Iterator[TestServer]:
+    config = Config(app=app, lifespan="off", loop="asyncio", port=free_tcp_port_factory())
     server = TestServer(config=config)
     yield from serve_in_thread(server)
