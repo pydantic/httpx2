@@ -66,27 +66,28 @@ def test_logging_request(server: TestServer, caplog: pytest.LogCaptureFixture) -
         (
             "httpx2",
             logging.INFO,
-            'HTTP Request: GET http://127.0.0.1:8000/ "HTTP/1.1 200 OK"',
+            f'HTTP Request: GET {server.url} "HTTP/1.1 200 OK"',
         )
     ]
 
 
 def test_logging_redirect_chain(server: TestServer, caplog: pytest.LogCaptureFixture) -> None:
     caplog.set_level(logging.INFO)
+    redirect_url = server.url.copy_with(path="/redirect_301")
     with httpx2.Client(follow_redirects=True) as client:
-        response = client.get(server.url.copy_with(path="/redirect_301"))
+        response = client.get(redirect_url)
         assert response.status_code == 200
 
     assert caplog.record_tuples == [
         (
             "httpx2",
             logging.INFO,
-            'HTTP Request: GET http://127.0.0.1:8000/redirect_301 "HTTP/1.1 301 Moved Permanently"',
+            f'HTTP Request: GET {redirect_url} "HTTP/1.1 301 Moved Permanently"',
         ),
         (
             "httpx2",
             logging.INFO,
-            'HTTP Request: GET http://127.0.0.1:8000/ "HTTP/1.1 200 OK"',
+            f'HTTP Request: GET {server.url} "HTTP/1.1 200 OK"',
         ),
     ]
 

@@ -28,7 +28,7 @@ def create_ssl_context(
     import ssl
     import warnings
 
-    import certifi
+    import truststore
 
     if verify is True:
         if trust_env and os.environ.get("SSL_CERT_FILE"):  # pragma: nocover
@@ -36,8 +36,8 @@ def create_ssl_context(
         elif trust_env and os.environ.get("SSL_CERT_DIR"):  # pragma: nocover
             ctx = ssl.create_default_context(capath=os.environ["SSL_CERT_DIR"])
         else:
-            # Default case...
-            ctx = ssl.create_default_context(cafile=certifi.where())
+            # Default case: rely on the system trust store via `truststore`.
+            ctx = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
     elif verify is False:
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         ctx.check_hostname = False

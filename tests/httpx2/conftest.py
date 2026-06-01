@@ -273,7 +273,7 @@ def serve_in_thread(server: TestServer) -> typing.Iterator[TestServer]:
 
 
 @pytest.fixture(scope="session")
-def server() -> typing.Iterator[TestServer]:
-    config = Config(app=app, lifespan="off", loop="asyncio")
+def server(free_tcp_port_factory: typing.Callable[[], int]) -> typing.Iterator[TestServer]:
+    config = Config(app=app, lifespan="off", loop="asyncio", port=free_tcp_port_factory())
     server = TestServer(config=config)
     yield from serve_in_thread(server)

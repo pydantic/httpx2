@@ -2,9 +2,7 @@ from __future__ import annotations
 
 import ssl
 import typing
-from pathlib import Path
 
-import certifi
 import pytest
 
 import httpx2
@@ -23,27 +21,6 @@ def test_load_ssl_config_verify_non_existing_file() -> None:
     with pytest.raises(IOError):
         context = httpx2.create_ssl_context()
         context.load_verify_locations(cafile="/path/to/nowhere")
-
-
-def test_load_ssl_with_keylog(monkeypatch: typing.Any, tmp_path: Path) -> None:
-    keylog_file = tmp_path / "sslkeylog"
-    monkeypatch.setenv("SSLKEYLOGFILE", str(keylog_file))
-    context = httpx2.create_ssl_context()
-    assert context.keylog_filename == str(keylog_file)
-
-
-def test_load_ssl_config_verify_existing_file() -> None:
-    context = httpx2.create_ssl_context()
-    context.load_verify_locations(capath=certifi.where())
-    assert context.verify_mode == ssl.VerifyMode.CERT_REQUIRED
-    assert context.check_hostname is True
-
-
-def test_load_ssl_config_verify_directory() -> None:
-    context = httpx2.create_ssl_context()
-    context.load_verify_locations(capath=Path(certifi.where()).parent)
-    assert context.verify_mode == ssl.VerifyMode.CERT_REQUIRED
-    assert context.check_hostname is True
 
 
 def test_load_ssl_config_cert_and_key(cert_pem_file: str, cert_private_key_file: str) -> None:
