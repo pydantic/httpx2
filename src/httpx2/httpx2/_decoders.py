@@ -39,12 +39,15 @@ if typing.TYPE_CHECKING:
 
         ZstdDecompressor = functools.partial(_ZstdDecompressor().decompressobj)
 
-    _zstandard_installed: bool = True
+    _zstandard_installed: bool
 else:  # pragma: no cover
     if sys.version_info >= (3, 14):
-        from compression.zstd import ZstdDecompressor, ZstdError
+        try:
+            from compression.zstd import ZstdDecompressor, ZstdError
 
-        _zstandard_installed = True
+            _zstandard_installed = True
+        except ImportError:
+            _zstandard_installed = False
     else:
         try:
             from zstandard import ZstdDecompressor as _ZstdDecompressor, ZstdError
