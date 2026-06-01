@@ -20,29 +20,29 @@ You can disable SSL verification completely and allow insecure requests...
 
 If you're using a `Client()` instance you should pass any `verify=<...>` configuration when instantiating the client.
 
-By default the [certifi CA bundle](https://certifiio.readthedocs.io/en/latest/) is used for SSL verification.
+By default the operating system's trust store is used for SSL verification, via [the `truststore` package](https://truststore.readthedocs.io/).
 
 For more complex configurations you can pass an [SSL Context](https://docs.python.org/3/library/ssl.html) instance...
-
-```python
-import certifi
-import httpx2
-import ssl
-
-# This SSL context is equivalent to the default `verify=True`.
-ctx = ssl.create_default_context(cafile=certifi.where())
-client = httpx2.Client(verify=ctx)
-```
-
-Using [the `truststore` package](https://truststore.readthedocs.io/) to support system certificate stores...
 
 ```python
 import ssl
 import truststore
 import httpx2
 
-# Use system certificate stores.
+# This SSL context is equivalent to the default `verify=True`.
 ctx = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+client = httpx2.Client(verify=ctx)
+```
+
+Using [the `certifi` CA bundle](https://certifiio.readthedocs.io/en/latest/) instead of the system trust store...
+
+```python
+import certifi
+import httpx2
+import ssl
+
+# Use the certifi CA bundle.
+ctx = ssl.create_default_context(cafile=certifi.where())
 client = httpx2.Client(verify=ctx)
 ```
 

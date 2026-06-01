@@ -108,7 +108,7 @@ The HTTPX2 project relies on these excellent libraries:
 * `httpcore2` - The underlying transport implementation for `httpx2`.
   * `h11` - HTTP/1.1 support.
 * `anyio` - Structured concurrency primitives, used to support both `asyncio` and `trio`.
-* `certifi` - SSL certificates.
+* `truststore` - SSL verification using the operating system's trust store.
 * `idna` - Internationalized domain name support.
 
 As well as these optional installs:
@@ -118,7 +118,7 @@ As well as these optional installs:
 * `rich` - Rich terminal support. *(Optional, with `httpx2[cli]`)*
 * `click` - Command line client support. *(Optional, with `httpx2[cli]`)*
 * `brotli` or `brotlicffi` - Decoding for "brotli" compressed responses. *(Optional, with `httpx2[brotli]`)*
-* `zstandard` - Decoding for "zstd" compressed responses on Python 3.13 and below. *(Optional, with `httpx2[zstd]`. On Python 3.14+, `zstd` is supported natively via the stdlib [`compression.zstd`][] module.)*
+* `zstandard` - Decoding for "zstd" compressed responses on Python 3.13 and below. *(Optional, with `httpx2[zstd]`. On Python 3.14+, `zstd` is supported via the stdlib [`compression.zstd`][] module when it is available; the `httpx2[zstd]` extra installs nothing there, so decoding falls back to `zstandard` only on 3.13 and below.)*
 
 A huge amount of credit is due to `requests` for the API layout that
 much of this work follows, as well as to `urllib3` for plenty of design

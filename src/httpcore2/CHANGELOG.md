@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2.3.0 (June 1st, 2026)
+
+### Changed
+
+* Use `truststore` instead of `certifi` for default SSL verification, loading the operating system's trust store. ([#1002](https://github.com/pydantic/httpx2/pull/1002))
+* Rewrite `_assign_requests_to_connections` as a single-pass loop. ([#974](https://github.com/pydantic/httpx2/pull/974))
+* Use `anyio`'s `fast_acquire` for `Lock` and `Semaphore`. ([#970](https://github.com/pydantic/httpx2/pull/970))
+* Use `memoryview` in `write()` to avoid copies. ([#954](https://github.com/pydantic/httpx2/pull/954))
+
 ## 2.2.0 (May 16th, 2026)
 
 No changes since `2.1.0`. Version bumped to stay in lockstep with `httpx2`.

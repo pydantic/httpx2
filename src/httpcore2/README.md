@@ -85,7 +85,7 @@ The motivation for `httpcore` is:
 The `httpcore` package has the following dependencies...
 
 * `h11`
-* `certifi`
+* `truststore`
 
 And the following optional extras...
 

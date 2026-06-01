@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2.3.0 (June 1st, 2026)
+
+### Changed
+
+* Use `truststore` instead of `certifi` for default SSL verification, loading the operating system's trust store. ([#209](https://github.com/pydantic/httpx2/pull/209))
+
+### Fixed
+
+* Raise when `verify` is a string path and a client-side `cert` is also provided to `create_ssl_context`. ([#990](https://github.com/pydantic/httpx2/pull/990))
+* Allow a `default_encoding` callable to return `None`. ([#951](https://github.com/pydantic/httpx2/pull/951))
+* Make the `zstd` import optional on Python 3.14. ([#1000](https://github.com/pydantic/httpx2/pull/1000))
+* Store elapsed time on the stream wrapper to avoid reference cycles. ([#948](https://github.com/pydantic/httpx2/pull/948))
+
 ## 2.2.0 (May 16th, 2026)
 
 ### Fixed
