@@ -29,9 +29,9 @@ except ImportError:  # pragma: no cover
 
 
 # Zstandard support is optional on Python <= 3.13.
-# On Python 3.14, the stdlib includes a built-in zstd implementation, so we can support
-# it without an extra dependency.
+# On Python 3.14+, the stdlib includes an optional built-in zstd implementation.
 if typing.TYPE_CHECKING:
+    # We keep checking Python version in the type checker path because try..except doesn't help type checkers.
     if sys.version_info >= (3, 14):
         from compression.zstd import ZstdDecompressor, ZstdError
     else:
@@ -39,20 +39,22 @@ if typing.TYPE_CHECKING:
 
         ZstdDecompressor = functools.partial(_ZstdDecompressor().decompressobj)
 
-    _zstandard_installed: bool = True
+    _zstandard_installed: bool
 else:  # pragma: no cover
-    if sys.version_info >= (3, 14):
+    _zstandard_installed = False
+    try:
         from compression.zstd import ZstdDecompressor, ZstdError
 
         _zstandard_installed = True
-    else:
+    # Either Python <3.14 or the distro doesn't have `compression.zstd`.
+    except ImportError:
         try:
             from zstandard import ZstdDecompressor as _ZstdDecompressor, ZstdError
 
             ZstdDecompressor = functools.partial(_ZstdDecompressor().decompressobj)
             _zstandard_installed = True
         except ImportError:
-            _zstandard_installed = False
+            pass
 
 
 class ContentDecoder:
@@ -181,11 +183,10 @@ class BrotliDecoder(ContentDecoder):
 
 
 class ZStandardDecoder(ContentDecoder):
-    """
-    Handle 'zstd' RFC 8878 decoding.
+    """Handle 'zstd' RFC 8878 decoding.
 
-    Requires `pip install zstandard`.
-    Can be installed as a dependency of httpx using `pip install httpx[zstd]`.
+    If running on Python 3.14+ or a distro that doesn't have the `compression.zstd` stdlib module, requires either:
+    `pip install zstandard` or `pip install httpx2[zstd]`.
     """
 
     # inspired by the ZstdDecoder implementation in urllib3

@@ -67,10 +67,6 @@ To run the tests, use:
 $ scripts/test
 ```
 
-!!! warning
-    The test suite spawns testing servers on ports **8000** and **8001**.
-    Make sure these are not in use, so the tests can run properly.
-
 You can run a single test script like this:
 
 ```shell
