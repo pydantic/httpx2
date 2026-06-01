@@ -268,10 +268,8 @@ class AsyncConnectionPool(AsyncRequestInterface):
         # or have expired their keep-alive, in a single pass.
         for connection in self._connections:
             if connection.is_closed():
-                # log: "removing closed connection"
                 continue
             elif connection.has_expired():
-                # log: "closing expired connection"
                 closing_connections.append(connection)
             else:
                 retained_connections.append(connection)
@@ -285,7 +283,6 @@ class AsyncConnectionPool(AsyncRequestInterface):
             kept: list[AsyncConnectionInterface] = []
             for connection in retained_connections:
                 if idle_surplus > 0 and connection.is_idle():
-                    # log: "closing idle connection"
                     closing_connections.append(connection)
                     idle_surplus -= 1
                 else:
@@ -314,12 +311,10 @@ class AsyncConnectionPool(AsyncRequestInterface):
             #    to handle the request.
             for connection in available_connections:
                 if connection.can_handle_request(origin):
-                    # log: "reusing existing connection"
                     pool_request.assign_to_connection(connection)
                     break
             else:
                 if new_connection_budget > 0:
-                    # log: "creating new connection"
                     connection = self.create_connection(origin)
                     self._connections.append(connection)
                     pool_request.assign_to_connection(connection)
@@ -327,11 +322,9 @@ class AsyncConnectionPool(AsyncRequestInterface):
                     continue
                 for idx, connection in enumerate(available_connections):
                     if connection.is_idle():
-                        # log: "closing idle connection"
                         del available_connections[idx]
                         self._connections.remove(connection)
                         closing_connections.append(connection)
-                        # log: "creating new connection"
                         connection = self.create_connection(origin)
                         self._connections.append(connection)
                         pool_request.assign_to_connection(connection)
