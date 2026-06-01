@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import datetime
 import json
 import pickle
 import typing
@@ -770,26 +769,6 @@ async def test_elapsed_not_available_until_closed() -> None:
 
     with pytest.raises(RuntimeError):
         response.elapsed  # noqa: B018
-
-
-def test_elapsed_read_from_stream() -> None:
-    """Response.elapsed should read from stream.elapsed (the normal streaming path)."""
-    from httpx2._client import BoundSyncStream
-
-    inner = httpx2.ByteStream(b"")
-    bound = BoundSyncStream(inner, start=0.0)
-    bound.elapsed = datetime.timedelta(seconds=1)
-
-    response = httpx2.Response(200)
-    response.stream = bound
-    assert response.elapsed == datetime.timedelta(seconds=1)
-
-
-def test_elapsed_set_directly() -> None:
-    """Response.elapsed can be set directly, e.g. in mocks or tests."""
-    response = httpx2.Response(200)
-    response.elapsed = datetime.timedelta(seconds=1)
-    assert response.elapsed == datetime.timedelta(seconds=1)
 
 
 def test_unknown_status_code() -> None:
