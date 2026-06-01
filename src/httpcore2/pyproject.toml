@@ -2,7 +2,7 @@
 requires = [
     "hatchling",
     "hatch-fancy-pypi-readme",
-    "uv-dynamic-versioning>=0.7.0",
+    "uv-dynamic-versioning>=0.8.0",
 ]
 build-backend = "hatchling.build"
 
