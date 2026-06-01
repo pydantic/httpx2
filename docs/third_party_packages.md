@@ -16,7 +16,7 @@ An elegant HTTP Cache implementation for HTTPX and HTTP Core.
 
 [GitHub](https://github.com/Colin-b/httpx_auth) - [Documentation](https://colin-b.github.io/httpx_auth/)
 
-Provides authentication classes to be used with HTTPX's [authentication parameter](advanced/authentication.md#customizing-authentication).
+Provides authentication classes to be used with HTTPX's [authentication parameter](advanced/authentication.md#custom-authentication-schemes).
 
 ### httpx-caching
 
@@ -54,11 +54,24 @@ A retry layer for HTTPX.
 
 WebSocket support for HTTPX.
 
+### httpx2-pytest
+
+[GitHub](https://github.com/angryfoxx/httpx2-pytest) - [Documentation](https://github.com/angryfoxx/httpx2-pytest#about-httpx2)
+
+Provides a [pytest](https://docs.pytest.org/en/latest/) fixture to mock HTTPX within test cases.
+This package is fork of the [pytest-httpx](https://github.com/Colin-b/pytest_httpx) package that compatible with httpx2
+
 ### pytest-HTTPX
 
 [GitHub](https://github.com/Colin-b/pytest_httpx) - [Documentation](https://colin-b.github.io/pytest_httpx/)
 
 Provides a [pytest](https://docs.pytest.org/en/latest/) fixture to mock HTTPX within test cases.
+
+### pytest-HTTPX2
+
+[GitHub](https://github.com/lundberg/pytest-httpx2)
+
+A pytest plugin for mocking out HTTPX2 using RESPX.
 
 ### RESPX
 

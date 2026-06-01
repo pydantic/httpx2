@@ -2,6 +2,8 @@
 package = false
 default-groups = ["dev", "docs", "bench"]
 required-version = ">=0.8.6"
+exclude-newer = "7 days"
+exclude-newer-package = { urllib3 = "2026-05-09T00:00:00Z", zensical = "2026-05-11T00:00:00Z" }
 
 [tool.uv.workspace]
 members = ["src/httpx2", "src/httpcore2"]
@@ -12,45 +14,47 @@ httpx2 = { workspace = true }
 
 [dependency-groups]
 dev = [
-    "httpx2[brotli,cli,http2,socks,zstd]",
-    "httpcore2[asyncio,trio,http2,socks]",
-    # Tests
-    "chardet==5.2.0",
-    "coverage[toml]==7.10.6",
-    "cryptography==45.0.7",
-    "pytest==8.4.1",
-    "pytest-httpbin==2.0.0",
-    "pytest-trio==0.8.0",
-    "trio==0.31.0",
-    "trio-typing==0.10.0",
-    "trustme==1.2.1",
-    "uvicorn>=0.35",
-    "werkzeug<3.1",  # See: https://github.com/psf/httpbin/issues/35
-    # Linting
-    "mypy==1.17.1",
-    "ruff==0.12.11",
-    # Packaging
-    "build==1.3.0",
-    "twine==6.1.0",
+  "httpx2[brotli,cli,http2,socks,zstd]",
+  "httpcore2[asyncio,trio,http2,socks]",
+  # Tests
+  "chardet==5.2.0",
+  "coverage[toml]==7.10.6",
+  "cryptography==46.0.7",
+  "pytest>=9.0.3",
+  "pytest-codspeed>=4.1.1",
+  "pytest-httpbin==2.0.0",
+  "pytest-trio==0.8.0",
+  "trio==0.31.0",
+  "trio-typing==0.10.0",
+  "trustme==1.2.1",
+  "uvicorn>=0.35",
+  "werkzeug>=3.1.6",
+  # Linting
+  "mypy==1.17.1",
+  "ruff==0.15.13",
+  # Packaging
+  "build==1.3.0",
+  "twine==6.1.0",
 ]
-docs = [
-    "mkdocs==1.6.1",
-    "mkautodoc==0.2.0",
-    "mkdocs-material==9.6.18",
-]
+docs = ["zensical>=0.0.41", "mkdocstrings[python]>=0.27"]
 bench = [
-    "aiohttp>=3.10.2",
-    "matplotlib>=3.9",
-    "pyinstrument>=4.6.2",
-    "urllib3>=2.2.2",
+  "aiohttp>=3.10.2",
+  "matplotlib>=3.9",
+  "pyinstrument>=4.6.2",
+  "urllib3>=2.2.2",
 ]
 
+[tool.ruff]
+line-length = 120
+exclude = ["src/httpcore2/httpcore2/_sync", "tests/httpcore2/_sync"]
+
 [tool.ruff.lint]
-select = ["E", "F", "I", "B", "PIE"]
-ignore = ["B904", "B028"]
+select = ["B", "C4", "E", "F", "I", "PERF", "PIE", "W"]
+ignore = ["B904", "B028", "C401", "PERF203"]
 
 [tool.ruff.lint.isort]
 combine-as-imports = true
+known-first-party = ["httpx2", "httpcore2"]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F403", "F405"]
@@ -59,11 +63,6 @@ combine-as-imports = true
 ignore_missing_imports = true
 strict = true
 
-[[tool.mypy.overrides]]
-module = "tests.*"
-disallow_untyped_defs = false
-check_untyped_defs = true
-
 [tool.pytest.ini_options]
 addopts = "-rxXs --import-mode=importlib"
 testpaths = ["tests"]
@@ -71,12 +70,22 @@ filterwarnings = [
   "error",
   "ignore: You seem to already have a custom sys.excepthook handler installed. I'll skip installing Trio's custom handler, but this means MultiErrors will not show full tracebacks.:RuntimeWarning",
   # See: https://github.com/agronholm/anyio/issues/508
-  "ignore: trio.MultiError is deprecated since Trio 0.22.0:trio.TrioDeprecationWarning"
+  "ignore: trio.MultiError is deprecated since Trio 0.22.0:trio.TrioDeprecationWarning",
 ]
 markers = [
-  "copied_from(source, changes=None): mark test as copied from somewhere else, along with a description of changes made to accodomate e.g. our test setup",
-  "network: marks tests which require network connection. Used in 3rd-party build environments that have network disabled."
+  "copied_from(source, changes=None): mark test as copied from somewhere else, along with a description of changes made to accommodate e.g. our test setup",
+  "network: marks tests which require network connection. Used in 3rd-party build environments that have network disabled.",
+  "benchmark: marks CodSpeed benchmark tests under tests/test_benchmark.py.",
 ]
 
 [tool.coverage.run]
-source_pkgs = ["httpx2", "tests"]
+source_pkgs = ["httpx2", "httpcore2", "tests"]
+omit = ["src/httpcore2/httpcore2/_sync/*", "tests/test_benchmark.py"]
+
+[tool.coverage.report]
+exclude_also = [
+  "if TYPE_CHECKING:",
+  "if typing.TYPE_CHECKING:",
+  "raise NotImplementedError",
+  "@(typing\\.)?overload",
+]

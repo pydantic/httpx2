@@ -1,3 +1,4 @@
+Copyright © 2026 to present Pydantic Services Inc. and individual contributors.
 Copyright © 2019, [Encode OSS Ltd](https://www.encode.io/).
 All rights reserved.
 

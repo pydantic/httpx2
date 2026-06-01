@@ -114,7 +114,7 @@ def redirects(request: httpx2.Request) -> httpx2.Response:
     return httpx2.Response(200, html="<html><body>Hello, world!</body></html>")
 
 
-def test_redirect_301():
+def test_redirect_301() -> None:
     client = httpx2.Client(transport=httpx2.MockTransport(redirects))
     response = client.post("https://example.org/redirect_301", follow_redirects=True)
     assert response.status_code == httpx2.codes.OK
@@ -122,7 +122,7 @@ def test_redirect_301():
     assert len(response.history) == 1
 
 
-def test_redirect_302():
+def test_redirect_302() -> None:
     client = httpx2.Client(transport=httpx2.MockTransport(redirects))
     response = client.post("https://example.org/redirect_302", follow_redirects=True)
     assert response.status_code == httpx2.codes.OK
@@ -130,7 +130,7 @@ def test_redirect_302():
     assert len(response.history) == 1
 
 
-def test_redirect_303():
+def test_redirect_303() -> None:
     client = httpx2.Client(transport=httpx2.MockTransport(redirects))
     response = client.get("https://example.org/redirect_303", follow_redirects=True)
     assert response.status_code == httpx2.codes.OK
@@ -138,7 +138,7 @@ def test_redirect_303():
     assert len(response.history) == 1
 
 
-def test_next_request():
+def test_next_request() -> None:
     client = httpx2.Client(transport=httpx2.MockTransport(redirects))
     request = client.build_request("POST", "https://example.org/redirect_303")
     response = client.send(request, follow_redirects=False)
@@ -153,7 +153,7 @@ def test_next_request():
 
 
 @pytest.mark.anyio
-async def test_async_next_request():
+async def test_async_next_request() -> None:
     async with httpx2.AsyncClient(transport=httpx2.MockTransport(redirects)) as client:
         request = client.build_request("POST", "https://example.org/redirect_303")
         response = await client.send(request, follow_redirects=False)
@@ -167,7 +167,7 @@ async def test_async_next_request():
         assert response.next_request is None
 
 
-def test_head_redirect():
+def test_head_redirect() -> None:
     """
     Contrary to Requests, redirects remain enabled by default for HEAD requests.
     """
@@ -180,58 +180,48 @@ def test_head_redirect():
     assert response.text == ""
 
 
-def test_relative_redirect():
+def test_relative_redirect() -> None:
     client = httpx2.Client(transport=httpx2.MockTransport(redirects))
-    response = client.get(
-        "https://example.org/relative_redirect", follow_redirects=True
-    )
+    response = client.get("https://example.org/relative_redirect", follow_redirects=True)
     assert response.status_code == httpx2.codes.OK
     assert response.url == "https://example.org/"
     assert len(response.history) == 1
 
 
-def test_malformed_redirect():
+def test_malformed_redirect() -> None:
     # https://github.com/encode/httpx/issues/771
     client = httpx2.Client(transport=httpx2.MockTransport(redirects))
-    response = client.get(
-        "http://example.org/malformed_redirect", follow_redirects=True
-    )
+    response = client.get("http://example.org/malformed_redirect", follow_redirects=True)
     assert response.status_code == httpx2.codes.OK
     assert response.url == "https://example.org:443/"
     assert len(response.history) == 1
 
 
-def test_invalid_redirect():
+def test_invalid_redirect() -> None:
     client = httpx2.Client(transport=httpx2.MockTransport(redirects))
     with pytest.raises(httpx2.RemoteProtocolError):
         client.get("http://example.org/invalid_redirect", follow_redirects=True)
 
 
-def test_no_scheme_redirect():
+def test_no_scheme_redirect() -> None:
     client = httpx2.Client(transport=httpx2.MockTransport(redirects))
-    response = client.get(
-        "https://example.org/no_scheme_redirect", follow_redirects=True
-    )
+    response = client.get("https://example.org/no_scheme_redirect", follow_redirects=True)
     assert response.status_code == httpx2.codes.OK
     assert response.url == "https://example.org/"
     assert len(response.history) == 1
 
 
-def test_fragment_redirect():
+def test_fragment_redirect() -> None:
     client = httpx2.Client(transport=httpx2.MockTransport(redirects))
-    response = client.get(
-        "https://example.org/relative_redirect#fragment", follow_redirects=True
-    )
+    response = client.get("https://example.org/relative_redirect#fragment", follow_redirects=True)
     assert response.status_code == httpx2.codes.OK
     assert response.url == "https://example.org/#fragment"
     assert len(response.history) == 1
 
 
-def test_multiple_redirects():
+def test_multiple_redirects() -> None:
     client = httpx2.Client(transport=httpx2.MockTransport(redirects))
-    response = client.get(
-        "https://example.org/multiple_redirects?count=20", follow_redirects=True
-    )
+    response = client.get("https://example.org/multiple_redirects?count=20", follow_redirects=True)
     assert response.status_code == httpx2.codes.OK
     assert response.url == "https://example.org/multiple_redirects"
     assert len(response.history) == 20
@@ -242,29 +232,25 @@ def test_multiple_redirects():
 
 
 @pytest.mark.anyio
-async def test_async_too_many_redirects():
+async def test_async_too_many_redirects() -> None:
     async with httpx2.AsyncClient(transport=httpx2.MockTransport(redirects)) as client:
         with pytest.raises(httpx2.TooManyRedirects):
-            await client.get(
-                "https://example.org/multiple_redirects?count=21", follow_redirects=True
-            )
+            await client.get("https://example.org/multiple_redirects?count=21", follow_redirects=True)
 
 
-def test_sync_too_many_redirects():
+def test_sync_too_many_redirects() -> None:
     client = httpx2.Client(transport=httpx2.MockTransport(redirects))
     with pytest.raises(httpx2.TooManyRedirects):
-        client.get(
-            "https://example.org/multiple_redirects?count=21", follow_redirects=True
-        )
+        client.get("https://example.org/multiple_redirects?count=21", follow_redirects=True)
 
 
-def test_redirect_loop():
+def test_redirect_loop() -> None:
     client = httpx2.Client(transport=httpx2.MockTransport(redirects))
     with pytest.raises(httpx2.TooManyRedirects):
         client.get("https://example.org/redirect_loop", follow_redirects=True)
 
 
-def test_cross_domain_redirect_with_auth_header():
+def test_cross_domain_redirect_with_auth_header() -> None:
     client = httpx2.Client(transport=httpx2.MockTransport(redirects))
     url = "https://example.com/cross_domain"
     headers = {"Authorization": "abc"}
@@ -273,7 +259,7 @@ def test_cross_domain_redirect_with_auth_header():
     assert "authorization" not in response.json()["headers"]
 
 
-def test_cross_domain_https_redirect_with_auth_header():
+def test_cross_domain_https_redirect_with_auth_header() -> None:
     client = httpx2.Client(transport=httpx2.MockTransport(redirects))
     url = "http://example.com/cross_domain"
     headers = {"Authorization": "abc"}
@@ -282,7 +268,7 @@ def test_cross_domain_https_redirect_with_auth_header():
     assert "authorization" not in response.json()["headers"]
 
 
-def test_cross_domain_redirect_with_auth():
+def test_cross_domain_redirect_with_auth() -> None:
     client = httpx2.Client(transport=httpx2.MockTransport(redirects))
     url = "https://example.com/cross_domain"
     response = client.get(url, auth=("user", "pass"), follow_redirects=True)
@@ -290,7 +276,7 @@ def test_cross_domain_redirect_with_auth():
     assert "authorization" not in response.json()["headers"]
 
 
-def test_same_domain_redirect():
+def test_same_domain_redirect() -> None:
     client = httpx2.Client(transport=httpx2.MockTransport(redirects))
     url = "https://example.org/cross_domain"
     headers = {"Authorization": "abc"}
@@ -299,7 +285,7 @@ def test_same_domain_redirect():
     assert response.json()["headers"]["authorization"] == "abc"
 
 
-def test_same_domain_https_redirect_with_auth_header():
+def test_same_domain_https_redirect_with_auth_header() -> None:
     client = httpx2.Client(transport=httpx2.MockTransport(redirects))
     url = "http://example.org/cross_domain"
     headers = {"Authorization": "abc"}
@@ -308,7 +294,7 @@ def test_same_domain_https_redirect_with_auth_header():
     assert response.json()["headers"]["authorization"] == "abc"
 
 
-def test_body_redirect():
+def test_body_redirect() -> None:
     """
     A 308 redirect should preserve the request body.
     """
@@ -321,7 +307,7 @@ def test_body_redirect():
     assert "content-length" in response.json()["headers"]
 
 
-def test_no_body_redirect():
+def test_no_body_redirect() -> None:
     """
     A 303 redirect should remove the request body.
     """
@@ -334,7 +320,7 @@ def test_no_body_redirect():
     assert "content-length" not in response.json()["headers"]
 
 
-def test_can_stream_if_no_redirect():
+def test_can_stream_if_no_redirect() -> None:
     client = httpx2.Client(transport=httpx2.MockTransport(redirects))
     url = "https://example.org/redirect_301"
     with client.stream("GET", url, follow_redirects=False) as response:
@@ -350,7 +336,7 @@ class ConsumeBodyTransport(httpx2.MockTransport):
         return self.handler(request)  # type: ignore[return-value]
 
 
-def test_cannot_redirect_streaming_body():
+def test_cannot_redirect_streaming_body() -> None:
     client = httpx2.Client(transport=ConsumeBodyTransport(redirects))
     url = "https://example.org/redirect_body"
 
@@ -361,7 +347,7 @@ def test_cannot_redirect_streaming_body():
         client.post(url, content=streaming_body(), follow_redirects=True)
 
 
-def test_cross_subdomain_redirect():
+def test_cross_subdomain_redirect() -> None:
     client = httpx2.Client(transport=httpx2.MockTransport(redirects))
     url = "https://example.com/cross_subdomain"
     response = client.get(url, follow_redirects=True)
@@ -381,10 +367,7 @@ def cookie_sessions(request: httpx2.Request) -> httpx2.Response:
         status_code = httpx2.codes.SEE_OTHER
         headers = {
             "location": "/",
-            "set-cookie": (
-                "session=eyJ1c2VybmFtZSI6ICJ0b21; path=/; Max-Age=1209600; "
-                "httponly; samesite=lax"
-            ),
+            "set-cookie": ("session=eyJ1c2VybmFtZSI6ICJ0b21; path=/; Max-Age=1209600; httponly; samesite=lax"),
         }
         return httpx2.Response(status_code, headers=headers)
 
@@ -393,18 +376,13 @@ def cookie_sessions(request: httpx2.Request) -> httpx2.Response:
         status_code = httpx2.codes.SEE_OTHER
         headers = {
             "location": "/",
-            "set-cookie": (
-                "session=null; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; "
-                "httponly; samesite=lax"
-            ),
+            "set-cookie": ("session=null; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; httponly; samesite=lax"),
         }
         return httpx2.Response(status_code, headers=headers)
 
 
-def test_redirect_cookie_behavior():
-    client = httpx2.Client(
-        transport=httpx2.MockTransport(cookie_sessions), follow_redirects=True
-    )
+def test_redirect_cookie_behavior() -> None:
+    client = httpx2.Client(transport=httpx2.MockTransport(cookie_sessions), follow_redirects=True)
 
     # The client is not logged in.
     response = client.get("https://example.com/")
@@ -432,7 +410,7 @@ def test_redirect_cookie_behavior():
     assert response.text == "Not logged in"
 
 
-def test_redirect_custom_scheme():
+def test_redirect_custom_scheme() -> None:
     client = httpx2.Client(transport=httpx2.MockTransport(redirects))
     with pytest.raises(httpx2.UnsupportedProtocol) as e:
         client.post("https://example.org/redirect_custom_scheme", follow_redirects=True)
@@ -440,9 +418,7 @@ def test_redirect_custom_scheme():
 
 
 @pytest.mark.anyio
-async def test_async_invalid_redirect():
+async def test_async_invalid_redirect() -> None:
     async with httpx2.AsyncClient(transport=httpx2.MockTransport(redirects)) as client:
         with pytest.raises(httpx2.RemoteProtocolError):
-            await client.get(
-                "http://example.org/invalid_redirect", follow_redirects=True
-            )
+            await client.get("http://example.org/invalid_redirect", follow_redirects=True)

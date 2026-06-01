@@ -7,7 +7,9 @@ See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Encoding
 from __future__ import annotations
 
 import codecs
+import functools
 import io
+import sys
 import typing
 import zlib
 
@@ -26,11 +28,33 @@ except ImportError:  # pragma: no cover
         brotli = None
 
 
-# Zstandard support is optional
-try:
-    import zstandard
-except ImportError:  # pragma: no cover
-    zstandard = None  # type: ignore
+# Zstandard support is optional on Python <= 3.13.
+# On Python 3.14+, the stdlib includes an optional built-in zstd implementation.
+if typing.TYPE_CHECKING:
+    # We keep checking Python version in the type checker path because try..except doesn't help type checkers.
+    if sys.version_info >= (3, 14):
+        from compression.zstd import ZstdDecompressor, ZstdError
+    else:
+        from zstandard import ZstdDecompressor as _ZstdDecompressor, ZstdError
+
+        ZstdDecompressor = functools.partial(_ZstdDecompressor().decompressobj)
+
+    _zstandard_installed: bool
+else:  # pragma: no cover
+    _zstandard_installed = False
+    try:
+        from compression.zstd import ZstdDecompressor, ZstdError
+
+        _zstandard_installed = True
+    # Either Python <3.14 or the distro doesn't have `compression.zstd`.
+    except ImportError:
+        try:
+            from zstandard import ZstdDecompressor as _ZstdDecompressor, ZstdError
+
+            ZstdDecompressor = functools.partial(_ZstdDecompressor().decompressobj)
+            _zstandard_installed = True
+        except ImportError:
+            pass
 
 
 class ContentDecoder:
@@ -159,45 +183,46 @@ class BrotliDecoder(ContentDecoder):
 
 
 class ZStandardDecoder(ContentDecoder):
-    """
-    Handle 'zstd' RFC 8878 decoding.
+    """Handle 'zstd' RFC 8878 decoding.
 
-    Requires `pip install zstandard`.
-    Can be installed as a dependency of httpx using `pip install httpx[zstd]`.
+    If running on Python 3.14+ or a distro that doesn't have the `compression.zstd` stdlib module, requires either:
+    `pip install zstandard` or `pip install httpx2[zstd]`.
     """
 
     # inspired by the ZstdDecoder implementation in urllib3
     def __init__(self) -> None:
-        if zstandard is None:  # pragma: no cover
+        if not _zstandard_installed:  # pragma: no cover
             raise ImportError(
-                "Using 'ZStandardDecoder', ..."
-                "Make sure to install httpx using `pip install httpx[zstd]`."
+                "Using 'ZStandardDecoder', ...Make sure to install httpx using `pip install httpx[zstd]`."
             ) from None
 
-        self.decompressor = zstandard.ZstdDecompressor().decompressobj()
+        self.decompressor = ZstdDecompressor()
         self.seen_data = False
 
     def decode(self, data: bytes) -> bytes:
-        assert zstandard is not None
+        if not data:
+            return b""
         self.seen_data = True
         output = io.BytesIO()
         try:
+            if self.decompressor.eof:
+                data = self.decompressor.unused_data + data
+                self.decompressor = ZstdDecompressor()
             output.write(self.decompressor.decompress(data))
             while self.decompressor.eof and self.decompressor.unused_data:
                 unused_data = self.decompressor.unused_data
-                self.decompressor = zstandard.ZstdDecompressor().decompressobj()
+                self.decompressor = ZstdDecompressor()
                 output.write(self.decompressor.decompress(unused_data))
-        except zstandard.ZstdError as exc:
+        except ZstdError as exc:
             raise DecodingError(str(exc)) from exc
         return output.getvalue()
 
     def flush(self) -> bytes:
         if not self.seen_data:
             return b""
-        ret = self.decompressor.flush()  # note: this is a no-op
         if not self.decompressor.eof:
             raise DecodingError("Zstandard data is incomplete")  # pragma: no cover
-        return bytes(ret)
+        return b""
 
 
 class MultiDecoder(ContentDecoder):
@@ -241,10 +266,7 @@ class ByteChunker:
         self._buffer.write(content)
         if self._buffer.tell() >= self._chunk_size:
             value = self._buffer.getvalue()
-            chunks = [
-                value[i : i + self._chunk_size]
-                for i in range(0, len(value), self._chunk_size)
-            ]
+            chunks = [value[i : i + self._chunk_size] for i in range(0, len(value), self._chunk_size)]
             if len(chunks[-1]) == self._chunk_size:
                 self._buffer.seek(0)
                 self._buffer.truncate()
@@ -280,10 +302,7 @@ class TextChunker:
         self._buffer.write(content)
         if self._buffer.tell() >= self._chunk_size:
             value = self._buffer.getvalue()
-            chunks = [
-                value[i : i + self._chunk_size]
-                for i in range(0, len(value), self._chunk_size)
-            ]
+            chunks = [value[i : i + self._chunk_size] for i in range(0, len(value), self._chunk_size)]
             if len(chunks[-1]) == self._chunk_size:
                 self._buffer.seek(0)
                 self._buffer.truncate()
@@ -389,5 +408,5 @@ SUPPORTED_DECODERS = {
 
 if brotli is None:
     SUPPORTED_DECODERS.pop("br")  # pragma: no cover
-if zstandard is None:
+if not _zstandard_installed:
     SUPPORTED_DECODERS.pop("zstd")  # pragma: no cover

@@ -11,21 +11,6 @@ from ._transports import *
 from ._types import *
 from ._urls import *
 
-try:
-    from ._main import main
-except ImportError:  # pragma: no cover
-
-    def main() -> None:  # type: ignore
-        import sys
-
-        print(
-            "The httpx command line client could not run because the required "
-            "dependencies were not installed.\nMake sure you've installed "
-            "everything with: pip install 'httpx[cli]'"
-        )
-        sys.exit(1)
-
-
 __all__ = [
     "__description__",
     "__title__",
@@ -60,7 +45,6 @@ __all__ = [
     "InvalidURL",
     "Limits",
     "LocalProtocolError",
-    "main",
     "MockTransport",
     "NetRCAuth",
     "NetworkError",
@@ -104,3 +88,20 @@ __locals = locals()
 for __name in __all__:
     if not __name.startswith("__"):
         setattr(__locals[__name], "__module__", "httpx2")  # noqa
+
+
+def __getattr__(name: str) -> object:  # pragma: no cover
+    if name == "main":
+        import warnings
+
+        warnings.warn(
+            "`httpx2.main` is deprecated and will be removed in a future release. "
+            "Use the `httpx2` CLI entry point instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        from ._main import main
+
+        return main
+
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

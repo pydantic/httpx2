@@ -23,28 +23,24 @@ Some things HTTP Core does do:
 * Provides both sync and async interfaces.
 * Async backend support for `asyncio` and `trio`.
 
-## Requirements
-
-Python 3.8+
-
 ## Installation
 
 For HTTP/1.1 only support, install with:
 
 ```shell
-$ pip install httpcore
+pip install httpcore
 ```
 
 For HTTP/1.1 and HTTP/2 support, install with:
 
 ```shell
-$ pip install httpcore[http2]
+pip install httpcore[http2]
 ```
 
 For SOCKS proxy support, install with:
 
 ```shell
-$ pip install httpcore[socks]
+pip install httpcore[socks]
 ```
 
 ## Example

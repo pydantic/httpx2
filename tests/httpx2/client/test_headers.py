@@ -20,7 +20,7 @@ def echo_repeated_headers_items(request: httpx2.Request) -> httpx2.Response:
     return httpx2.Response(200, json=data)
 
 
-def test_client_header():
+def test_client_header() -> None:
     """
     Set a header in the Client.
     """
@@ -44,13 +44,11 @@ def test_client_header():
     }
 
 
-def test_header_merge():
+def test_header_merge() -> None:
     url = "http://example.org/echo_headers"
     client_headers = {"User-Agent": "python-myclient/0.2.1"}
     request_headers = {"X-Auth-Token": "FooBarBazToken"}
-    client = httpx2.Client(
-        transport=httpx2.MockTransport(echo_headers), headers=client_headers
-    )
+    client = httpx2.Client(transport=httpx2.MockTransport(echo_headers), headers=client_headers)
     response = client.get(url, headers=request_headers)
 
     assert response.status_code == 200
@@ -66,13 +64,11 @@ def test_header_merge():
     }
 
 
-def test_header_merge_conflicting_headers():
+def test_header_merge_conflicting_headers() -> None:
     url = "http://example.org/echo_headers"
     client_headers = {"X-Auth-Token": "FooBar"}
     request_headers = {"X-Auth-Token": "BazToken"}
-    client = httpx2.Client(
-        transport=httpx2.MockTransport(echo_headers), headers=client_headers
-    )
+    client = httpx2.Client(transport=httpx2.MockTransport(echo_headers), headers=client_headers)
     response = client.get(url, headers=request_headers)
 
     assert response.status_code == 200
@@ -88,13 +84,11 @@ def test_header_merge_conflicting_headers():
     }
 
 
-def test_header_update():
+def test_header_update() -> None:
     url = "http://example.org/echo_headers"
     client = httpx2.Client(transport=httpx2.MockTransport(echo_headers))
     first_response = client.get(url)
-    client.headers.update(
-        {"User-Agent": "python-myclient/0.2.1", "Another-Header": "AThing"}
-    )
+    client.headers.update({"User-Agent": "python-myclient/0.2.1", "Another-Header": "AThing"})
     second_response = client.get(url)
 
     assert first_response.status_code == 200
@@ -121,7 +115,7 @@ def test_header_update():
     }
 
 
-def test_header_repeated_items():
+def test_header_repeated_items() -> None:
     url = "http://example.org/echo_headers"
     client = httpx2.Client(transport=httpx2.MockTransport(echo_repeated_headers_items))
     response = client.get(url, headers=[("x-header", "1"), ("x-header", "2,3")])
@@ -131,16 +125,12 @@ def test_header_repeated_items():
     echoed_headers = response.json()["headers"]
     # as per RFC 7230, the whitespace after a comma is insignificant
     # so we split and strip here so that we can do a safe comparison
-    assert ["x-header", ["1", "2", "3"]] in [
-        [k, [subv.lstrip() for subv in v.split(",")]] for k, v in echoed_headers
-    ]
+    assert ["x-header", ["1", "2", "3"]] in [[k, [subv.lstrip() for subv in v.split(",")]] for k, v in echoed_headers]
 
 
-def test_header_repeated_multi_items():
+def test_header_repeated_multi_items() -> None:
     url = "http://example.org/echo_headers"
-    client = httpx2.Client(
-        transport=httpx2.MockTransport(echo_repeated_headers_multi_items)
-    )
+    client = httpx2.Client(transport=httpx2.MockTransport(echo_repeated_headers_multi_items))
     response = client.get(url, headers=[("x-header", "1"), ("x-header", "2,3")])
 
     assert response.status_code == 200
@@ -150,7 +140,7 @@ def test_header_repeated_multi_items():
     assert ["x-header", "2,3"] in echoed_headers
 
 
-def test_remove_default_header():
+def test_remove_default_header() -> None:
     """
     Remove a default header from the Client.
     """
@@ -172,13 +162,13 @@ def test_remove_default_header():
     }
 
 
-def test_header_does_not_exist():
+def test_header_does_not_exist() -> None:
     headers = httpx2.Headers({"foo": "bar"})
     with pytest.raises(KeyError):
         del headers["baz"]
 
 
-def test_header_with_incorrect_value():
+def test_header_with_incorrect_value() -> None:
     with pytest.raises(
         TypeError,
         match=f"Header value must be str or bytes, not {type(None)}",
@@ -186,7 +176,7 @@ def test_header_with_incorrect_value():
         httpx2.Headers({"foo": None})  # type: ignore
 
 
-def test_host_with_auth_and_port_in_url():
+def test_host_with_auth_and_port_in_url() -> None:
     """
     The Host header should only include the hostname, or hostname:port
     (for non-default ports only). Any userinfo or default port should not
@@ -210,7 +200,7 @@ def test_host_with_auth_and_port_in_url():
     }
 
 
-def test_host_with_non_default_port_in_url():
+def test_host_with_non_default_port_in_url() -> None:
     """
     If the URL includes a non-default port, then it should be included in
     the Host header.
@@ -233,12 +223,12 @@ def test_host_with_non_default_port_in_url():
     }
 
 
-def test_request_auto_headers():
+def test_request_auto_headers() -> None:
     request = httpx2.Request("GET", "https://www.example.org/")
     assert "host" in request.headers
 
 
-def test_same_origin():
+def test_same_origin() -> None:
     origin = httpx2.URL("https://example.com")
     request = httpx2.Request("GET", "HTTPS://EXAMPLE.COM:443")
 
@@ -248,7 +238,7 @@ def test_same_origin():
     assert headers["Host"] == request.url.netloc.decode("ascii")
 
 
-def test_not_same_origin():
+def test_not_same_origin() -> None:
     origin = httpx2.URL("https://example.com")
     request = httpx2.Request("GET", "HTTP://EXAMPLE.COM:80")
 
@@ -258,11 +248,9 @@ def test_not_same_origin():
     assert headers["Host"] == origin.netloc.decode("ascii")
 
 
-def test_is_https_redirect():
+def test_is_https_redirect() -> None:
     url = httpx2.URL("https://example.com")
-    request = httpx2.Request(
-        "GET", "http://example.com", headers={"Authorization": "empty"}
-    )
+    request = httpx2.Request("GET", "http://example.com", headers={"Authorization": "empty"})
 
     client = httpx2.Client()
     headers = client._redirect_headers(request, url, "GET")
@@ -270,11 +258,9 @@ def test_is_https_redirect():
     assert "Authorization" in headers
 
 
-def test_is_not_https_redirect():
+def test_is_not_https_redirect() -> None:
     url = httpx2.URL("https://www.example.com")
-    request = httpx2.Request(
-        "GET", "http://example.com", headers={"Authorization": "empty"}
-    )
+    request = httpx2.Request("GET", "http://example.com", headers={"Authorization": "empty"})
 
     client = httpx2.Client()
     headers = client._redirect_headers(request, url, "GET")
@@ -282,11 +268,9 @@ def test_is_not_https_redirect():
     assert "Authorization" not in headers
 
 
-def test_is_not_https_redirect_if_not_default_ports():
+def test_is_not_https_redirect_if_not_default_ports() -> None:
     url = httpx2.URL("https://example.com:1337")
-    request = httpx2.Request(
-        "GET", "http://example.com:9999", headers={"Authorization": "empty"}
-    )
+    request = httpx2.Request("GET", "http://example.com:9999", headers={"Authorization": "empty"})
 
     client = httpx2.Client()
     headers = client._redirect_headers(request, url, "GET")

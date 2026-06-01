@@ -1,0 +1,12 @@
+#!/bin/sh -e
+
+# Usage: scripts/benchmark async|sync
+
+set -x
+
+uv run python tests/httpcore2/benchmark/server.py &
+SERVER_PID=$!
+EXIT_CODE=0
+uv run python tests/httpcore2/benchmark/client.py "$@" || EXIT_CODE=$?
+kill $SERVER_PID
+exit $EXIT_CODE

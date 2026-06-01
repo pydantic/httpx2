@@ -118,10 +118,7 @@ class URL:
         elif isinstance(url, URL):
             self._uri_reference = url._uri_reference.copy_with(**kwargs)
         else:
-            raise TypeError(
-                "Invalid type for url.  Expected str or httpx2.URL,"
-                f" got {type(url)}: {url!r}"
-            )
+            raise TypeError(f"Invalid type for url.  Expected str or httpx2.URL, got {type(url)}: {url!r}")
 
     @property
     def scheme(self) -> str:
@@ -406,9 +403,7 @@ class URL:
         import warnings
 
         warnings.warn("URL.raw is deprecated.")
-        RawURL = collections.namedtuple(
-            "RawURL", ["raw_scheme", "raw_host", "port", "raw_path"]
-        )
+        RawURL = collections.namedtuple("RawURL", ["raw_scheme", "raw_host", "port", "raw_path"])
         return RawURL(
             raw_scheme=self.raw_scheme,
             raw_host=self.raw_host,
@@ -447,18 +442,12 @@ class QueryParams(typing.Mapping[str, str]):
                 #    {"a": "123", "b": ["456", "789"]}
                 # To dict inputs where values are always lists, like:
                 #    {"a": ["123"], "b": ["456", "789"]}
-                dict_value = {
-                    k: list(v) if isinstance(v, (list, tuple)) else [v]
-                    for k, v in value.items()
-                }
+                dict_value = {k: list(v) if isinstance(v, (list, tuple)) else [v] for k, v in value.items()}
 
             # Ensure that keys and values are neatly coerced to strings.
             # We coerce values `True` and `False` to JSON-like "true" and "false"
             # representations, and coerce `None` values to the empty string.
-            self._dict = {
-                str(k): [primitive_value_to_str(item) for item in v]
-                for k, v in dict_value.items()
-            }
+            self._dict = {str(k): [primitive_value_to_str(item) for item in v] for k, v in dict_value.items()}
 
     def keys(self) -> typing.KeysView[str]:
         """
@@ -629,13 +618,9 @@ class QueryParams(typing.Mapping[str, str]):
         return f"{class_name}({query_string!r})"
 
     def update(self, params: QueryParamTypes | None = None) -> None:
-        raise RuntimeError(
-            "QueryParams are immutable since 0.18.0. "
-            "Use `q = q.merge(...)` to create an updated copy."
-        )
+        raise RuntimeError("QueryParams are immutable since 0.18.0. Use `q = q.merge(...)` to create an updated copy.")
 
     def __setitem__(self, key: str, value: str) -> None:
         raise RuntimeError(
-            "QueryParams are immutable since 0.18.0. "
-            "Use `q = q.set(key, value)` to create an updated copy."
+            "QueryParams are immutable since 0.18.0. Use `q = q.set(key, value)` to create an updated copy."
         )

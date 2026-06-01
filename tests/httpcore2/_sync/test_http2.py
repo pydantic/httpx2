@@ -6,7 +6,7 @@ import httpcore2
 
 
 
-def test_http2_connection():
+def test_http2_connection() -> None:
     origin = httpcore2.Origin(b"https", b"example.com", 443)
     stream = httpcore2.MockStream(
         [
@@ -21,14 +21,10 @@ def test_http2_connection():
                 ),
                 flags=["END_HEADERS"],
             ).serialize(),
-            hyperframe.frame.DataFrame(
-                stream_id=1, data=b"Hello, world!", flags=["END_STREAM"]
-            ).serialize(),
+            hyperframe.frame.DataFrame(stream_id=1, data=b"Hello, world!", flags=["END_STREAM"]).serialize(),
         ]
     )
-    with httpcore2.HTTP2Connection(
-        origin=origin, stream=stream, keepalive_expiry=5.0
-    ) as conn:
+    with httpcore2.HTTP2Connection(origin=origin, stream=stream, keepalive_expiry=5.0) as conn:
         response = conn.request("GET", "https://example.com/")
         assert response.status == 200
         assert response.content == b"Hello, world!"
@@ -37,17 +33,12 @@ def test_http2_connection():
         assert conn.is_available()
         assert not conn.is_closed()
         assert not conn.has_expired()
-        assert (
-            conn.info() == "'https://example.com:443', HTTP/2, IDLE, Request Count: 1"
-        )
-        assert (
-            repr(conn)
-            == "<HTTP2Connection ['https://example.com:443', IDLE, Request Count: 1]>"
-        )
+        assert conn.info() == "'https://example.com:443', HTTP/2, IDLE, Request Count: 1"
+        assert repr(conn) == "<HTTP2Connection ['https://example.com:443', IDLE, Request Count: 1]>"
 
 
 
-def test_http2_connection_closed():
+def test_http2_connection_closed() -> None:
     origin = httpcore2.Origin(b"https", b"example.com", 443)
     stream = httpcore2.MockStream(
         [
@@ -62,18 +53,12 @@ def test_http2_connection_closed():
                 ),
                 flags=["END_HEADERS"],
             ).serialize(),
-            hyperframe.frame.DataFrame(
-                stream_id=1, data=b"Hello, world!", flags=["END_STREAM"]
-            ).serialize(),
+            hyperframe.frame.DataFrame(stream_id=1, data=b"Hello, world!", flags=["END_STREAM"]).serialize(),
             # Connection is closed after the first response
-            hyperframe.frame.GoAwayFrame(
-                stream_id=0, error_code=0, last_stream_id=1
-            ).serialize(),
+            hyperframe.frame.GoAwayFrame(stream_id=0, error_code=0, last_stream_id=1).serialize(),
         ]
     )
-    with httpcore2.HTTP2Connection(
-        origin=origin, stream=stream, keepalive_expiry=5.0
-    ) as conn:
+    with httpcore2.HTTP2Connection(origin=origin, stream=stream, keepalive_expiry=5.0) as conn:
         conn.request("GET", "https://example.com/")
 
         with pytest.raises(httpcore2.ConnectionNotAvailable):
@@ -83,7 +68,7 @@ def test_http2_connection_closed():
 
 
 
-def test_http2_connection_post_request():
+def test_http2_connection_post_request() -> None:
     origin = httpcore2.Origin(b"https", b"example.com", 443)
     stream = httpcore2.MockStream(
         [
@@ -98,9 +83,7 @@ def test_http2_connection_post_request():
                 ),
                 flags=["END_HEADERS"],
             ).serialize(),
-            hyperframe.frame.DataFrame(
-                stream_id=1, data=b"Hello, world!", flags=["END_STREAM"]
-            ).serialize(),
+            hyperframe.frame.DataFrame(stream_id=1, data=b"Hello, world!", flags=["END_STREAM"]).serialize(),
         ]
     )
     with httpcore2.HTTP2Connection(origin=origin, stream=stream) as conn:
@@ -115,7 +98,7 @@ def test_http2_connection_post_request():
 
 
 
-def test_http2_connection_with_remote_protocol_error():
+def test_http2_connection_with_remote_protocol_error() -> None:
     """
     If a remote protocol error occurs, then no response will be returned,
     and the connection will not be reusable.
@@ -128,7 +111,7 @@ def test_http2_connection_with_remote_protocol_error():
 
 
 
-def test_http2_connection_with_rst_stream():
+def test_http2_connection_with_rst_stream() -> None:
     """
     If a stream reset occurs, then no response will be returned,
     but the connection will remain reusable for other requests.
@@ -160,9 +143,7 @@ def test_http2_connection_with_rst_stream():
                 ),
                 flags=["END_HEADERS"],
             ).serialize(),
-            hyperframe.frame.DataFrame(
-                stream_id=3, data=b"Hello, world!", flags=["END_STREAM"]
-            ).serialize(),
+            hyperframe.frame.DataFrame(stream_id=3, data=b"Hello, world!", flags=["END_STREAM"]).serialize(),
             b"",
         ]
     )
@@ -174,7 +155,7 @@ def test_http2_connection_with_rst_stream():
 
 
 
-def test_http2_connection_with_goaway():
+def test_http2_connection_with_goaway() -> None:
     """
     If a GoAway frame occurs, then no response will be returned,
     and the connection will not be reusable for other requests.
@@ -206,9 +187,7 @@ def test_http2_connection_with_goaway():
                 ),
                 flags=["END_HEADERS"],
             ).serialize(),
-            hyperframe.frame.DataFrame(
-                stream_id=3, data=b"Hello, world!", flags=["END_STREAM"]
-            ).serialize(),
+            hyperframe.frame.DataFrame(stream_id=3, data=b"Hello, world!", flags=["END_STREAM"]).serialize(),
             b"",
         ]
     )
@@ -224,39 +203,61 @@ def test_http2_connection_with_goaway():
 
 
 
-def test_http2_connection_with_flow_control():
+def test_http2_connection_with_negative_flow_control_window() -> None:
+    """A negative stream flow-control window must be awaited, not sent into.
+
+    After the 65535-byte window is exhausted, the server reduces INITIAL_WINDOW_SIZE
+    by 32767, which adjusts the just-exhausted stream window from 0 to -32767.
+    `_wait_for_outgoing_flow` must park the stream until WINDOW_UPDATE restores
+    positive credit; otherwise `h2` raises `LocalProtocolError` on the next send_data.
+    """
+    origin = httpcore2.Origin(b"https", b"example.com", 443)
+    reduce_settings = hyperframe.frame.SettingsFrame(stream_id=0)
+    reduce_settings.settings = {hyperframe.frame.SettingsFrame.INITIAL_WINDOW_SIZE: 32768}
+    stream = httpcore2.MockStream(
+        [
+            hyperframe.frame.SettingsFrame(stream_id=0).serialize(),
+            # This frame reduces INITIAL_WINDOW_SIZE to 32768, which adjusts the just-exhausted stream window to -32767.
+            reduce_settings.serialize(),
+            hyperframe.frame.WindowUpdateFrame(stream_id=0, window_increment=100_000).serialize(),
+            hyperframe.frame.WindowUpdateFrame(stream_id=1, window_increment=100_000).serialize(),
+            hyperframe.frame.HeadersFrame(
+                stream_id=1,
+                data=hpack.Encoder().encode(
+                    [
+                        (b":status", b"200"),
+                        (b"content-type", b"plain/text"),
+                    ]
+                ),
+                flags=["END_HEADERS"],
+            ).serialize(),
+            hyperframe.frame.DataFrame(stream_id=1, data=b"response", flags=["END_STREAM"]).serialize(),
+        ]
+    )
+    with httpcore2.HTTP2Connection(origin=origin, stream=stream) as conn:
+        response = conn.request("POST", "https://example.com/", content=b"x" * 100_000)
+        assert response.status == 200
+        assert response.content == b"response"
+
+
+
+def test_http2_connection_with_flow_control() -> None:
     origin = httpcore2.Origin(b"https", b"example.com", 443)
     stream = httpcore2.MockStream(
         [
             hyperframe.frame.SettingsFrame().serialize(),
             # Available flow: 65,535
-            hyperframe.frame.WindowUpdateFrame(
-                stream_id=0, window_increment=10_000
-            ).serialize(),
-            hyperframe.frame.WindowUpdateFrame(
-                stream_id=1, window_increment=10_000
-            ).serialize(),
+            hyperframe.frame.WindowUpdateFrame(stream_id=0, window_increment=10_000).serialize(),
+            hyperframe.frame.WindowUpdateFrame(stream_id=1, window_increment=10_000).serialize(),
             # Available flow: 75,535
-            hyperframe.frame.WindowUpdateFrame(
-                stream_id=0, window_increment=10_000
-            ).serialize(),
-            hyperframe.frame.WindowUpdateFrame(
-                stream_id=1, window_increment=10_000
-            ).serialize(),
+            hyperframe.frame.WindowUpdateFrame(stream_id=0, window_increment=10_000).serialize(),
+            hyperframe.frame.WindowUpdateFrame(stream_id=1, window_increment=10_000).serialize(),
             # Available flow: 85,535
-            hyperframe.frame.WindowUpdateFrame(
-                stream_id=0, window_increment=10_000
-            ).serialize(),
-            hyperframe.frame.WindowUpdateFrame(
-                stream_id=1, window_increment=10_000
-            ).serialize(),
+            hyperframe.frame.WindowUpdateFrame(stream_id=0, window_increment=10_000).serialize(),
+            hyperframe.frame.WindowUpdateFrame(stream_id=1, window_increment=10_000).serialize(),
             # Available flow: 95,535
-            hyperframe.frame.WindowUpdateFrame(
-                stream_id=0, window_increment=10_000
-            ).serialize(),
-            hyperframe.frame.WindowUpdateFrame(
-                stream_id=1, window_increment=10_000
-            ).serialize(),
+            hyperframe.frame.WindowUpdateFrame(stream_id=0, window_increment=10_000).serialize(),
+            hyperframe.frame.WindowUpdateFrame(stream_id=1, window_increment=10_000).serialize(),
             # Available flow: 105,535
             hyperframe.frame.HeadersFrame(
                 stream_id=1,
@@ -268,9 +269,7 @@ def test_http2_connection_with_flow_control():
                 ),
                 flags=["END_HEADERS"],
             ).serialize(),
-            hyperframe.frame.DataFrame(
-                stream_id=1, data=b"100,000 bytes received", flags=["END_STREAM"]
-            ).serialize(),
+            hyperframe.frame.DataFrame(stream_id=1, data=b"100,000 bytes received", flags=["END_STREAM"]).serialize(),
         ]
     )
     with httpcore2.HTTP2Connection(origin=origin, stream=stream) as conn:
@@ -284,7 +283,7 @@ def test_http2_connection_with_flow_control():
 
 
 
-def test_http2_connection_attempt_close():
+def test_http2_connection_attempt_close() -> None:
     """
     A connection can only be closed when it is idle.
     """
@@ -302,9 +301,7 @@ def test_http2_connection_attempt_close():
                 ),
                 flags=["END_HEADERS"],
             ).serialize(),
-            hyperframe.frame.DataFrame(
-                stream_id=1, data=b"Hello, world!", flags=["END_STREAM"]
-            ).serialize(),
+            hyperframe.frame.DataFrame(stream_id=1, data=b"Hello, world!", flags=["END_STREAM"]).serialize(),
         ]
     )
     with httpcore2.HTTP2Connection(origin=origin, stream=stream) as conn:
@@ -319,7 +316,7 @@ def test_http2_connection_attempt_close():
 
 
 
-def test_http2_request_to_incorrect_origin():
+def test_http2_request_to_incorrect_origin() -> None:
     """
     A connection can only send requests to whichever origin it is connected to.
     """
@@ -331,7 +328,7 @@ def test_http2_request_to_incorrect_origin():
 
 
 
-def test_http2_remote_max_streams_update():
+def test_http2_remote_max_streams_update() -> None:
     """
     If the remote server updates the maximum concurrent streams value, we should
     be adjusting how many streams we will allow.
@@ -356,9 +353,7 @@ def test_http2_remote_max_streams_update():
             hyperframe.frame.SettingsFrame(
                 settings={hyperframe.frame.SettingsFrame.MAX_CONCURRENT_STREAMS: 50}
             ).serialize(),
-            hyperframe.frame.DataFrame(
-                stream_id=1, data=b"Hello, world...again!", flags=["END_STREAM"]
-            ).serialize(),
+            hyperframe.frame.DataFrame(stream_id=1, data=b"Hello, world...again!", flags=["END_STREAM"]).serialize(),
         ]
     )
     with httpcore2.HTTP2Connection(origin=origin, stream=stream) as conn:

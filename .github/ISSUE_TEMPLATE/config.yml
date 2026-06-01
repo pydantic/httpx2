@@ -2,10 +2,10 @@
 blank_issues_enabled: false
 contact_links:
 - name: Discussions
-  url: https://github.com/encode/httpx/discussions
+  url: https://github.com/pydantic/httpx2/discussions
   about: >
     The "Discussions" forum is where you want to start. 💖
-- name: Chat
-  url: https://gitter.im/encode/community
+- name: 💬 Join Slack
+  url: https://logfire.pydantic.dev/docs/join-slack/
   about: >
-    Our community chat forum.
+    Join our Slack community to ask questions, get help, and chat about HTTPX2.

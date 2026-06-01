@@ -5,6 +5,7 @@
 __pycache__/
 htmlcov/
 site/
+.wrangler/
 *.egg-info/
 venv*/
 .python-version

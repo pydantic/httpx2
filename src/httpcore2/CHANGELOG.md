@@ -4,9 +4,44 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## Unreleased
+## 2.2.0 (May 16th, 2026)
 
-- Fix `max_keepalive_connections` not being properly handled. (#1000)
+No changes since `2.1.0`. Version bumped to stay in lockstep with `httpx2`.
+
+## 2.1.0 (May 15th, 2026)
+
+### Removed
+
+* Drop support for Python 3.8 and 3.9. ([#208](https://github.com/pydantic/httpx2/pull/208))
+
+### Added
+
+* Add support for Python 3.14. ([#208](https://github.com/pydantic/httpx2/pull/208))
+* Bundle `LICENSE.md` in the sdist. ([#938](https://github.com/pydantic/httpx2/pull/938))
+
+### Fixed
+
+* Wait for positive flow-control credit when a peer's `SETTINGS` frame drives a stream's send window negative, instead of letting h2 raise `LocalProtocolError`. ([#935](https://github.com/pydantic/httpx2/pull/935))
+
+## 2.0.0
+
+Official first release of `httpcore2`. No changes since `2.0.0b1`.
+
+## 2.0.0b1
+
+First release of `httpcore2`, a fork of [`httpcore`](https://github.com/encode/httpcore) maintained by Pydantic. Forked from `httpcore 1.0.9`.
+
+### Breaking changes
+
+* **Renamed package**: `httpcore` -> `httpcore2`. `import httpcore` becomes `import httpcore2`. No other public API changed.
+
+### Fixed
+
+* Fix `max_keepalive_connections` not being properly handled. (Inherited from upstream PR [encode/httpcore#1000](https://github.com/encode/httpcore/pull/1000).)
+
+---
+
+Historical entries below are from upstream `encode/httpcore`.
 
 ## Version 1.0.9 (April 24th, 2025)
 
@@ -29,7 +64,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## 1.0.5 (March 27th, 2024)
 
 - Handle `EndOfStream` exception for anyio backend. (#899)
-- Allow trio `0.25.*` series in package dependancies. (#903)
+- Allow trio `0.25.*` series in package dependencies. (#903)
 
 ## 1.0.4 (February 21st, 2024)
 
@@ -107,7 +142,7 @@ The project versioning policy is now explicitly governed by SEMVER. See https://
 - Allow `ws` and `wss` schemes. Allows us to properly support websocket upgrade connections. (#625)
 - Forwarding HTTP proxies use a connection-per-remote-host. Required by some proxy implementations. (#637)
 - Don't raise `RuntimeError` when closing a connection pool with active connections. Removes some error cases when cancellations are used. (#631)
-- Lazy import `anyio`, so that it's no longer a hard dependancy, and isn't imported if unused. (#639)
+- Lazy import `anyio`, so that it's no longer a hard dependency, and isn't imported if unused. (#639)
 
 ## 0.16.2 (November 25th, 2022)
 
@@ -165,7 +200,7 @@ The project versioning policy is now explicitly governed by SEMVER. See https://
 ## 0.14.1 (November 12th, 2021)
 
 - `max_connections` becomes optional. (Pull #429)
-- `certifi` is now included in the install dependancies. (Pull #428)
+- `certifi` is now included in the install dependencies. (Pull #428)
 - `h2` is now strictly optional. (Pull #428)
 
 ## 0.14.0 (November 11th, 2021)
@@ -230,7 +265,7 @@ Note that `curio` support is not currently available in 0.14.0. If you're using 
 
 ### Fixed
 
-- More resiliant testing for closed connections. (Pull #311)
+- More resilient testing for closed connections. (Pull #311)
 - Don't raise exceptions on ungraceful connection closes. (Pull #310)
 
 ## 0.13.0 (April 21st, 2021)

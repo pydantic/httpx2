@@ -6,7 +6,7 @@ and so we have functionality here that replicate's Trio's `open_nursery` API,
 but in a plain old multi-threaded context.
 
 We don't do any smarts around cancellations, or managing exceptions from
-childen, because we don't need that for our use-case.
+children, because we don't need that for our use-case.
 """
 
 import threading

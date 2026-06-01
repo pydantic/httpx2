@@ -141,9 +141,6 @@ class WSGITransport(BaseTransport):
             raise seen_exc_info[1]
 
         status_code = int(seen_status.split()[0])
-        headers = [
-            (key.encode("ascii"), value.encode("ascii"))
-            for key, value in seen_response_headers
-        ]
+        headers = [(key.encode("ascii"), value.encode("ascii")) for key, value in seen_response_headers]
 
         return Response(status_code, headers=headers, stream=stream)

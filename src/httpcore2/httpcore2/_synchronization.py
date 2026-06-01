@@ -5,7 +5,7 @@ import types
 
 from ._exceptions import ExceptionMapping, PoolTimeout, map_exceptions
 
-# Our async synchronization primatives use either 'anyio' or 'trio' depending
+# Our async synchronization primitives use either 'anyio' or 'trio' depending
 # on if they're running under asyncio or trio.
 
 try:
@@ -33,14 +33,10 @@ def current_async_library() -> str:
         raise RuntimeError("Running under an unsupported async environment.")
 
     if environment == "asyncio" and anyio is None:  # pragma: nocover
-        raise RuntimeError(
-            "Running with asyncio requires installation of 'httpcore[asyncio]'."
-        )
+        raise RuntimeError("Running with asyncio requires installation of 'httpcore[asyncio]'.")
 
     if environment == "trio" and trio is None:  # pragma: nocover
-        raise RuntimeError(
-            "Running with trio requires installation of 'httpcore[trio]'."
-        )
+        raise RuntimeError("Running with trio requires installation of 'httpcore[trio]'.")
 
     return environment
 
@@ -65,7 +61,7 @@ class AsyncLock:
         if self._backend == "trio":
             self._trio_lock = trio.Lock()
         elif self._backend == "asyncio":
-            self._anyio_lock = anyio.Lock()
+            self._anyio_lock = anyio.Lock(fast_acquire=True)
 
     async def __aenter__(self) -> AsyncLock:
         if not self._backend:
@@ -163,13 +159,9 @@ class AsyncSemaphore:
         """
         self._backend = current_async_library()
         if self._backend == "trio":
-            self._trio_semaphore = trio.Semaphore(
-                initial_value=self._bound, max_value=self._bound
-            )
+            self._trio_semaphore = trio.Semaphore(initial_value=self._bound, max_value=self._bound)
         elif self._backend == "asyncio":
-            self._anyio_semaphore = anyio.Semaphore(
-                initial_value=self._bound, max_value=self._bound
-            )
+            self._anyio_semaphore = anyio.Semaphore(initial_value=self._bound, max_value=self._bound, fast_acquire=True)
 
     async def acquire(self) -> None:
         if not self._backend:

@@ -55,9 +55,7 @@ except ImportError:  # pragma: nocover
 
     class AnyIOBackend:  # type: ignore
         def __init__(self, *args, **kwargs):  # type: ignore
-            msg = (
-                "Attempted to use 'httpcore2.AnyIOBackend' but 'anyio' is not installed."
-            )
+            msg = "Attempted to use 'httpcore2.AnyIOBackend' but 'anyio' is not installed."
             raise RuntimeError(msg)
 
 

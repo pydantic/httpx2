@@ -67,10 +67,6 @@ To run the tests, use:
 $ scripts/test
 ```
 
-!!! warning
-    The test suite spawns testing servers on ports **8000** and **8001**.
-    Make sure these are not in use, so the tests can run properly.
-
 You can run a single test script like this:
 
 ```shell
@@ -204,8 +200,8 @@ UI options.
 
 At this point the server is ready to start serving requests, you'll need to
 configure HTTPX as described in the
-[proxy section](https://www.python-httpx.org/advanced/#http-proxying) and
-the [SSL certificates section](https://www.python-httpx.org/advanced/#ssl-certificates),
+[proxy section](https://httpx2.pydantic.dev/advanced/#http-proxying) and
+the [SSL certificates section](https://httpx2.pydantic.dev/advanced/#ssl-certificates),
 this is where our previously generated `client.pem` comes in:
 
 ```

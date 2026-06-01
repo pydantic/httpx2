@@ -29,9 +29,7 @@ SUBS = [
     ("@pytest.mark.trio", ""),
     ("AutoBackend", "SyncBackend"),
 ]
-COMPILED_SUBS = [
-    (re.compile(r"(^|\b)" + regex + r"($|\b)"), repl) for regex, repl in SUBS
-]
+COMPILED_SUBS = [(re.compile(r"(^|\b)" + regex + r"($|\b)"), repl) for regex, repl in SUBS]
 
 USED_SUBS = set()
 
@@ -56,7 +54,7 @@ def unasync_file(in_path, out_path):
 def unasync_file_check(in_path, out_path):
     with open(in_path, "r") as in_file:
         with open(out_path, "r") as out_file:
-            for in_line, out_line in zip(in_file.readlines(), out_file.readlines()):
+            for in_line, out_line in zip(in_file.readlines(), out_file.readlines(), strict=True):
                 expected = unasync_line(in_line)
                 if out_line != expected:
                     print(f"unasync mismatch between {in_path!r} and {out_path!r}")
@@ -67,7 +65,7 @@ def unasync_file_check(in_path, out_path):
 
 
 def unasync_dir(in_dir, out_dir, check_only=False):
-    for dirpath, dirnames, filenames in os.walk(in_dir):
+    for dirpath, _dirnames, filenames in os.walk(in_dir):
         for filename in filenames:
             if not filename.endswith(".py"):
                 continue
@@ -83,8 +81,16 @@ def unasync_dir(in_dir, out_dir, check_only=False):
 
 def main():
     check_only = "--check" in sys.argv
-    unasync_dir("httpcore/_async", "httpcore/_sync", check_only=check_only)
-    unasync_dir("tests/_async", "tests/_sync", check_only=check_only)
+    unasync_dir(
+        "src/httpcore2/httpcore2/_async",
+        "src/httpcore2/httpcore2/_sync",
+        check_only=check_only,
+    )
+    unasync_dir(
+        "tests/httpcore2/_async",
+        "tests/httpcore2/_sync",
+        check_only=check_only,
+    )
 
     if len(USED_SUBS) != len(SUBS):
         unused_subs = [SUBS[i] for i in range(len(SUBS)) if i not in USED_SUBS]

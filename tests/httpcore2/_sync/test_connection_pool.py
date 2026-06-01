@@ -10,7 +10,7 @@ import httpcore2
 
 
 
-def test_connection_pool_with_keepalive():
+def test_connection_pool_with_keepalive() -> None:
     """
     By default HTTP/1.1 requests should be returned to the connection pool.
     """
@@ -29,69 +29,45 @@ def test_connection_pool_with_keepalive():
         ]
     )
 
-    with httpcore2.ConnectionPool(
-        network_backend=network_backend, max_keepalive_connections=1
-    ) as pool:
-        # Sending an intial request, which once complete will return to the pool, IDLE.
+    with httpcore2.ConnectionPool(network_backend=network_backend, max_keepalive_connections=1) as pool:
+        # Sending an initial request, which once complete will return to the pool, IDLE.
         with pool.stream("GET", "https://example.com/") as response:
             info = [repr(c) for c in pool.connections]
-            assert info == [
-                "<HTTPConnection ['https://example.com:443', HTTP/1.1, ACTIVE, Request Count: 1]>"
-            ]
-            assert (
-                repr(pool)
-                == "<ConnectionPool [Requests: 1 active, 0 queued | Connections: 1 active, 0 idle]>"
-            )
+            assert info == ["<HTTPConnection ['https://example.com:443', HTTP/1.1, ACTIVE, Request Count: 1]>"]
+            assert repr(pool) == "<ConnectionPool [Requests: 1 active, 0 queued | Connections: 1 active, 0 idle]>"
             response.read()
 
         assert response.status == 200
         assert response.content == b"Hello, world!"
         info = [repr(c) for c in pool.connections]
-        assert info == [
-            "<HTTPConnection ['https://example.com:443', HTTP/1.1, IDLE, Request Count: 1]>"
-        ]
-        assert (
-            repr(pool)
-            == "<ConnectionPool [Requests: 0 active, 0 queued | Connections: 0 active, 1 idle]>"
-        )
+        assert info == ["<HTTPConnection ['https://example.com:443', HTTP/1.1, IDLE, Request Count: 1]>"]
+        assert repr(pool) == "<ConnectionPool [Requests: 0 active, 0 queued | Connections: 0 active, 1 idle]>"
 
         # Sending a second request to the same origin will reuse the existing IDLE connection.
         with pool.stream("GET", "https://example.com/") as response:
             info = [repr(c) for c in pool.connections]
-            assert info == [
-                "<HTTPConnection ['https://example.com:443', HTTP/1.1, ACTIVE, Request Count: 2]>"
-            ]
-            assert (
-                repr(pool)
-                == "<ConnectionPool [Requests: 1 active, 0 queued | Connections: 1 active, 0 idle]>"
-            )
+            assert info == ["<HTTPConnection ['https://example.com:443', HTTP/1.1, ACTIVE, Request Count: 2]>"]
+            assert repr(pool) == "<ConnectionPool [Requests: 1 active, 0 queued | Connections: 1 active, 0 idle]>"
             response.read()
 
         assert response.status == 200
         assert response.content == b"Hello, world!"
         info = [repr(c) for c in pool.connections]
-        assert info == [
-            "<HTTPConnection ['https://example.com:443', HTTP/1.1, IDLE, Request Count: 2]>"
-        ]
-        assert (
-            repr(pool)
-            == "<ConnectionPool [Requests: 0 active, 0 queued | Connections: 0 active, 1 idle]>"
-        )
+        assert info == ["<HTTPConnection ['https://example.com:443', HTTP/1.1, IDLE, Request Count: 2]>"]
+        assert repr(pool) == "<ConnectionPool [Requests: 0 active, 0 queued | Connections: 0 active, 1 idle]>"
 
         # Sending a request to a different origin will not reuse the existing IDLE connection.
-        with pool.stream("GET", "http://example.com/") as response_1, pool.stream(
-            "GET", "http://example.com/"
-        ) as response_2:
+        with (
+            pool.stream("GET", "http://example.com/") as response_1,
+            pool.stream("GET", "http://example.com/") as response_2,
+        ):
             info = [repr(c) for c in pool.connections]
             assert info == [
                 "<HTTPConnection ['https://example.com:443', HTTP/1.1, IDLE, Request Count: 2]>",
                 "<HTTPConnection ['http://example.com:80', HTTP/1.1, ACTIVE, Request Count: 1]>",
                 "<HTTPConnection ['http://example.com:80', HTTP/1.1, ACTIVE, Request Count: 1]>",
             ]
-            assert (
-                repr(pool)
-                == "<ConnectionPool [Requests: 2 active, 0 queued | Connections: 2 active, 1 idle]>"
-            )
+            assert repr(pool) == "<ConnectionPool [Requests: 2 active, 0 queued | Connections: 2 active, 1 idle]>"
             response_1.read()
             response_2.read()
 
@@ -103,14 +79,11 @@ def test_connection_pool_with_keepalive():
         assert info == [
             "<HTTPConnection ['http://example.com:80', HTTP/1.1, IDLE, Request Count: 1]>",
         ]
-        assert (
-            repr(pool)
-            == "<ConnectionPool [Requests: 0 active, 0 queued | Connections: 0 active, 1 idle]>"
-        )
+        assert repr(pool) == "<ConnectionPool [Requests: 0 active, 0 queued | Connections: 0 active, 1 idle]>"
 
 
 
-def test_connection_pool_with_close():
+def test_connection_pool_with_close() -> None:
     """
     HTTP/1.1 requests that include a 'Connection: Close' header should
     not be returned to the connection pool.
@@ -126,14 +99,10 @@ def test_connection_pool_with_close():
     )
 
     with httpcore2.ConnectionPool(network_backend=network_backend) as pool:
-        # Sending an intial request, which once complete will not return to the pool.
-        with pool.stream(
-            "GET", "https://example.com/", headers={"Connection": "close"}
-        ) as response:
+        # Sending an initial request, which once complete will not return to the pool.
+        with pool.stream("GET", "https://example.com/", headers={"Connection": "close"}) as response:
             info = [repr(c) for c in pool.connections]
-            assert info == [
-                "<HTTPConnection ['https://example.com:443', HTTP/1.1, ACTIVE, Request Count: 1]>"
-            ]
+            assert info == ["<HTTPConnection ['https://example.com:443', HTTP/1.1, ACTIVE, Request Count: 1]>"]
             response.read()
 
         assert response.status == 200
@@ -143,7 +112,7 @@ def test_connection_pool_with_close():
 
 
 
-def test_connection_pool_with_http2():
+def test_connection_pool_with_http2() -> None:
     """
     Test a connection pool with HTTP/2 requests.
     """
@@ -160,9 +129,7 @@ def test_connection_pool_with_http2():
                 ),
                 flags=["END_HEADERS"],
             ).serialize(),
-            hyperframe.frame.DataFrame(
-                stream_id=1, data=b"Hello, world!", flags=["END_STREAM"]
-            ).serialize(),
+            hyperframe.frame.DataFrame(stream_id=1, data=b"Hello, world!", flags=["END_STREAM"]).serialize(),
             hyperframe.frame.HeadersFrame(
                 stream_id=3,
                 data=hpack.Encoder().encode(
@@ -173,9 +140,7 @@ def test_connection_pool_with_http2():
                 ),
                 flags=["END_HEADERS"],
             ).serialize(),
-            hyperframe.frame.DataFrame(
-                stream_id=3, data=b"Hello, world!", flags=["END_STREAM"]
-            ).serialize(),
+            hyperframe.frame.DataFrame(stream_id=3, data=b"Hello, world!", flags=["END_STREAM"]).serialize(),
         ],
         http2=True,
     )
@@ -183,15 +148,13 @@ def test_connection_pool_with_http2():
     with httpcore2.ConnectionPool(
         network_backend=network_backend,
     ) as pool:
-        # Sending an intial request, which once complete will return to the pool, IDLE.
+        # Sending an initial request, which once complete will return to the pool, IDLE.
         response = pool.request("GET", "https://example.com/")
         assert response.status == 200
         assert response.content == b"Hello, world!"
 
         info = [repr(c) for c in pool.connections]
-        assert info == [
-            "<HTTPConnection ['https://example.com:443', HTTP/2, IDLE, Request Count: 1]>"
-        ]
+        assert info == ["<HTTPConnection ['https://example.com:443', HTTP/2, IDLE, Request Count: 1]>"]
 
         # Sending a second request to the same origin will reuse the existing IDLE connection.
         response = pool.request("GET", "https://example.com/")
@@ -199,13 +162,11 @@ def test_connection_pool_with_http2():
         assert response.content == b"Hello, world!"
 
         info = [repr(c) for c in pool.connections]
-        assert info == [
-            "<HTTPConnection ['https://example.com:443', HTTP/2, IDLE, Request Count: 2]>"
-        ]
+        assert info == ["<HTTPConnection ['https://example.com:443', HTTP/2, IDLE, Request Count: 2]>"]
 
 
 
-def test_connection_pool_with_http2_goaway():
+def test_connection_pool_with_http2_goaway() -> None:
     """
     Test a connection pool with HTTP/2 requests, that cleanly disconnects
     with a GoAway frame after the first request.
@@ -223,12 +184,8 @@ def test_connection_pool_with_http2_goaway():
                 ),
                 flags=["END_HEADERS"],
             ).serialize(),
-            hyperframe.frame.DataFrame(
-                stream_id=1, data=b"Hello, world!", flags=["END_STREAM"]
-            ).serialize(),
-            hyperframe.frame.GoAwayFrame(
-                stream_id=0, error_code=0, last_stream_id=1
-            ).serialize(),
+            hyperframe.frame.DataFrame(stream_id=1, data=b"Hello, world!", flags=["END_STREAM"]).serialize(),
+            hyperframe.frame.GoAwayFrame(stream_id=0, error_code=0, last_stream_id=1).serialize(),
             b"",
         ],
         http2=True,
@@ -237,15 +194,13 @@ def test_connection_pool_with_http2_goaway():
     with httpcore2.ConnectionPool(
         network_backend=network_backend,
     ) as pool:
-        # Sending an intial request, which once complete will return to the pool, IDLE.
+        # Sending an initial request, which once complete will return to the pool, IDLE.
         response = pool.request("GET", "https://example.com/")
         assert response.status == 200
         assert response.content == b"Hello, world!"
 
         info = [repr(c) for c in pool.connections]
-        assert info == [
-            "<HTTPConnection ['https://example.com:443', HTTP/2, IDLE, Request Count: 1]>"
-        ]
+        assert info == ["<HTTPConnection ['https://example.com:443', HTTP/2, IDLE, Request Count: 1]>"]
 
         # Sending a second request to the same origin will require a new connection.
         # The original connection has now been closed.
@@ -260,7 +215,7 @@ def test_connection_pool_with_http2_goaway():
 
 
 
-def test_trace_request():
+def test_trace_request() -> None:
     """
     The 'trace' request extension allows for a callback function to inspect the
     internal events that occur while sending a request.
@@ -277,7 +232,7 @@ def test_trace_request():
 
     called = []
 
-    def trace(name, kwargs):
+    def trace(name: str, kwargs: dict[str, typing.Any]) -> None:
         called.append(name)
 
     with httpcore2.ConnectionPool(network_backend=network_backend) as pool:
@@ -302,7 +257,7 @@ def test_trace_request():
 
 
 
-def test_debug_request(caplog):
+def test_debug_request(caplog: pytest.LogCaptureFixture) -> None:
     """
     The 'trace' request extension allows for a callback function to inspect the
     internal events that occur while sending a request.
@@ -370,7 +325,7 @@ def test_debug_request(caplog):
 
 
 
-def test_connection_pool_with_http_exception():
+def test_connection_pool_with_http_exception() -> None:
     """
     HTTP/1.1 requests that result in an exception during the connection should
     not be returned to the connection pool.
@@ -379,15 +334,13 @@ def test_connection_pool_with_http_exception():
 
     called = []
 
-    def trace(name, kwargs):
+    def trace(name: str, kwargs: dict[str, typing.Any]) -> None:
         called.append(name)
 
     with httpcore2.ConnectionPool(network_backend=network_backend) as pool:
         # Sending an initial request, which once complete will not return to the pool.
-        with pytest.raises(Exception):
-            pool.request(
-                "GET", "https://example.com/", extensions={"trace": trace}
-            )
+        with pytest.raises(httpcore2.RemoteProtocolError):
+            pool.request("GET", "https://example.com/", extensions={"trace": trace})
 
         info = [repr(c) for c in pool.connections]
         assert info == []
@@ -409,7 +362,7 @@ def test_connection_pool_with_http_exception():
 
 
 
-def test_connection_pool_with_connect_exception():
+def test_connection_pool_with_connect_exception() -> None:
     """
     HTTP/1.1 requests that result in an exception during connection should not
     be returned to the connection pool.
@@ -422,9 +375,7 @@ def test_connection_pool_with_connect_exception():
             port: int,
             timeout: typing.Optional[float] = None,
             local_address: typing.Optional[str] = None,
-            socket_options: typing.Optional[
-                typing.Iterable[httpcore2.SOCKET_OPTION]
-            ] = None,
+            socket_options: typing.Optional[typing.Iterable[httpcore2.SOCKET_OPTION]] = None,
         ) -> httpcore2.NetworkStream:
             raise httpcore2.ConnectError("Could not connect")
 
@@ -432,15 +383,13 @@ def test_connection_pool_with_connect_exception():
 
     called = []
 
-    def trace(name, kwargs):
+    def trace(name: str, kwargs: dict[str, typing.Any]) -> None:
         called.append(name)
 
     with httpcore2.ConnectionPool(network_backend=network_backend) as pool:
         # Sending an initial request, which once complete will not return to the pool.
-        with pytest.raises(Exception):
-            pool.request(
-                "GET", "https://example.com/", extensions={"trace": trace}
-            )
+        with pytest.raises(httpcore2.ConnectError):
+            pool.request("GET", "https://example.com/", extensions={"trace": trace})
 
         info = [repr(c) for c in pool.connections]
         assert info == []
@@ -452,7 +401,7 @@ def test_connection_pool_with_connect_exception():
 
 
 
-def test_connection_pool_with_immediate_expiry():
+def test_connection_pool_with_immediate_expiry() -> None:
     """
     Connection pools with keepalive_expiry=0.0 should immediately expire
     keep alive connections.
@@ -471,12 +420,10 @@ def test_connection_pool_with_immediate_expiry():
         keepalive_expiry=0.0,
         network_backend=network_backend,
     ) as pool:
-        # Sending an intial request, which once complete will not return to the pool.
+        # Sending an initial request, which once complete will not return to the pool.
         with pool.stream("GET", "https://example.com/") as response:
             info = [repr(c) for c in pool.connections]
-            assert info == [
-                "<HTTPConnection ['https://example.com:443', HTTP/1.1, ACTIVE, Request Count: 1]>"
-            ]
+            assert info == ["<HTTPConnection ['https://example.com:443', HTTP/1.1, ACTIVE, Request Count: 1]>"]
             response.read()
 
         assert response.status == 200
@@ -486,7 +433,7 @@ def test_connection_pool_with_immediate_expiry():
 
 
 
-def test_connection_pool_with_no_keepalive_connections_allowed():
+def test_connection_pool_with_no_keepalive_connections_allowed() -> None:
     """
     When 'max_keepalive_connections=0' is used, IDLE connections should not
     be returned to the pool.
@@ -501,15 +448,11 @@ def test_connection_pool_with_no_keepalive_connections_allowed():
         ]
     )
 
-    with httpcore2.ConnectionPool(
-        max_keepalive_connections=0, network_backend=network_backend
-    ) as pool:
-        # Sending an intial request, which once complete will not return to the pool.
+    with httpcore2.ConnectionPool(max_keepalive_connections=0, network_backend=network_backend) as pool:
+        # Sending an initial request, which once complete will not return to the pool.
         with pool.stream("GET", "https://example.com/") as response:
             info = [repr(c) for c in pool.connections]
-            assert info == [
-                "<HTTPConnection ['https://example.com:443', HTTP/1.1, ACTIVE, Request Count: 1]>"
-            ]
+            assert info == ["<HTTPConnection ['https://example.com:443', HTTP/1.1, ACTIVE, Request Count: 1]>"]
             response.read()
 
         assert response.status == 200
@@ -519,7 +462,7 @@ def test_connection_pool_with_no_keepalive_connections_allowed():
 
 
 
-def test_connection_pool_concurrency():
+def test_connection_pool_concurrency() -> None:
     """
     HTTP/1.1 requests made in concurrency must not ever exceed the maximum number
     of allowable connection in the pool.
@@ -534,16 +477,14 @@ def test_connection_pool_concurrency():
         ]
     )
 
-    def fetch(pool, domain, info_list):
+    def fetch(pool: httpcore2.ConnectionPool, domain: str, info_list: list[list[str]]) -> None:
         with pool.stream("GET", f"http://{domain}/") as response:
             info = [repr(c) for c in pool.connections]
             info_list.append(info)
             response.read()
 
-    with httpcore2.ConnectionPool(
-        max_connections=1, network_backend=network_backend
-    ) as pool:
-        info_list: typing.List[str] = []
+    with httpcore2.ConnectionPool(max_connections=1, network_backend=network_backend) as pool:
+        info_list: typing.List[typing.List[str]] = []
         with concurrency.open_nursery() as nursery:
             for domain in ["a.com", "b.com", "c.com", "d.com", "e.com"]:
                 nursery.start_soon(fetch, pool, domain, info_list)
@@ -564,7 +505,7 @@ def test_connection_pool_concurrency():
 
 
 
-def test_connection_pool_concurrency_same_domain_closing():
+def test_connection_pool_concurrency_same_domain_closing() -> None:
     """
     HTTP/1.1 requests made in concurrency must not ever exceed the maximum number
     of allowable connection in the pool.
@@ -580,16 +521,14 @@ def test_connection_pool_concurrency_same_domain_closing():
         ]
     )
 
-    def fetch(pool, domain, info_list):
+    def fetch(pool: httpcore2.ConnectionPool, domain: str, info_list: list[list[str]]) -> None:
         with pool.stream("GET", f"https://{domain}/") as response:
             info = [repr(c) for c in pool.connections]
             info_list.append(info)
             response.read()
 
-    with httpcore2.ConnectionPool(
-        max_connections=1, network_backend=network_backend, http2=True
-    ) as pool:
-        info_list: typing.List[str] = []
+    with httpcore2.ConnectionPool(max_connections=1, network_backend=network_backend, http2=True) as pool:
+        info_list: typing.List[typing.List[str]] = []
         with concurrency.open_nursery() as nursery:
             for domain in ["a.com", "a.com", "a.com", "a.com", "a.com"]:
                 nursery.start_soon(fetch, pool, domain, info_list)
@@ -599,14 +538,11 @@ def test_connection_pool_concurrency_same_domain_closing():
             # single connection was established at any one time.
             assert len(item) == 1
             # Only a single request was sent on each connection.
-            assert (
-                item[0]
-                == "<HTTPConnection ['https://a.com:443', HTTP/1.1, ACTIVE, Request Count: 1]>"
-            )
+            assert item[0] == "<HTTPConnection ['https://a.com:443', HTTP/1.1, ACTIVE, Request Count: 1]>"
 
 
 
-def test_connection_pool_concurrency_same_domain_keepalive():
+def test_connection_pool_concurrency_same_domain_keepalive() -> None:
     """
     HTTP/1.1 requests made in concurrency must not ever exceed the maximum number
     of allowable connection in the pool.
@@ -622,16 +558,14 @@ def test_connection_pool_concurrency_same_domain_keepalive():
         * 5
     )
 
-    def fetch(pool, domain, info_list):
+    def fetch(pool: httpcore2.ConnectionPool, domain: str, info_list: list[list[str]]) -> None:
         with pool.stream("GET", f"https://{domain}/") as response:
             info = [repr(c) for c in pool.connections]
             info_list.append(info)
             response.read()
 
-    with httpcore2.ConnectionPool(
-        max_connections=1, network_backend=network_backend, http2=True
-    ) as pool:
-        info_list: typing.List[str] = []
+    with httpcore2.ConnectionPool(max_connections=1, network_backend=network_backend, http2=True) as pool:
+        info_list: typing.List[typing.List[str]] = []
         with concurrency.open_nursery() as nursery:
             for domain in ["a.com", "a.com", "a.com", "a.com", "a.com"]:
                 nursery.start_soon(fetch, pool, domain, info_list)
@@ -649,14 +583,11 @@ def test_connection_pool_concurrency_same_domain_keepalive():
                 "<HTTPConnection ['https://a.com:443', HTTP/1.1, ACTIVE, Request Count: 5]>",
             ]
 
-    assert (
-        repr(pool)
-        == "<ConnectionPool [Requests: 0 active, 0 queued | Connections: 0 active, 0 idle]>"
-    )
+    assert repr(pool) == "<ConnectionPool [Requests: 0 active, 0 queued | Connections: 0 active, 0 idle]>"
 
 
 
-def test_unsupported_protocol():
+def test_unsupported_protocol() -> None:
     with httpcore2.ConnectionPool() as pool:
         with pytest.raises(httpcore2.UnsupportedProtocol):
             pool.request("GET", "ftp://www.example.com/")
@@ -666,7 +597,7 @@ def test_unsupported_protocol():
 
 
 
-def test_connection_pool_closed_while_request_in_flight():
+def test_connection_pool_closed_while_request_in_flight() -> None:
     """
     Closing a connection pool while a request/response is still in-flight
     should raise an error.
@@ -693,7 +624,7 @@ def test_connection_pool_closed_while_request_in_flight():
 
 
 
-def test_connection_pool_timeout():
+def test_connection_pool_timeout() -> None:
     """
     Ensure that exceeding max_connections can cause a request to timeout.
     """
@@ -707,9 +638,7 @@ def test_connection_pool_timeout():
         ]
     )
 
-    with httpcore2.ConnectionPool(
-        network_backend=network_backend, max_connections=1
-    ) as pool:
+    with httpcore2.ConnectionPool(network_backend=network_backend, max_connections=1) as pool:
         # Send a request to a pool that is configured to only support a single
         # connection, and then ensure that a second concurrent request
         # fails with a timeout.
@@ -720,7 +649,7 @@ def test_connection_pool_timeout():
 
 
 
-def test_connection_pool_timeout_zero():
+def test_connection_pool_timeout_zero() -> None:
     """
     A pool timeout of 0 shouldn't raise a PoolTimeout if there's
     no need to wait on a new connection.
@@ -744,32 +673,22 @@ def test_connection_pool_timeout_zero():
     extensions = {"timeout": {"pool": 0}}
 
     # A connection pool configured to allow only one connection at a time.
-    with httpcore2.ConnectionPool(
-        network_backend=network_backend, max_connections=1
-    ) as pool:
+    with httpcore2.ConnectionPool(network_backend=network_backend, max_connections=1) as pool:
         # Two consecutive requests with a pool timeout of zero.
         # Both succeed without raising a timeout.
-        response = pool.request(
-            "GET", "https://example.com/", extensions=extensions
-        )
+        response = pool.request("GET", "https://example.com/", extensions=extensions)
         assert response.status == 200
         assert response.content == b"Hello, world!"
 
-        response = pool.request(
-            "GET", "https://example.com/", extensions=extensions
-        )
+        response = pool.request("GET", "https://example.com/", extensions=extensions)
         assert response.status == 200
         assert response.content == b"Hello, world!"
 
     # A connection pool configured to allow only one connection at a time.
-    with httpcore2.ConnectionPool(
-        network_backend=network_backend, max_connections=1
-    ) as pool:
+    with httpcore2.ConnectionPool(network_backend=network_backend, max_connections=1) as pool:
         # Two concurrent requests with a pool timeout of zero.
         # Only the first will succeed without raising a timeout.
-        with pool.stream(
-            "GET", "https://example.com/", extensions=extensions
-        ) as response:
+        with pool.stream("GET", "https://example.com/", extensions=extensions) as response:
             # The first response hasn't yet completed.
             with pytest.raises(httpcore2.PoolTimeout):
                 # So a pool timeout occurs.
@@ -782,7 +701,7 @@ def test_connection_pool_timeout_zero():
 
 
 
-def test_http11_upgrade_connection():
+def test_http11_upgrade_connection() -> None:
     """
     HTTP "101 Switching Protocols" indicates an upgraded connection.
 
@@ -804,12 +723,10 @@ def test_http11_upgrade_connection():
 
     called = []
 
-    def trace(name, kwargs):
+    def trace(name: str, kwargs: dict[str, typing.Any]) -> None:
         called.append(name)
 
-    with httpcore2.ConnectionPool(
-        network_backend=network_backend, max_connections=1
-    ) as pool:
+    with httpcore2.ConnectionPool(network_backend=network_backend, max_connections=1) as pool:
         with pool.stream(
             "GET",
             "wss://example.com/",

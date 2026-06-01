@@ -4,23 +4,60 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [UNRELEASED]
+## 2.2.0 (May 16th, 2026)
+
+### Fixed
+
+* Handle multi-frame zstd streams split across chunks. ([#946](https://github.com/pydantic/httpx2/pull/946))
+
+### Changed
+
+* Lazily import the `_main` CLI module to speed up `import httpx2`. ([#947](https://github.com/pydantic/httpx2/pull/947))
+
+## 2.1.0 (May 15th, 2026)
 
 ### Removed
 
-* Drop support for Python 3.8
+* Drop support for Python 3.9. ([#208](https://github.com/pydantic/httpx2/pull/208))
 
 ### Added
 
-* Expose `FunctionAuth` from the public API. (#3699)
+* Add support for Python 3.14. ([#208](https://github.com/pydantic/httpx2/pull/208))
+* Use stdlib `compression.zstd` for Zstd decompression on Python 3.14+; fall back to the `zstandard` package on older versions. ([#932](https://github.com/pydantic/httpx2/pull/932))
+* Bundle `LICENSE.md` in the sdist. ([#938](https://github.com/pydantic/httpx2/pull/938))
+
+## 2.0.0
+
+Official first release of `httpx2`. No changes since `2.0.0b1`.
+
+## 2.0.0b1
+
+First release of `httpx2`, a fork of [`httpx`](https://github.com/encode/httpx) maintained by Pydantic. Forked from `httpx 0.28.1` (commit [`b5addb6`](https://github.com/encode/httpx/commit/b5addb6)).
+
+### Breaking changes
+
+* **Renamed package**: `httpx` -> `httpx2`. `import httpx` becomes `import httpx2`. The CLI is now `httpx2`, the User-Agent header is `python-httpx2/<version>`, and the logger is `httpx2`. No other public API changed.
+* **Renamed transitive dependency**: `httpcore` -> `httpcore2`, vendored into the same repository as a uv workspace member. Code that imports `httpcore` directly should switch to `httpcore2`. `httpx2` always depends on a specific `httpcore2` version, pinned exactly.
+
+### Added
+
+* Expose `FunctionAuth` from the public API. (Inherited from upstream PR [encode/httpx#3699](https://github.com/encode/httpx/pull/3699).)
+
+### Fixed
+
+* Eliminate `PytestUnraisableExceptionWarning` from async generator finalization during stream teardown under trio. ([#137](https://github.com/pydantic/httpx2/pull/137), backporting [encode/httpcore#1019](https://github.com/encode/httpcore/pull/1019) by @agronholm.)
+
+---
+
+Historical entries below are from upstream `encode/httpx`.
 
 ## 0.28.1 (6th December, 2024)
 
 * Fix SSL case where `verify=False` together with client side certificates.
- 
+
 ## 0.28.0 (28th November, 2024)
 
-Be aware that the default *JSON request bodies now use a more compact representation*. This is generally considered a prefered style, tho may require updates to test suites.
+Be aware that the default *JSON request bodies now use a more compact representation*. This is generally considered a preferred style, tho may require updates to test suites.
 
 The 0.28 release includes a limited set of deprecations...
 
@@ -155,7 +192,7 @@ Our revised [SSL documentation](docs/advanced/ssl.md) covers how to implement th
 
 ### Removed
 
-* The `rfc3986` dependancy has been removed. (#2252)
+* The `rfc3986` dependency has been removed. (#2252)
 
 ## 0.23.3 (4th January, 2023)
 

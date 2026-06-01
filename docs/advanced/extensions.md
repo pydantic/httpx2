@@ -10,7 +10,7 @@ Several extensions are supported on the request:
 # Request timeouts actually implemented as an extension on
 # the request, ensuring that they are passed throughout the
 # entire call stack.
-client = httpx.Client()
+client = httpx2.Client()
 response = client.get(
     "https://www.example.com",
     extensions={"timeout": {"connect": 5.0}}
@@ -22,7 +22,7 @@ response.request.extensions["timeout"]
 And on the response:
 
 ```python
-client = httpx.Client()
+client = httpx2.Client()
 response = client.get("https://www.example.com")
 print(response.extensions["http_version"])  # b"HTTP/1.1"
 # Other server responses could have been
@@ -39,12 +39,12 @@ flow of events within the underlying `httpcore` transport.
 The simplest way to explain this is with an example:
 
 ```python
-import httpx
+import httpx2
 
 def log(event_name, info):
     print(event_name, info)
 
-client = httpx.Client()
+client = httpx2.Client()
 response = client.get("https://www.example.com/", extensions={"trace": log})
 # connection.connect_tcp.started {'host': 'www.example.com', 'port': 443, 'local_address': None, 'timeout': None}
 # connection.connect_tcp.complete {'return_value': <httpcore.backends.sync.SyncStream object at 0x1093f94d0>}
@@ -108,7 +108,7 @@ For example:
 ``` python
 # Connect to '185.199.108.153' but use 'www.encode.io' in the Host header,
 # and use 'www.encode.io' when SSL verifying the server hostname.
-client = httpx.Client()
+client = httpx2.Client()
 headers = {"Host": "www.encode.io"}
 extensions = {"sni_hostname": "www.encode.io"}
 response = client.get(
@@ -129,14 +129,14 @@ For example:
 ```python
 # Timeout if a connection takes more than 5 seconds to established, or if
 # we are blocked waiting on the connection pool for more than 10 seconds.
-client = httpx.Client()
+client = httpx2.Client()
 response = client.get(
     "https://www.example.com",
     extensions={"timeout": {"connect": 5.0, "pool": 10.0}}
 )
 ```
 
-This extension is how the `httpx` timeouts are implemented, ensuring that the timeout values are associated with the request instance and passed throughout the stack. You shouldn't typically be working with this extension directly, but use the higher level `timeout` API instead.
+This extension is how the `httpx2` timeouts are implemented, ensuring that the timeout values are associated with the request instance and passed throughout the stack. You shouldn't typically be working with this extension directly, but use the higher level `timeout` API instead.
 
 ### `"target"`
 
@@ -166,7 +166,7 @@ Using the 'target' extension to send requests without the standard path escaping
 # Note that requests must still be valid HTTP requests.
 # For example including whitespace in the target will raise a `LocalProtocolError`.
 extensions = {"target": b"/test^path"}
-response = httpx.get("https://www.example.com", extensions=extensions)
+response = httpx2.get("https://www.example.com", extensions=extensions)
 ```
 
 The `target` extension also allows server-wide `OPTIONS *` requests to be constructed...
@@ -176,7 +176,7 @@ The `target` extension also allows server-wide `OPTIONS *` requests to be constr
 #
 # CONNECT * HTTP/1.1
 extensions = {"target": b"*"}
-response = httpx.request("CONNECT", "https://www.example.com", extensions=extensions)
+response = httpx2.request("CONNECT", "https://www.example.com", extensions=extensions)
 ```
 
 ## Response Extensions
@@ -222,7 +222,7 @@ See the [network backends documentation](https://www.encode.io/httpcore/network-
 The network stream abstraction also allows access to various low-level information that may be exposed by the underlying socket:
 
 ```python
-response = httpx.get("https://www.example.com")
+response = httpx2.get("https://www.example.com")
 network_stream = response.extensions["network_stream"]
 
 client_addr = network_stream.get_extra_info("client_addr")
@@ -234,7 +234,7 @@ print("Server address", server_addr)
 The socket SSL information is also available through this interface, although you need to ensure that the underlying connection is still open, in order to access it...
 
 ```python
-with httpx.stream("GET", "https://www.example.com") as response:
+with httpx2.stream("GET", "https://www.example.com") as response:
     network_stream = response.extensions["network_stream"]
 
     ssl_object = network_stream.get_extra_info("ssl_object")

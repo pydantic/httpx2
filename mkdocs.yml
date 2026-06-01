@@ -1,10 +1,8 @@
-site_name: HTTPX
+site_name: HTTPX2
 site_description: A next-generation HTTP client for Python.
-site_url: https://www.python-httpx.org/
 
 theme:
     name: 'material'
-    custom_dir: 'docs/overrides'
     palette:
       - scheme: 'default'
         media: '(prefers-color-scheme: light)'
@@ -18,8 +16,8 @@ theme:
           icon: 'material/lightbulb-outline'
           name: 'Switch to light mode'
 
-repo_name: encode/httpx
-repo_url: https://github.com/encode/httpx/
+repo_name: pydantic/httpx2
+repo_url: https://github.com/pydantic/httpx2/
 edit_uri: ""
 
 nav:
@@ -51,11 +49,27 @@ nav:
         - Contributing: 'contributing.md'
         - Code of Conduct: 'code_of_conduct.md'
 
+plugins:
+  - mkdocstrings:
+      handlers:
+        python:
+          inventories:
+            - https://docs.python.org/3/objects.inv
+          options:
+            show_root_heading: true
+            show_source: false
+            show_signature_annotations: true
+            separate_signature: true
+            line_length: 60
+            heading_level: 3
+            inherited_members: true
+
 markdown_extensions:
   - admonition
-  - codehilite:
-      css_class: highlight
-  - mkautodoc
+  - pymdownx.highlight:
+      use_pygments: true
+      pygments_lang_class: true
+  - pymdownx.superfences
 
 extra_css:
     - css/custom.css

@@ -127,9 +127,7 @@ class TrioBackend(AsyncNetworkBackend):
         }
         with map_exceptions(exc_map):
             with trio.fail_after(timeout_or_inf):
-                stream: trio.abc.Stream = await trio.open_tcp_stream(
-                    host=host, port=port, local_address=local_address
-                )
+                stream: trio.abc.Stream = await trio.open_tcp_stream(host=host, port=port, local_address=local_address)
                 for option in socket_options:
                     stream.setsockopt(*option)  # type: ignore[attr-defined] # pragma: no cover
         return TrioStream(stream)

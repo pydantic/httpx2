@@ -22,12 +22,8 @@ from ._utils import (
 )
 
 _HTML5_FORM_ENCODING_REPLACEMENTS = {'"': "%22", "\\": "\\\\"}
-_HTML5_FORM_ENCODING_REPLACEMENTS.update(
-    {chr(c): "%{:02X}".format(c) for c in range(0x1F + 1) if c != 0x1B}
-)
-_HTML5_FORM_ENCODING_RE = re.compile(
-    r"|".join([re.escape(c) for c in _HTML5_FORM_ENCODING_REPLACEMENTS.keys()])
-)
+_HTML5_FORM_ENCODING_REPLACEMENTS.update({chr(c): "%{:02X}".format(c) for c in range(0x1F + 1) if c != 0x1B})
+_HTML5_FORM_ENCODING_RE = re.compile(r"|".join([re.escape(c) for c in _HTML5_FORM_ENCODING_REPLACEMENTS.keys()]))
 
 
 def _format_form_param(name: str, value: str) -> bytes:
@@ -74,25 +70,16 @@ class DataField:
 
     def __init__(self, name: str, value: str | bytes | int | float | None) -> None:
         if not isinstance(name, str):
-            raise TypeError(
-                f"Invalid type for name. Expected str, got {type(name)}: {name!r}"
-            )
+            raise TypeError(f"Invalid type for name. Expected str, got {type(name)}: {name!r}")
         if value is not None and not isinstance(value, (str, bytes, int, float)):
-            raise TypeError(
-                "Invalid type for value. Expected primitive type,"
-                f" got {type(value)}: {value!r}"
-            )
+            raise TypeError(f"Invalid type for value. Expected primitive type, got {type(value)}: {value!r}")
         self.name = name
-        self.value: str | bytes = (
-            value if isinstance(value, bytes) else primitive_value_to_str(value)
-        )
+        self.value: str | bytes = value if isinstance(value, bytes) else primitive_value_to_str(value)
 
     def render_headers(self) -> bytes:
         if not hasattr(self, "_headers"):
             name = _format_form_param("name", self.name)
-            self._headers = b"".join(
-                [b"Content-Disposition: form-data; ", name, b"\r\n\r\n"]
-            )
+            self._headers = b"".join([b"Content-Disposition: form-data; ", name, b"\r\n\r\n"])
 
         return self._headers
 
@@ -130,7 +117,7 @@ class FileField:
         # This large tuple based API largely mirror's requests' API
         # It would be good to think of better APIs for this that we could
         # include in httpx 2.0 since variable length tuples(especially of 4 elements)
-        # are quite unwieldly
+        # are quite unwieldy
         if isinstance(value, tuple):
             if len(value) == 2:
                 # neither the 3rd parameter (content_type) nor the 4th (headers)
@@ -156,13 +143,9 @@ class FileField:
             headers["Content-Type"] = content_type
 
         if isinstance(fileobj, io.StringIO):
-            raise TypeError(
-                "Multipart file uploads require 'io.BytesIO', not 'io.StringIO'."
-            )
+            raise TypeError("Multipart file uploads require 'io.BytesIO', not 'io.StringIO'.")
         if isinstance(fileobj, io.TextIOBase):
-            raise TypeError(
-                "Multipart file uploads must be opened in binary mode, not text mode."
-            )
+            raise TypeError("Multipart file uploads must be opened in binary mode, not text mode.")
 
         self.filename = filename
         self.file = fileobj
@@ -236,14 +219,10 @@ class MultipartStream(SyncByteStream, AsyncByteStream):
             boundary = os.urandom(16).hex().encode("ascii")
 
         self.boundary = boundary
-        self.content_type = "multipart/form-data; boundary=%s" % boundary.decode(
-            "ascii"
-        )
+        self.content_type = "multipart/form-data; boundary=%s" % boundary.decode("ascii")
         self.fields = list(self._iter_fields(data, files))
 
-    def _iter_fields(
-        self, data: RequestData, files: RequestFiles
-    ) -> typing.Iterator[FileField | DataField]:
+    def _iter_fields(self, data: RequestData, files: RequestFiles) -> typing.Iterator[FileField | DataField]:
         for name, value in data.items():
             if isinstance(value, (tuple, list)):
                 for item in value:

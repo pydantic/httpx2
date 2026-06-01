@@ -341,10 +341,7 @@ class ResponseNotRead(StreamError):
     """
 
     def __init__(self) -> None:
-        message = (
-            "Attempted to access streaming response content,"
-            " without having called `read()`."
-        )
+        message = "Attempted to access streaming response content, without having called `read()`."
         super().__init__(message)
 
 
@@ -354,10 +351,7 @@ class RequestNotRead(StreamError):
     """
 
     def __init__(self) -> None:
-        message = (
-            "Attempted to access streaming request content,"
-            " without having called `read()`."
-        )
+        message = "Attempted to access streaming request content, without having called `read()`."
         super().__init__(message)
 
 

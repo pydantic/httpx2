@@ -1,8 +1,12 @@
 #!/bin/sh -e
 
-export SOURCE_FILES="src/httpx2 tests/httpx2"
+export SOURCE_FILES="src/httpx2 tests/httpx2 src/httpcore2 tests/httpcore2"
 
 set -x
 
 uv run ruff format $SOURCE_FILES
 uv run ruff check --fix $SOURCE_FILES
+
+# Run unasync last because its `--check` mode is not aware of code formatters.
+# (This means sync code isn't prettified, and that's mostly okay.)
+uv run python scripts/unasync.py

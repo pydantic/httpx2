@@ -4,7 +4,7 @@ import httpcore2
 
 
 @pytest.mark.anyio
-async def test_socks5_request():
+async def test_socks5_request() -> None:
     """
     Send an HTTP request via a SOCKS proxy.
     """
@@ -28,41 +28,29 @@ async def test_socks5_request():
         proxy=httpcore2.Proxy("socks5://localhost:8080/"),
         network_backend=network_backend,
     ) as proxy:
-        # Sending an intial request, which once complete will return to the pool, IDLE.
+        # Sending an initial request, which once complete will return to the pool, IDLE.
         async with proxy.stream("GET", "https://example.com/") as response:
             info = [repr(c) for c in proxy.connections]
-            assert info == [
-                "<AsyncSocks5Connection ['https://example.com:443', HTTP/1.1, ACTIVE, Request Count: 1]>"
-            ]
+            assert info == ["<AsyncSocks5Connection ['https://example.com:443', HTTP/1.1, ACTIVE, Request Count: 1]>"]
             await response.aread()
 
         assert response.status == 200
         assert response.content == b"Hello, world!"
         info = [repr(c) for c in proxy.connections]
-        assert info == [
-            "<AsyncSocks5Connection ['https://example.com:443', HTTP/1.1, IDLE, Request Count: 1]>"
-        ]
+        assert info == ["<AsyncSocks5Connection ['https://example.com:443', HTTP/1.1, IDLE, Request Count: 1]>"]
         assert proxy.connections[0].is_idle()
         assert proxy.connections[0].is_available()
         assert not proxy.connections[0].is_closed()
 
         # A connection on a tunneled proxy can only handle HTTPS requests to the same origin.
-        assert not proxy.connections[0].can_handle_request(
-            httpcore2.Origin(b"http", b"example.com", 80)
-        )
-        assert not proxy.connections[0].can_handle_request(
-            httpcore2.Origin(b"http", b"other.com", 80)
-        )
-        assert proxy.connections[0].can_handle_request(
-            httpcore2.Origin(b"https", b"example.com", 443)
-        )
-        assert not proxy.connections[0].can_handle_request(
-            httpcore2.Origin(b"https", b"other.com", 443)
-        )
+        assert not proxy.connections[0].can_handle_request(httpcore2.Origin(b"http", b"example.com", 80))
+        assert not proxy.connections[0].can_handle_request(httpcore2.Origin(b"http", b"other.com", 80))
+        assert proxy.connections[0].can_handle_request(httpcore2.Origin(b"https", b"example.com", 443))
+        assert not proxy.connections[0].can_handle_request(httpcore2.Origin(b"https", b"other.com", 443))
 
 
 @pytest.mark.anyio
-async def test_authenticated_socks5_request():
+async def test_authenticated_socks5_request() -> None:
     """
     Send an HTTP request via a SOCKS proxy.
     """
@@ -91,27 +79,23 @@ async def test_authenticated_socks5_request():
         ),
         network_backend=network_backend,
     ) as proxy:
-        # Sending an intial request, which once complete will return to the pool, IDLE.
+        # Sending an initial request, which once complete will return to the pool, IDLE.
         async with proxy.stream("GET", "https://example.com/") as response:
             info = [repr(c) for c in proxy.connections]
-            assert info == [
-                "<AsyncSocks5Connection ['https://example.com:443', HTTP/1.1, ACTIVE, Request Count: 1]>"
-            ]
+            assert info == ["<AsyncSocks5Connection ['https://example.com:443', HTTP/1.1, ACTIVE, Request Count: 1]>"]
             await response.aread()
 
         assert response.status == 200
         assert response.content == b"Hello, world!"
         info = [repr(c) for c in proxy.connections]
-        assert info == [
-            "<AsyncSocks5Connection ['https://example.com:443', HTTP/1.1, IDLE, Request Count: 1]>"
-        ]
+        assert info == ["<AsyncSocks5Connection ['https://example.com:443', HTTP/1.1, IDLE, Request Count: 1]>"]
         assert proxy.connections[0].is_idle()
         assert proxy.connections[0].is_available()
         assert not proxy.connections[0].is_closed()
 
 
 @pytest.mark.anyio
-async def test_socks5_request_connect_failed():
+async def test_socks5_request_connect_failed() -> None:
     """
     Attempt to send an HTTP request via a SOCKS proxy, resulting in a connect failure.
     """
@@ -132,15 +116,13 @@ async def test_socks5_request_connect_failed():
         # Sending a request, which the proxy rejects
         with pytest.raises(httpcore2.ProxyError) as exc_info:
             await proxy.request("GET", "https://example.com/")
-        assert (
-            str(exc_info.value) == "Proxy Server could not connect: Connection refused."
-        )
+        assert str(exc_info.value) == "Proxy Server could not connect: Connection refused."
 
         assert not proxy.connections
 
 
 @pytest.mark.anyio
-async def test_socks5_request_failed_to_provide_auth():
+async def test_socks5_request_failed_to_provide_auth() -> None:
     """
     Attempt to send an HTTP request via an authenticated SOCKS proxy,
     without providing authentication credentials.
@@ -160,18 +142,17 @@ async def test_socks5_request_failed_to_provide_auth():
         with pytest.raises(httpcore2.ProxyError) as exc_info:
             await proxy.request("GET", "https://example.com/")
         assert (
-            str(exc_info.value)
-            == "Requested NO AUTHENTICATION REQUIRED from proxy server, but got USERNAME/PASSWORD."
+            str(exc_info.value) == "Requested NO AUTHENTICATION REQUIRED from proxy server, but got USERNAME/PASSWORD."
         )
 
         assert not proxy.connections
 
 
 @pytest.mark.anyio
-async def test_socks5_request_incorrect_auth():
+async def test_socks5_request_incorrect_auth() -> None:
     """
     Attempt to send an HTTP request via an authenticated SOCKS proxy,
-    wit incorrect authentication credentials.
+    with incorrect authentication credentials.
     """
     network_backend = httpcore2.AsyncMockBackend(
         [
