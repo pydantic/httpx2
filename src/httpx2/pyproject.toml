@@ -9,6 +9,7 @@ source = "uv-dynamic-versioning"
 vcs = "git"
 style = "pep440"
 bump = true
+fallback-version = "0.0.0"
 
 [project]
 name = "httpx2"
