@@ -135,7 +135,7 @@ def test_response_sync_streaming() -> None:
     # Once we've streamed the response, we can't access the stream again.
     with pytest.raises(RuntimeError):
         for _chunk in response.iter_stream():
-            pass  # pragma: nocover
+            pass  # pragma: no cover
 
 
 # Tests for reading and streaming async byte streams...
@@ -172,4 +172,4 @@ async def test_response_async_streaming() -> None:
     # Once we've streamed the response, we can't access the stream again.
     with pytest.raises(RuntimeError):
         async for _chunk in response.aiter_stream():
-            pass  # pragma: nocover
+            pass  # pragma: no cover

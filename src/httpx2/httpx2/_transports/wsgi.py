@@ -64,14 +64,12 @@ class WSGITransport(BaseTransport):
     ```
 
     Arguments:
-
-    * `app` - The WSGI application.
-    * `raise_app_exceptions` - Boolean indicating if exceptions in the application
-       should be raised. Default to `True`. Can be set to `False` for use cases
-       such as testing the content of a client 500 response.
-    * `script_name` - The root path on which the WSGI application should be mounted.
-    * `remote_addr` - A string indicating the client IP of incoming requests.
-    ```
+        app: The WSGI application.
+        raise_app_exceptions: Boolean indicating if exceptions in the application
+            should be raised. Default to `True`. Can be set to `False` for use cases
+            such as testing the content of a client 500 response.
+        script_name: The root path on which the WSGI application should be mounted.
+        remote_addr: A string indicating the client IP of incoming requests.
     """
 
     def __init__(

@@ -229,7 +229,7 @@ class AsyncConnectionPool(AsyncRequestInterface):
                     # In this case we clear the connection and try again.
                     pool_request.clear_connection()
                 else:
-                    break  # pragma: nocover
+                    break  # pragma: no cover
 
         except BaseException as exc:
             with self._optional_thread_lock:

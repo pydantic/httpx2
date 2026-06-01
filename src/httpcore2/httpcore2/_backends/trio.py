@@ -73,7 +73,7 @@ class TrioStream(AsyncNetworkStream):
             try:
                 with trio.fail_after(timeout_or_inf):
                     await ssl_stream.do_handshake()
-            except Exception as exc:  # pragma: nocover
+            except Exception as exc:  # pragma: no cover
                 await self.aclose()
                 raise exc
         return TrioStream(ssl_stream)
@@ -137,7 +137,7 @@ class TrioBackend(AsyncNetworkBackend):
         path: str,
         timeout: float | None = None,
         socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
-    ) -> AsyncNetworkStream:  # pragma: nocover
+    ) -> AsyncNetworkStream:  # pragma: no cover
         if socket_options is None:
             socket_options = []
         timeout_or_inf = float("inf") if timeout is None else timeout
@@ -154,4 +154,4 @@ class TrioBackend(AsyncNetworkBackend):
         return TrioStream(stream)
 
     async def sleep(self, seconds: float) -> None:
-        await trio.sleep(seconds)  # pragma: nocover
+        await trio.sleep(seconds)  # pragma: no cover

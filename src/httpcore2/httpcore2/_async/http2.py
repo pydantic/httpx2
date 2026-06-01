@@ -120,7 +120,7 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
         try:
             stream_id = self._h2_state.get_next_available_stream_id()
             self._events[stream_id] = []
-        except h2.exceptions.NoAvailableStreamIDError:  # pragma: nocover
+        except h2.exceptions.NoAvailableStreamIDError:  # pragma: no cover
             self._used_all_stream_ids = True
             self._request_count -= 1
             raise ConnectionNotAvailable()
@@ -161,11 +161,11 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
                 #
                 # In this case we'll have stored the event, and should raise
                 # it as a RemoteProtocolError.
-                if self._connection_terminated:  # pragma: nocover
+                if self._connection_terminated:  # pragma: no cover
                     raise RemoteProtocolError(self._connection_terminated)
                 # If h2 raises a protocol error in some other state then we
                 # must somehow have made a protocol violation.
-                raise LocalProtocolError(exc)  # pragma: nocover
+                raise LocalProtocolError(exc)  # pragma: no cover
 
             raise exc
 
@@ -387,7 +387,7 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
                 if self._keepalive_expiry is not None:
                     now = time.monotonic()
                     self._expire_at = now + self._keepalive_expiry
-                if self._used_all_stream_ids:  # pragma: nocover
+                if self._used_all_stream_ids:  # pragma: no cover
                     await self.aclose()
 
     async def aclose(self) -> None:
@@ -404,7 +404,7 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
         timeout = timeouts.get("read", None)
 
         if self._read_exception is not None:
-            raise self._read_exception  # pragma: nocover
+            raise self._read_exception  # pragma: no cover
 
         try:
             data = await self._network_stream.read(self.READ_NUM_BYTES, timeout)
@@ -435,11 +435,11 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
             data_to_send = self._h2_state.data_to_send()
 
             if self._write_exception is not None:
-                raise self._write_exception  # pragma: nocover
+                raise self._write_exception  # pragma: no cover
 
             try:
                 await self._network_stream.write(data_to_send, timeout)
-            except Exception as exc:  # pragma: nocover
+            except Exception as exc:  # pragma: no cover
                 # If we get a network error we should:
                 #
                 # 1. Save the exception and just raise it immediately on any future write.

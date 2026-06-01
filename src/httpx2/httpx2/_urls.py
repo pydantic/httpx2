@@ -398,7 +398,7 @@ class URL:
         return f"{self.__class__.__name__}({url!r})"
 
     @property
-    def raw(self) -> tuple[bytes, bytes, int, bytes]:  # pragma: nocover
+    def raw(self) -> tuple[bytes, bytes, int, bytes]:  # pragma: no cover
         import collections
         import warnings
 

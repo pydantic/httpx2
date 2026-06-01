@@ -31,7 +31,7 @@ def is_running_trio() -> bool:
 
         if sniffio.current_async_library() == "trio":
             return True
-    except ImportError:  # pragma: nocover
+    except ImportError:  # pragma: no cover
         pass
 
     return False
@@ -70,14 +70,12 @@ class ASGITransport(AsyncBaseTransport):
     ```
 
     Arguments:
-
-    * `app` - The ASGI application.
-    * `raise_app_exceptions` - Boolean indicating if exceptions in the application
-       should be raised. Default to `True`. Can be set to `False` for use cases
-       such as testing the content of a client 500 response.
-    * `root_path` - The root path on which the ASGI application should be mounted.
-    * `client` - A two-tuple indicating the client IP and port of incoming requests.
-    ```
+        app: The ASGI application.
+        raise_app_exceptions: Boolean indicating if exceptions in the application
+            should be raised. Default to `True`. Can be set to `False` for use cases
+            such as testing the content of a client 500 response.
+        root_path: The root path on which the ASGI application should be mounted.
+        client: A two-tuple indicating the client IP and port of incoming requests.
     """
 
     def __init__(
@@ -92,10 +90,7 @@ class ASGITransport(AsyncBaseTransport):
         self.root_path = root_path
         self.client = client
 
-    async def handle_async_request(
-        self,
-        request: Request,
-    ) -> Response:
+    async def handle_async_request(self, request: Request) -> Response:
         assert isinstance(request.stream, AsyncByteStream)
 
         # ASGI scope.
@@ -121,7 +116,7 @@ class ASGITransport(AsyncBaseTransport):
         # Response.
         status_code = None
         response_headers = None
-        body_parts = []
+        body_parts: list[bytes] = []
         response_started = False
         response_complete = create_event()
 

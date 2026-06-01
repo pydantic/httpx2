@@ -51,7 +51,7 @@ from ._sync import (
 # The 'httpcore2.AnyIOBackend' class is conditional on 'anyio' being installed.
 try:
     from ._backends.anyio import AnyIOBackend
-except ImportError:  # pragma: nocover
+except ImportError:  # pragma: no cover
 
     class AnyIOBackend:  # type: ignore
         def __init__(self, *args, **kwargs):  # type: ignore
@@ -62,7 +62,7 @@ except ImportError:  # pragma: nocover
 # The 'httpcore2.TrioBackend' class is conditional on 'trio' being installed.
 try:
     from ._backends.trio import TrioBackend
-except ImportError:  # pragma: nocover
+except ImportError:  # pragma: no cover
 
     class TrioBackend:  # type: ignore
         def __init__(self, *args, **kwargs):  # type: ignore

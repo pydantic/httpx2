@@ -47,7 +47,7 @@ def merge_headers(
     return default_headers + override_headers
 
 
-class HTTPProxy(ConnectionPool):  # pragma: nocover
+class HTTPProxy(ConnectionPool):  # pragma: no cover
     """
     A connection pool that sends requests via an HTTP proxy.
     """
