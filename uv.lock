@@ -1317,8 +1317,8 @@ wheels = [
 name = "httpcore2"
 source = { editable = "src/httpcore2" }
 dependencies = [
-    { name = "certifi" },
     { name = "h11" },
+    { name = "truststore" },
 ]
 
 [package.optional-dependencies]
@@ -1338,11 +1338,11 @@ trio = [
 [package.metadata]
 requires-dist = [
     { name = "anyio", marker = "extra == 'asyncio'", specifier = ">=4.5.0,<5.0" },
-    { name = "certifi" },
     { name = "h11", specifier = ">=0.16" },
     { name = "h2", marker = "extra == 'http2'", specifier = ">=3,<5" },
     { name = "socksio", marker = "extra == 'socks'", specifier = "==1.*" },
     { name = "trio", marker = "extra == 'trio'", specifier = ">=0.22.0,<1.0" },
+    { name = "truststore", specifier = ">=0.10" },
 ]
 provides-extras = ["asyncio", "http2", "socks", "trio"]
 

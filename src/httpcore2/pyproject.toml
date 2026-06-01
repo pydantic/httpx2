@@ -41,7 +41,7 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
     "Topic :: Internet :: WWW/HTTP",
 ]
-dependencies = ["certifi", "h11>=0.16"]
+dependencies = ["truststore>=0.10", "h11>=0.16"]
 
 [project.optional-dependencies]
 http2 = ["h2>=3,<5"]
