@@ -222,7 +222,7 @@ class TestServer(Server):
     def install_signal_handlers(self) -> None:
         # Disable the default installation of handlers for signals such as SIGTERM,
         # because it can only be done in the main thread.
-        pass  # pragma: nocover
+        pass  # pragma: no cover
 
     async def serve(self, sockets: list[socket.socket] | None = None) -> None:
         self.restart_requested = asyncio.Event()

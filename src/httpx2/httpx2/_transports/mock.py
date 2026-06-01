@@ -26,10 +26,7 @@ class MockTransport(AsyncBaseTransport, BaseTransport):
             raise TypeError("Cannot use an async handler in a sync Client")
         return response
 
-    async def handle_async_request(
-        self,
-        request: Request,
-    ) -> Response:
+    async def handle_async_request(self, request: Request) -> Response:
         await request.aread()
         response = self.handler(request)
 

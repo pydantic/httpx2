@@ -12,7 +12,7 @@ def map_exceptions(map: ExceptionMapping) -> typing.Iterator[None]:
         for from_exc, to_exc in map.items():
             if isinstance(exc, from_exc):
                 raise to_exc(exc) from exc
-        raise  # pragma: nocover
+        raise  # pragma: no cover
 
 
 class ConnectionNotAvailable(Exception):

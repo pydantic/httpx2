@@ -6,7 +6,7 @@ from .interfaces import ConnectionInterface
 
 try:
     from .http2 import HTTP2Connection
-except ImportError:  # pragma: nocover
+except ImportError:  # pragma: no cover
 
     class HTTP2Connection:  # type: ignore
         def __init__(self, *args, **kwargs) -> None:  # type: ignore
@@ -18,7 +18,7 @@ except ImportError:  # pragma: nocover
 
 try:
     from .socks_proxy import SOCKSProxy
-except ImportError:  # pragma: nocover
+except ImportError:  # pragma: no cover
 
     class SOCKSProxy:  # type: ignore
         def __init__(self, *args, **kwargs) -> None:  # type: ignore

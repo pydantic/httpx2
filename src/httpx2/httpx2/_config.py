@@ -31,9 +31,9 @@ def create_ssl_context(
     import truststore
 
     if verify is True:
-        if trust_env and os.environ.get("SSL_CERT_FILE"):  # pragma: nocover
+        if trust_env and os.environ.get("SSL_CERT_FILE"):  # pragma: no cover
             ctx = ssl.create_default_context(cafile=os.environ["SSL_CERT_FILE"])
-        elif trust_env and os.environ.get("SSL_CERT_DIR"):  # pragma: nocover
+        elif trust_env and os.environ.get("SSL_CERT_DIR"):  # pragma: no cover
             ctx = ssl.create_default_context(capath=os.environ["SSL_CERT_DIR"])
         else:
             # Default case: rely on the system trust store via `truststore`.
@@ -42,7 +42,7 @@ def create_ssl_context(
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
-    elif isinstance(verify, str):  # pragma: nocover
+    elif isinstance(verify, str):  # pragma: no cover
         message = (
             "`verify=<str>` is deprecated. "
             "Use `verify=ssl.create_default_context(cafile=...)` "
@@ -55,7 +55,7 @@ def create_ssl_context(
     else:
         ctx = verify
 
-    if cert:  # pragma: nocover
+    if cert:  # pragma: no cover
         message = (
             "`cert=...` is deprecated. Use `verify=<ssl_context>` instead,"
             "with `.load_cert_chain()` to configure the certificate chain."

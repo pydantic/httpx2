@@ -31,7 +31,7 @@ def is_socket_readable(sock: socket.socket | None) -> bool:
     # descriptor, we treat it as being readable, as if it the next read operation
     # on it is ready to return the terminating `b""`.
     sock_fd = None if sock is None else sock.fileno()
-    if sock_fd is None or sock_fd < 0:  # pragma: nocover
+    if sock_fd is None or sock_fd < 0:  # pragma: no cover
         return True
 
     # The implementation below was stolen from:
@@ -40,7 +40,7 @@ def is_socket_readable(sock: socket.socket | None) -> bool:
 
     # Use select.select on Windows, and when poll is unavailable and select.poll
     # everywhere else. (E.g. When eventlet is in use. See #327)
-    if sys.platform == "win32" or getattr(select, "poll", None) is None:  # pragma: nocover
+    if sys.platform == "win32" or getattr(select, "poll", None) is None:  # pragma: no cover
         rready, _, _ = select.select([sock_fd], [], [], 0)
         return bool(rready)
     p = select.poll()

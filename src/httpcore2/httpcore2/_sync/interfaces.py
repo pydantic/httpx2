@@ -82,18 +82,18 @@ class RequestInterface:
             response.close()
 
     def handle_request(self, request: Request) -> Response:
-        raise NotImplementedError()  # pragma: nocover
+        raise NotImplementedError()  # pragma: no cover
 
 
 class ConnectionInterface(RequestInterface):
     def close(self) -> None:
-        raise NotImplementedError()  # pragma: nocover
+        raise NotImplementedError()  # pragma: no cover
 
     def info(self) -> str:
-        raise NotImplementedError()  # pragma: nocover
+        raise NotImplementedError()  # pragma: no cover
 
     def can_handle_request(self, origin: Origin) -> bool:
-        raise NotImplementedError()  # pragma: nocover
+        raise NotImplementedError()  # pragma: no cover
 
     def is_available(self) -> bool:
         """
@@ -111,7 +111,7 @@ class ConnectionInterface(RequestInterface):
         required exceptions if multiple requests are attempted over a connection
         that ends up being established as HTTP/1.1.
         """
-        raise NotImplementedError()  # pragma: nocover
+        raise NotImplementedError()  # pragma: no cover
 
     def has_expired(self) -> bool:
         """
@@ -120,13 +120,13 @@ class ConnectionInterface(RequestInterface):
         This either means that the connection is idle and it has passed the
         expiry time on its keep-alive, or that server has sent an EOF.
         """
-        raise NotImplementedError()  # pragma: nocover
+        raise NotImplementedError()  # pragma: no cover
 
     def is_idle(self) -> bool:
         """
         Return `True` if the connection is currently idle.
         """
-        raise NotImplementedError()  # pragma: nocover
+        raise NotImplementedError()  # pragma: no cover
 
     def is_closed(self) -> bool:
         """
@@ -135,4 +135,4 @@ class ConnectionInterface(RequestInterface):
         Used when a response is closed to determine if the connection may be
         returned to the connection pool or not.
         """
-        raise NotImplementedError()  # pragma: nocover
+        raise NotImplementedError()  # pragma: no cover

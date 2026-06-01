@@ -3,7 +3,6 @@ package = false
 default-groups = ["dev", "docs", "bench"]
 required-version = ">=0.8.6"
 exclude-newer = "7 days"
-exclude-newer-package = { urllib3 = "2026-05-09T00:00:00Z", zensical = "2026-05-11T00:00:00Z" }
 
 [tool.uv.workspace]
 members = ["src/httpx2", "src/httpcore2"]
