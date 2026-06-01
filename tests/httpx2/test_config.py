@@ -60,13 +60,15 @@ def test_load_ssl_config_no_verify() -> None:
     assert context.check_hostname is False
 
 
-def test_create_ssl_context_verify_str_with_cert(
-    cert_pem_file: str, cert_private_key_file: str, tmp_path: Path
-) -> None:
-    """Cert chain is applied even when `verify` is given as a string path."""
-    missing = str(tmp_path / "missing.pem")
-    with pytest.warns(DeprecationWarning), pytest.raises(OSError):
-        httpx2.create_ssl_context(verify=cert_pem_file, cert=(missing, missing))
+def test_create_ssl_context_verify_str(cert_pem_file: str) -> None:
+    with pytest.warns(DeprecationWarning, match="`verify=<str>` is deprecated"):
+        context = httpx2.create_ssl_context(verify=cert_pem_file)
+    assert context.verify_mode == ssl.VerifyMode.CERT_REQUIRED
+
+
+def test_create_ssl_context_verify_str_with_cert_raises(cert_pem_file: str, cert_private_key_file: str) -> None:
+    with pytest.raises(TypeError, match="cannot be combined with `cert=...`"):
+        httpx2.create_ssl_context(verify=cert_pem_file, cert=(cert_pem_file, cert_private_key_file))
 
 
 def test_SSLContext_with_get_request(server: TestServer, cert_pem_file: str) -> None:
