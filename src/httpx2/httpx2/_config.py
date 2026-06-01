@@ -61,14 +61,14 @@ def create_ssl_context(
     else:
         ctx = verify
 
-    if cert:
+    if cert:  # pragma: no cover
         message = (
             "`cert=...` is deprecated. Use `verify=<ssl_context>` instead,"
             "with `.load_cert_chain()` to configure the certificate chain."
         )
         warnings.warn(message, DeprecationWarning)
         if isinstance(cert, str):
-            ctx.load_cert_chain(cert)  # pragma: no cover
+            ctx.load_cert_chain(cert)
         else:
             ctx.load_cert_chain(*cert)
 
