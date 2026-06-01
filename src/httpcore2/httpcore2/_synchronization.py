@@ -254,7 +254,7 @@ class ThreadLock:
     """
 
     def __init__(self) -> None:
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
 
     def __enter__(self) -> ThreadLock:
         self._lock.acquire()
