@@ -161,6 +161,17 @@ class Origin:
         self.host = host
         self.port = port
 
+    @property
+    def normalized_host(self) -> str:
+        """Hostname decoded to ASCII with any trailing FQDN dot removed.
+
+        Use this wherever the hostname is passed to network operations (TLS
+        SNI, DNS resolution, socket connect) so that a trailing dot in an
+        FQDN like ``myhost.internal.`` does not cause certificate verification
+        failures.  The raw ``host`` bytes are left untouched.
+        """
+        return self.host.decode("ascii").removesuffix(".")
+
     def __eq__(self, other: typing.Any) -> bool:
         return (
             isinstance(other, Origin)
@@ -171,9 +182,8 @@ class Origin:
 
     def __str__(self) -> str:
         scheme = self.scheme.decode("ascii")
-        host = self.host.decode("ascii")
         port = str(self.port)
-        return f"{scheme}://{host}:{port}"
+        return f"{scheme}://{self.normalized_host}:{port}"
 
 
 class URL:
