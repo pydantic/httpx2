@@ -462,6 +462,43 @@ def test_connection_pool_with_no_keepalive_connections_allowed() -> None:
 
 
 
+def test_connection_pool_closes_idle_connection_for_different_origin() -> None:
+    """
+    When the pool is at 'max_connections' and an incoming request is for an
+    origin with no reusable connection, an IDLE connection to a different
+    origin is closed to make room for the new connection.
+    """
+    network_backend = httpcore2.MockBackend(
+        [
+            b"HTTP/1.1 200 OK\r\n",
+            b"Content-Type: plain/text\r\n",
+            b"Content-Length: 13\r\n",
+            b"\r\n",
+            b"Hello, world!",
+            b"HTTP/1.1 200 OK\r\n",
+            b"Content-Type: plain/text\r\n",
+            b"Content-Length: 13\r\n",
+            b"\r\n",
+            b"Hello, world!",
+        ]
+    )
+
+    with httpcore2.ConnectionPool(network_backend=network_backend, max_connections=1) as pool:
+        # An initial request to a.com leaves a single IDLE connection in the pool.
+        response = pool.request("GET", "https://a.com/")
+        assert response.status == 200
+        info = [repr(c) for c in pool.connections]
+        assert info == ["<HTTPConnection ['https://a.com:443', HTTP/1.1, IDLE, Request Count: 1]>"]
+
+        # A request to b.com cannot reuse the a.com connection and the pool is full,
+        # so the IDLE a.com connection is closed and replaced with a b.com connection.
+        response = pool.request("GET", "https://b.com/")
+        assert response.status == 200
+        info = [repr(c) for c in pool.connections]
+        assert info == ["<HTTPConnection ['https://b.com:443', HTTP/1.1, IDLE, Request Count: 1]>"]
+
+
+
 def test_connection_pool_concurrency() -> None:
     """
     HTTP/1.1 requests made in concurrency must not ever exceed the maximum number
