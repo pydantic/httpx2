@@ -123,6 +123,7 @@ class HTTP2Connection(ConnectionInterface):
         except h2.exceptions.NoAvailableStreamIDError:  # pragma: no cover
             self._used_all_stream_ids = True
             self._request_count -= 1
+            self._max_streams_semaphore.release()
             raise ConnectionNotAvailable()
 
         try:

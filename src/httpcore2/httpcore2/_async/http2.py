@@ -123,6 +123,7 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
         except h2.exceptions.NoAvailableStreamIDError:  # pragma: no cover
             self._used_all_stream_ids = True
             self._request_count -= 1
+            await self._max_streams_semaphore.release()
             raise ConnectionNotAvailable()
 
         try:
