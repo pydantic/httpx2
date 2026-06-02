@@ -429,7 +429,10 @@ def test_client_decode_text_using_autodetect() -> None:
 
         assert response.status_code == 200
         assert response.reason_phrase == "OK"
-        assert response.encoding == "ISO-8859-1"
+        # The text is short enough to be ambiguous: chardet may validly detect
+        # a different encoding than the one we actually used, and the following
+        # expectation may need to change when we upgrade chardet.
+        assert response.encoding == "WINDOWS-1252"
         assert response.text == text
 
 
@@ -456,5 +459,8 @@ def test_client_decode_text_using_explicit_encoding() -> None:
 
         assert response.status_code == 200
         assert response.reason_phrase == "OK"
-        assert response.encoding == "ISO-8859-1"
+        # The text is short enough to be ambiguous: chardet may validly detect
+        # a different encoding than the one we actually used, and the following
+        # expectation may need to change when we upgrade chardet.
+        assert response.encoding == "WINDOWS-1252"
         assert response.text == text

@@ -1012,10 +1012,10 @@ def test_response_decode_text_using_autodetect() -> None:
 
     assert response.status_code == 200
     assert response.reason_phrase == "OK"
-    # The encoded byte string is consistent with either ISO-8859-1 or
-    # WINDOWS-1252. Versions <6.0 of chardet claim the former, while chardet
-    # 6.0 detects the latter.
-    assert response.encoding in ("ISO-8859-1", "WINDOWS-1252")
+    # The text is short enough to be ambiguous: chardet may validly detect a
+    # different encoding than the one we actually used, and the following
+    # expectation may need to change when we upgrade chardet.
+    assert response.encoding == "WINDOWS-1252"
     assert response.text == text
 
 
