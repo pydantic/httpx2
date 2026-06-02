@@ -410,17 +410,19 @@ def test_client_decode_text_using_autodetect() -> None:
     # encoding autodetection to be used when no "Content-Type: text/plain; charset=..."
     # info is present.
     #
-    # Here we have some french text encoded with ISO-8859-1, rather than UTF-8.
+    # Here we have some french text encoded with WINDOWS-1252, rather than UTF-8.
+    # The curly quotes and em dash occupy bytes 0x80-0x9F, which are control
+    # characters in ISO-8859-1, so the encoding is unambiguously WINDOWS-1252.
     text = (
-        "Non-seulement Despréaux ne se trompait pas, mais de tous les écrivains "
+        "Non-seulement Despréaux ne se trompait pas — mais de tous les écrivains "
         "que la France a produits, sans excepter Voltaire lui-même, imprégné de "
-        "l'esprit anglais par son séjour à Londres, c'est incontestablement "
-        "Molière ou Poquelin qui reproduit avec l'exactitude la plus vive et la "
+        "l’esprit anglais par son séjour à Londres, c’est incontestablement "
+        "“Molière” ou Poquelin qui reproduit avec l’exactitude la plus vive et la "
         "plus complète le fond du génie français."
     )
 
     def cp1252_but_no_content_type(request: httpx2.Request) -> httpx2.Response:
-        content = text.encode("ISO-8859-1")
+        content = text.encode("WINDOWS-1252")
         return httpx2.Response(200, content=content)
 
     transport = httpx2.MockTransport(cp1252_but_no_content_type)
@@ -429,9 +431,6 @@ def test_client_decode_text_using_autodetect() -> None:
 
         assert response.status_code == 200
         assert response.reason_phrase == "OK"
-        # The text is short enough to be ambiguous: chardet may validly detect
-        # a different encoding than the one we actually used, and the following
-        # expectation may need to change when we upgrade chardet.
         assert response.encoding == "WINDOWS-1252"
         assert response.text == text
 
@@ -440,17 +439,19 @@ def test_client_decode_text_using_explicit_encoding() -> None:
     # Ensure that a 'default_encoding="..."' on the response is used for text decoding
     # when no "Content-Type: text/plain; charset=..."" info is present.
     #
-    # Here we have some french text encoded with ISO-8859-1, rather than UTF-8.
+    # Here we have some french text encoded with WINDOWS-1252, rather than UTF-8.
+    # The curly quotes and em dash occupy bytes 0x80-0x9F, which are control
+    # characters in ISO-8859-1, so the encoding is unambiguously WINDOWS-1252.
     text = (
-        "Non-seulement Despréaux ne se trompait pas, mais de tous les écrivains "
+        "Non-seulement Despréaux ne se trompait pas — mais de tous les écrivains "
         "que la France a produits, sans excepter Voltaire lui-même, imprégné de "
-        "l'esprit anglais par son séjour à Londres, c'est incontestablement "
-        "Molière ou Poquelin qui reproduit avec l'exactitude la plus vive et la "
+        "l’esprit anglais par son séjour à Londres, c’est incontestablement "
+        "“Molière” ou Poquelin qui reproduit avec l’exactitude la plus vive et la "
         "plus complète le fond du génie français."
     )
 
     def cp1252_but_no_content_type(request: httpx2.Request) -> httpx2.Response:
-        content = text.encode("ISO-8859-1")
+        content = text.encode("WINDOWS-1252")
         return httpx2.Response(200, content=content)
 
     transport = httpx2.MockTransport(cp1252_but_no_content_type)
@@ -459,8 +460,5 @@ def test_client_decode_text_using_explicit_encoding() -> None:
 
         assert response.status_code == 200
         assert response.reason_phrase == "OK"
-        # The text is short enough to be ambiguous: chardet may validly detect
-        # a different encoding than the one we actually used, and the following
-        # expectation may need to change when we upgrade chardet.
         assert response.encoding == "WINDOWS-1252"
         assert response.text == text
