@@ -756,6 +756,14 @@ def test_url_merge_params_manipulation() -> None:
             "https",
             4433,
         ),
+        (
+            "https://www.égalité-femmes-hommes.gouv.fr",
+            "https://www.xn--galit-femmes-hommes-9ybf.gouv.fr",
+            "www.égalité-femmes-hommes.gouv.fr",
+            b"www.xn--galit-femmes-hommes-9ybf.gouv.fr",
+            "https",
+            None,
+        ),
     ],
     ids=[
         "http_with_port",
@@ -764,6 +772,7 @@ def test_url_merge_params_manipulation() -> None:
         "https_with_port",
         "http_with_custom_port",
         "https_with_custom_port",
+        "idna_label_after_ascii_label",
     ],
 )
 def test_idna_url(given: str, idna: str, host: str, raw_host: bytes, scheme: str, port: int | None) -> None:
@@ -783,6 +792,16 @@ def test_url_unescaped_idna_host() -> None:
 def test_url_escaped_idna_host() -> None:
     url = httpx2.URL("https://xn--fiqs8s.icom.museum/")
     assert url.raw_host == b"xn--fiqs8s.icom.museum"
+
+
+def test_url_malformed_idna_label_after_ascii_label() -> None:
+    url = httpx2.URL("https://a.b.c.xn--pokxncvks/")
+    assert url.host == "a.b.c.xn--pokxncvks"
+
+
+def test_url_mixed_valid_and_malformed_idna_labels() -> None:
+    url = httpx2.URL("https://xn--fiqs8s.xn--pokxncvks/")
+    assert url.host == "中国.xn--pokxncvks"
 
 
 def test_url_invalid_idna_host() -> None:

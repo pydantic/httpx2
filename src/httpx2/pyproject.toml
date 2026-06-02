@@ -46,7 +46,7 @@ dependencies = [
     "truststore>=0.10",
     "httpcore2=={{ version }}",
     "anyio",
-    "idna",
+    "idna>=3.18",
 ]
 
 [project.optional-dependencies]
