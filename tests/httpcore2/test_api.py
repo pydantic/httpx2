@@ -1,6 +1,6 @@
 import json
 
-from pytest_httpbin.serve import Server
+from pytest_httpbin.serve import Server  # type: ignore[reportMissingTypeStubs]
 
 import httpcore2
 

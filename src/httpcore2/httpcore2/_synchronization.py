@@ -2,21 +2,28 @@ from __future__ import annotations
 
 import threading
 import types
+from typing import TYPE_CHECKING
 
 from ._exceptions import ExceptionMapping, PoolTimeout, map_exceptions
 
 # Our async synchronization primitives use either 'anyio' or 'trio' depending
 # on if they're running under asyncio or trio.
 
-try:
+if TYPE_CHECKING:
     import trio
-except (ImportError, NotImplementedError):  # pragma: no cover
-    trio = None  # type: ignore
+else:
+    try:
+        import trio
+    except (ImportError, NotImplementedError):  # pragma: no cover
+        trio = None  # type: ignore
 
-try:
+if TYPE_CHECKING:
     import anyio
-except ImportError:  # pragma: no cover
-    anyio = None  # type: ignore
+else:
+    try:
+        import anyio
+    except ImportError:  # pragma: no cover
+        anyio = None  # type: ignore
 
 
 def current_async_library() -> str:
@@ -195,7 +202,7 @@ class AsyncShieldCancellation:
         self._backend = current_async_library()
 
         if self._backend == "trio":
-            self._trio_shield = trio.CancelScope(shield=True)
+            self._trio_shield = trio.CancelScope(shield=True)  # type: ignore[reportCallIssue]
         elif self._backend == "asyncio":
             self._anyio_shield = anyio.CancelScope(shield=True)
 

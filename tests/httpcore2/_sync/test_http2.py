@@ -1,3 +1,4 @@
+# pyright: reportPrivateUsage=false
 import hpack
 import hyperframe.frame
 import pytest

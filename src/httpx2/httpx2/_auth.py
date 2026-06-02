@@ -13,7 +13,7 @@ from ._models import Cookies, Request, Response
 from ._utils import to_bytes, to_str, unquote
 
 if typing.TYPE_CHECKING:
-    from hashlib import _Hash
+    from hashlib import _Hash  # type: ignore[reportPrivateImportUsage]
 
 
 __all__ = ["Auth", "BasicAuth", "DigestAuth", "FunctionAuth", "NetRCAuth"]

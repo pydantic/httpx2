@@ -1,10 +1,11 @@
+# pyright: reportUnknownMemberType=false
 import asyncio
 import os
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
-from typing import Any, Callable, Coroutine, Iterator, List
+from typing import Any, Callable, Coroutine, Generator, Iterator, List
 
 import aiohttp
 import matplotlib.pyplot as plt
@@ -29,7 +30,7 @@ def duration(start: float) -> int:
 
 
 @contextmanager
-def profile() -> Iterator[None]:
+def profile() -> Generator[None]:
     if not PROFILE:
         yield
         return
@@ -148,7 +149,7 @@ def main() -> None:
     mode = sys.argv[1] if len(sys.argv) == 2 else None
     assert mode in ("async", "sync"), "Usage: python client.py <async|sync>"
 
-    fig, ax = plt.subplots()
+    _, ax = plt.subplots()
 
     if mode == "async":
         asyncio.run(run_async_requests(ax))

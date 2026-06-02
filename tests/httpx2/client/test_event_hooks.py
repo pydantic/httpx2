@@ -21,7 +21,7 @@ def app(request: httpx2.Request) -> httpx2.Response:
 
 
 def test_event_hooks() -> None:
-    events = []
+    events: list[dict[str, object]] = []
 
     def on_request(request: httpx2.Request) -> None:
         events.append({"event": "request", "headers": dict(request.headers)})
@@ -71,7 +71,7 @@ def test_event_hooks_raising_exception(server: TestServer) -> None:
 
 @pytest.mark.anyio
 async def test_async_event_hooks() -> None:
-    events = []
+    events: list[dict[str, object]] = []
 
     async def on_request(request: httpx2.Request) -> None:
         events.append({"event": "request", "headers": dict(request.headers)})
@@ -125,7 +125,7 @@ def test_event_hooks_with_redirect() -> None:
     A redirect request should trigger additional 'request' and 'response' event hooks.
     """
 
-    events = []
+    events: list[dict[str, object]] = []
 
     def on_request(request: httpx2.Request) -> None:
         events.append({"event": "request", "headers": dict(request.headers)})
@@ -185,7 +185,7 @@ async def test_async_event_hooks_with_redirect() -> None:
     A redirect request should trigger additional 'request' and 'response' event hooks.
     """
 
-    events = []
+    events: list[dict[str, object]] = []
 
     async def on_request(request: httpx2.Request) -> None:
         events.append({"event": "request", "headers": dict(request.headers)})

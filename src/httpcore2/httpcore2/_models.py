@@ -335,7 +335,7 @@ class Request:
         self.url: URL = enforce_url(url, name="url")
         self.headers: list[tuple[bytes, bytes]] = enforce_headers(headers, name="headers")
         self.stream: typing.Iterable[bytes] | typing.AsyncIterable[bytes] = enforce_stream(content, name="content")
-        self.extensions = {} if extensions is None else extensions
+        self.extensions: Extensions = {} if extensions is None else extensions
 
         if "target" in self.extensions:
             self.url = URL(
@@ -374,7 +374,7 @@ class Response:
         self.status: int = status
         self.headers: list[tuple[bytes, bytes]] = enforce_headers(headers, name="headers")
         self.stream: typing.Iterable[bytes] | typing.AsyncIterable[bytes] = enforce_stream(content, name="content")
-        self.extensions = {} if extensions is None else extensions
+        self.extensions: Extensions = {} if extensions is None else extensions
 
         self._stream_consumed = False
 

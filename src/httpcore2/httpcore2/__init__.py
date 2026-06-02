@@ -53,10 +53,12 @@ try:
     from ._backends.anyio import AnyIOBackend
 except ImportError:  # pragma: no cover
 
-    class AnyIOBackend:  # type: ignore
+    class _AnyIOBackend(AsyncNetworkBackend):
         def __init__(self, *args, **kwargs):  # type: ignore
             msg = "Attempted to use 'httpcore2.AnyIOBackend' but 'anyio' is not installed."
             raise RuntimeError(msg)
+
+    AnyIOBackend = _AnyIOBackend
 
 
 # The 'httpcore2.TrioBackend' class is conditional on 'trio' being installed.
@@ -64,11 +66,12 @@ try:
     from ._backends.trio import TrioBackend
 except ImportError:  # pragma: no cover
 
-    class TrioBackend:  # type: ignore
+    class _TrioBackend(AsyncNetworkBackend):
         def __init__(self, *args, **kwargs):  # type: ignore
             msg = "Attempted to use 'httpcore2.TrioBackend' but 'trio' is not installed."
             raise RuntimeError(msg)
 
+    TrioBackend = _TrioBackend
 
 __all__ = [
     # top-level requests

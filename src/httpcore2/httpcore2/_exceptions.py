@@ -5,7 +5,7 @@ ExceptionMapping = typing.Mapping[typing.Type[Exception], typing.Type[Exception]
 
 
 @contextlib.contextmanager
-def map_exceptions(map: ExceptionMapping) -> typing.Iterator[None]:
+def map_exceptions(map: ExceptionMapping) -> typing.Generator[None]:
     try:
         yield
     except Exception as exc:  # noqa: PIE786

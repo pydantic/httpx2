@@ -106,7 +106,7 @@ class AsyncHTTPConnection(AsyncConnectionInterface):
         while True:
             try:
                 if self._uds is None:
-                    kwargs = {
+                    kwargs: dict[str, typing.Any] = {
                         "host": self._origin.host.decode("ascii"),
                         "port": self._origin.port,
                         "local_address": self._local_address,
@@ -117,7 +117,7 @@ class AsyncHTTPConnection(AsyncConnectionInterface):
                         stream = await self._network_backend.connect_tcp(**kwargs)
                         trace.return_value = stream
                 else:
-                    kwargs = {
+                    kwargs: dict[str, typing.Any] = {
                         "path": self._uds,
                         "timeout": timeout,
                         "socket_options": self._socket_options,

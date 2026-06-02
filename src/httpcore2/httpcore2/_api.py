@@ -55,7 +55,7 @@ def stream(
     headers: HeaderTypes = None,
     content: bytes | typing.Iterator[bytes] | None = None,
     extensions: Extensions | None = None,
-) -> typing.Iterator[Response]:
+) -> typing.Generator[Response]:
     """
     Sends an HTTP request, returning the response within a content manager.
 

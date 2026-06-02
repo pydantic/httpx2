@@ -115,7 +115,7 @@ class WSGITransport(BaseTransport):
             environ[key] = header_value.decode("ascii")
 
         seen_status = None
-        seen_response_headers = None
+        seen_response_headers: list[tuple[str, str]] = None  # type: ignore[reportAssignmentType]
         seen_exc_info = None
 
         def start_response(

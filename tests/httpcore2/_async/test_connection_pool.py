@@ -230,7 +230,7 @@ async def test_trace_request() -> None:
         ]
     )
 
-    called = []
+    called: list[str] = []
 
     async def trace(name: str, kwargs: dict[str, typing.Any]) -> None:
         called.append(name)
@@ -332,7 +332,7 @@ async def test_connection_pool_with_http_exception() -> None:
     """
     network_backend = httpcore2.AsyncMockBackend([b"Wait, this isn't valid HTTP!"])
 
-    called = []
+    called: list[str] = []
 
     async def trace(name: str, kwargs: dict[str, typing.Any]) -> None:
         called.append(name)
@@ -381,7 +381,7 @@ async def test_connection_pool_with_connect_exception() -> None:
 
     network_backend = FailedConnectBackend([])
 
-    called = []
+    called: list[str] = []
 
     async def trace(name: str, kwargs: dict[str, typing.Any]) -> None:
         called.append(name)
@@ -524,7 +524,7 @@ async def test_connection_pool_concurrency() -> None:
         info_list: typing.List[typing.List[str]] = []
         async with concurrency.open_nursery() as nursery:
             for domain in ["a.com", "b.com", "c.com", "d.com", "e.com"]:
-                nursery.start_soon(fetch, pool, domain, info_list)
+                nursery.start_soon(fetch, pool, domain, info_list)  # type: ignore[reportUnknownMemberType]
 
         for item in info_list:
             # Check that each time we inspected the connection pool, only a
@@ -568,7 +568,7 @@ async def test_connection_pool_concurrency_same_domain_closing() -> None:
         info_list: typing.List[typing.List[str]] = []
         async with concurrency.open_nursery() as nursery:
             for domain in ["a.com", "a.com", "a.com", "a.com", "a.com"]:
-                nursery.start_soon(fetch, pool, domain, info_list)
+                nursery.start_soon(fetch, pool, domain, info_list)  # type: ignore[reportUnknownMemberType]
 
         for item in info_list:
             # Check that each time we inspected the connection pool, only a
@@ -605,7 +605,7 @@ async def test_connection_pool_concurrency_same_domain_keepalive() -> None:
         info_list: typing.List[typing.List[str]] = []
         async with concurrency.open_nursery() as nursery:
             for domain in ["a.com", "a.com", "a.com", "a.com", "a.com"]:
-                nursery.start_soon(fetch, pool, domain, info_list)
+                nursery.start_soon(fetch, pool, domain, info_list)  # type: ignore[reportUnknownMemberType]
 
         for item in info_list:
             # Check that each time we inspected the connection pool, only a
@@ -758,7 +758,7 @@ async def test_http11_upgrade_connection() -> None:
         ]
     )
 
-    called = []
+    called: list[str] = []
 
     async def trace(name: str, kwargs: dict[str, typing.Any]) -> None:
         called.append(name)

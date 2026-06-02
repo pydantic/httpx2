@@ -29,7 +29,7 @@ dev = [
   "uvicorn>=0.35",
   "werkzeug>=3.1.6",
   # Linting
-  "mypy==1.17.1",
+  "pyright>=1.1.409",
   "ruff==0.15.13",
   # Packaging
   "build==1.3.0",
@@ -58,9 +58,10 @@ known-first-party = ["httpx2", "httpcore2"]
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F403", "F405"]
 
-[tool.mypy]
-ignore_missing_imports = true
-strict = true
+[tool.pyright]
+include = ["src/httpx2/httpx2", "src/httpcore2/httpcore2"]
+exclude = ["src/httpcore2/httpcore2/_sync"]
+typeCheckingMode = "strict"
 
 [tool.pytest.ini_options]
 addopts = "-rxXs --import-mode=importlib"

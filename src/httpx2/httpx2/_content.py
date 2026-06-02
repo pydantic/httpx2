@@ -136,7 +136,7 @@ def encode_content(
 def encode_urlencoded_data(
     data: RequestData,
 ) -> tuple[dict[str, str], ByteStream]:
-    plain_data = []
+    plain_data: list[tuple[str, str]] = []
     for key, value in data.items():
         if isinstance(value, (list, tuple)):
             plain_data.extend([(key, primitive_value_to_str(item)) for item in value])

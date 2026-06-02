@@ -358,7 +358,7 @@ class RequestNotRead(StreamError):
 @contextlib.contextmanager
 def request_context(
     request: Request | None = None,
-) -> typing.Iterator[None]:
+) -> typing.Generator[None]:
     """
     A context manager that can be used to attach the given request context
     to any `RequestError` exceptions that are raised within the block.

@@ -95,7 +95,7 @@ def get_lexer_for_response(response: Response) -> str:
     if content_type is not None:
         mime_type, _, _ = content_type.partition(";")
         try:
-            return typing.cast(str, pygments.lexers.get_lexer_for_mimetype(mime_type.strip()).name)
+            return pygments.lexers.get_lexer_for_mimetype(mime_type.strip()).name  # type: ignore[reportUnknownMemberType]
         except pygments.util.ClassNotFound:  # pragma: no cover
             pass
     return ""  # pragma: no cover
@@ -174,7 +174,7 @@ _PeerCertRetDictType = typing.Dict[str, typing.Union[str, _PCTRTTT, _PCTRTT]]
 
 
 def format_certificate(cert: _PeerCertRetDictType) -> str:  # pragma: no cover
-    lines = []
+    lines: list[str] = []
     for key, value in cert.items():
         if isinstance(value, (list, tuple)):
             lines.append(f"*   {key}:")

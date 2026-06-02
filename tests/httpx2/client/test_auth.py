@@ -92,7 +92,7 @@ class RepeatAuth(httpx2.Auth):
         self.repeat = repeat
 
     def auth_flow(self, request: httpx2.Request) -> typing.Generator[httpx2.Request, httpx2.Response, None]:
-        nonces = []
+        nonces: list[str] = []
 
         for index in range(self.repeat):
             request.headers["Authorization"] = f"Repeat {index}"

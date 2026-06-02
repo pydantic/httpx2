@@ -1,3 +1,4 @@
+# pyright: reportUnknownMemberType=false, reportMissingTypeStubs=false, reportUnknownArgumentType=false
 """
 Handlers for Content-Encoding.
 
@@ -39,7 +40,7 @@ if typing.TYPE_CHECKING:
 
         ZstdDecompressor = functools.partial(_ZstdDecompressor().decompressobj)
 
-    _zstandard_installed: bool
+    _zstandard_installed: bool = False
 else:  # pragma: no cover
     _zstandard_installed = False
     try:
@@ -163,7 +164,7 @@ class BrotliDecoder(ContentDecoder):
         self.seen_data = True
         try:
             return self._decompress(data)
-        except brotli.error as exc:
+        except brotli.error as exc:  # type: ignore[reportOptionalMemberAccess]
             raise DecodingError(str(exc)) from exc
 
     def flush(self) -> bytes:
@@ -178,7 +179,7 @@ class BrotliDecoder(ContentDecoder):
                 # errors if a truncated or damaged data stream has been used.
                 self.decompressor.finish()  # pragma: no cover
             return b""
-        except brotli.error as exc:  # pragma: no cover
+        except brotli.error as exc:  # pragma: no cover # type: ignore[reportOptionalMemberAccess]
             raise DecodingError(str(exc)) from exc
 
 
