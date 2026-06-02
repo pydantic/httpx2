@@ -377,8 +377,8 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
 
     async def _response_closed(self, stream_id: int) -> None:
         await self._max_streams_semaphore.release()
-        del self._events[stream_id]
         async with self._state_lock:
+            del self._events[stream_id]
             if self._connection_terminated and not self._events:
                 await self.aclose()
 

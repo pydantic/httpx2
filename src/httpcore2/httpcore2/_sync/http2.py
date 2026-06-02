@@ -377,8 +377,8 @@ class HTTP2Connection(ConnectionInterface):
 
     def _response_closed(self, stream_id: int) -> None:
         self._max_streams_semaphore.release()
-        del self._events[stream_id]
         with self._state_lock:
+            del self._events[stream_id]
             if self._connection_terminated and not self._events:
                 self.close()
 
