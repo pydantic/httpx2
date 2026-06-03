@@ -160,10 +160,11 @@ def test_ignored_options_warn(selenium_runner: SeleniumChromeRunner, server_url:
         ("socket_options", []),
     ]
     for key, value in cases:
-        with pytest.warns(UserWarning, match=key):
-            httpx2.HTTPTransport(key=value)
-        with pytest.warns(UserWarning, match=key):
-            httpx2.AsyncHTTPTransport(key=value)
+        match = rf"The following transport option\(s\) are not supported on Emscripten and will be ignored: {key}."
+        with pytest.warns(UserWarning, match=match):
+            httpx2.HTTPTransport(**{key: value})
+        with pytest.warns(UserWarning, match=match):
+            httpx2.AsyncHTTPTransport(**{key: value})
         # Warning is also surfaced when constructing a Client.
-        with pytest.warns(UserWarning, match=key):
-            httpx2.Client(key=value)
+        with pytest.warns(UserWarning, match=match):
+            httpx2.Client(**{key: value})
