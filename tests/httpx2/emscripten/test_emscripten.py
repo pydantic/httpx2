@@ -149,23 +149,21 @@ def test_ignored_options_warn(selenium_runner: SeleniumChromeRunner, server_url:
         httpx2.AsyncHTTPTransport()
 
     # Each unsupported option should produce a single UserWarning naming it.
-    cases: list[dict[str, Any]] = [
-        {"verify": False},
-        {"cert": "client.pem"},
-        {"http2": True},
-        {"proxy": "http://localhost:8080"},
-        {"uds": "/tmp/sock"},
-        {"local_address": "127.0.0.1"},
-        {"retries": 3},
-        {"socket_options": []},
+    cases: list[tuple[str, Any]] = [
+        ("verify", False),
+        ("cert", "client.pem"),
+        ("http2", True),
+        ("proxy", "http://localhost:8080"),
+        ("uds", "/tmp/sock"),
+        ("local_address", "127.0.0.1"),
+        ("retries", 3),
+        ("socket_options", []),
     ]
-    for kwargs in cases:
-        (option,) = kwargs.keys()
-        with pytest.warns(UserWarning, match=option):
-            httpx2.HTTPTransport(**kwargs)
-        with pytest.warns(UserWarning, match=option):
-            httpx2.AsyncHTTPTransport(**kwargs)
-
-    # Warning is also surfaced when constructing a Client.
-    with pytest.warns(UserWarning, match="proxy"):
-        httpx2.Client(proxy="http://localhost:8080")
+    for key, value in cases:
+        with pytest.warns(UserWarning, match=key):
+            httpx2.HTTPTransport(key=value)
+        with pytest.warns(UserWarning, match=key):
+            httpx2.AsyncHTTPTransport(key=value)
+        # Warning is also surfaced when constructing a Client.
+        with pytest.warns(UserWarning, match=key):
+            httpx2.Client(key=value)
