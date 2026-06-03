@@ -69,9 +69,9 @@ class DataField:
     """
 
     def __init__(self, name: str, value: str | bytes | int | float | None) -> None:
-        if not isinstance(name, str):
+        if not isinstance(name, str):  # type: ignore[reportUnnecessaryIsInstance]
             raise TypeError(f"Invalid type for name. Expected str, got {type(name)}: {name!r}")
-        if value is not None and not isinstance(value, (str, bytes, int, float)):
+        if value is not None and not isinstance(value, (str, bytes, int, float)):  # type: ignore[reportUnnecessaryIsInstance]
             raise TypeError(f"Invalid type for value. Expected primitive type, got {type(value)}: {value!r}")
         self.name = name
         self.value: str | bytes = value if isinstance(value, bytes) else primitive_value_to_str(value)
@@ -225,8 +225,8 @@ class MultipartStream(SyncByteStream, AsyncByteStream):
     def _iter_fields(self, data: RequestData, files: RequestFiles) -> typing.Iterator[FileField | DataField]:
         for name, value in data.items():
             if isinstance(value, (tuple, list)):
-                for item in value:
-                    yield DataField(name=name, value=item)
+                for item in value:  # type: ignore[reportUnknownVariableType]
+                    yield DataField(name=name, value=item)  # type: ignore[reportUnknownArgumentType]
             else:
                 yield DataField(name=name, value=value)
 

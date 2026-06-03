@@ -1,7 +1,9 @@
+# pyright: reportAttributeAccessIssue=false, reportUnknownMemberType=false
 from __future__ import annotations
 
 import logging
 import ssl
+from typing import Any
 
 import socksio
 
@@ -214,7 +216,7 @@ class AsyncSocks5Connection(AsyncConnectionInterface):
             if self._connection is None:
                 try:
                     # Connect to the proxy
-                    kwargs = {
+                    kwargs: dict[str, Any] = {
                         "host": self._proxy_origin.host.decode("ascii"),
                         "port": self._proxy_origin.port,
                         "timeout": timeout,

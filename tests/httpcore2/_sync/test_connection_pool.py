@@ -524,7 +524,7 @@ def test_connection_pool_concurrency() -> None:
         info_list: typing.List[typing.List[str]] = []
         with concurrency.open_nursery() as nursery:
             for domain in ["a.com", "b.com", "c.com", "d.com", "e.com"]:
-                nursery.start_soon(fetch, pool, domain, info_list)
+                nursery.start_soon(fetch, pool, domain, info_list)  # type: ignore[reportUnknownMemberType]
 
         for item in info_list:
             # Check that each time we inspected the connection pool, only a
@@ -568,7 +568,7 @@ def test_connection_pool_concurrency_same_domain_closing() -> None:
         info_list: typing.List[typing.List[str]] = []
         with concurrency.open_nursery() as nursery:
             for domain in ["a.com", "a.com", "a.com", "a.com", "a.com"]:
-                nursery.start_soon(fetch, pool, domain, info_list)
+                nursery.start_soon(fetch, pool, domain, info_list)  # type: ignore[reportUnknownMemberType]
 
         for item in info_list:
             # Check that each time we inspected the connection pool, only a
@@ -605,7 +605,7 @@ def test_connection_pool_concurrency_same_domain_keepalive() -> None:
         info_list: typing.List[typing.List[str]] = []
         with concurrency.open_nursery() as nursery:
             for domain in ["a.com", "a.com", "a.com", "a.com", "a.com"]:
-                nursery.start_soon(fetch, pool, domain, info_list)
+                nursery.start_soon(fetch, pool, domain, info_list)  # type: ignore[reportUnknownMemberType]
 
         for item in info_list:
             # Check that each time we inspected the connection pool, only a

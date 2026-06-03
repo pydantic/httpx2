@@ -125,7 +125,7 @@ def stream(
     follow_redirects: bool = False,
     verify: ssl.SSLContext | str | bool = True,
     trust_env: bool = True,
-) -> typing.Iterator[Response]:
+) -> typing.Generator[Response]:
     """
     Alternative to `httpx2.request()` that streams the response body
     instead of loading it into memory at once.

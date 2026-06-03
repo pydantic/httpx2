@@ -145,7 +145,8 @@ class AsyncHTTPConnection(AsyncConnectionInterface):
                     raise
                 retries_left -= 1
                 delay = next(delays)
-                async with Trace("retry", logger, request, kwargs) as trace:
+                # TODO(Marcelo): Check if `kwargs` is unbound.
+                async with Trace("retry", logger, request, kwargs) as trace:  # type: ignore[reportPossiblyUnboundVariable]
                     await self._network_backend.sleep(delay)
 
     def can_handle_request(self, origin: Origin) -> bool:

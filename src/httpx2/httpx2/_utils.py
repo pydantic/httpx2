@@ -83,7 +83,7 @@ def to_str(value: str | bytes, encoding: str = "utf-8") -> str:
 
 
 def to_bytes_or_str(value: str, match_type_of: typing.AnyStr) -> typing.AnyStr:
-    return value if isinstance(match_type_of, str) else value.encode()
+    return value if isinstance(match_type_of, str) else value.encode()  # type: ignore[reportReturnType]
 
 
 def unquote(value: str) -> str:

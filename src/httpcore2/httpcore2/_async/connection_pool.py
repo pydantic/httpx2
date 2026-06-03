@@ -1,3 +1,4 @@
+# pyright: reportUnknownMemberType=false, reportAttributeAccessIssue=false, reportPrivateUsage=false
 from __future__ import annotations
 
 import ssl

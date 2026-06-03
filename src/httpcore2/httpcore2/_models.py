@@ -1,3 +1,4 @@
+# pyright: reportAttributeAccessIssue=false
 from __future__ import annotations
 
 import base64
@@ -33,7 +34,7 @@ def enforce_bytes(value: bytes | str, *, name: str) -> bytes:
             return value.encode("ascii")
         except UnicodeEncodeError:
             raise TypeError(f"{name} strings may not include unicode characters.")
-    elif isinstance(value, bytes):
+    elif isinstance(value, bytes):  # type: ignore[reportUnnecessaryIsInstance]
         return value
 
     seen_type = type(value).__name__
@@ -46,7 +47,7 @@ def enforce_url(value: URL | bytes | str, *, name: str) -> URL:
     """
     if isinstance(value, (bytes, str)):
         return URL(value)
-    elif isinstance(value, URL):
+    elif isinstance(value, URL):  # type: ignore[reportUnnecessaryIsInstance]
         return value
 
     seen_type = type(value).__name__
@@ -70,7 +71,7 @@ def enforce_headers(
             )
             for k, v in value.items()
         ]
-    elif isinstance(value, typing.Sequence):
+    elif isinstance(value, typing.Sequence):  # type: ignore[reportUnnecessaryIsInstance]
         return [
             (
                 enforce_bytes(k, name="header name"),
@@ -113,7 +114,7 @@ def include_request_headers(
     url: "URL",
     content: None | bytes | typing.Iterable[bytes] | typing.AsyncIterable[bytes],
 ) -> list[tuple[bytes, bytes]]:
-    headers_set = {k.lower() for k, v in headers}
+    headers_set = {k.lower() for k, _v in headers}
 
     if b"host" not in headers_set:
         default_port = DEFAULT_PORTS.get(url.scheme)
@@ -427,7 +428,7 @@ class Response:
                 "You should use 'await response.aclose()' instead."
             )
         if hasattr(self.stream, "close"):
-            self.stream.close()
+            self.stream.close()  # type: ignore[reportUnknownMemberType]
 
     # Async interface...
 
@@ -465,7 +466,7 @@ class Response:
                 "You should use 'response.close()' instead."
             )
         if hasattr(self.stream, "aclose"):
-            await self.stream.aclose()
+            await self.stream.aclose()  # type: ignore[reportUnknownMemberType]
 
 
 class Proxy:

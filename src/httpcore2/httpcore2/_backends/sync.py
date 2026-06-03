@@ -207,7 +207,7 @@ class SyncBackend(NetworkBackend):
                 source_address=source_address,
             )
             for option in socket_options:
-                sock.setsockopt(*option)  # pragma: no cover
+                sock.setsockopt(*option)  # pragma: no cover  # type: ignore[reportArgumentType]
             sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         return SyncStream(sock)
 
@@ -229,7 +229,7 @@ class SyncBackend(NetworkBackend):
         with map_exceptions(exc_map):
             sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
             for option in socket_options:
-                sock.setsockopt(*option)
+                sock.setsockopt(*option)  # type: ignore[reportArgumentType]
             sock.settimeout(timeout)
             sock.connect(path)
         return SyncStream(sock)

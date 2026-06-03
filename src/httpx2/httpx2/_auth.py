@@ -257,7 +257,7 @@ class DigestAuth(Auth):
 
         HA1 = digest(A1)
         if challenge.algorithm.lower().endswith("-sess"):
-            HA1 = digest(b":".join((HA1, challenge.nonce, cnonce)))
+            HA1 = digest(b":".join((HA1, challenge.nonce, cnonce)))  # type: ignore[reportConstantRedefinition]
 
         qop = self._resolve_qop(challenge.qop, request=request)
         if qop is None:

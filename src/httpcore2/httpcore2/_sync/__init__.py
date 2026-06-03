@@ -8,24 +8,28 @@ try:
     from .http2 import HTTP2Connection
 except ImportError:  # pragma: no cover
 
-    class HTTP2Connection:  # type: ignore
+    class _AsyncHTTP2Connection(ConnectionInterface):  # type: ignore
         def __init__(self, *args, **kwargs) -> None:  # type: ignore
             raise RuntimeError(
                 "Attempted to use http2 support, but the `h2` package is not "
                 "installed. Use 'pip install httpcore[http2]'."
             )
 
+    HTTP2Connection = _AsyncHTTP2Connection
+
 
 try:
     from .socks_proxy import SOCKSProxy
 except ImportError:  # pragma: no cover
 
-    class SOCKSProxy:  # type: ignore
+    class _AsyncSOCKSProxy(ConnectionPool):  # type: ignore
         def __init__(self, *args, **kwargs) -> None:  # type: ignore
             raise RuntimeError(
                 "Attempted to use SOCKS support, but the `socksio` package is not "
                 "installed. Use 'pip install httpcore[socks]'."
             )
+
+    SOCKSProxy = _AsyncSOCKSProxy
 
 
 __all__ = [

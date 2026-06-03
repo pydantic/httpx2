@@ -60,7 +60,7 @@ known-first-party = ["httpx2", "httpcore2"]
 
 [tool.pyright]
 include = ["src/httpx2/httpx2", "src/httpcore2/httpcore2"]
-exclude = ["src/httpcore2/httpcore2/_sync"]
+exclude = ["src/httpcore2/httpcore2/_sync", "tests/httpcore2/_sync"]
 typeCheckingMode = "strict"
 
 [tool.pytest.ini_options]

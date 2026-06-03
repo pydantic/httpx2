@@ -425,7 +425,7 @@ class BaseClient:
         if auth is None:
             return None
         elif isinstance(auth, tuple):
-            return BasicAuth(username=auth[0], password=auth[1])
+            return BasicAuth(username=auth[0], password=auth[1])  # type: ignore[reportUnknownArgumentType]
         elif isinstance(auth, Auth):
             return auth
         elif callable(auth):
@@ -476,17 +476,17 @@ class BaseClient:
         method = request.method
 
         # https://tools.ietf.org/html/rfc7231#section-6.4.4
-        if response.status_code == codes.SEE_OTHER and method != "HEAD":
+        if response.status_code == codes.SEE_OTHER and method != "HEAD":  # type: ignore[reportUnnecessaryComparison]
             method = "GET"
 
         # Do what the browsers do, despite standards...
         # Turn 302s into GETs.
-        if response.status_code == codes.FOUND and method != "HEAD":
+        if response.status_code == codes.FOUND and method != "HEAD":  # type: ignore[reportUnnecessaryComparison]
             method = "GET"
 
         # If a POST is responded to with a 301, turn it into a GET.
         # This bizarre behaviour is explained in 'requests' issue 1704.
-        if response.status_code == codes.MOVED_PERMANENTLY and method == "POST":
+        if response.status_code == codes.MOVED_PERMANENTLY and method == "POST":  # type: ignore[reportUnnecessaryComparison]
             method = "GET"
 
         return method
@@ -646,7 +646,7 @@ class Client(BaseClient):
 
         if http2:
             try:
-                import h2  # noqa
+                import h2  # noqa  # type: ignore[reportUnusedImport]
             except ImportError:  # pragma: no cover
                 raise ImportError(
                     "Using http2=True, but the 'h2' package is not installed. "
@@ -810,7 +810,7 @@ class Client(BaseClient):
         follow_redirects: bool | UseClientDefault = USE_CLIENT_DEFAULT,
         timeout: TimeoutTypes | UseClientDefault = USE_CLIENT_DEFAULT,
         extensions: RequestExtensions | None = None,
-    ) -> typing.Iterator[Response]:
+    ) -> typing.Generator[Response]:
         """
         Alternative to `httpx2.request()` that streams the response body
         instead of loading it into memory at once.
@@ -1348,7 +1348,7 @@ class AsyncClient(BaseClient):
 
         if http2:
             try:
-                import h2  # noqa
+                import h2  # noqa  # type: ignore[reportUnusedImport]
             except ImportError:  # pragma: no cover
                 raise ImportError(
                     "Using http2=True, but the 'h2' package is not installed. "
@@ -1513,7 +1513,7 @@ class AsyncClient(BaseClient):
         follow_redirects: bool | UseClientDefault = USE_CLIENT_DEFAULT,
         timeout: TimeoutTypes | UseClientDefault = USE_CLIENT_DEFAULT,
         extensions: RequestExtensions | None = None,
-    ) -> typing.AsyncIterator[Response]:
+    ) -> typing.AsyncGenerator[Response]:
         """
         Alternative to `httpx2.request()` that streams the response body
         instead of loading it into memory at once.

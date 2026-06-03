@@ -115,7 +115,7 @@ class URL:
 
         if isinstance(url, str):
             self._uri_reference = urlparse(url, **kwargs)
-        elif isinstance(url, URL):
+        elif isinstance(url, URL):  # type: ignore[reportUnnecessaryIsInstance]
             self._uri_reference = url._uri_reference.copy_with(**kwargs)
         else:
             raise TypeError(f"Invalid type for url.  Expected str or httpx2.URL, got {type(url)}: {url!r}")
@@ -397,13 +397,14 @@ class URL:
 
         return f"{self.__class__.__name__}({url!r})"
 
+    # TODO(Marcelo): Add deprecated decorator.
     @property
     def raw(self) -> tuple[bytes, bytes, int, bytes]:  # pragma: no cover
         import collections
         import warnings
 
         warnings.warn("URL.raw is deprecated.")
-        RawURL = collections.namedtuple("RawURL", ["raw_scheme", "raw_host", "port", "raw_path"])
+        RawURL = collections.namedtuple("RawURL", ["raw_scheme", "raw_host", "port", "raw_path"])  # type: ignore[reportUntypedNamedTuple]
         return RawURL(
             raw_scheme=self.raw_scheme,
             raw_host=self.raw_host,
@@ -442,7 +443,7 @@ class QueryParams(typing.Mapping[str, str]):
                 #    {"a": "123", "b": ["456", "789"]}
                 # To dict inputs where values are always lists, like:
                 #    {"a": ["123"], "b": ["456", "789"]}
-                dict_value = {k: list(v) if isinstance(v, (list, tuple)) else [v] for k, v in value.items()}
+                dict_value = {k: list(v) if isinstance(v, (list, tuple)) else [v] for k, v in value.items()}  # type: ignore[reportUnknownArgumentType]
 
             # Ensure that keys and values are neatly coerced to strings.
             # We coerce values `True` and `False` to JSON-like "true" and "false"

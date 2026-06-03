@@ -145,7 +145,8 @@ class HTTPConnection(ConnectionInterface):
                     raise
                 retries_left -= 1
                 delay = next(delays)
-                with Trace("retry", logger, request, kwargs) as trace:
+                # TODO(Marcelo): Check if `kwargs` is unbound.
+                with Trace("retry", logger, request, kwargs) as trace:  # type: ignore[reportPossiblyUnboundVariable]
                     self._network_backend.sleep(delay)
 
     def can_handle_request(self, origin: Origin) -> bool:

@@ -93,10 +93,10 @@ def _load_httpcore_exceptions() -> dict[type[Exception], type[httpx2.HTTPError]]
 
 
 @contextlib.contextmanager
-def map_httpcore_exceptions() -> typing.Iterator[None]:
+def map_httpcore_exceptions() -> typing.Generator[None]:
     global HTTPCORE_EXC_MAP
     if len(HTTPCORE_EXC_MAP) == 0:
-        HTTPCORE_EXC_MAP = _load_httpcore_exceptions()
+        HTTPCORE_EXC_MAP = _load_httpcore_exceptions()  # type: ignore[reportConstantRedefinition]
     try:
         yield
     except Exception as exc:
@@ -129,7 +129,7 @@ class ResponseStream(SyncByteStream):
 
     def close(self) -> None:
         if hasattr(self._httpcore_stream, "close"):
-            self._httpcore_stream.close()
+            self._httpcore_stream.close()  # type: ignore[reportUnknownMemberType]
 
 
 class HTTPTransport(BaseTransport):
@@ -186,7 +186,7 @@ class HTTPTransport(BaseTransport):
             )
         elif proxy.url.scheme in ("socks5", "socks5h"):
             try:
-                import socksio  # noqa
+                import socksio  # noqa  # type: ignore[reportUnusedImport]
             except ImportError:  # pragma: no cover
                 raise ImportError(
                     "Using SOCKS proxy, but the 'socksio' package is not installed. "
@@ -272,7 +272,7 @@ class AsyncResponseStream(AsyncByteStream):
 
     async def aclose(self) -> None:
         if hasattr(self._httpcore_stream, "aclose"):
-            await self._httpcore_stream.aclose()
+            await self._httpcore_stream.aclose()  # type: ignore[reportUnknownMemberType]
 
 
 class AsyncHTTPTransport(AsyncBaseTransport):
@@ -329,7 +329,7 @@ class AsyncHTTPTransport(AsyncBaseTransport):
             )
         elif proxy.url.scheme in ("socks5", "socks5h"):
             try:
-                import socksio  # noqa
+                import socksio  # noqa  # type: ignore[reportUnusedImport]
             except ImportError:  # pragma: no cover
                 raise ImportError(
                     "Using SOCKS proxy, but the 'socksio' package is not installed. "

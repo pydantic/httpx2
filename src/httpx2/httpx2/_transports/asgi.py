@@ -3,7 +3,7 @@ from __future__ import annotations
 import typing
 
 from .._models import Request, Response
-from .._types import AsyncByteStream
+from .._types import AsyncByteStream, HeaderTypes
 from .base import AsyncBaseTransport
 
 if typing.TYPE_CHECKING:
@@ -115,7 +115,7 @@ class ASGITransport(AsyncBaseTransport):
 
         # Response.
         status_code = None
-        response_headers = None
+        response_headers: HeaderTypes | None = None
         body_parts: list[bytes] = []
         response_started = False
         response_complete = create_event()

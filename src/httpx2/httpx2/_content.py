@@ -1,3 +1,4 @@
+# pyright: reportUnknownMemberType=false, reportAttributeAccessIssue=false, reportUnknownVariableType=false
 from __future__ import annotations
 
 import inspect
@@ -130,7 +131,7 @@ def encode_content(
         headers = {"Transfer-Encoding": "chunked"}
         return headers, AsyncIteratorByteStream(content)
 
-    raise TypeError(f"Unexpected type for 'content', {type(content)!r}")
+    raise TypeError(f"Unexpected type for 'content', {type(content)!r}")  # type: ignore[reportUnknownArgumentType]
 
 
 def encode_urlencoded_data(
@@ -139,7 +140,7 @@ def encode_urlencoded_data(
     plain_data: list[tuple[str, str]] = []
     for key, value in data.items():
         if isinstance(value, (list, tuple)):
-            plain_data.extend([(key, primitive_value_to_str(item)) for item in value])
+            plain_data.extend([(key, primitive_value_to_str(item)) for item in value])  # type: ignore[reportUnknownArgumentType]
         else:
             plain_data.append((key, primitive_value_to_str(value)))
     body = urlencode(plain_data, doseq=True).encode("utf-8")
@@ -192,7 +193,7 @@ def encode_request(
     Handles encoding the given `content`, `data`, `files`, and `json`,
     returning a two-tuple of (<headers>, <stream>).
     """
-    if data is not None and not isinstance(data, Mapping):
+    if data is not None and not isinstance(data, Mapping):  # type: ignore[reportUnnecessaryIsInstance]
         # We prefer to separate `content=<bytes|str|byte iterator|bytes aiterator>`
         # for raw request content, and `data=<form data>` for url encoded or
         # multipart form content.
