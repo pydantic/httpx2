@@ -51,6 +51,9 @@ jobs:
       - name: Install Pyodide test dependencies
         run: uv pip install --group emscripten
 
+      - name: Build package & docs
+        run: scripts/build
+
       - name: Run tests
         run: scripts/test
 
