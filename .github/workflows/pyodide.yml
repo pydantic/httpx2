@@ -49,7 +49,7 @@ jobs:
         run: scripts/install
 
       - name: Install Pyodide test dependencies
-        run: uv pip install -r requirements-emscripten.txt
+        run: uv pip install --group emscripten
 
       - name: Run tests
         run: scripts/test

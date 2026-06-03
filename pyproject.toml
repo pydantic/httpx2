@@ -42,6 +42,11 @@ bench = [
   "pyinstrument>=4.6.2",
   "urllib3>=2.2.2",
 ]
+# extra requirements for testing on emscripten
+emscripten = [
+  "pytest-pyodide>=0.59.2; python_full_version >= '3.11'",
+  "selenium",
+]
 
 [tool.ruff]
 line-length = 120

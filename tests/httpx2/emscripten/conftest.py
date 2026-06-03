@@ -51,7 +51,7 @@ if _has_pytest_pyodide:
     SeleniumChromeRunner.javascript_setup = patch_javascript_setup(SeleniumChromeRunner.javascript_setup)
 
 
-def selenium_with_jspi_if_possible_helper(
+def selenium_runner_helper(
     request: pytest.FixtureRequest,
     has_jspi: bool,
     wheel_url: httpx2.URL,
@@ -81,19 +81,15 @@ def selenium_with_jspi_if_possible_helper(
 
 
 @pytest.fixture
-def selenium_with_jspi_if_possible(
-    request: pytest.FixtureRequest, runtime: str, has_jspi: bool, wheel_url: httpx2.URL
-) -> Any:
+def selenium_runner(request: pytest.FixtureRequest, runtime: str, has_jspi: bool, wheel_url: httpx2.URL) -> Any:
     worker = False
-    return selenium_with_jspi_if_possible_helper(request, has_jspi, wheel_url, worker)
+    return selenium_runner_helper(request, has_jspi, wheel_url, worker)
 
 
 @pytest.fixture
-def selenium_worker_with_jspi_if_possible(
-    request: pytest.FixtureRequest, runtime: str, has_jspi: bool, wheel_url: httpx2.URL
-) -> Any:
+def selenium_worker_runner(request: pytest.FixtureRequest, runtime: str, has_jspi: bool, wheel_url: httpx2.URL) -> Any:
     worker = True
-    return selenium_with_jspi_if_possible_helper(request, has_jspi, wheel_url, worker)
+    return selenium_runner_helper(request, has_jspi, wheel_url, worker)
 
 
 @pytest.fixture(scope="session", params=["https", "http"])

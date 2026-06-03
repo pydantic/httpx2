@@ -2,6 +2,7 @@ from typing import Any, Callable, Dict, List
 
 import pytest
 from pytest_pyodide.decorator import run_in_pyodide_coverage
+from pytest_pyodide.runner import SeleniumChromeRunner
 
 from httpx2 import URL
 
@@ -17,7 +18,7 @@ def timeout_url(server_url: URL, request: pytest.FixtureRequest) -> URL:
 
 
 @run_in_pyodide
-def test_get(selenium_with_jspi_if_possible: Any, server_url: URL, wheel_url: URL) -> None:
+def test_get(selenium_runner: SeleniumChromeRunner, server_url: URL, wheel_url: URL) -> None:
     import httpx2
 
     response = httpx2.get(server_url)
@@ -28,7 +29,7 @@ def test_get(selenium_with_jspi_if_possible: Any, server_url: URL, wheel_url: UR
 
 
 @run_in_pyodide
-def test_post_http(selenium_with_jspi_if_possible: Any, server_url: URL) -> None:
+def test_post_http(selenium_runner: SeleniumChromeRunner, server_url: URL) -> None:
     import httpx2
 
     response = httpx2.post(server_url, content=b"Hello, world!")
@@ -37,7 +38,7 @@ def test_post_http(selenium_with_jspi_if_possible: Any, server_url: URL) -> None
 
 
 @run_in_pyodide
-async def test_async_get(selenium_with_jspi_if_possible: Any, server_url: URL) -> None:
+async def test_async_get(selenium_runner: SeleniumChromeRunner, server_url: URL) -> None:
     import httpx2
 
     async with httpx2.AsyncClient() as client:
@@ -50,10 +51,7 @@ async def test_async_get(selenium_with_jspi_if_possible: Any, server_url: URL) -
 
 
 @run_in_pyodide
-async def test_async_get_timeout(
-    selenium_with_jspi_if_possible: Any,
-    timeout_url: URL,
-) -> None:
+async def test_async_get_timeout(selenium_runner: SeleniumChromeRunner, timeout_url: URL) -> None:
     import pytest
 
     import httpx2
@@ -64,11 +62,7 @@ async def test_async_get_timeout(
 
 
 @run_in_pyodide
-def test_sync_get_timeout(
-    selenium_with_jspi_if_possible: Any,
-    has_jspi: bool,
-    timeout_url: URL,
-) -> None:
+def test_sync_get_timeout(selenium_runner: SeleniumChromeRunner, has_jspi: bool, timeout_url: URL) -> None:
     """test timeout on https and http"""
     import pytest
 
@@ -85,10 +79,7 @@ def test_sync_get_timeout(
 
 
 @run_in_pyodide
-def test_sync_get_timeout_worker(
-    selenium_worker_with_jspi_if_possible: Any,
-    timeout_url: URL,
-) -> None:
+def test_sync_get_timeout_worker(selenium_worker_runner: SeleniumChromeRunner, timeout_url: URL) -> None:
     import pytest
 
     import httpx2
@@ -98,10 +89,7 @@ def test_sync_get_timeout_worker(
 
 
 @run_in_pyodide
-def test_get_worker(
-    selenium_worker_with_jspi_if_possible: Any,
-    server_url: URL,
-) -> None:
+def test_get_worker(selenium_worker_runner: SeleniumChromeRunner, server_url: URL) -> None:
     import httpx2
 
     response = httpx2.get(server_url)
@@ -111,10 +99,7 @@ def test_get_worker(
 
 
 @run_in_pyodide
-def test_sync_get_error(
-    selenium_with_jspi_if_possible: Any,
-    server_url: URL,
-) -> None:
+def test_sync_get_error(selenium_runner: SeleniumChromeRunner, server_url: URL) -> None:
     import pytest
 
     import httpx2
@@ -127,10 +112,7 @@ def test_sync_get_error(
 
 
 @run_in_pyodide
-async def test_async_get_error(
-    selenium_with_jspi_if_possible: Any,
-    server_url: URL,
-) -> None:
+async def test_async_get_error(selenium_runner: SeleniumChromeRunner, server_url: URL) -> None:
     import pytest
 
     import httpx2
@@ -144,10 +126,7 @@ async def test_async_get_error(
 
 
 @run_in_pyodide
-async def test_async_post_json(
-    selenium_with_jspi_if_possible: Any,
-    server_url: URL,
-) -> None:
+async def test_async_post_json(selenium_runner: SeleniumChromeRunner, server_url: URL) -> None:
     import httpx2
 
     async with httpx2.AsyncClient() as client:
@@ -156,10 +135,7 @@ async def test_async_post_json(
 
 
 @run_in_pyodide
-def test_ignored_options_warn(
-    selenium_with_jspi_if_possible: Any,
-    server_url: URL,
-) -> None:
+def test_ignored_options_warn(selenium_runner: SeleniumChromeRunner, server_url: URL) -> None:
     import warnings
 
     import pytest

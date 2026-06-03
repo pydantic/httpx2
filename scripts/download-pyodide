@@ -1,7 +1,7 @@
 #!/bin/sh -e
 set -x
 
-uv pip install -r requirements-emscripten.txt
+uv pip install --group emscripten
 
 mkdir -p pyodide_dist
 PYODIDE_URL="https://github.com/pyodide/pyodide/releases/download/0.29.3/pyodide-core-0.29.3.tar.bz2"
@@ -14,15 +14,18 @@ fi
 tar -xjf "$PYODIDE_OUTPATH" -C pyodide_dist --strip-components=1
 ./pyodide_dist/python - <<'EOF'
 import pyodide_js as pjs
+import asyncio
 
-pjs.loadPackage(
-    [
-        "coverage",
-        "idna",
-        "micropip",
-        "pytest",
-        "sqlite3",
-        "tblib",
-    ]
+asyncio.run(
+    pjs.loadPackage(
+        [
+            "coverage",
+            "idna",
+            "micropip",
+            "pytest",
+            "sqlite3",
+            "tblib",
+        ]
+    )
 )
 EOF
