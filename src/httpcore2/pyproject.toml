@@ -26,7 +26,7 @@ maintainers = [
     { name = "Pydantic Services Inc.", email = "engineering@pydantic.dev" },
 ]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 5 - Production/Stable",
     "Environment :: Web Environment",
     "Framework :: AsyncIO",
     "Framework :: Trio",
