@@ -93,7 +93,7 @@ def selenium_worker_runner(request: pytest.FixtureRequest, runtime: str, has_jsp
 
 
 @pytest.fixture(scope="session")
-def server_url(request: pytest.FixtureRequest, server: Any, server: Any) -> Iterator[httpx2.URL]:
+def server_url(request: pytest.FixtureRequest, server: Any) -> Iterator[httpx2.URL]:
     yield server.url.copy_with(path="/emscripten")
 
 
