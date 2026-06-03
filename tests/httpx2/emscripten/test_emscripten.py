@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable
 
 import pytest
 from pytest_pyodide.decorator import run_in_pyodide_coverage
@@ -149,7 +149,7 @@ def test_ignored_options_warn(selenium_runner: SeleniumChromeRunner, server_url:
         httpx2.AsyncHTTPTransport()
 
     # Each unsupported option should produce a single UserWarning naming it.
-    cases: List[Dict[str, Any]] = [
+    cases: list[dict[str, Any]] = [
         {"verify": False},
         {"cert": "client.pem"},
         {"http2": True},
