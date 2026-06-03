@@ -7,6 +7,7 @@ import pytest
 import trio as concurrency
 
 import httpcore2
+from httpcore2._models import RequestExtensions
 
 
 @pytest.mark.anyio
@@ -681,8 +682,7 @@ async def test_connection_pool_timeout() -> None:
         # fails with a timeout.
         async with pool.stream("GET", "https://example.com/"):
             with pytest.raises(httpcore2.PoolTimeout):
-                extensions = {"timeout": {"pool": 0.0001}}
-                await pool.request("GET", "https://example.com/", extensions=extensions)
+                await pool.request("GET", "https://example.com/", extensions={"timeout": {"pool": 0.0001}})
 
 
 @pytest.mark.anyio
@@ -707,7 +707,7 @@ async def test_connection_pool_timeout_zero() -> None:
     )
 
     # Use a pool timeout of zero.
-    extensions = {"timeout": {"pool": 0}}
+    extensions: RequestExtensions = {"timeout": {"pool": 0}}
 
     # A connection pool configured to allow only one connection at a time.
     async with httpcore2.AsyncConnectionPool(network_backend=network_backend, max_connections=1) as pool:

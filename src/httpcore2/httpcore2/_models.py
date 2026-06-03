@@ -3,21 +3,43 @@ from __future__ import annotations
 
 import base64
 import ssl
+import sys
 import typing
 import urllib.parse
 from collections.abc import AsyncGenerator
 
+if sys.version_info >= (3, 15):
+    from typing import TypedDict
+else:
+    from typing_extensions import TypedDict
+
 from ._utils import safe_async_iterate
-
-# Functions for typechecking...
-
 
 ByteOrStr = typing.Union[bytes, str]
 HeadersAsSequence = typing.Sequence[typing.Tuple[ByteOrStr, ByteOrStr]]
 HeadersAsMapping = typing.Mapping[ByteOrStr, ByteOrStr]
 HeaderTypes = typing.Union[HeadersAsSequence, HeadersAsMapping, None]
 
-Extensions = typing.MutableMapping[str, typing.Any]
+
+class Timeout(TypedDict, total=False):
+    connect: float | None
+    read: float | None
+    write: float | None
+    pool: float | None
+
+
+class RequestExtensions(TypedDict, total=False, extra_items=typing.Any):
+    timeout: Timeout
+    sni_hostname: str | None
+    trace: typing.Callable[[str, dict[str, typing.Any]], typing.Any]
+    target: bytes
+
+
+class ResponseExtensions(TypedDict, total=False, extra_items=typing.Any):
+    http_version: typing.Required[bytes]
+    reason_phrase: bytes
+    network_stream: typing.Required[typing.Any]
+    stream_id: int
 
 
 def enforce_bytes(value: bytes | str, *, name: str) -> bytes:
@@ -319,7 +341,7 @@ class Request:
         *,
         headers: HeaderTypes = None,
         content: bytes | typing.Iterable[bytes] | typing.AsyncIterable[bytes] | None = None,
-        extensions: Extensions | None = None,
+        extensions: RequestExtensions | None = None,
     ) -> None:
         """
         Parameters:
@@ -336,7 +358,7 @@ class Request:
         self.url: URL = enforce_url(url, name="url")
         self.headers: list[tuple[bytes, bytes]] = enforce_headers(headers, name="headers")
         self.stream: typing.Iterable[bytes] | typing.AsyncIterable[bytes] = enforce_stream(content, name="content")
-        self.extensions: Extensions = {} if extensions is None else extensions
+        self.extensions: RequestExtensions = {} if extensions is None else extensions
 
         if "target" in self.extensions:
             self.url = URL(
@@ -361,7 +383,7 @@ class Response:
         *,
         headers: HeaderTypes = None,
         content: bytes | typing.Iterable[bytes] | typing.AsyncIterable[bytes] | None = None,
-        extensions: Extensions | None = None,
+        extensions: ResponseExtensions | None = None,
     ) -> None:
         """
         Parameters:
@@ -369,13 +391,13 @@ class Response:
             headers: The HTTP response headers.
             content: The content of the response body.
             extensions: A dictionary of optional extra information included on
-                the responseself.Possible keys include `"http_version"`,
+                the response. Possible keys include `"http_version"`,
                 `"reason_phrase"`, and `"network_stream"`.
         """
         self.status: int = status
         self.headers: list[tuple[bytes, bytes]] = enforce_headers(headers, name="headers")
         self.stream: typing.Iterable[bytes] | typing.AsyncIterable[bytes] = enforce_stream(content, name="content")
-        self.extensions: Extensions = {} if extensions is None else extensions
+        self.extensions: ResponseExtensions = {} if extensions is None else extensions
 
         self._stream_consumed = False
 

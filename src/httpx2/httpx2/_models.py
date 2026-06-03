@@ -387,7 +387,7 @@ class Request:
         self.method = method.upper()
         self.url = URL(url) if params is None else URL(url, params=params)
         self.headers = Headers(headers)
-        self.extensions = {} if extensions is None else dict(extensions)
+        self.extensions: RequestExtensions = {} if extensions is None else dict(extensions)
 
         if cookies:
             Cookies(cookies).set_cookie_header(self)

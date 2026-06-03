@@ -1315,6 +1315,7 @@ source = { editable = "src/httpcore2" }
 dependencies = [
     { name = "h11" },
     { name = "truststore" },
+    { name = "typing-extensions", marker = "python_full_version < '3.15'" },
 ]
 
 [package.optional-dependencies]
@@ -1339,6 +1340,7 @@ requires-dist = [
     { name = "socksio", marker = "extra == 'socks'", specifier = "==1.*" },
     { name = "trio", marker = "extra == 'trio'", specifier = ">=0.22.0,<1.0" },
     { name = "truststore", specifier = ">=0.10" },
+    { name = "typing-extensions", marker = "python_full_version < '3.15'", specifier = ">=4.13" },
 ]
 provides-extras = ["asyncio", "http2", "socks", "trio"]
 

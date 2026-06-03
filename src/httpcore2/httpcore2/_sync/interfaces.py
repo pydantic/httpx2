@@ -6,10 +6,10 @@ from collections.abc import Generator
 
 from .._models import (
     URL,
-    Extensions,
     HeaderTypes,
     Origin,
     Request,
+    RequestExtensions,
     Response,
     enforce_bytes,
     enforce_headers,
@@ -26,7 +26,7 @@ class RequestInterface:
         *,
         headers: HeaderTypes = None,
         content: bytes | typing.Iterator[bytes] | None = None,
-        extensions: Extensions | None = None,
+        extensions: RequestExtensions | None = None,
     ) -> Response:
         # Strict type checking on our parameters.
         method = enforce_bytes(method, name="method")
@@ -58,7 +58,7 @@ class RequestInterface:
         *,
         headers: HeaderTypes = None,
         content: bytes | typing.Iterator[bytes] | None = None,
-        extensions: Extensions | None = None,
+        extensions: RequestExtensions | None = None,
     ) -> Generator[Response]:
         # Strict type checking on our parameters.
         method = enforce_bytes(method, name="method")

@@ -64,12 +64,10 @@ def test_request() -> None:
 
 
 def test_request_with_target_extension() -> None:
-    extensions = {"target": b"/another_path"}
-    request = httpcore2.Request("GET", "https://www.example.com/path", extensions=extensions)
+    request = httpcore2.Request("GET", "https://www.example.com/path", extensions={"target": b"/another_path"})
     assert request.url.target == b"/another_path"
 
-    extensions = {"target": b"/unescaped|path"}
-    request = httpcore2.Request("GET", "https://www.example.com/path", extensions=extensions)
+    request = httpcore2.Request("GET", "https://www.example.com/path", extensions={"target": b"/unescaped|path"})
     assert request.url.target == b"/unescaped|path"
 
 

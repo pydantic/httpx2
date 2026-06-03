@@ -42,7 +42,11 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
     "Topic :: Internet :: WWW/HTTP",
 ]
-dependencies = ["truststore>=0.10", "h11>=0.16"]
+dependencies = [
+    "truststore>=0.10",
+    "h11>=0.16",
+    "typing-extensions>=4.13; python_version < '3.15'",
+]
 
 [project.optional-dependencies]
 http2 = ["h2>=3,<5"]

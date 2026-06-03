@@ -3,7 +3,7 @@ from __future__ import annotations
 import contextlib
 import typing
 
-from ._models import URL, Extensions, HeaderTypes, Response
+from ._models import URL, HeaderTypes, RequestExtensions, Response
 from ._sync.connection_pool import ConnectionPool
 
 
@@ -13,7 +13,7 @@ def request(
     *,
     headers: HeaderTypes = None,
     content: bytes | typing.Iterator[bytes] | None = None,
-    extensions: Extensions | None = None,
+    extensions: RequestExtensions | None = None,
 ) -> Response:
     """
     Sends an HTTP request, returning the response.
@@ -54,7 +54,7 @@ def stream(
     *,
     headers: HeaderTypes = None,
     content: bytes | typing.Iterator[bytes] | None = None,
-    extensions: Extensions | None = None,
+    extensions: RequestExtensions | None = None,
 ) -> typing.Generator[Response]:
     """
     Sends an HTTP request, returning the response within a content manager.
