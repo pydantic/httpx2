@@ -338,4 +338,3 @@ def server(
     config = Config(app=app, lifespan="off", loop="asyncio", port=free_tcp_port_factory())
     server = TestServer(config=config)
     yield from serve_in_thread(server)
-
