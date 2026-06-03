@@ -71,13 +71,13 @@ def _normalize_header_key(key: str | bytes, encoding: str | None = None) -> byte
     return key if isinstance(key, bytes) else key.encode(encoding or "ascii")
 
 
-def _normalize_header_value(value: str | bytes | object, encoding: str | None = None) -> bytes:
+def _normalize_header_value(value: str | bytes, encoding: str | None = None) -> bytes:
     """
     Coerce str/bytes into a strictly byte-wise HTTP header value.
     """
     if isinstance(value, bytes):
         return value
-    if not isinstance(value, str):
+    if not isinstance(value, str):  # type: ignore[reportUnnecessaryIsInstance]
         raise TypeError(f"Header value must be str or bytes, not {type(value)}")
     return value.encode(encoding or "ascii")
 
