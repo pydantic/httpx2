@@ -29,35 +29,8 @@ jobs:
           python-version: ${{ matrix.python-version }}
           enable-cache: true
 
-      - name: Install Chrome for Pyodide tests
-        if: ${{ matrix.python-version == '3.12' }}
-        uses: pyodide/pyodide-actions/install-browser@012fa537869d343726d01863a34b773fc4d96a14 # v2
-        with:
-          runner: selenium
-          browser: chrome
-          browser-version: latest
-
-      - name: Install Node for Pyodide tests
-        if: ${{ matrix.python-version == '3.12' }}
-        uses: pyodide/pyodide-actions/install-browser@012fa537869d343726d01863a34b773fc4d96a14 # v2
-        with:
-          runner: selenium
-          browser: node
-          browser-version: 22
-
-      - name: Download Pyodide
-        if: ${{ matrix.python-version == '3.12' }}
-        uses: pyodide/pyodide-actions/download-pyodide@012fa537869d343726d01863a34b773fc4d96a14 # v2
-        with:
-          version: 0.29.3
-          to: pyodide_dist
-
       - name: Install dependencies
         run: scripts/install
-
-      - name: Install Pyodide test dependencies
-        if: ${{ matrix.python-version == '3.12' }}
-        run: uv pip install -r requirements-emscripten.txt
 
       - name: Run linting checks
         run: scripts/check

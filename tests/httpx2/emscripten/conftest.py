@@ -11,17 +11,17 @@ try:
     import pytest_pyodide
     from pytest_pyodide.runner import SeleniumChromeRunner
 
-    _HAS_PYTEST_PYODIDE = True
+    _has_pytest_pyodide = True
 except ImportError:  # pragma: nocover
     # pytest-pyodide (and a browser/node runtime) is only available when a
     # Pyodide environment has been set up via `scripts/download-pyodide`. When
     # it isn't installed we skip collecting the emscripten tests entirely so
     # that a plain `pytest` run on the host still works.
-    _HAS_PYTEST_PYODIDE = False
+    _has_pytest_pyodide = False
     collect_ignore_glob = ["*"]
 
 
-if _HAS_PYTEST_PYODIDE:
+if _has_pytest_pyodide:
     # Make our ssl certificates work in Chrome
     pyodide_config = pytest_pyodide.config.get_global_config()
     pyodide_config.set_flags("chrome", ["ignore-certificate-errors"] + pyodide_config.get_flags("chrome"))
@@ -47,7 +47,7 @@ def patch_javascript_setup(
     return javascript_setup
 
 
-if _HAS_PYTEST_PYODIDE:
+if _has_pytest_pyodide:
     SeleniumChromeRunner.javascript_setup = patch_javascript_setup(SeleniumChromeRunner.javascript_setup)
 
 

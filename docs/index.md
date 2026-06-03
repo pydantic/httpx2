@@ -143,8 +143,3 @@ To include the optional brotli and zstandard decoders support, use:
 ```shell
 pip install 'httpx2[brotli,zstd]'
 ```
-
-## Pyodide / Emscripten Support
-
-There is experimental support for running in WebAssembly under the Pyodide
-runtime. See the [Emscripten](advanced/emscripten.md) page for more details.

@@ -397,9 +397,10 @@ class AsyncJavascriptFetchTransport(AsyncBaseTransport):
 
     async def _get_body(self, request: Request) -> bytes | None:
         assert isinstance(request.stream, AsyncByteStream)
-        body: bytes = b""
+        chunks: list[bytes] = []
         async for x in request.stream:
-            body += x
+            chunks.append(x)
+        body = b"".join(chunks)
         if not body:
             return None
         return body

@@ -73,9 +73,8 @@
     pyodide.setStdout({ batched: stdoutLine });
     pyodide.setStderr({ batched: stderrLine });
     if (
-      // document.location.origin.startsWith("http://127.0.0.1") ||
-      // document.location.origin.startsWith("http://localhost")
-      false
+      document.location.origin.startsWith("http://127.0.0.1") ||
+      document.location.origin.startsWith("http://localhost")
     ) {
       // If we are on a development machine, use the wheel from the dist folder
       await pyodide.loadPackage(["/test.whl", "ssl", "idna", "certifi"]);

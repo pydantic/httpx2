@@ -43,7 +43,7 @@ addresses.
 <div id="pyodide_editor">import httpx2
 print("Sending response using httpx2 in the browser:")
 print("--------------------------------------------")
-r = httpx2.get("http://www.example.com")
+r = httpx2.get("https://www.example.com")
 print("Status = ", r.status_code)
 print("Response = ", r.text[:50], "...")</div>
 
@@ -70,7 +70,7 @@ your own web page. You will need version 0.26.2 or later of Pyodide.
     ```python
     import pyodide_js as pjs
     import ssl, certifi, idna
-    pjs.loadPackage("<URL_OF_THE_WHEEL>")
+    await pjs.loadPackage("<URL_OF_THE_WHEEL>")
     import httpx2
     # Now httpx2 should work
     ```
