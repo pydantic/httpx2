@@ -43,9 +43,9 @@ dynamic = ["readme", "version", "dependencies"]
 
 [tool.hatch.metadata.hooks.uv-dynamic-versioning]
 dependencies = [
-    "truststore>=0.10",
-    "httpcore2=={{ version }}",
-    "anyio",
+    "truststore>=0.10; sys_platform != 'emscripten'",
+    "httpcore2=={{ version }}; sys_platform != 'emscripten'",
+    "anyio; sys_platform != 'emscripten'",
     "idna",
 ]
 

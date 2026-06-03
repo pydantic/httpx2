@@ -2,4 +2,13 @@
 
 set -x
 
-uv run coverage report --show-missing --skip-covered --fail-under=100
+uv run coverage combine
+if [ -d 'pyodide_dist' ]; then
+    IGNORE_ARGS=""
+else
+    # if we don't have a pyodide environment set up, then don't test coverage
+    # for the emscripten transport
+    IGNORE_ARGS="--omit=src/httpx2/httpx2/_transports/jsfetch.py,tests/httpx2/emscripten/*"
+fi
+
+uv run coverage report ${IGNORE_ARGS} --show-missing --skip-covered --fail-under=100

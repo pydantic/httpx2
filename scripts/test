@@ -6,7 +6,14 @@ if [ -z $GITHUB_ACTIONS ]; then
     scripts/check
 fi
 
-uv run coverage run -m pytest "$@"
+# run all host tests first
+uv run coverage run -p -m pytest "$@" --ignore=tests/httpx2/emscripten
+
+if [ -d 'pyodide_dist' ]; then
+    # run emscripten specific tests on chrome and node.js (20+)
+    uv run coverage run -p -m pytest -v --dist-dir="${PWD}/pyodide_dist" --rt=chrome-no-host tests/httpx2/emscripten/test_emscripten.py
+    uv run coverage run -p -m pytest -v --dist-dir="${PWD}/pyodide_dist" --rt=node-no-host tests/httpx2/emscripten/test_emscripten.py
+fi
 
 if [ -z $GITHUB_ACTIONS ]; then
     scripts/coverage

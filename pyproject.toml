@@ -81,6 +81,12 @@ markers = [
 source_pkgs = ["httpx2", "httpcore2", "tests"]
 omit = ["src/httpcore2/httpcore2/_sync/*", "tests/test_benchmark.py"]
 
+[tool.coverage.paths]
+source = [
+  "src/httpx2/httpx2",
+  "*/site-packages/httpx2",
+]
+
 [tool.coverage.report]
 exclude_also = [
   "if TYPE_CHECKING:",

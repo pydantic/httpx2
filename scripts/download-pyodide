@@ -1,0 +1,28 @@
+#!/bin/sh -e
+set -x
+
+uv pip install -r requirements-emscripten.txt
+
+mkdir -p pyodide_dist
+PYODIDE_URL="https://github.com/pyodide/pyodide/releases/download/0.29.3/pyodide-core-0.29.3.tar.bz2"
+PYODIDE_OUTPATH="/tmp/pyodide.tar.bz2"
+if command -v wget >/dev/null 2>&1; then
+    wget -q "$PYODIDE_URL" -O "$PYODIDE_OUTPATH"
+else
+    curl -sL "$PYODIDE_URL" -o "$PYODIDE_OUTPATH"
+fi
+tar -xjf "$PYODIDE_OUTPATH" -C pyodide_dist --strip-components=1
+./pyodide_dist/python - <<'EOF'
+import pyodide_js as pjs
+
+pjs.loadPackage(
+    [
+        "coverage",
+        "idna",
+        "micropip",
+        "pytest",
+        "sqlite3",
+        "tblib",
+    ]
+)
+EOF
