@@ -73,7 +73,7 @@ def selenium_runner_helper(
         await pyodide.loadPackage("micropip");
         await pyodide.runPythonAsync(`
             import micropip
-            await micropip.install({str(wheel_url)!r})
+            await micropip.install([{str(wheel_url)!r}, "h2"])
         `);
         """
     )

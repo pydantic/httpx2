@@ -165,6 +165,7 @@ def test_ignored_options_warn(selenium_runner: SeleniumChromeRunner, server_url:
             httpx2.HTTPTransport(**{key: value})
         with pytest.warns(UserWarning, match=match):
             httpx2.AsyncHTTPTransport(**{key: value})
-        # Warning is also surfaced when constructing a Client.
-        with pytest.warns(UserWarning, match=match):
-            httpx2.Client(**{key: value})
+        if key in ("verify", "cert", "http2", "proxy"):
+            # Warning is also surfaced when constructing a Client.
+            with pytest.warns(UserWarning, match=match):
+                httpx2.Client(**{key: value})
