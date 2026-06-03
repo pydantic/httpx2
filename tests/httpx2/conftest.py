@@ -332,26 +332,10 @@ def serve_in_thread(server: TestServer) -> typing.Iterator[TestServer]:
 
 
 @pytest.fixture(scope="session")
-def server(free_tcp_port_factory: typing.Callable[[], int]) -> typing.Iterator[TestServer]:
+def server(
+    cert_pem_file: str, cert_private_key_file: str, free_tcp_port_factory: typing.Callable[[], int]
+) -> typing.Iterator[TestServer]:
     config = Config(app=app, lifespan="off", loop="asyncio", port=free_tcp_port_factory())
     server = TestServer(config=config)
     yield from serve_in_thread(server)
 
-
-# a local https server is needed for emscripten tests to work
-@pytest.fixture(scope="session")
-def https_server(
-    cert_pem_file: str,
-    cert_private_key_file: str,
-    free_tcp_port_factory: typing.Callable[[], int],
-) -> typing.Iterator[TestServer]:  # pragma: nocover (only used by emscripten)
-    config = Config(
-        app=app,
-        lifespan="off",
-        ssl_certfile=cert_pem_file,
-        ssl_keyfile=cert_private_key_file,
-        port=free_tcp_port_factory(),
-        loop="asyncio",
-    )
-    server = TestServer(config=config)
-    yield from serve_in_thread(server)

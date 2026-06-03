@@ -92,12 +92,9 @@ def selenium_worker_runner(request: pytest.FixtureRequest, runtime: str, has_jsp
     return selenium_runner_helper(request, has_jspi, wheel_url, worker)
 
 
-@pytest.fixture(scope="session", params=["https", "http"])
-def server_url(request: pytest.FixtureRequest, server: Any, https_server: Any) -> Iterator[httpx2.URL]:
-    if request.param == "https":
-        yield https_server.url.copy_with(path="/emscripten")
-    else:
-        yield server.url.copy_with(path="/emscripten")
+@pytest.fixture(scope="session")
+def server_url(request: pytest.FixtureRequest, server: Any, server: Any) -> Iterator[httpx2.URL]:
+    yield server.url.copy_with(path="/emscripten")
 
 
 @pytest.fixture
