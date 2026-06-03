@@ -28,6 +28,7 @@ maintainers = [
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Environment :: Web Environment",
+    "Framework :: AnyIO",
     "Framework :: AsyncIO",
     "Framework :: Trio",
     "Intended Audience :: Developers",
