@@ -113,8 +113,8 @@ class HTTP1ThenHTTP2Stream(MockStream):
     def start_tls(
         self,
         ssl_context: ssl.SSLContext,
-        server_hostname: typing.Optional[str] = None,
-        timeout: typing.Optional[float] = None,
+        server_hostname: str | None = None,
+        timeout: float | None = None,
     ) -> NetworkStream:
         self._http2 = True
         return self
@@ -125,9 +125,9 @@ class HTTP1ThenHTTP2Backend(MockBackend):
         self,
         host: str,
         port: int,
-        timeout: typing.Optional[float] = None,
-        local_address: typing.Optional[str] = None,
-        socket_options: typing.Optional[typing.Iterable[SOCKET_OPTION]] = None,
+        timeout: float | None = None,
+        local_address: str | None = None,
+        socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
     ) -> NetworkStream:
         return HTTP1ThenHTTP2Stream(list(self._buffer))
 

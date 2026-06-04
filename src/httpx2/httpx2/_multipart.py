@@ -22,7 +22,7 @@ from ._utils import (
 )
 
 _HTML5_FORM_ENCODING_REPLACEMENTS = {'"': "%22", "\\": "\\\\"}
-_HTML5_FORM_ENCODING_REPLACEMENTS.update({chr(c): "%{:02X}".format(c) for c in range(0x1F + 1) if c != 0x1B})
+_HTML5_FORM_ENCODING_REPLACEMENTS.update({chr(c): f"%{c:02X}" for c in range(0x1F + 1) if c != 0x1B})
 _HTML5_FORM_ENCODING_RE = re.compile(r"|".join([re.escape(c) for c in _HTML5_FORM_ENCODING_REPLACEMENTS.keys()]))
 
 
@@ -219,7 +219,7 @@ class MultipartStream(SyncByteStream, AsyncByteStream):
             boundary = os.urandom(16).hex().encode("ascii")
 
         self.boundary = boundary
-        self.content_type = "multipart/form-data; boundary=%s" % boundary.decode("ascii")
+        self.content_type = f"multipart/form-data; boundary={boundary.decode('ascii')}"
         self.fields = list(self._iter_fields(data, files))
 
     def _iter_fields(self, data: RequestData, files: RequestFiles) -> typing.Iterator[FileField | DataField]:
@@ -271,8 +271,7 @@ class MultipartStream(SyncByteStream, AsyncByteStream):
         return {"Content-Length": str(content_length), "Content-Type": content_type}
 
     def __iter__(self) -> typing.Iterator[bytes]:
-        for chunk in self.iter_chunks():
-            yield chunk
+        yield from self.iter_chunks()
 
     async def __aiter__(self) -> typing.AsyncIterator[bytes]:
         for chunk in self.iter_chunks():

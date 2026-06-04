@@ -168,9 +168,9 @@ def print_response(response: Response) -> None:
         console.print(f"<{len(response.content)} bytes of binary data>")
 
 
-_PCTRTT = typing.Tuple[typing.Tuple[str, str], ...]
-_PCTRTTT = typing.Tuple[_PCTRTT, ...]
-_PeerCertRetDictType = typing.Dict[str, typing.Union[str, _PCTRTTT, _PCTRTT]]
+_PCTRTT = tuple[tuple[str, str], ...]
+_PCTRTTT = tuple[_PCTRTT, ...]
+_PeerCertRetDictType = dict[str, str | _PCTRTTT | _PCTRTT]
 
 
 def format_certificate(cert: _PeerCertRetDictType) -> str:  # pragma: no cover
@@ -462,7 +462,7 @@ def main(
                 params=list(params),
                 content=content,
                 data=dict(data),
-                files=files,  # type: ignore
+                files=files,  # type: ignore[arg-type]
                 json=json,
                 headers=headers,
                 cookies=dict(cookies),

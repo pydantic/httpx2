@@ -366,7 +366,7 @@ def test_multipart_encode_files_raises_exception_with_StringIO_content() -> None
     url = "https://www.example.com"
     files = {"file": ("test.txt", io.StringIO("content"), "text/plain")}
     with pytest.raises(TypeError):
-        httpx2.Request("POST", url, data={}, files=files)  # type: ignore
+        httpx2.Request("POST", url, data={}, files=files)  # type: ignore[arg-type]
 
 
 def test_multipart_encode_files_raises_exception_with_text_mode_file() -> None:
@@ -374,7 +374,7 @@ def test_multipart_encode_files_raises_exception_with_text_mode_file() -> None:
     with tempfile.TemporaryFile(mode="w") as upload:
         files = {"file": ("test.txt", upload, "text/plain")}
         with pytest.raises(TypeError):
-            httpx2.Request("POST", url, data={}, files=files)  # type: ignore
+            httpx2.Request("POST", url, data={}, files=files)  # type: ignore[arg-type]
 
 
 def test_multipart_encode_non_seekable_filelike() -> None:

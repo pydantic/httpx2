@@ -143,8 +143,7 @@ class BoundSyncStream(SyncByteStream):
         self.elapsed: datetime.timedelta | None = None
 
     def __iter__(self) -> typing.Iterator[bytes]:
-        for chunk in self._stream:
-            yield chunk
+        yield from self._stream
 
     def close(self) -> None:
         self.elapsed = datetime.timedelta(seconds=time.perf_counter() - self._start)

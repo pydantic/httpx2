@@ -10,22 +10,23 @@ children, because we don't need that for our use-case.
 """
 
 import threading
+from collections.abc import Callable
 from types import TracebackType
-from typing import Any, Callable, List, Optional, Type
+from typing import Any
 
 
 class Nursery:
     def __init__(self) -> None:
-        self._threads: List[threading.Thread] = []
+        self._threads: list[threading.Thread] = []
 
     def __enter__(self) -> "Nursery":
         return self
 
     def __exit__(
         self,
-        exc_type: Optional[Type[BaseException]] = None,
-        exc_value: Optional[BaseException] = None,
-        traceback: Optional[TracebackType] = None,
+        exc_type: type[BaseException] | None = None,
+        exc_value: BaseException | None = None,
+        traceback: TracebackType | None = None,
     ) -> None:
         for thread in self._threads:
             thread.start()

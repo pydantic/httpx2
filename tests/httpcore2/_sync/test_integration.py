@@ -40,7 +40,7 @@ def test_extra_info(httpbin_secure: Server) -> None:
             assert local_addr[0] == "127.0.0.1"
 
             remote_addr = stream.get_extra_info("server_addr")
-            assert "https://%s:%d" % remote_addr == httpbin_secure.url
+            assert f"https://{remote_addr[0]}:{remote_addr[1]}" == httpbin_secure.url
 
             sock = stream.get_extra_info("socket")
             assert hasattr(sock, "family")

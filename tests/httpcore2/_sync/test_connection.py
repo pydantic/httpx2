@@ -88,11 +88,11 @@ def test_write_error_with_response_sent() -> None:
     """
 
     class ErrorOnRequestTooLargeStream(MockStream):
-        def __init__(self, buffer: typing.List[bytes], http2: bool = False) -> None:
+        def __init__(self, buffer: list[bytes], http2: bool = False) -> None:
             super().__init__(buffer, http2)
             self.count = 0
 
-        def write(self, buffer: bytes, timeout: typing.Optional[float] = None) -> None:
+        def write(self, buffer: bytes, timeout: float | None = None) -> None:
             self.count += len(buffer)
 
             if self.count > 1_000_000:
@@ -103,9 +103,9 @@ def test_write_error_with_response_sent() -> None:
             self,
             host: str,
             port: int,
-            timeout: typing.Optional[float] = None,
-            local_address: typing.Optional[str] = None,
-            socket_options: typing.Optional[typing.Iterable[SOCKET_OPTION]] = None,
+            timeout: float | None = None,
+            local_address: str | None = None,
+            socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
         ) -> MockStream:
             return ErrorOnRequestTooLargeStream(list(self._buffer), http2=self._http2)
 
@@ -138,11 +138,11 @@ def test_write_error_without_response_sent() -> None:
     """
 
     class ErrorOnRequestTooLargeStream(MockStream):
-        def __init__(self, buffer: typing.List[bytes], http2: bool = False) -> None:
+        def __init__(self, buffer: list[bytes], http2: bool = False) -> None:
             super().__init__(buffer, http2)
             self.count = 0
 
-        def write(self, buffer: bytes, timeout: typing.Optional[float] = None) -> None:
+        def write(self, buffer: bytes, timeout: float | None = None) -> None:
             self.count += len(buffer)
 
             if self.count > 1_000_000:
@@ -153,9 +153,9 @@ def test_write_error_without_response_sent() -> None:
             self,
             host: str,
             port: int,
-            timeout: typing.Optional[float] = None,
-            local_address: typing.Optional[str] = None,
-            socket_options: typing.Optional[typing.Iterable[SOCKET_OPTION]] = None,
+            timeout: float | None = None,
+            local_address: str | None = None,
+            socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
         ) -> MockStream:
             return ErrorOnRequestTooLargeStream(list(self._buffer), http2=self._http2)
 
@@ -214,7 +214,7 @@ def test_request_to_incorrect_origin() -> None:
 class NeedsRetryBackend(MockBackend):
     def __init__(
         self,
-        buffer: typing.List[bytes],
+        buffer: list[bytes],
         http2: bool = False,
         connect_tcp_failures: int = 2,
         start_tls_failures: int = 0,
@@ -227,9 +227,9 @@ class NeedsRetryBackend(MockBackend):
         self,
         host: str,
         port: int,
-        timeout: typing.Optional[float] = None,
-        local_address: typing.Optional[str] = None,
-        socket_options: typing.Optional[typing.Iterable[SOCKET_OPTION]] = None,
+        timeout: float | None = None,
+        local_address: str | None = None,
+        socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
     ) -> NetworkStream:
         if self._connect_tcp_failures > 0:
             self._connect_tcp_failures -= 1
@@ -243,10 +243,10 @@ class NeedsRetryBackend(MockBackend):
             self._backend = backend
             self._stream = stream
 
-        def read(self, max_bytes: int, timeout: typing.Optional[float] = None) -> bytes:
+        def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
             return self._stream.read(max_bytes, timeout)
 
-        def write(self, buffer: bytes, timeout: typing.Optional[float] = None) -> None:
+        def write(self, buffer: bytes, timeout: float | None = None) -> None:
             self._stream.write(buffer, timeout)
 
         def close(self) -> None:
@@ -255,8 +255,8 @@ class NeedsRetryBackend(MockBackend):
         def start_tls(
             self,
             ssl_context: ssl.SSLContext,
-            server_hostname: typing.Optional[str] = None,
-            timeout: typing.Optional[float] = None,
+            server_hostname: str | None = None,
+            timeout: float | None = None,
         ) -> "NetworkStream":
             if self._backend._start_tls_failures > 0:
                 self._backend._start_tls_failures -= 1

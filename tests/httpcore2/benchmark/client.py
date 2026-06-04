@@ -2,9 +2,10 @@ import asyncio
 import os
 import sys
 import time
+from collections.abc import Callable, Coroutine, Iterator
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
-from typing import Any, Callable, Coroutine, Iterator, List
+from typing import Any
 
 import aiohttp
 import matplotlib.pyplot as plt
@@ -50,14 +51,14 @@ async def run_async_requests(axis: Axes) -> None:
 
         await asyncio.gather(*(coro_with_sem(c) for c in coros))
 
-    async def httpcore_get(pool: httpcore2.AsyncConnectionPool, timings: List[int]) -> None:
+    async def httpcore_get(pool: httpcore2.AsyncConnectionPool, timings: list[int]) -> None:
         start = time.monotonic()
         res = await pool.request("GET", URL)
         assert len(await res.aread()) == 2000
         assert res.status == 200, f"status_code={res.status}"
         timings.append(duration(start))
 
-    async def aiohttp_get(session: aiohttp.ClientSession, timings: List[int]) -> None:
+    async def aiohttp_get(session: aiohttp.ClientSession, timings: list[int]) -> None:
         start = time.monotonic()
         async with session.request("GET", URL) as res:
             assert len(await res.read()) == 2000
@@ -68,11 +69,11 @@ async def run_async_requests(axis: Axes) -> None:
         # warmup
         await gather_limited_concurrency((httpcore_get(pool, []) for _ in range(REQUESTS)), CONCURRENCY * 2)
 
-        timings: List[int] = []
+        timings: list[int] = []
         start = time.monotonic()
         with profile():
             for _ in range(REPEATS):
-                await gather_limited_concurrency((httpcore_get(pool, timings) for _ in range(REQUESTS)))
+                await gather_limited_concurrency(httpcore_get(pool, timings) for _ in range(REQUESTS))
         axis.plot([*range(len(timings))], timings, label=f"httpcore (tot={duration(start)}ms)")
 
     connector = aiohttp.TCPConnector(limit=POOL_LIMIT)
@@ -83,7 +84,7 @@ async def run_async_requests(axis: Axes) -> None:
         timings = []
         start = time.monotonic()
         for _ in range(REPEATS):
-            await gather_limited_concurrency((aiohttp_get(session, timings) for _ in range(REQUESTS)))
+            await gather_limited_concurrency(aiohttp_get(session, timings) for _ in range(REQUESTS))
         axis.plot([*range(len(timings))], timings, label=f"aiohttp (tot={duration(start)}ms)")
 
 
@@ -93,14 +94,14 @@ def run_sync_requests(axis: Axes) -> None:
         for future in futures:
             future.result()
 
-    def httpcore_get(pool: httpcore2.ConnectionPool, timings: List[int]) -> None:
+    def httpcore_get(pool: httpcore2.ConnectionPool, timings: list[int]) -> None:
         start = time.monotonic()
         res = pool.request("GET", URL)
         assert len(res.read()) == 2000
         assert res.status == 200, f"status_code={res.status}"
         timings.append(duration(start))
 
-    def urllib3_get(pool: urllib3.HTTPConnectionPool, timings: List[int]) -> None:
+    def urllib3_get(pool: urllib3.HTTPConnectionPool, timings: list[int]) -> None:
         start = time.monotonic()
         res = pool.request("GET", "/req")
         assert len(res.data) == 2000
@@ -115,7 +116,7 @@ def run_sync_requests(axis: Axes) -> None:
                 exec,
             )
 
-        timings: List[int] = []
+        timings: list[int] = []
         exec = ThreadPoolExecutor(max_workers=CONCURRENCY)
         start = time.monotonic()
         with profile():

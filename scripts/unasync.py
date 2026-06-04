@@ -44,7 +44,7 @@ def unasync_line(line):
 
 
 def unasync_file(in_path, out_path):
-    with open(in_path, "r") as in_file:
+    with open(in_path) as in_file:
         with open(out_path, "w", newline="") as out_file:
             for line in in_file.readlines():
                 line = unasync_line(line)
@@ -52,8 +52,8 @@ def unasync_file(in_path, out_path):
 
 
 def unasync_file_check(in_path, out_path):
-    with open(in_path, "r") as in_file:
-        with open(out_path, "r") as out_file:
+    with open(in_path) as in_file:
+        with open(out_path) as out_file:
             for in_line, out_line in zip(in_file.readlines(), out_file.readlines(), strict=True):
                 expected = unasync_line(in_line)
                 if out_line != expected:

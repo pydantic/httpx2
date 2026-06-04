@@ -24,8 +24,8 @@ from .connection_pool import AsyncConnectionPool
 from .http11 import AsyncHTTP11Connection
 from .interfaces import AsyncConnectionInterface
 
-ByteOrStr = typing.Union[bytes, str]
-HeadersAsSequence = typing.Sequence[typing.Tuple[ByteOrStr, ByteOrStr]]
+ByteOrStr = bytes | str
+HeadersAsSequence = typing.Sequence[tuple[ByteOrStr, ByteOrStr]]
 HeadersAsMapping = typing.Mapping[ByteOrStr, ByteOrStr]
 
 
@@ -278,7 +278,7 @@ class AsyncTunnelHTTPConnection(AsyncConnectionInterface):
                 if connect_response.status < 200 or connect_response.status > 299:
                     reason_bytes = connect_response.extensions.get("reason_phrase", b"")
                     reason_str = reason_bytes.decode("ascii", errors="ignore")
-                    msg = "%d %s" % (connect_response.status, reason_str)
+                    msg = f"{connect_response.status} {reason_str}"
                     await self._connection.aclose()
                     raise ProxyError(msg)
 

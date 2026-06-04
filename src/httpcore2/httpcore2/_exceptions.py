@@ -1,7 +1,7 @@
 import contextlib
 import typing
 
-ExceptionMapping = typing.Mapping[typing.Type[Exception], typing.Type[Exception]]
+ExceptionMapping = typing.Mapping[type[Exception], type[Exception]]
 
 
 @contextlib.contextmanager

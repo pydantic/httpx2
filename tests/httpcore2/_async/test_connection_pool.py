@@ -373,9 +373,9 @@ async def test_connection_pool_with_connect_exception() -> None:
             self,
             host: str,
             port: int,
-            timeout: typing.Optional[float] = None,
-            local_address: typing.Optional[str] = None,
-            socket_options: typing.Optional[typing.Iterable[httpcore2.SOCKET_OPTION]] = None,
+            timeout: float | None = None,
+            local_address: str | None = None,
+            socket_options: typing.Iterable[httpcore2.SOCKET_OPTION] | None = None,
         ) -> httpcore2.AsyncNetworkStream:
             raise httpcore2.ConnectError("Could not connect")
 
@@ -521,7 +521,7 @@ async def test_connection_pool_concurrency() -> None:
             await response.aread()
 
     async with httpcore2.AsyncConnectionPool(max_connections=1, network_backend=network_backend) as pool:
-        info_list: typing.List[typing.List[str]] = []
+        info_list: list[list[str]] = []
         async with concurrency.open_nursery() as nursery:
             for domain in ["a.com", "b.com", "c.com", "d.com", "e.com"]:
                 nursery.start_soon(fetch, pool, domain, info_list)
@@ -565,7 +565,7 @@ async def test_connection_pool_concurrency_same_domain_closing() -> None:
             await response.aread()
 
     async with httpcore2.AsyncConnectionPool(max_connections=1, network_backend=network_backend, http2=True) as pool:
-        info_list: typing.List[typing.List[str]] = []
+        info_list: list[list[str]] = []
         async with concurrency.open_nursery() as nursery:
             for domain in ["a.com", "a.com", "a.com", "a.com", "a.com"]:
                 nursery.start_soon(fetch, pool, domain, info_list)
@@ -602,7 +602,7 @@ async def test_connection_pool_concurrency_same_domain_keepalive() -> None:
             await response.aread()
 
     async with httpcore2.AsyncConnectionPool(max_connections=1, network_backend=network_backend, http2=True) as pool:
-        info_list: typing.List[typing.List[str]] = []
+        info_list: list[list[str]] = []
         async with concurrency.open_nursery() as nursery:
             for domain in ["a.com", "a.com", "a.com", "a.com", "a.com"]:
                 nursery.start_soon(fetch, pool, domain, info_list)

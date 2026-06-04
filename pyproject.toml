@@ -49,7 +49,7 @@ line-length = 120
 exclude = ["src/httpcore2/httpcore2/_sync", "tests/httpcore2/_sync"]
 
 [tool.ruff.lint]
-select = ["B", "C4", "E", "F", "I", "PERF", "PIE", "W"]
+select = ["B", "C4", "E", "F", "I", "PERF", "PIE", "UP", "W"]
 ignore = ["B904", "B028", "C401", "PERF203"]
 
 [tool.ruff.lint.isort]

@@ -60,11 +60,7 @@ from .base import AsyncBaseTransport, BaseTransport
 T = typing.TypeVar("T", bound="HTTPTransport")
 A = typing.TypeVar("A", bound="AsyncHTTPTransport")
 
-SOCKET_OPTION = typing.Union[
-    typing.Tuple[int, int, int],
-    typing.Tuple[int, int, typing.Union[bytes, bytearray]],
-    typing.Tuple[int, int, None, int],
-]
+SOCKET_OPTION = tuple[int, int, int] | tuple[int, int, bytes | bytearray] | tuple[int, int, None, int]
 
 __all__ = ["AsyncHTTPTransport", "HTTPTransport"]
 
@@ -124,8 +120,7 @@ class ResponseStream(SyncByteStream):
 
     def __iter__(self) -> typing.Iterator[bytes]:
         with map_httpcore_exceptions():
-            for part in self._httpcore_stream:
-                yield part
+            yield from self._httpcore_stream
 
     def close(self) -> None:
         if hasattr(self._httpcore_stream, "close"):
