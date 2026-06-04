@@ -258,3 +258,18 @@ def test_digest_auth_rfc_7616_sha_256(monkeypatch: pytest.MonkeyPatch) -> None:
     response = httpx2.Response(content=b"Hello, world!", status_code=200)
     with pytest.raises(StopIteration):
         flow.send(response)
+
+
+def test_digest_auth_empty_realm() -> None:
+    auth = httpx2.DigestAuth(username="user", password="pass")
+    request = httpx2.Request("GET", "https://www.example.com")
+
+    flow = auth.sync_auth_flow(request)
+    request = next(flow)
+
+    # Digest realm has been left empty.
+    headers = {"WWW-Authenticate": 'Digest realm=, qop="auth", nonce="...", opaque="..."'}
+    response = httpx2.Response(content=b"Auth required", status_code=401, headers=headers, request=request)
+    request = flow.send(response)
+
+    assert request.headers["Authorization"].startswith('Digest username="user", realm="", nonce="..."')
