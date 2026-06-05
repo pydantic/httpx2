@@ -355,7 +355,11 @@ class URL:
         return self.copy_with(params=self.params.add(key, value))
 
     def copy_remove_param(self, key: str) -> URL:
-        return self.copy_with(params=self.params.remove(key))
+        # With the new merge semantics of the URL/Request constructor, passing
+        # `params=self.params.remove(key)` would re-merge the (now-empty) params
+        # with the existing query string and silently leave the param in place.
+        # Reset the query string to None so the param is actually removed.
+        return self.copy_with(query=None, params=self.params.remove(key))
 
     def copy_merge_params(self, params: QueryParamTypes) -> URL:
         return self.copy_with(params=self.params.merge(params))
