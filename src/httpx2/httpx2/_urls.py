@@ -105,20 +105,32 @@ class URL:
                     kwargs[key] = value.decode("ascii")
 
             if "params" in kwargs:
-                # Replace any "params" keyword with the raw "query" instead.
+                # Merge any "params" keyword with the URL's existing "query"
+                # string, so that calling `URL("https://x?a=1", params={"b": 2})`
+                # keeps the original query string and appends new params.
                 #
-                # Ensure that empty params use `kwargs["query"] = None` rather
-                # than `kwargs["query"] = ""`, so that generated URLs do not
-                # include an empty trailing "?".
+                # `params` takes precedence on key collisions (matches
+                # `requests` and `URL.copy_merge_params` semantics).
                 params = kwargs.pop("params")
-                kwargs["query"] = None if not params else str(QueryParams(params))
+                if params:
+                    # Defer the merge until after the URL has been parsed, so
+                    # we can read the existing query string off the parsed URL.
+                    kwargs["__merge_params__"] = params
 
+        merge_params = kwargs.pop("__merge_params__", None)
         if isinstance(url, str):
             self._uri_reference = urlparse(url, **kwargs)
         elif isinstance(url, URL):
             self._uri_reference = url._uri_reference.copy_with(**kwargs)
         else:
             raise TypeError(f"Invalid type for url.  Expected str or httpx2.URL, got {type(url)}: {url!r}")
+        if merge_params:
+            # Now that the URL is parsed, read its current query and merge the
+            # new params on top. Re-parse so the new query becomes canonical.
+            existing_query = self._uri_reference.query
+            existing = QueryParams(existing_query) if existing_query else QueryParams()
+            merged = existing.merge(merge_params)
+            self._uri_reference = self._uri_reference.copy_with(query=str(merged))
 
     @property
     def scheme(self) -> str:
