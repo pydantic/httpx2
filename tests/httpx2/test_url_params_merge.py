@@ -3,9 +3,8 @@ Tests for the URL constructor: `URL(url, params=...)` should merge the new
 params with the URL's existing query string instead of replacing it.
 Regression for issue #905.
 """
-from __future__ import annotations
 
-import pytest
+from __future__ import annotations
 
 import httpx2
 
