@@ -157,8 +157,8 @@ def test_url_params() -> None:
     assert url.params == httpx2.QueryParams({"a": "123"})
 
     url = httpx2.URL("https://example.org:123/path/to/somewhere?b=456", params={"a": "123"})
-    assert str(url) == "https://example.org:123/path/to/somewhere?a=123"
-    assert url.params == httpx2.QueryParams({"a": "123"})
+    assert str(url) == "https://example.org:123/path/to/somewhere?b=456&a=123"
+    assert url.params == httpx2.QueryParams({"a": "123", "b": "456"})
 
 
 # Tests for username and password
