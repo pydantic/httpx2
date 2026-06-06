@@ -14,6 +14,7 @@ from ._content import ByteStream, UnattachedStream, encode_request, encode_respo
 from ._decoders import (
     ByteChunker,
     ContentDecoder,
+    IdentityDecoder,
     LineDecoder,
     MultiDecoder,
     TextChunker,
@@ -679,7 +680,13 @@ class Response:
         if not hasattr(self, "_decoder"):
             values = self.headers.get_list("content-encoding", split_commas=True)
             encodings = [value.strip().lower() for value in values]
-            self._decoder = MultiDecoder(encodings)
+            decoder = MultiDecoder(encodings)
+            if len(decoder.children) == 1:
+                self._decoder = decoder.children[0]
+            elif decoder.children:
+                self._decoder = decoder
+            else:
+                self._decoder = IdentityDecoder()
 
         return self._decoder
 
