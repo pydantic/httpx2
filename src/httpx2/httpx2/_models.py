@@ -23,6 +23,7 @@ from ._decoders import (
 )
 from ._exceptions import (
     CookieConflict,
+    DecodingError,
     HTTPStatusError,
     RequestNotRead,
     ResponseNotRead,
@@ -679,8 +680,11 @@ class Response:
         content, depending on the Content-Encoding used in the response.
         """
         if not hasattr(self, "_decoder"):
-            decoders: list[ContentDecoder] = []
             values = self.headers.get_list("content-encoding", split_commas=True)
+            if len(values) > MultiDecoder.max_decode_links:
+                raise DecodingError(f"Cannot apply more than {MultiDecoder.max_decode_links} content encodings.")
+
+            decoders: list[ContentDecoder] = []
             for value in values:
                 value = value.strip().lower()
                 try:

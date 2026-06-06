@@ -218,15 +218,9 @@ def test_multi_with_identity() -> None:
 
 
 def test_multi_decode_links_limit() -> None:
-    body = b"test 123"
-    compressed_body = body
-    for _ in range(6):
-        compressor = zlib.compressobj(9, zlib.DEFLATED, zlib.MAX_WBITS | 16)
-        compressed_body = compressor.compress(compressed_body) + compressor.flush()
-
     headers = [(b"Content-Encoding", b", ".join([b"gzip"] * 6))]
     with pytest.raises(httpx2.DecodingError, match="Cannot apply more than 5 content encodings"):
-        httpx2.Response(200, headers=headers, content=compressed_body)
+        httpx2.Response(200, headers=headers, content=b"")
 
 
 @pytest.mark.anyio
