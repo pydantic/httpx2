@@ -12,10 +12,8 @@ from http.cookiejar import Cookie, CookieJar
 
 from ._content import ByteStream, UnattachedStream, encode_request, encode_response
 from ._decoders import (
-    SUPPORTED_DECODERS,
     ByteChunker,
     ContentDecoder,
-    IdentityDecoder,
     LineDecoder,
     MultiDecoder,
     TextChunker,
@@ -23,7 +21,6 @@ from ._decoders import (
 )
 from ._exceptions import (
     CookieConflict,
-    DecodingError,
     HTTPStatusError,
     RequestNotRead,
     ResponseNotRead,
@@ -681,24 +678,8 @@ class Response:
         """
         if not hasattr(self, "_decoder"):
             values = self.headers.get_list("content-encoding", split_commas=True)
-            if len(values) > MultiDecoder.max_decode_links:
-                raise DecodingError(f"Cannot apply more than {MultiDecoder.max_decode_links} content encodings.")
-
-            decoders: list[ContentDecoder] = []
-            for value in values:
-                value = value.strip().lower()
-                try:
-                    decoder_cls = SUPPORTED_DECODERS[value]
-                    decoders.append(decoder_cls())
-                except KeyError:
-                    continue
-
-            if len(decoders) == 1:
-                self._decoder = decoders[0]
-            elif len(decoders) > 1:
-                self._decoder = MultiDecoder(children=decoders)
-            else:
-                self._decoder = IdentityDecoder()
+            encodings = [value.strip().lower() for value in values]
+            self._decoder = MultiDecoder(encodings)
 
         return self._decoder
 
