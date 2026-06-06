@@ -230,11 +230,15 @@ class MultiDecoder(ContentDecoder):
     Handle the case where multiple encodings have been applied.
     """
 
+    max_decode_links: typing.ClassVar[int] = 5
+
     def __init__(self, children: typing.Sequence[ContentDecoder]) -> None:
         """
         'children' should be a sequence of decoders in the order in which
         each was applied.
         """
+        if len(children) > self.max_decode_links:
+            raise DecodingError(f"Too many content encodings in the chain: {len(children)} > {self.max_decode_links}")
         # Note that we reverse the order for decoding.
         self.children = list(reversed(children))
 
