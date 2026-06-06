@@ -225,7 +225,7 @@ def test_multi_decode_links_limit() -> None:
         compressed_body = compressor.compress(compressed_body) + compressor.flush()
 
     headers = [(b"Content-Encoding", b", ".join([b"gzip"] * 6))]
-    with pytest.raises(httpx2.DecodingError, match="Too many content encodings"):
+    with pytest.raises(httpx2.DecodingError, match="Cannot apply more than 5 content encodings"):
         httpx2.Response(200, headers=headers, content=compressed_body)
 
 
