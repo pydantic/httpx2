@@ -222,11 +222,7 @@ def test_multi_brotli_zstd() -> None:
     compressed_body = zstd.compress(b"\x8b\x03\x80test 123\x03")
 
     headers = [(b"Content-Encoding", b"br, zstd")]
-    response = httpx2.Response(
-        200,
-        headers=headers,
-        content=compressed_body,
-    )
+    response = httpx2.Response(200, headers=headers, content=compressed_body)
     assert response.content == body
 
 
