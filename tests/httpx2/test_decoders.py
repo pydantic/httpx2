@@ -217,6 +217,19 @@ def test_multi_with_identity() -> None:
     assert response.content == body
 
 
+def test_multi_brotli_zstd() -> None:
+    body = b"test 123"
+    compressed_body = zstd.compress(b"\x8b\x03\x80test 123\x03")
+
+    headers = [(b"Content-Encoding", b"br, zstd")]
+    response = httpx2.Response(
+        200,
+        headers=headers,
+        content=compressed_body,
+    )
+    assert response.content == body
+
+
 def test_multi_decode_links_limit() -> None:
     headers = [(b"Content-Encoding", b", ".join([b"gzip"] * 6))]
     with pytest.raises(httpx2.DecodingError, match="Cannot apply more than 5 content encodings"):
