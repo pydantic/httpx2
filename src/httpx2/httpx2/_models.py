@@ -680,7 +680,7 @@ class Response:
         if not hasattr(self, "_decoder"):
             values = self.headers.get_list("content-encoding", split_commas=True)
             encodings = [value.strip().lower() for value in values]
-            decoder = MultiDecoder(encodings)
+            decoder = MultiDecoder([encoding for encoding in encodings if encoding != "identity"])
             if len(decoder.children) == 1:
                 self._decoder = decoder.children[0]
             elif decoder.children:
