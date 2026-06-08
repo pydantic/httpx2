@@ -237,9 +237,13 @@ class MultiDecoder(ContentDecoder):
         'encodings' should be the content codings in the order in which
         each was applied.
         """
-        if len(encodings) > self.max_decode_links:
+        children = [
+            SUPPORTED_DECODERS[encoding]()
+            for encoding in encodings
+            if encoding in SUPPORTED_DECODERS and encoding != "identity"
+        ]
+        if len(children) > self.max_decode_links:
             raise DecodingError(f"Cannot apply more than {self.max_decode_links} content encodings.")
-        children = [SUPPORTED_DECODERS[encoding]() for encoding in encodings if encoding in SUPPORTED_DECODERS]
         # Note that we reverse the order for decoding.
         self.children = list(reversed(children))
 

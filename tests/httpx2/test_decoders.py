@@ -223,6 +223,14 @@ def test_multi_decode_links_limit() -> None:
         httpx2.Response(200, headers=headers, content=b"")
 
 
+def test_multi_decode_links_limit_ignores_identity_and_unsupported() -> None:
+    body = b"test 123"
+    compressed = zlib.compress(body)
+    headers = [(b"Content-Encoding", b"identity, identity, identity, identity, identity, deflate")]
+    response = httpx2.Response(200, headers=headers, content=compressed)
+    assert response.content == body
+
+
 @pytest.mark.anyio
 async def test_streaming() -> None:
     body = b"test 123"
