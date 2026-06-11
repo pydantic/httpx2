@@ -1,10 +1,17 @@
 from __future__ import annotations
 
+import sys
 import typing
 from urllib.parse import parse_qs, unquote, urlencode
 
 import idna
 
+if sys.version_info >= (3, 13):
+    from warnings import deprecated  # pragma: no cover
+else:
+    from typing_extensions import deprecated  # pragma: no cover
+
+from ._exceptions import HTTPXDeprecationWarning
 from ._types import QueryParamTypes
 from ._urlparse import urlparse
 from ._utils import primitive_value_to_str
@@ -398,11 +405,10 @@ class URL:
         return f"{self.__class__.__name__}({url!r})"
 
     @property
+    @deprecated("URL.raw is deprecated.", category=HTTPXDeprecationWarning)
     def raw(self) -> tuple[bytes, bytes, int, bytes]:  # pragma: no cover
         import collections
-        import warnings
 
-        warnings.warn("URL.raw is deprecated.")
         RawURL = collections.namedtuple("RawURL", ["raw_scheme", "raw_host", "port", "raw_path"])
         return RawURL(
             raw_scheme=self.raw_scheme,
