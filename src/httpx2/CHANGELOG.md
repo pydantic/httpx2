@@ -13,7 +13,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Changed
 
 * Limit the number of chained `Content-Encoding` decoders to 5. ([#1027](https://github.com/pydantic/httpx2/pull/1027))
-* Bump `chardet` to `6.0.0.post1`. ([#1017](https://github.com/pydantic/httpx2/pull/1017))
 * Allow version 15 of `rich` in the `cli` extra. ([#1015](https://github.com/pydantic/httpx2/pull/1015))
 
 ### Fixed
