@@ -12,7 +12,6 @@ from http.cookiejar import Cookie, CookieJar
 
 from ._content import ByteStream, UnattachedStream, encode_request, encode_response
 from ._decoders import (
-    SUPPORTED_DECODERS,
     ByteChunker,
     ContentDecoder,
     IdentityDecoder,
@@ -679,20 +678,13 @@ class Response:
         content, depending on the Content-Encoding used in the response.
         """
         if not hasattr(self, "_decoder"):
-            decoders: list[ContentDecoder] = []
             values = self.headers.get_list("content-encoding", split_commas=True)
-            for value in values:
-                value = value.strip().lower()
-                try:
-                    decoder_cls = SUPPORTED_DECODERS[value]
-                    decoders.append(decoder_cls())
-                except KeyError:
-                    continue
-
-            if len(decoders) == 1:
-                self._decoder = decoders[0]
-            elif len(decoders) > 1:
-                self._decoder = MultiDecoder(children=decoders)
+            encodings = [value.strip().lower() for value in values]
+            decoder = MultiDecoder([encoding for encoding in encodings if encoding != "identity"])
+            if len(decoder.children) == 1:
+                self._decoder = decoder.children[0]
+            elif decoder.children:
+                self._decoder = decoder
             else:
                 self._decoder = IdentityDecoder()
 
