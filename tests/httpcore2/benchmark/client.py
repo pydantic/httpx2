@@ -2,7 +2,7 @@ import asyncio
 import os
 import sys
 import time
-from collections.abc import Callable, Coroutine, Iterator
+from collections.abc import Callable, Coroutine, Generator, Iterator
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from typing import Any
@@ -30,7 +30,7 @@ def duration(start: float) -> int:
 
 
 @contextmanager
-def profile() -> Iterator[None]:
+def profile() -> Generator[None]:
     if not PROFILE:
         yield
         return
@@ -149,7 +149,7 @@ def main() -> None:
     mode = sys.argv[1] if len(sys.argv) == 2 else None
     assert mode in ("async", "sync"), "Usage: python client.py <async|sync>"
 
-    fig, ax = plt.subplots()
+    _fig, ax = plt.subplots()
 
     if mode == "async":
         asyncio.run(run_async_requests(ax))

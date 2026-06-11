@@ -1,4 +1,4 @@
-import http
+import http.cookiejar
 
 import pytest
 

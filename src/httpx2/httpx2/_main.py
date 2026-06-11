@@ -174,7 +174,7 @@ _PeerCertRetDictType = dict[str, str | _PCTRTTT | _PCTRTT]
 
 
 def format_certificate(cert: _PeerCertRetDictType) -> str:  # pragma: no cover
-    lines = []
+    lines: list[str] = []
     for key, value in cert.items():
         if isinstance(value, (list, tuple)):
             lines.append(f"*   {key}:")

@@ -113,7 +113,7 @@ def include_request_headers(
     url: URL,
     content: None | bytes | typing.Iterable[bytes] | typing.AsyncIterable[bytes],
 ) -> list[tuple[bytes, bytes]]:
-    headers_set = {k.lower() for k, v in headers}
+    headers_set = {k.lower() for k, _v in headers}
 
     if b"host" not in headers_set:
         default_port = DEFAULT_PORTS.get(url.scheme)

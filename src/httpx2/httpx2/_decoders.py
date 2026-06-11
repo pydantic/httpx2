@@ -39,7 +39,7 @@ if typing.TYPE_CHECKING:
 
         ZstdDecompressor = functools.partial(_ZstdDecompressor().decompressobj)
 
-    _zstandard_installed: bool
+    _zstandard_installed: bool = False
 else:  # pragma: no cover
     _zstandard_installed = False
     try:
@@ -241,7 +241,7 @@ class MultiDecoder(ContentDecoder):
         if len(codings) > self.max_decode_links:
             raise DecodingError(f"Cannot apply more than {self.max_decode_links} content encodings.")
         # Note that we reverse the order for decoding.
-        self.children = [SUPPORTED_DECODERS[coding]() for coding in reversed(codings)]
+        self.children: list[ContentDecoder] = [SUPPORTED_DECODERS[coding]() for coding in reversed(codings)]
 
     def decode(self, data: bytes) -> bytes:
         for child in self.children:
@@ -402,7 +402,7 @@ class LineDecoder:
         return lines
 
 
-SUPPORTED_DECODERS = {
+SUPPORTED_DECODERS: dict[str, type[ContentDecoder]] = {
     "identity": IdentityDecoder,
     "gzip": GZipDecoder,
     "deflate": DeflateDecoder,

@@ -230,7 +230,7 @@ async def test_trace_request() -> None:
         ]
     )
 
-    called = []
+    called: list[str] = []
 
     async def trace(name: str, kwargs: dict[str, typing.Any]) -> None:
         called.append(name)
@@ -332,7 +332,7 @@ async def test_connection_pool_with_http_exception() -> None:
     """
     network_backend = httpcore2.AsyncMockBackend([b"Wait, this isn't valid HTTP!"])
 
-    called = []
+    called: list[str] = []
 
     async def trace(name: str, kwargs: dict[str, typing.Any]) -> None:
         called.append(name)
@@ -381,7 +381,7 @@ async def test_connection_pool_with_connect_exception() -> None:
 
     network_backend = FailedConnectBackend([])
 
-    called = []
+    called: list[str] = []
 
     async def trace(name: str, kwargs: dict[str, typing.Any]) -> None:
         called.append(name)
@@ -758,7 +758,7 @@ async def test_http11_upgrade_connection() -> None:
         ]
     )
 
-    called = []
+    called: list[str] = []
 
     async def trace(name: str, kwargs: dict[str, typing.Any]) -> None:
         called.append(name)

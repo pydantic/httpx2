@@ -6,6 +6,7 @@ import logging
 import time
 import typing
 import warnings
+from collections.abc import AsyncGenerator, Generator
 from contextlib import asynccontextmanager, contextmanager
 from types import TracebackType
 
@@ -809,7 +810,7 @@ class Client(BaseClient):
         follow_redirects: bool | UseClientDefault = USE_CLIENT_DEFAULT,
         timeout: TimeoutTypes | UseClientDefault = USE_CLIENT_DEFAULT,
         extensions: RequestExtensions | None = None,
-    ) -> typing.Iterator[Response]:
+    ) -> Generator[Response]:
         """
         Alternative to `httpx2.request()` that streams the response body
         instead of loading it into memory at once.
@@ -1512,7 +1513,7 @@ class AsyncClient(BaseClient):
         follow_redirects: bool | UseClientDefault = USE_CLIENT_DEFAULT,
         timeout: TimeoutTypes | UseClientDefault = USE_CLIENT_DEFAULT,
         extensions: RequestExtensions | None = None,
-    ) -> typing.AsyncIterator[Response]:
+    ) -> AsyncGenerator[Response]:
         """
         Alternative to `httpx2.request()` that streams the response body
         instead of loading it into memory at once.

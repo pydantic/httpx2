@@ -28,12 +28,13 @@ from __future__ import annotations
 
 import contextlib
 import typing
+from collections.abc import Generator
 from types import TracebackType
 
-if typing.TYPE_CHECKING:
-    import ssl  # pragma: no cover
+if typing.TYPE_CHECKING:  # pragma: no cover
+    import ssl
 
-    import httpx2  # pragma: no cover
+    import httpx2
 
 from .._config import DEFAULT_LIMITS, Limits, Proxy, create_ssl_context
 from .._exceptions import (
@@ -89,7 +90,7 @@ def _load_httpcore_exceptions() -> dict[type[Exception], type[httpx2.HTTPError]]
 
 
 @contextlib.contextmanager
-def map_httpcore_exceptions() -> typing.Iterator[None]:
+def map_httpcore_exceptions() -> Generator[None]:
     global HTTPCORE_EXC_MAP
     if len(HTTPCORE_EXC_MAP) == 0:
         HTTPCORE_EXC_MAP = _load_httpcore_exceptions()

@@ -89,6 +89,11 @@ class Timeout:
                                 # 5s timeout elsewhere.
     """
 
+    connect: float | None
+    read: float | None
+    write: float | None
+    pool: float | None
+
     def __init__(
         self,
         timeout: TimeoutTypes | UnsetType = UNSET,
@@ -104,10 +109,10 @@ class Timeout:
             assert read is UNSET
             assert write is UNSET
             assert pool is UNSET
-            self.connect = timeout.connect  # type: typing.Optional[float]
-            self.read = timeout.read  # type: typing.Optional[float]
-            self.write = timeout.write  # type: typing.Optional[float]
-            self.pool = timeout.pool  # type: typing.Optional[float]
+            self.connect = timeout.connect
+            self.read = timeout.read
+            self.write = timeout.write
+            self.pool = timeout.pool
         elif isinstance(timeout, tuple):
             # Passed as a tuple.
             self.connect = timeout[0]

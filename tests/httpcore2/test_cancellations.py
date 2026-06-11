@@ -2,7 +2,7 @@ import typing
 
 import anyio
 import hpack
-import hyperframe
+import hyperframe.frame
 import pytest
 
 import httpcore2
