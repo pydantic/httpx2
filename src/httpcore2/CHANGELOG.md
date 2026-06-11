@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2.4.0 (June 11th, 2026)
+
+### Fixed
+
+* Move HTTP/2 stream events cleanup inside `_state_lock`. ([#1013](https://github.com/pydantic/httpx2/pull/1013))
+* Release the HTTP/2 semaphore permit on `NoAvailableStreamIDError`. ([#1012](https://github.com/pydantic/httpx2/pull/1012))
+* Use `RLock` instead of `Lock` to prevent a thread deadlock. ([#1008](https://github.com/pydantic/httpx2/pull/1008))
+
 ## 2.3.0 (June 1st, 2026)
 
 ### Changed
