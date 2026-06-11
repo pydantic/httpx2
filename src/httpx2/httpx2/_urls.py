@@ -7,9 +7,9 @@ from urllib.parse import parse_qs, unquote, urlencode
 import idna
 
 if sys.version_info >= (3, 13):
-    from warnings import deprecated
+    from warnings import deprecated  # pragma: no cover
 else:
-    from typing_extensions import deprecated
+    from typing_extensions import deprecated  # pragma: no cover
 
 from ._exceptions import HTTPXDeprecationWarning
 from ._types import QueryParamTypes
