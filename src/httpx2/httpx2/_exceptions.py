@@ -71,6 +71,16 @@ __all__ = [
 ]
 
 
+class HTTPXDeprecationWarning(UserWarning):
+    """A custom deprecation warning for HTTPX.
+
+    Unlike the built-in `DeprecationWarning`, this inherits from `UserWarning` to ensure it is visible by default,
+    helping users discover deprecated features without needing to enable warnings explicitly.
+
+    Reference: https://sethmlarson.dev/deprecations-via-warnings-dont-work-for-python-libraries
+    """
+
+
 class HTTPError(Exception):
     """
     Base class for `RequestError` and `HTTPStatusError`.

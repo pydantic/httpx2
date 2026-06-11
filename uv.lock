@@ -1353,6 +1353,7 @@ dependencies = [
     { name = "httpcore2" },
     { name = "idna" },
     { name = "truststore" },
+    { name = "typing-extensions", marker = "python_full_version < '3.13'" },
 ]
 
 [package.optional-dependencies]
@@ -1388,6 +1389,7 @@ requires-dist = [
     { name = "rich", marker = "extra == 'cli'", specifier = ">=10,<16" },
     { name = "socksio", marker = "extra == 'socks'", specifier = "==1.*" },
     { name = "truststore", specifier = ">=0.10" },
+    { name = "typing-extensions", marker = "python_full_version < '3.13'", specifier = ">=4.5.0" },
     { name = "zstandard", marker = "python_full_version < '3.14' and extra == 'zstd'", specifier = ">=0.18.0" },
 ]
 provides-extras = ["brotli", "cli", "http2", "socks", "zstd"]

@@ -48,6 +48,8 @@ dependencies = [
     "httpcore2=={{ version }}",
     "anyio",
     "idna>=3.18",
+    # TODO(Marcelo): Remove when Python 3.12 reaches EOL.
+    "typing_extensions>=4.5.0; python_version < '3.13'",
 ]
 
 [project.optional-dependencies]
