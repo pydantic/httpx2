@@ -48,6 +48,16 @@ from ._types import (
 )
 from ._urls import URL, QueryParams
 from ._utils import URLPattern, get_environment_proxies
+from ._websockets._session import (
+    DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS,
+    DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
+    DEFAULT_MAX_MESSAGE_SIZE_BYTES,
+    DEFAULT_QUEUE_SIZE,
+    AsyncWebSocketSession,
+    WebSocketSession,
+    aconnect_ws,
+    connect_ws,
+)
 
 if typing.TYPE_CHECKING:
     import ssl  # pragma: no cover
@@ -845,6 +855,71 @@ class Client(BaseClient):
         finally:
             response.close()
 
+    @contextmanager
+    def websocket(
+        self,
+        url: URL | str,
+        *,
+        params: QueryParamTypes | None = None,
+        headers: HeaderTypes | None = None,
+        cookies: CookieTypes | None = None,
+        auth: AuthTypes | UseClientDefault | None = USE_CLIENT_DEFAULT,
+        follow_redirects: bool | UseClientDefault = USE_CLIENT_DEFAULT,
+        timeout: TimeoutTypes | UseClientDefault = USE_CLIENT_DEFAULT,
+        extensions: RequestExtensions | None = None,
+        subprotocols: list[str] | None = None,
+        max_message_size_bytes: int = DEFAULT_MAX_MESSAGE_SIZE_BYTES,
+        queue_size: int = DEFAULT_QUEUE_SIZE,
+        keepalive_ping_interval_seconds: float | None = DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS,
+        keepalive_ping_timeout_seconds: float | None = DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
+    ) -> Generator[WebSocketSession]:
+        """
+        Open a WebSocket session.
+
+        The session is closed automatically when exiting the context manager.
+
+        ```python
+        with httpx2.Client() as client:
+            with client.websocket("wss://example.com/ws") as ws:
+                ws.send_text("Hello!")
+                message = ws.receive_text()
+        ```
+
+        **Parameters**: See `httpx2.request` for the request parameters, plus:
+
+        * **subprotocols** - *(optional)* A list of subprotocols to negotiate with the server.
+        * **max_message_size_bytes** - Message size in bytes to receive from the server. Defaults to 64 KiB.
+        * **queue_size** - Size of the queue where the received messages will be held
+        until they are consumed. If the queue is full, the client will stop receiving
+        messages from the server until the queue has room available. Defaults to 512.
+        * **keepalive_ping_interval_seconds** - Interval at which the client will automatically
+        send a Ping event to keep the connection alive. Set it to `None` to disable
+        this mechanism. Defaults to 20 seconds.
+        * **keepalive_ping_timeout_seconds** - Maximum delay the client will wait for an answer
+        to its Ping event. If the delay is exceeded, `httpx2.WebSocketNetworkError` will be
+        raised and the connection closed. Defaults to 20 seconds.
+
+        Raises `httpx2.WebSocketUpgradeError` if the connection didn't correctly
+        upgrade to a WebSocket session.
+        """
+        with connect_ws(
+            self,
+            url,
+            params=params,
+            headers=headers,
+            cookies=cookies,
+            auth=auth,
+            follow_redirects=follow_redirects,
+            timeout=timeout,
+            extensions=extensions,
+            subprotocols=subprotocols,
+            max_message_size_bytes=max_message_size_bytes,
+            queue_size=queue_size,
+            keepalive_ping_interval_seconds=keepalive_ping_interval_seconds,
+            keepalive_ping_timeout_seconds=keepalive_ping_timeout_seconds,
+        ) as session:
+            yield session
+
     def send(
         self,
         request: Request,
@@ -1547,6 +1622,76 @@ class AsyncClient(BaseClient):
             yield response
         finally:
             await response.aclose()
+
+    @asynccontextmanager
+    async def websocket(
+        self,
+        url: URL | str,
+        *,
+        params: QueryParamTypes | None = None,
+        headers: HeaderTypes | None = None,
+        cookies: CookieTypes | None = None,
+        auth: AuthTypes | UseClientDefault | None = USE_CLIENT_DEFAULT,
+        follow_redirects: bool | UseClientDefault = USE_CLIENT_DEFAULT,
+        timeout: TimeoutTypes | UseClientDefault = USE_CLIENT_DEFAULT,
+        extensions: RequestExtensions | None = None,
+        subprotocols: list[str] | None = None,
+        max_message_size_bytes: int = DEFAULT_MAX_MESSAGE_SIZE_BYTES,
+        queue_size: int = DEFAULT_QUEUE_SIZE,
+        keepalive_ping_interval_seconds: float | None = DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS,
+        keepalive_ping_timeout_seconds: float | None = DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
+    ) -> AsyncGenerator[AsyncWebSocketSession]:
+        """
+        Open a WebSocket session.
+
+        The session is closed automatically when exiting the context manager.
+
+        ```python
+        async with httpx2.AsyncClient() as client:
+            async with client.websocket("wss://example.com/ws") as ws:
+                await ws.send_text("Hello!")
+                message = await ws.receive_text()
+        ```
+
+        Internally, the session uses an anyio task group to manage background tasks.
+        As a result, exceptions that are not caught inside the context manager and
+        propagate out of the `async with` block will be wrapped in an `ExceptionGroup`.
+        Use the `except*` syntax to handle them.
+
+        **Parameters**: See `httpx2.request` for the request parameters, plus:
+
+        * **subprotocols** - *(optional)* A list of subprotocols to negotiate with the server.
+        * **max_message_size_bytes** - Message size in bytes to receive from the server. Defaults to 64 KiB.
+        * **queue_size** - Size of the queue where the received messages will be held
+        until they are consumed. If the queue is full, the client will stop receiving
+        messages from the server until the queue has room available. Defaults to 512.
+        * **keepalive_ping_interval_seconds** - Interval at which the client will automatically
+        send a Ping event to keep the connection alive. Set it to `None` to disable
+        this mechanism. Defaults to 20 seconds.
+        * **keepalive_ping_timeout_seconds** - Maximum delay the client will wait for an answer
+        to its Ping event. If the delay is exceeded, `httpx2.WebSocketNetworkError` will be
+        raised and the connection closed. Defaults to 20 seconds.
+
+        Raises `httpx2.WebSocketUpgradeError` if the connection didn't correctly
+        upgrade to a WebSocket session.
+        """
+        async with aconnect_ws(
+            self,
+            url,
+            params=params,
+            headers=headers,
+            cookies=cookies,
+            auth=auth,
+            follow_redirects=follow_redirects,
+            timeout=timeout,
+            extensions=extensions,
+            subprotocols=subprotocols,
+            max_message_size_bytes=max_message_size_bytes,
+            queue_size=queue_size,
+            keepalive_ping_interval_seconds=keepalive_ping_interval_seconds,
+            keepalive_ping_timeout_seconds=keepalive_ping_timeout_seconds,
+        ) as session:
+            yield session
 
     async def send(
         self,

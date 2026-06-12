@@ -10,16 +10,19 @@ from ._status_codes import *
 from ._transports import *
 from ._types import *
 from ._urls import *
+from ._websockets import *
 
 __all__ = [
     "__description__",
     "__title__",
     "__version__",
     "ASGITransport",
+    "ASGIWebSocketTransport",
     "AsyncBaseTransport",
     "AsyncByteStream",
     "AsyncClient",
     "AsyncHTTPTransport",
+    "AsyncWebSocketSession",
     "Auth",
     "BaseTransport",
     "BasicAuth",
@@ -78,6 +81,13 @@ __all__ = [
     "UnsupportedProtocol",
     "URL",
     "USE_CLIENT_DEFAULT",
+    "websocket",
+    "WebSocketDisconnect",
+    "WebSocketException",
+    "WebSocketInvalidTypeReceived",
+    "WebSocketNetworkError",
+    "WebSocketSession",
+    "WebSocketUpgradeError",
     "WriteError",
     "WriteTimeout",
     "WSGITransport",
