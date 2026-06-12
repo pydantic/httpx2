@@ -17,15 +17,9 @@ __all__ = ["ASGITransport"]
 
 
 class ASGIResponseStream(AsyncByteStream):
-    def __init__(
-        self,
-        ignore_body: bool,
-        asgi_messages: typing.AsyncGenerator[_Message, None],
-        disconnect_request: anyio.Event,
-    ) -> None:
+    def __init__(self, ignore_body: bool, asgi_messages: typing.AsyncGenerator[_Message, None]) -> None:
         self._ignore_body = ignore_body
         self._asgi_messages = asgi_messages
-        self._disconnect_request = disconnect_request
 
     async def __aiter__(self) -> typing.AsyncIterator[bytes]:
         more_body = True
@@ -36,11 +30,8 @@ class ASGIResponseStream(AsyncByteStream):
                 more_body = message.get("more_body", False)
                 if body and not self._ignore_body:
                     yield body
-                if not more_body:
-                    self._disconnect_request.set()
 
     async def aclose(self) -> None:
-        self._disconnect_request.set()
         await self._asgi_messages.aclose()
 
 
@@ -83,8 +74,7 @@ class ASGITransport(AsyncBaseTransport):
         self.client = client
 
     async def handle_async_request(self, request: Request) -> Response:
-        disconnect_request = anyio.Event()
-        asgi_messages = self._run_app(request, disconnect_request)
+        asgi_messages = self._run_app(request)
 
         async for message in asgi_messages:
             if message["type"] == "http.response.start":
@@ -94,16 +84,12 @@ class ASGITransport(AsyncBaseTransport):
                     stream=ASGIResponseStream(
                         ignore_body=request.method == "HEAD",
                         asgi_messages=asgi_messages,
-                        disconnect_request=disconnect_request,
                     ),
                 )
 
-        disconnect_request.set()
         return Response(status_code=500, headers=[])
 
-    async def _run_app(
-        self, request: Request, disconnect_request: anyio.Event
-    ) -> typing.AsyncGenerator[_Message, None]:
+    async def _run_app(self, request: Request) -> typing.AsyncGenerator[_Message, None]:
         assert isinstance(request.stream, AsyncByteStream)
 
         # ASGI scope.
@@ -127,6 +113,7 @@ class ASGITransport(AsyncBaseTransport):
         request_complete = False
 
         # Response.
+        disconnect_request = anyio.Event()
         send_channel, receive_channel = anyio.create_memory_object_stream[_Message]()
         app_exception: Exception | None = None
 
@@ -162,6 +149,8 @@ class ASGITransport(AsyncBaseTransport):
             async with receive_channel:
                 try:
                     async for message in receive_channel:
+                        if message["type"] == "http.response.body" and not message.get("more_body", False):
+                            disconnect_request.set()
                         yield message
                 except GeneratorExit:
                     # A `GeneratorExit` must not propagate through the task group,
