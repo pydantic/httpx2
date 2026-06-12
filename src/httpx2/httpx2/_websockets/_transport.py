@@ -12,8 +12,6 @@ from websockets.frames import Close, Frame, Opcode
 from websockets.protocol import Protocol, Side, State
 from websockets.utils import accept_key
 
-from httpcore2 import AsyncNetworkStream
-
 from .._models import Request, Response
 from .._transports.asgi import ASGITransport
 from .._types import AsyncByteStream
@@ -42,7 +40,12 @@ class UnhandledWebSocketFrame(ASGIWebSocketTransportError):
         self.frame = frame
 
 
-class ASGIWebSocketAsyncNetworkStream(AsyncNetworkStream):
+class ASGIWebSocketAsyncNetworkStream:
+    """
+    An `httpcore2.AsyncNetworkStream` lookalike that translates reads and writes
+    into ASGI messages exchanged with the wrapped app.
+    """
+
     def __init__(
         self,
         app: ASGIApp,

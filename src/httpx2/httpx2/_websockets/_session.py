@@ -17,9 +17,6 @@ from websockets.exceptions import InvalidState
 from websockets.frames import Close, Frame, Opcode
 from websockets.protocol import Protocol, Side, State
 
-import httpcore2
-from httpcore2 import AsyncNetworkStream, NetworkStream
-
 from .._models import Headers
 from .._urls import URL
 from ._exceptions import (
@@ -33,6 +30,8 @@ from ._ping import AsyncPingManager, PingManager
 from ._transport import ASGIWebSocketAsyncNetworkStream
 
 if typing.TYPE_CHECKING:
+    from httpcore2 import AsyncNetworkStream, NetworkStream
+
     from .._client import AsyncClient, Client, UseClientDefault
     from .._models import Response
     from .._types import AuthTypes, CookieTypes, HeaderTypes, QueryParamTypes, RequestExtensions, TimeoutTypes
@@ -289,6 +288,8 @@ class WebSocketSession:
 
         *This method is automatically called when exiting the context manager.*
         """
+        import httpcore2
+
         self._should_close.set()
         if self._executor is not None:
             self._executor.shutdown(False)
@@ -302,6 +303,8 @@ class WebSocketSession:
         self.stream.close()
 
     def _send(self, send_event: typing.Callable[[bytes], None], data: bytes) -> None:
+        import httpcore2
+
         try:
             with self._write_lock:
                 send_event(data)
@@ -325,18 +328,23 @@ class WebSocketSession:
         * Acknowledge Pong frames.
         * Put messages in the `_events` queue that'll eventually be consumed by the user.
         """
+        import httpcore2
+
         try:
             while not self._should_close.is_set():
                 data = self._wait_until_closed(self._read_stream, max_bytes)
-                self.protocol.receive_data(data)
-                try:
-                    with self._write_lock:
+                # The protocol is not thread-safe: keep every interaction with it
+                # under the write lock, so it can't race user sends and closes.
+                with self._write_lock:
+                    self.protocol.receive_data(data)
+                    frames = self.protocol.events_received()
+                    try:
                         self._write_protocol_data()
-                except httpcore2.WriteError:
-                    # Tolerate failing to reply once the peer started the closing handshake.
-                    if self.protocol.state is State.OPEN:
-                        raise
-                for frame in self.protocol.events_received():
+                    except httpcore2.WriteError:
+                        # Tolerate failing to reply once the peer started the closing handshake.
+                        if self.protocol.state is State.OPEN:
+                            raise
+                for frame in frames:
                     assert isinstance(frame, Frame)
                     if frame.opcode is Opcode.PING:
                         continue
@@ -361,7 +369,7 @@ class WebSocketSession:
         try:
             while not self._should_close.is_set():
                 should_close = self._wait_until_closed(self._should_close.wait, interval_seconds)
-                if should_close:
+                if should_close:  # pragma: no cover
                     raise ShouldClose()
 
                 try:
@@ -622,6 +630,8 @@ class AsyncWebSocketSession(anyio.AsyncContextManagerMixin):
 
         *This method is automatically called when exiting the context manager.*
         """
+        import httpcore2
+
         self._should_close.set()
         try:
             async with self._write_lock:
@@ -633,6 +643,8 @@ class AsyncWebSocketSession(anyio.AsyncContextManagerMixin):
         await self.stream.aclose()
 
     async def _send(self, send_event: typing.Callable[[bytes], None], data: bytes) -> None:
+        import httpcore2
+
         try:
             async with self._write_lock:
                 send_event(data)
@@ -656,18 +668,21 @@ class AsyncWebSocketSession(anyio.AsyncContextManagerMixin):
         * Acknowledge Pong frames.
         * Put messages in the `_events` queue that'll eventually be consumed by the user.
         """
+        import httpcore2
+
         try:
             while not self._should_close.is_set():
                 data = await self._read_stream(max_bytes)
-                self.protocol.receive_data(data)
-                try:
-                    async with self._write_lock:
+                async with self._write_lock:
+                    self.protocol.receive_data(data)
+                    frames = self.protocol.events_received()
+                    try:
                         await self._write_protocol_data()
-                except httpcore2.WriteError:
-                    # Tolerate failing to reply once the peer started the closing handshake.
-                    if self.protocol.state is State.OPEN:
-                        raise
-                for frame in self.protocol.events_received():
+                    except httpcore2.WriteError:
+                        # Tolerate failing to reply once the peer started the closing handshake.
+                        if self.protocol.state is State.OPEN:
+                            raise
+                for frame in frames:
                     assert isinstance(frame, Frame)
                     if frame.opcode is Opcode.PING:
                         continue

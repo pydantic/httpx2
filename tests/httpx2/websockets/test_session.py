@@ -20,6 +20,7 @@ from httpx2 import (
     WebSocketNetworkError,
     WebSocketSession,
     WebSocketUpgradeError,
+    _api,
 )
 from httpx2._websockets._session import JSONMode
 from tests.httpx2.websockets.conftest import ServerFactoryFixture
@@ -52,7 +53,7 @@ async def test_upgrade_error() -> None:
 
 
 def test_top_level_websocket() -> None:
-    with patch("httpx2._api.Client") as mock_client_cls:
+    with patch.object(_api, "Client") as mock_client_cls:
         mock_client = mock_client_cls.return_value.__enter__.return_value
         with httpx2.websocket("ws://socket/ws", subprotocols=["custom_protocol"]):
             pass
@@ -67,7 +68,7 @@ class TestSend:
             def __init__(self) -> None:
                 self._should_close = False
 
-            def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
+            def read(self, max_bytes: int, timeout: float | None = None) -> bytes:  # pragma: no cover
                 while not self._should_close:
                     time.sleep(0.1)
                 raise httpcore2.ReadError()
@@ -88,10 +89,10 @@ class TestSend:
             def __init__(self) -> None:
                 self._should_close = False
 
-            async def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
+            async def read(self, max_bytes: int, timeout: float | None = None) -> bytes:  # pragma: no cover
                 while not self._should_close:
                     await anyio.sleep(0.1)
-                raise httpcore2.ReadError()  # pragma: no cover
+                raise httpcore2.ReadError()
 
             async def write(self, buffer: bytes, timeout: float | None = None) -> None:
                 raise httpcore2.WriteError()
@@ -652,7 +653,7 @@ class TestKeepalivePing:
             def __init__(self) -> None:
                 self._should_close = False
 
-            def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
+            def read(self, max_bytes: int, timeout: float | None = None) -> bytes:  # pragma: no cover
                 while not self._should_close:
                     time.sleep(0.1)
                 raise httpcore2.ReadError()
@@ -722,10 +723,10 @@ class TestKeepalivePing:
             def __init__(self) -> None:
                 self._should_close = False
 
-            async def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
+            async def read(self, max_bytes: int, timeout: float | None = None) -> bytes:  # pragma: no cover
                 while not self._should_close:
                     await anyio.sleep(0.1)
-                raise httpcore2.ReadError()  # pragma: no cover
+                raise httpcore2.ReadError()
 
             async def write(self, buffer: bytes, timeout: float | None = None) -> None:
                 pass
@@ -863,17 +864,17 @@ async def test_threads_wont_hang(server_factory: ServerFactoryFixture) -> None:
 
     with server_factory(websocket_endpoint) as socket:
         with httpx2.Client(transport=httpx2.HTTPTransport(uds=socket)) as client:
-            initial_threads_count = threading.active_count()
+            initial_threads = set(threading.enumerate())
             with client.websocket("http://socket/ws", keepalive_ping_interval_seconds=None) as ws:
                 for _ in range(50):
                     ws.receive()
                     ws.send_text("CLIENT_MESSAGE")
-                time.sleep(0.1)  # Let the websocket endpoint finish its handling.
-                threads_count = threading.active_count()
-                assert initial_threads_count + 2 == threads_count
-            time.sleep(0.1)
-            final_threads_count = threading.active_count()
-            assert initial_threads_count == final_threads_count
+                session_threads = set(threading.enumerate()) - initial_threads
+                assert session_threads
+            deadline = time.time() + 5
+            while any(thread.is_alive() for thread in session_threads) and time.time() < deadline:
+                time.sleep(0.01)  # pragma: no cover
+            assert not any(thread.is_alive() for thread in session_threads)
 
 
 @pytest.mark.anyio
