@@ -6,8 +6,9 @@ from unittest.mock import MagicMock, call, patch
 
 import anyio
 import pytest
-import wsproto
 from starlette.websockets import WebSocket, WebSocketDisconnect as StarletteWebSocketDisconnect
+from websockets.frames import Frame, Opcode
+from websockets.protocol import Protocol, Side, State
 
 import httpcore2
 import httpx2
@@ -22,6 +23,16 @@ from httpx2 import (
 )
 from httpx2._websockets._session import JSONMode
 from tests.httpx2.websockets.conftest import ServerFactoryFixture
+
+
+def wire(protocol: Protocol) -> bytes:
+    return b"".join(data for data in protocol.data_to_send() if data)
+
+
+def mock_network_stream(spec: type) -> MagicMock:
+    stream = MagicMock(spec=spec)
+    stream.read.return_value = b""
+    return stream
 
 
 @pytest.mark.anyio
@@ -54,7 +65,6 @@ class TestSend:
     async def test_send_error(self) -> None:
         class MockNetworkStream(NetworkStream):
             def __init__(self) -> None:
-                self.connection = wsproto.connection.Connection(wsproto.connection.ConnectionType.SERVER)
                 self._should_close = False
 
             def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
@@ -71,18 +81,17 @@ class TestSend:
         stream = MockNetworkStream()
         with pytest.raises(WebSocketNetworkError):
             with WebSocketSession(stream) as websocket_session:
-                websocket_session.send(wsproto.events.Ping())
+                websocket_session.send_text("CLIENT_MESSAGE")
 
     async def test_async_send_error(self) -> None:
         class AsyncMockNetworkStream(AsyncNetworkStream):
             def __init__(self) -> None:
-                self.connection = wsproto.connection.Connection(wsproto.connection.ConnectionType.SERVER)
                 self._should_close = False
 
             async def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
                 while not self._should_close:
                     await anyio.sleep(0.1)
-                raise httpcore2.ReadError()
+                raise httpcore2.ReadError()  # pragma: no cover
 
             async def write(self, buffer: bytes, timeout: float | None = None) -> None:
                 raise httpcore2.WriteError()
@@ -93,31 +102,7 @@ class TestSend:
         stream = AsyncMockNetworkStream()
         with pytest.RaisesGroup(WebSocketNetworkError):
             async with AsyncWebSocketSession(stream) as websocket_session:
-                await websocket_session.send(wsproto.events.Ping())
-
-    async def test_send(
-        self,
-        server_factory: ServerFactoryFixture,
-        on_receive_message: MagicMock,
-    ) -> None:
-        async def websocket_endpoint(websocket: WebSocket) -> None:
-            await websocket.accept()
-
-            message = await websocket.receive_text()
-            on_receive_message(message)
-
-            await websocket.close()
-
-        with server_factory(websocket_endpoint) as socket:
-            with httpx2.Client(transport=httpx2.HTTPTransport(uds=socket)) as client:
-                with client.websocket("http://socket/ws") as ws:
-                    ws.send(wsproto.events.TextMessage(data="CLIENT_MESSAGE"))
-
-            async with httpx2.AsyncClient(transport=httpx2.AsyncHTTPTransport(uds=socket)) as aclient:
-                async with aclient.websocket("http://socket/ws") as aws:
-                    await aws.send(wsproto.events.TextMessage(data="CLIENT_MESSAGE"))
-
-        on_receive_message.assert_has_calls([call("CLIENT_MESSAGE"), call("CLIENT_MESSAGE")])
+                await websocket_session.send_text("CLIENT_MESSAGE")
 
     async def test_send_text(
         self,
@@ -198,9 +183,6 @@ class TestSend:
 class TestReceive:
     async def test_receive_error(self) -> None:
         class MockNetworkStream(NetworkStream):
-            def __init__(self) -> None:
-                self.connection = wsproto.connection.Connection(wsproto.connection.ConnectionType.SERVER)
-
             def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
                 raise httpcore2.ReadError()
 
@@ -217,9 +199,6 @@ class TestReceive:
 
     def test_receive_closed_socket(self) -> None:
         class MockNetworkStream(NetworkStream):
-            def __init__(self) -> None:
-                self.connection = wsproto.connection.Connection(wsproto.connection.ConnectionType.SERVER)
-
             def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
                 return b""
 
@@ -236,9 +215,6 @@ class TestReceive:
 
     def test_receive_timeout(self) -> None:
         class MockNetworkStream(NetworkStream):
-            def __init__(self) -> None:
-                self.connection = wsproto.connection.Connection(wsproto.connection.ConnectionType.SERVER)
-
             def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
                 time.sleep(0.2)
                 return b""
@@ -256,9 +232,6 @@ class TestReceive:
 
     async def test_async_receive_error(self) -> None:
         class AsyncMockNetworkStream(AsyncNetworkStream):
-            def __init__(self) -> None:
-                self.connection = wsproto.connection.Connection(wsproto.connection.ConnectionType.SERVER)
-
             async def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
                 raise httpcore2.ReadError()
 
@@ -275,9 +248,6 @@ class TestReceive:
 
     async def test_async_receive_closed_socket(self) -> None:
         class AsyncMockNetworkStream(AsyncNetworkStream):
-            def __init__(self) -> None:
-                self.connection = wsproto.connection.Connection(wsproto.connection.ConnectionType.SERVER)
-
             async def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
                 return b""
 
@@ -303,15 +273,13 @@ class TestReceive:
         with server_factory(websocket_endpoint) as socket:
             with httpx2.Client(transport=httpx2.HTTPTransport(uds=socket)) as client:
                 with client.websocket("http://socket/ws") as ws:
-                    event = ws.receive()
-                    assert isinstance(event, wsproto.events.TextMessage)
-                    assert event.data == "SERVER_MESSAGE"
+                    message = ws.receive()
+                    assert message == "SERVER_MESSAGE"
 
             async with httpx2.AsyncClient(transport=httpx2.AsyncHTTPTransport(uds=socket)) as aclient:
                 async with aclient.websocket("http://socket/ws") as aws:
-                    event = await aws.receive()
-                    assert isinstance(event, wsproto.events.TextMessage)
-                    assert event.data == "SERVER_MESSAGE"
+                    message = await aws.receive()
+                    assert message == "SERVER_MESSAGE"
 
     @pytest.mark.parametrize(
         "full_message,send_method",
@@ -337,15 +305,65 @@ class TestReceive:
         with server_factory(websocket_endpoint) as socket:
             with httpx2.Client(transport=httpx2.HTTPTransport(uds=socket)) as client:
                 with client.websocket("http://socket/ws", max_message_size_bytes=1024) as ws:
-                    event = ws.receive()
-                    assert isinstance(event, wsproto.events.Message)
-                    assert event.data == full_message
+                    message = ws.receive()
+                    assert message == full_message
 
             async with httpx2.AsyncClient(transport=httpx2.AsyncHTTPTransport(uds=socket)) as aclient:
                 async with aclient.websocket("http://socket/ws", max_message_size_bytes=1024) as aws:
-                    event = await aws.receive()
-                    assert isinstance(event, wsproto.events.Message)
-                    assert event.data == full_message
+                    message = await aws.receive()
+                    assert message == full_message
+
+    async def test_receive_fragmented_message(self) -> None:
+        class MockNetworkStream(NetworkStream):
+            def __init__(self) -> None:
+                protocol = Protocol(Side.SERVER, state=State.OPEN, max_size=None)
+                protocol.send_text(b"SERVER", fin=False)
+                first = wire(protocol)
+                protocol.send_continuation(b"_MESSAGE", fin=True)
+                second = wire(protocol)
+                self.data_to_send = [first, second]
+
+            def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
+                try:
+                    return self.data_to_send.pop(0)
+                except IndexError:
+                    raise httpcore2.ReadError()
+
+            def write(self, buffer: bytes, timeout: float | None = None) -> None:
+                pass
+
+            def close(self) -> None:
+                pass
+
+        stream = MockNetworkStream()
+        with WebSocketSession(stream) as websocket_session:
+            assert websocket_session.receive() == "SERVER_MESSAGE"
+
+    async def test_async_receive_fragmented_message(self) -> None:
+        class AsyncMockNetworkStream(AsyncNetworkStream):
+            def __init__(self) -> None:
+                protocol = Protocol(Side.SERVER, state=State.OPEN, max_size=None)
+                protocol.send_text(b"SERVER", fin=False)
+                first = wire(protocol)
+                protocol.send_continuation(b"_MESSAGE", fin=True)
+                second = wire(protocol)
+                self.data_to_send = [first, second]
+
+            async def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
+                try:
+                    return self.data_to_send.pop(0)
+                except IndexError:
+                    raise httpcore2.ReadError()
+
+            async def write(self, buffer: bytes, timeout: float | None = None) -> None:
+                pass
+
+            async def aclose(self) -> None:
+                pass
+
+        stream = AsyncMockNetworkStream()
+        async with AsyncWebSocketSession(stream) as websocket_session:
+            assert await websocket_session.receive() == "SERVER_MESSAGE"
 
     async def test_receive_text(self, server_factory: ServerFactoryFixture) -> None:
         async def websocket_endpoint(websocket: WebSocket) -> None:
@@ -449,21 +467,21 @@ class TestReceivePing:
     async def test_receive_ping(self) -> None:
         class MockNetworkStream(NetworkStream):
             def __init__(self) -> None:
-                self.connection = wsproto.connection.Connection(wsproto.connection.ConnectionType.SERVER)
-                self.events_to_send = [
-                    wsproto.events.Ping(b"SERVER_PING"),
-                    wsproto.events.CloseConnection(1000),
-                ]
+                self.protocol = Protocol(Side.SERVER, state=State.OPEN, max_size=None)
+                self.received_frames: list[Frame] = []
+                self.protocol.send_ping(b"SERVER_PING")
+                self.protocol.send_close(1000)
+                self.data_to_send = [wire(self.protocol)]
 
             def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
                 try:
-                    event = self.events_to_send.pop(0)
-                    return self.connection.send(event)
-                except IndexError:
+                    return self.data_to_send.pop(0)
+                except IndexError:  # pragma: no cover
                     raise httpcore2.ReadError()
 
             def write(self, buffer: bytes, timeout: float | None = None) -> None:
-                self.connection.receive_data(buffer)
+                self.protocol.receive_data(buffer)
+                self.received_frames.extend(e for e in self.protocol.events_received() if isinstance(e, Frame))
 
             def close(self) -> None:
                 pass
@@ -472,30 +490,27 @@ class TestReceivePing:
         with WebSocketSession(stream):
             await anyio.sleep(0.1)
 
-        received_events = list(stream.connection.events())
-        assert received_events == [
-            wsproto.events.Pong(b"SERVER_PING"),
-            wsproto.events.CloseConnection(1000, ""),
-        ]
+        assert [frame.opcode for frame in stream.received_frames] == [Opcode.PONG, Opcode.CLOSE]
+        assert bytes(stream.received_frames[0].data) == b"SERVER_PING"
 
     async def test_async_receive_ping(self) -> None:
         class MockAsyncNetworkStream(AsyncNetworkStream):
             def __init__(self) -> None:
-                self.connection = wsproto.connection.Connection(wsproto.connection.ConnectionType.SERVER)
-                self.events_to_send = [
-                    wsproto.events.Ping(b"SERVER_PING"),
-                    wsproto.events.CloseConnection(1000),
-                ]
+                self.protocol = Protocol(Side.SERVER, state=State.OPEN, max_size=None)
+                self.received_frames: list[Frame] = []
+                self.protocol.send_ping(b"SERVER_PING")
+                self.protocol.send_close(1000)
+                self.data_to_send = [wire(self.protocol)]
 
             async def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
                 try:
-                    event = self.events_to_send.pop(0)
-                    return self.connection.send(event)
-                except IndexError:
+                    return self.data_to_send.pop(0)
+                except IndexError:  # pragma: no cover
                     raise httpcore2.ReadError()
 
             async def write(self, buffer: bytes, timeout: float | None = None) -> None:
-                self.connection.receive_data(buffer)
+                self.protocol.receive_data(buffer)
+                self.received_frames.extend(e for e in self.protocol.events_received() if isinstance(e, Frame))
 
             async def aclose(self) -> None:
                 pass
@@ -504,40 +519,119 @@ class TestReceivePing:
         async with AsyncWebSocketSession(stream):
             await anyio.sleep(0.1)
 
-        received_events = list(stream.connection.events())
-        assert received_events == [
-            wsproto.events.Pong(b"SERVER_PING"),
-            wsproto.events.CloseConnection(1000, ""),
-        ]
+        assert [frame.opcode for frame in stream.received_frames] == [Opcode.PONG, Opcode.CLOSE]
+        assert bytes(stream.received_frames[0].data) == b"SERVER_PING"
+
+    async def test_receive_ping_reply_write_error(self) -> None:
+        class MockNetworkStream(NetworkStream):
+            def __init__(self) -> None:
+                protocol = Protocol(Side.SERVER, state=State.OPEN, max_size=None)
+                protocol.send_ping(b"SERVER_PING")
+                self.data_to_send = [wire(protocol)]
+
+            def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
+                try:
+                    return self.data_to_send.pop(0)
+                except IndexError:  # pragma: no cover
+                    raise httpcore2.ReadError()
+
+            def write(self, buffer: bytes, timeout: float | None = None) -> None:
+                raise httpcore2.WriteError()
+
+            def close(self) -> None:
+                pass
+
+        stream = MockNetworkStream()
+        with pytest.raises(WebSocketNetworkError):
+            with WebSocketSession(stream) as websocket_session:
+                websocket_session.receive()
+
+    async def test_async_receive_ping_reply_write_error(self) -> None:
+        class MockAsyncNetworkStream(AsyncNetworkStream):
+            def __init__(self) -> None:
+                protocol = Protocol(Side.SERVER, state=State.OPEN, max_size=None)
+                protocol.send_ping(b"SERVER_PING")
+                self.data_to_send = [wire(protocol)]
+
+            async def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
+                try:
+                    return self.data_to_send.pop(0)
+                except IndexError:  # pragma: no cover
+                    raise httpcore2.ReadError()
+
+            async def write(self, buffer: bytes, timeout: float | None = None) -> None:
+                raise httpcore2.WriteError()
+
+            async def aclose(self) -> None:
+                pass
+
+        stream = MockAsyncNetworkStream()
+        with pytest.RaisesGroup(WebSocketNetworkError):
+            async with AsyncWebSocketSession(stream) as websocket_session:
+                await websocket_session.receive()
+
+
+class NoopNetworkStream(NetworkStream):
+    def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
+        raise NotImplementedError
+
+    def write(self, buffer: bytes, timeout: float | None = None) -> None:
+        raise NotImplementedError
+
+    def close(self) -> None:
+        pass
+
+
+class NoopAsyncNetworkStream(AsyncNetworkStream):
+    async def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
+        raise NotImplementedError
+
+    async def write(self, buffer: bytes, timeout: float | None = None) -> None:
+        raise NotImplementedError
+
+    async def aclose(self) -> None:
+        pass
 
 
 @pytest.mark.anyio
 class TestKeepalivePing:
+    async def test_keepalive_ping_closing_connection(self) -> None:
+        session = WebSocketSession(NoopNetworkStream())
+        session.protocol.receive_eof()
+        session._background_keepalive_ping(0.01)
+        session.close()
+
+    async def test_async_keepalive_ping_closing_connection(self) -> None:
+        session = AsyncWebSocketSession(NoopAsyncNetworkStream())
+        session.protocol.receive_eof()
+        await session._background_keepalive_ping(0.01)
+        await session.close()
+
     async def test_keepalive_ping(self) -> None:
         class MockNetworkStream(NetworkStream):
             def __init__(self) -> None:
-                self.connection = wsproto.connection.Connection(wsproto.connection.ConnectionType.SERVER)
+                self.protocol = Protocol(Side.SERVER, state=State.OPEN, max_size=None)
                 self._should_close = False
                 self.ping_received = 0
                 self.ping_answered = 0
-                self.events_to_send: queue.Queue[wsproto.events.Event] = queue.Queue()
+                self.data_to_send: queue.Queue[bytes] = queue.Queue()
 
             def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
                 while not self._should_close:
                     try:
-                        event = self.events_to_send.get_nowait()
+                        data = self.data_to_send.get_nowait()
                         self.ping_answered += 1
-                        return self.connection.send(event)
+                        return data
                     except queue.Empty:
                         pass
                 raise httpcore2.ReadError()
 
             def write(self, buffer: bytes, timeout: float | None = None) -> None:
-                self.connection.receive_data(buffer)
-                for event in self.connection.events():
-                    if isinstance(event, wsproto.events.Ping):
+                self.protocol.receive_data(buffer)
+                for frame in self.protocol.events_received():
+                    if isinstance(frame, Frame) and frame.opcode is Opcode.PING:
                         self.ping_received += 1
-                        self.events_to_send.put(event.response())
+                        self.data_to_send.put(wire(self.protocol))
 
             def close(self) -> None:
                 self._should_close = True
@@ -556,7 +650,6 @@ class TestKeepalivePing:
     async def test_keepalive_ping_timeout(self) -> None:
         class MockNetworkStream(NetworkStream):
             def __init__(self) -> None:
-                self.connection = wsproto.connection.Connection(wsproto.connection.ConnectionType.SERVER)
                 self._should_close = False
 
             def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
@@ -582,36 +675,36 @@ class TestKeepalivePing:
     async def test_async_keepalive_ping(self) -> None:
         class MockAsyncNetworkStream(AsyncNetworkStream):
             def __init__(self) -> None:
-                self.connection = wsproto.connection.Connection(wsproto.connection.ConnectionType.SERVER)
+                self.protocol = Protocol(Side.SERVER, state=State.OPEN, max_size=None)
                 self._should_close = False
                 self.ping_received = 0
                 self.ping_answered = 0
                 (
-                    self.send_events,
-                    self.receive_events,
-                ) = anyio.create_memory_object_stream[wsproto.events.Event]()
+                    self.send_data,
+                    self.receive_data,
+                ) = anyio.create_memory_object_stream[bytes]()
 
             async def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
                 while not self._should_close:
                     try:
-                        event = self.receive_events.receive_nowait()
+                        data = self.receive_data.receive_nowait()
                         self.ping_answered += 1
-                        return self.connection.send(event)
+                        return data
                     except anyio.WouldBlock:
                         await anyio.sleep(0.1)
-                raise httpcore2.ReadError()
+                raise httpcore2.ReadError()  # pragma: no cover
 
             async def write(self, buffer: bytes, timeout: float | None = None) -> None:
-                self.connection.receive_data(buffer)
-                for event in self.connection.events():
-                    if isinstance(event, wsproto.events.Ping):
+                self.protocol.receive_data(buffer)
+                for frame in self.protocol.events_received():
+                    if isinstance(frame, Frame) and frame.opcode is Opcode.PING:
                         self.ping_received += 1
-                        await self.send_events.send(event.response())
+                        await self.send_data.send(wire(self.protocol))
 
             async def aclose(self) -> None:
                 self._should_close = True
-                self.send_events.close()
-                self.receive_events.close()
+                self.send_data.close()
+                self.receive_data.close()
 
         stream = MockAsyncNetworkStream()
         async with AsyncWebSocketSession(
@@ -627,13 +720,12 @@ class TestKeepalivePing:
     async def test_async_keepalive_ping_timeout(self) -> None:
         class MockAsyncNetworkStream(AsyncNetworkStream):
             def __init__(self) -> None:
-                self.connection = wsproto.connection.Connection(wsproto.connection.ConnectionType.SERVER)
                 self._should_close = False
 
             async def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
                 while not self._should_close:
                     await anyio.sleep(0.1)
-                raise httpcore2.ReadError()
+                raise httpcore2.ReadError()  # pragma: no cover
 
             async def write(self, buffer: bytes, timeout: float | None = None) -> None:
                 pass
@@ -721,7 +813,7 @@ async def test_subprotocol_and_response() -> None:
         return httpx2.Response(
             101,
             headers={"sec-websocket-protocol": "custom_protocol"},
-            extensions={"network_stream": MagicMock(spec=NetworkStream)},
+            extensions={"network_stream": mock_network_stream(NetworkStream)},
         )
 
     def async_handler(request: httpx2.Request) -> httpx2.Response:
@@ -730,7 +822,7 @@ async def test_subprotocol_and_response() -> None:
         return httpx2.Response(
             101,
             headers={"sec-websocket-protocol": "custom_protocol"},
-            extensions={"network_stream": MagicMock(spec=AsyncNetworkStream)},
+            extensions={"network_stream": mock_network_stream(AsyncNetworkStream)},
         )
 
     with httpx2.Client(base_url="http://localhost:8000", transport=httpx2.MockTransport(handler)) as client:
@@ -815,19 +907,21 @@ async def test_concurrency_write(server_factory: ServerFactoryFixture) -> None:
 
 
 @pytest.mark.anyio
-async def test_client_websocket_with_mock_stream() -> None:
+async def test_client_websocket_with_wss_scheme() -> None:
     def handler(request: httpx2.Request) -> httpx2.Response:
-        return httpx2.Response(101, extensions={"network_stream": MagicMock(spec=NetworkStream)})
+        assert request.url.scheme == "https"
+        return httpx2.Response(101, extensions={"network_stream": mock_network_stream(NetworkStream)})
 
     def async_handler(request: httpx2.Request) -> httpx2.Response:
-        return httpx2.Response(101, extensions={"network_stream": MagicMock(spec=AsyncNetworkStream)})
+        assert request.url.scheme == "https"
+        return httpx2.Response(101, extensions={"network_stream": mock_network_stream(AsyncNetworkStream)})
 
     with httpx2.Client(base_url="http://localhost:8000", transport=httpx2.MockTransport(handler)) as client:
-        with client.websocket("http://socket/ws") as ws:
+        with client.websocket("wss://socket/ws") as ws:
             assert isinstance(ws.response, httpx2.Response)
 
     async with httpx2.AsyncClient(
         base_url="http://localhost:8000", transport=httpx2.MockTransport(async_handler)
     ) as aclient:
-        async with aclient.websocket("http://socket/ws") as aws:
+        async with aclient.websocket("wss://socket/ws") as aws:
             assert isinstance(aws.response, httpx2.Response)

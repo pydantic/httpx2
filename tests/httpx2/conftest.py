@@ -274,6 +274,8 @@ def serve_in_thread(server: TestServer) -> typing.Iterator[TestServer]:
 
 @pytest.fixture(scope="session")
 def server(free_tcp_port_factory: typing.Callable[[], int]) -> typing.Iterator[TestServer]:
-    config = Config(app=app, lifespan="off", loop="asyncio", port=free_tcp_port_factory())
+    # `ws="auto"` would pick uvicorn's implementation based on the deprecated `websockets.legacy`,
+    # which warns on import, and warnings are errors here. This server only handles plain HTTP.
+    config = Config(app=app, lifespan="off", loop="asyncio", port=free_tcp_port_factory(), ws="none")
     server = TestServer(config=config)
     yield from serve_in_thread(server)

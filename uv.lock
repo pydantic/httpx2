@@ -47,8 +47,8 @@ dev = [
     { name = "trustme", specifier = "==1.2.1" },
     { name = "twine", specifier = "==6.1.0" },
     { name = "uvicorn", specifier = ">=0.35" },
-    { name = "websockets", specifier = ">=15" },
     { name = "werkzeug", specifier = ">=3.1.6" },
+    { name = "wsproto", specifier = ">=1.2" },
 ]
 docs = [
     { name = "mkdocstrings", extras = ["python"], specifier = ">=0.27" },
@@ -1356,7 +1356,7 @@ dependencies = [
     { name = "idna" },
     { name = "truststore" },
     { name = "typing-extensions", marker = "python_full_version < '3.13'" },
-    { name = "wsproto" },
+    { name = "websockets" },
 ]
 
 [package.optional-dependencies]
@@ -1393,7 +1393,7 @@ requires-dist = [
     { name = "socksio", marker = "extra == 'socks'", specifier = "==1.*" },
     { name = "truststore", specifier = ">=0.10" },
     { name = "typing-extensions", marker = "python_full_version < '3.13'", specifier = ">=4.5.0" },
-    { name = "wsproto", specifier = ">=1.2" },
+    { name = "websockets", specifier = ">=15" },
     { name = "zstandard", marker = "python_full_version < '3.14' and extra == 'zstd'", specifier = ">=0.18.0" },
 ]
 provides-extras = ["brotli", "cli", "http2", "socks", "zstd"]

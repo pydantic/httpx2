@@ -29,7 +29,7 @@ dev = [
   "trio-typing==0.10.0",
   "trustme==1.2.1",
   "uvicorn>=0.35",
-  "websockets>=15",
+  "wsproto>=1.2",
   "werkzeug>=3.1.6",
   # Linting
   "mypy==1.17.1",

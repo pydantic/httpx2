@@ -8,8 +8,9 @@ from types import TracebackType
 import anyio
 import anyio.abc
 import anyio.streams.stapled
-import wsproto
-from wsproto.frame_protocol import CloseReason
+from websockets.frames import Close, Frame, Opcode
+from websockets.protocol import Protocol, Side, State
+from websockets.utils import accept_key
 
 from httpcore2 import AsyncNetworkStream
 
@@ -24,6 +25,8 @@ Receive = typing.Callable[[], typing.Awaitable[Message]]
 Send = typing.Callable[[Message], typing.Awaitable[None]]
 ASGIApp = typing.Callable[[Scope, Receive, Send], typing.Awaitable[None]]
 
+INTERNAL_ERROR = 1011
+
 
 class ASGIWebSocketTransportError(Exception):
     pass
@@ -34,9 +37,9 @@ class UnhandledASGIMessageType(ASGIWebSocketTransportError):
         self.message = message
 
 
-class UnhandledWebSocketEvent(ASGIWebSocketTransportError):
-    def __init__(self, event: wsproto.events.Event) -> None:
-        self.event = event
+class UnhandledWebSocketFrame(ASGIWebSocketTransportError):
+    def __init__(self, frame: Frame) -> None:
+        self.frame = frame
 
 
 class ASGIWebSocketAsyncNetworkStream(AsyncNetworkStream):
@@ -57,8 +60,9 @@ class ASGIWebSocketAsyncNetworkStream(AsyncNetworkStream):
         )
         self._task_group = task_group
         self._initial_receive_timeout = initial_receive_timeout
-        self.connection = wsproto.WSConnection(wsproto.ConnectionType.SERVER)
-        self.connection.initiate_upgrade_connection(scope["headers"], scope["path"])
+        self.protocol = Protocol(Side.SERVER, state=State.OPEN, max_size=None)
+        headers = {key.lower(): value for key, value in scope["headers"]}
+        self._websocket_key: bytes = headers[b"sec-websocket-key"]
         self._aentered = False
 
     async def __aenter__(self) -> tuple[ASGIWebSocketAsyncNetworkStream, bytes]:
@@ -118,38 +122,37 @@ class ASGIWebSocketAsyncNetworkStream(AsyncNetworkStream):
         if message_type not in {"websocket.send", "websocket.close"}:
             raise UnhandledASGIMessageType(message)
 
-        event: wsproto.events.Event
         if message_type == "websocket.send":
             data_str: str | None = message.get("text")
             if data_str is not None:
-                event = wsproto.events.TextMessage(data_str)
+                self.protocol.send_text(data_str.encode("utf-8"))
             data_bytes: bytes | None = message.get("bytes")
             if data_bytes is not None:
-                event = wsproto.events.BytesMessage(data_bytes)
+                self.protocol.send_binary(data_bytes)
         else:
-            event = wsproto.events.CloseConnection(message["code"], message["reason"])
+            self.protocol.send_close(message["code"], message.get("reason") or "")
 
-        return self.connection.send(event)
+        return b"".join(data for data in self.protocol.data_to_send() if data)
 
     async def write(self, buffer: bytes, timeout: float | None = None) -> None:
-        self.connection.receive_data(buffer)
-        for event in self.connection.events():
-            if isinstance(event, wsproto.events.Request):
-                pass
-            elif isinstance(event, wsproto.events.CloseConnection):
+        self.protocol.receive_data(buffer)
+        for frame in self.protocol.events_received():
+            assert isinstance(frame, Frame)
+            if frame.opcode is Opcode.CLOSE:
+                close = Close.parse(frame.data)
                 await self.send(
                     {
                         "type": "websocket.disconnect",
-                        "code": event.code,
-                        "reason": event.reason,
+                        "code": close.code,
+                        "reason": close.reason,
                     }
                 )
-            elif isinstance(event, wsproto.events.TextMessage):
-                await self.send({"type": "websocket.receive", "text": event.data})
-            elif isinstance(event, wsproto.events.BytesMessage):
-                await self.send({"type": "websocket.receive", "bytes": event.data})
+            elif frame.opcode is Opcode.TEXT:
+                await self.send({"type": "websocket.receive", "text": bytes(frame.data).decode("utf-8")})
+            elif frame.opcode is Opcode.BINARY:
+                await self.send({"type": "websocket.receive", "bytes": bytes(frame.data)})
             else:
-                raise UnhandledWebSocketEvent(event)
+                raise UnhandledWebSocketFrame(frame)
 
     async def aclose(self) -> None:
         with contextlib.suppress(anyio.ClosedResourceError):
@@ -178,20 +181,29 @@ class ASGIWebSocketAsyncNetworkStream(AsyncNetworkStream):
         except Exception as e:
             message: Message = {
                 "type": "websocket.close",
-                "code": CloseReason.INTERNAL_ERROR,
+                "code": INTERNAL_ERROR,
                 "reason": str(e),
             }
             with contextlib.suppress(anyio.ClosedResourceError):
                 await send(message)
 
     def _build_accept_response(self, message: Message) -> bytes:
-        subprotocol = message.get("subprotocol", None)
-        headers = message.get("headers", [])
-        return self.connection.send(
-            wsproto.events.AcceptConnection(
-                subprotocol=subprotocol,
-                extra_headers=headers,
-            )
+        subprotocol: str | None = message.get("subprotocol", None)
+        headers: list[tuple[bytes, bytes]] = message.get("headers", [])
+        response_headers = [
+            (b"Upgrade", b"websocket"),
+            (b"Connection", b"Upgrade"),
+            (b"Sec-WebSocket-Accept", accept_key(self._websocket_key.decode("utf-8")).encode("utf-8")),
+        ]
+        if subprotocol is not None:
+            response_headers.append((b"Sec-WebSocket-Protocol", subprotocol.encode("utf-8")))
+        response_headers.extend(headers)
+        return b"".join(
+            [
+                b"HTTP/1.1 101 Switching Protocols\r\n",
+                b"".join(key + b": " + value + b"\r\n" for key, value in response_headers),
+                b"\r\n",
+            ]
         )
 
 

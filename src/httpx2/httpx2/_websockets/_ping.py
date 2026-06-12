@@ -16,7 +16,7 @@ class PingManager:
         self._pings[ping_id] = event
         return ping_id, event
 
-    def ack(self, ping_id: bytes | bytearray) -> None:
+    def ack(self, ping_id: bytes | bytearray | memoryview) -> None:
         event = self._pings.pop(bytes(ping_id))
         event.set()
 
@@ -31,6 +31,6 @@ class AsyncPingManager:
         self._pings[ping_id] = event
         return ping_id, event
 
-    def ack(self, ping_id: bytes | bytearray) -> None:
+    def ack(self, ping_id: bytes | bytearray | memoryview) -> None:
         event = self._pings.pop(bytes(ping_id))
         event.set()

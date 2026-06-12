@@ -13,8 +13,6 @@ from __future__ import annotations
 import typing
 
 if typing.TYPE_CHECKING:
-    import wsproto
-
     from .._models import Response  # pragma: no cover
 
 __all__ = [
@@ -53,11 +51,11 @@ class WebSocketDisconnect(WebSocketException):
 
 class WebSocketInvalidTypeReceived(WebSocketException):
     """
-    A received event was not of the expected type.
+    A received message was not of the expected type.
     """
 
-    def __init__(self, event: wsproto.events.Event) -> None:
-        self.event = event
+    def __init__(self, message: str | bytes) -> None:
+        self.message = message
 
 
 class WebSocketNetworkError(WebSocketException):

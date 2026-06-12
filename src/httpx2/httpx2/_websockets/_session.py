@@ -12,10 +12,10 @@ from collections.abc import AsyncGenerator, Generator
 from types import TracebackType
 
 import anyio
-import wsproto
-import wsproto.utilities
 from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
-from wsproto.frame_protocol import CloseReason
+from websockets.exceptions import InvalidState
+from websockets.frames import Close, Frame, Opcode
+from websockets.protocol import Protocol, Side, State
 
 import httpcore2
 from httpcore2 import AsyncNetworkStream, NetworkStream
@@ -45,6 +45,8 @@ DEFAULT_QUEUE_SIZE = 512
 DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS = 20.0
 DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS = 20.0
 
+INTERNAL_ERROR = 1011
+
 
 class ShouldClose(Exception):
     pass
@@ -52,6 +54,28 @@ class ShouldClose(Exception):
 
 class EndOfStream(Exception):
     pass
+
+
+class MessageAssembler:
+    """
+    Assembles data frames, possibly fragmented, into complete messages.
+    """
+
+    def __init__(self) -> None:
+        self._buffer = bytearray()
+        self._text = False
+
+    def feed(self, frame: Frame) -> str | bytes | None:
+        if frame.opcode is Opcode.TEXT or frame.opcode is Opcode.BINARY:
+            self._buffer = bytearray(frame.data)
+            self._text = frame.opcode is Opcode.TEXT
+        else:
+            self._buffer += frame.data
+        if not frame.fin:
+            return None
+        data = bytes(self._buffer)
+        self._buffer = bytearray()
+        return data.decode("utf-8") if self._text else data
 
 
 class WebSocketSession:
@@ -77,14 +101,15 @@ class WebSocketSession:
         response: Response | None = None,
     ) -> None:
         self.stream = stream
-        self.connection = wsproto.connection.Connection(wsproto.ConnectionType.CLIENT)
+        self.protocol = Protocol(Side.CLIENT, state=State.OPEN, max_size=None)
         self.response = response
         if self.response is not None:
             self.subprotocol = self.response.headers.get("sec-websocket-protocol")
         else:
             self.subprotocol = None
 
-        self._events: queue.Queue[wsproto.events.Event | WebSocketException] = queue.Queue(queue_size)
+        self._events: queue.Queue[str | bytes | WebSocketException] = queue.Queue(queue_size)
+        self._assembler = MessageAssembler()
 
         self._ping_manager = PingManager()
         self._should_close = threading.Event()
@@ -151,26 +176,8 @@ class WebSocketSession:
         ```
         """
         ping_id, callback = self._ping_manager.create(payload)
-        event = wsproto.events.Ping(ping_id)
-        self.send(event)
+        self._send(self.protocol.send_ping, ping_id)
         return callback
-
-    def send(self, event: wsproto.events.Event) -> None:
-        """
-        Send a raw `wsproto.events.Event`.
-
-        Mainly useful to send events that are not supported by the library.
-        Most of the time, `ping()`, `send_text()`, `send_bytes()` and `send_json()` are preferred.
-
-        Raises `WebSocketNetworkError` if a network error occurred.
-        """
-        try:
-            data = self.connection.send(event)
-            with self._write_lock:
-                self.stream.write(data)
-        except httpcore2.WriteError as e:
-            self.close(CloseReason.INTERNAL_ERROR, "Stream write error")
-            raise WebSocketNetworkError() from e
 
     def send_text(self, data: str) -> None:
         """
@@ -178,8 +185,7 @@ class WebSocketSession:
 
         Raises `WebSocketNetworkError` if a network error occurred.
         """
-        event = wsproto.events.TextMessage(data=data)
-        self.send(event)
+        self._send(self.protocol.send_text, data.encode("utf-8"))
 
     def send_bytes(self, data: bytes) -> None:
         """
@@ -187,8 +193,7 @@ class WebSocketSession:
 
         Raises `WebSocketNetworkError` if a network error occurred.
         """
-        event = wsproto.events.BytesMessage(data=data)
-        self.send(event)
+        self._send(self.protocol.send_binary, data)
 
     def send_json(self, data: typing.Any, mode: JSONMode = "text") -> None:
         """
@@ -203,17 +208,14 @@ class WebSocketSession:
         else:
             self.send_bytes(serialized_data.encode("utf-8"))
 
-    def receive(self, timeout: float | None = None) -> wsproto.events.Event:
+    def receive(self, timeout: float | None = None) -> str | bytes:
         """
-        Receive a raw `wsproto.events.Event` from the server.
+        Receive a message from the server, either text or bytes.
 
-        Mainly useful to receive raw events. Most of the time,
-        `receive_text()`, `receive_bytes()`, and `receive_json()` are preferred.
-
-        If `timeout` is `None`, this blocks until an event is available.
+        If `timeout` is `None`, this blocks until a message is available.
 
         Raises:
-            TimeoutError: No event was received before the timeout delay.
+            TimeoutError: No message was received before the timeout delay.
             WebSocketDisconnect: The server closed the WebSocket.
             WebSocketNetworkError: A network error occurred.
         """
@@ -223,55 +225,53 @@ class WebSocketSession:
             raise TimeoutError from e
         if isinstance(event, WebSocketException):
             raise event
-        if isinstance(event, wsproto.events.CloseConnection):
-            raise WebSocketDisconnect(event.code, event.reason)
         return event
 
     def receive_text(self, timeout: float | None = None) -> str:
         """
         Receive text from the server.
 
-        If `timeout` is `None`, this blocks until an event is available.
+        If `timeout` is `None`, this blocks until a message is available.
 
         Raises:
-            TimeoutError: No event was received before the timeout delay.
+            TimeoutError: No message was received before the timeout delay.
             WebSocketDisconnect: The server closed the WebSocket.
             WebSocketNetworkError: A network error occurred.
-            WebSocketInvalidTypeReceived: The received event was not a text message.
+            WebSocketInvalidTypeReceived: The received message was not a text message.
         """
-        event = self.receive(timeout)
-        if isinstance(event, wsproto.events.TextMessage):
-            return event.data
-        raise WebSocketInvalidTypeReceived(event)
+        message = self.receive(timeout)
+        if isinstance(message, str):
+            return message
+        raise WebSocketInvalidTypeReceived(message)
 
     def receive_bytes(self, timeout: float | None = None) -> bytes:
         """
         Receive bytes from the server.
 
-        If `timeout` is `None`, this blocks until an event is available.
+        If `timeout` is `None`, this blocks until a message is available.
 
         Raises:
-            TimeoutError: No event was received before the timeout delay.
+            TimeoutError: No message was received before the timeout delay.
             WebSocketDisconnect: The server closed the WebSocket.
             WebSocketNetworkError: A network error occurred.
-            WebSocketInvalidTypeReceived: The received event was not a bytes message.
+            WebSocketInvalidTypeReceived: The received message was not a bytes message.
         """
-        event = self.receive(timeout)
-        if isinstance(event, wsproto.events.BytesMessage):
-            return bytes(event.data)
-        raise WebSocketInvalidTypeReceived(event)
+        message = self.receive(timeout)
+        if isinstance(message, bytes):
+            return message
+        raise WebSocketInvalidTypeReceived(message)
 
     def receive_json(self, timeout: float | None = None, mode: JSONMode = "text") -> typing.Any:
         """
         Receive JSON data from the server, parsed with `json.loads()`, in `'text'` or `'binary'` mode.
 
-        If `timeout` is `None`, this blocks until an event is available.
+        If `timeout` is `None`, this blocks until a message is available.
 
         Raises:
-            TimeoutError: No event was received before the timeout delay.
+            TimeoutError: No message was received before the timeout delay.
             WebSocketDisconnect: The server closed the WebSocket.
             WebSocketNetworkError: A network error occurred.
-            WebSocketInvalidTypeReceived: The received event didn't correspond to the specified mode.
+            WebSocketInvalidTypeReceived: The received message didn't correspond to the specified mode.
         """
         assert mode in ["text", "binary"]
         data: str | bytes
@@ -285,25 +285,35 @@ class WebSocketSession:
         """
         Close the WebSocket session.
 
-        Internally, it'll send the `wsproto.events.CloseConnection` event.
+        Internally, it'll send a Close frame.
 
         *This method is automatically called when exiting the context manager.*
         """
         self._should_close.set()
         if self._executor is not None:
             self._executor.shutdown(False)
-        if self.connection.state not in {
-            wsproto.connection.ConnectionState.LOCAL_CLOSING,
-            wsproto.connection.ConnectionState.CLOSED,
-        }:
-            event = wsproto.events.CloseConnection(code, reason)
-            data = self.connection.send(event)
-            try:
-                with self._write_lock:
-                    self.stream.write(data)
-            except httpcore2.WriteError:
-                pass
+        try:
+            with self._write_lock:
+                if self.protocol.state is State.OPEN:
+                    self.protocol.send_close(code, reason or "")
+                    self._write_protocol_data()
+        except (httpcore2.WriteError, InvalidState):
+            pass
         self.stream.close()
+
+    def _send(self, send_event: typing.Callable[[bytes], None], data: bytes) -> None:
+        try:
+            with self._write_lock:
+                send_event(data)
+                self._write_protocol_data()
+        except httpcore2.WriteError as e:
+            self.close(INTERNAL_ERROR, "Stream write error")
+            raise WebSocketNetworkError() from e
+
+    def _write_protocol_data(self) -> None:
+        for data in self.protocol.data_to_send():
+            if data:
+                self.stream.write(data)
 
     def _background_receive(self, max_bytes: int) -> None:
         """
@@ -311,46 +321,38 @@ class WebSocketSession:
 
         Internally, it'll:
 
-        * Answer to Ping events.
-        * Acknowledge Pong events.
-        * Put other events in the `_events` queue that'll eventually be consumed by the user.
+        * Answer to Ping frames.
+        * Acknowledge Pong frames.
+        * Put messages in the `_events` queue that'll eventually be consumed by the user.
         """
-        partial_message_buffer: str | bytes | None = None
         try:
             while not self._should_close.is_set():
                 data = self._wait_until_closed(self._read_stream, max_bytes)
-                self.connection.receive_data(data)
-                for event in self.connection.events():
-                    if isinstance(event, wsproto.events.Ping):
-                        data = self.connection.send(event.response())
-                        with self._write_lock:
-                            self.stream.write(data)
+                self.protocol.receive_data(data)
+                try:
+                    with self._write_lock:
+                        self._write_protocol_data()
+                except httpcore2.WriteError:
+                    # Tolerate failing to reply once the peer started the closing handshake.
+                    if self.protocol.state is State.OPEN:
+                        raise
+                for frame in self.protocol.events_received():
+                    assert isinstance(frame, Frame)
+                    if frame.opcode is Opcode.PING:
                         continue
-                    if isinstance(event, wsproto.events.Pong):
-                        self._ping_manager.ack(event.payload)
+                    if frame.opcode is Opcode.PONG:
+                        self._ping_manager.ack(frame.data)
                         continue
-                    if isinstance(event, wsproto.events.CloseConnection):
+                    if frame.opcode is Opcode.CLOSE:
                         self._should_close.set()
-                    if isinstance(event, wsproto.events.Message):
-                        # Unfinished message: bufferize
-                        if not event.message_finished:
-                            if partial_message_buffer is None:
-                                partial_message_buffer = event.data
-                            else:
-                                partial_message_buffer += event.data
-                        # Finished message but no buffer: just emit the event
-                        elif partial_message_buffer is None:
-                            self._events.put(event)
-                        # Finished message with buffer: emit the full event
-                        else:
-                            event_type = type(event)
-                            full_message_event = event_type(partial_message_buffer + event.data)
-                            partial_message_buffer = None
-                            self._events.put(full_message_event)
+                        close = Close.parse(frame.data)
+                        self._events.put(WebSocketDisconnect(close.code, close.reason))
                         continue
-                    self._events.put(event)
+                    message = self._assembler.feed(frame)
+                    if message is not None:
+                        self._events.put(message)
         except (httpcore2.ReadError, httpcore2.WriteError, EndOfStream):
-            self.close(CloseReason.INTERNAL_ERROR, "Stream error")
+            self.close(INTERNAL_ERROR, "Stream error")
             self._events.put(WebSocketNetworkError())
         except ShouldClose:
             pass
@@ -361,11 +363,17 @@ class WebSocketSession:
                 should_close = self._wait_until_closed(self._should_close.wait, interval_seconds)
                 if should_close:
                     raise ShouldClose()
-                pong_callback = self.ping()
+
+                try:
+                    pong_callback = self.ping()
+                # Connection is closing, exit the task
+                except InvalidState:
+                    return
+
                 if timeout_seconds is not None:
                     acknowledged = self._wait_until_closed(pong_callback.wait, timeout_seconds)
                     if not acknowledged:
-                        self.close(CloseReason.INTERNAL_ERROR, "Keepalive ping timeout")
+                        self.close(INTERNAL_ERROR, "Keepalive ping timeout")
                         self._events.put(WebSocketNetworkError())
         except ShouldClose:
             pass
@@ -430,8 +438,8 @@ class AsyncWebSocketSession(anyio.AsyncContextManagerMixin):
 
     subprotocol: str | None
     response: Response | None
-    _send_event: MemoryObjectSendStream[wsproto.events.Event | WebSocketException]
-    _receive_event: MemoryObjectReceiveStream[wsproto.events.Event | WebSocketException]
+    _send_event: MemoryObjectSendStream[str | bytes | WebSocketException]
+    _receive_event: MemoryObjectReceiveStream[str | bytes | WebSocketException]
 
     def __init__(
         self,
@@ -444,7 +452,7 @@ class AsyncWebSocketSession(anyio.AsyncContextManagerMixin):
         response: Response | None = None,
     ) -> None:
         self.stream = stream
-        self.connection = wsproto.connection.Connection(wsproto.ConnectionType.CLIENT)
+        self.protocol = Protocol(Side.CLIENT, state=State.OPEN, max_size=None)
         self.response = response
         if self.response is not None:
             self.subprotocol = self.response.headers.get("sec-websocket-protocol")
@@ -454,6 +462,7 @@ class AsyncWebSocketSession(anyio.AsyncContextManagerMixin):
         self._ping_manager = AsyncPingManager()
         self._should_close = anyio.Event()
         self._write_lock = anyio.Lock()
+        self._assembler = MessageAssembler()
 
         self._max_message_size_bytes = max_message_size_bytes
         self._queue_size = queue_size
@@ -468,9 +477,7 @@ class AsyncWebSocketSession(anyio.AsyncContextManagerMixin):
 
     @contextlib.asynccontextmanager
     async def __asynccontextmanager__(self) -> AsyncGenerator[AsyncWebSocketSession]:
-        self._send_event, self._receive_event = anyio.create_memory_object_stream[
-            wsproto.events.Event | WebSocketException
-        ]()
+        self._send_event, self._receive_event = anyio.create_memory_object_stream[str | bytes | WebSocketException]()
         self._background_task_group = anyio.create_task_group()
 
         async with self._send_event, self._receive_event, self._background_task_group:
@@ -504,26 +511,8 @@ class AsyncWebSocketSession(anyio.AsyncContextManagerMixin):
         ```
         """
         ping_id, callback = self._ping_manager.create(payload)
-        event = wsproto.events.Ping(ping_id)
-        await self.send(event)
+        await self._send(self.protocol.send_ping, ping_id)
         return callback
-
-    async def send(self, event: wsproto.events.Event) -> None:
-        """
-        Send a raw `wsproto.events.Event`.
-
-        Mainly useful to send events that are not supported by the library.
-        Most of the time, `ping()`, `send_text()`, `send_bytes()` and `send_json()` are preferred.
-
-        Raises `WebSocketNetworkError` if a network error occurred.
-        """
-        try:
-            data = self.connection.send(event)
-            async with self._write_lock:
-                await self.stream.write(data)
-        except httpcore2.WriteError as e:
-            await self.close(CloseReason.INTERNAL_ERROR, "Stream write error")
-            raise WebSocketNetworkError() from e
 
     async def send_text(self, data: str) -> None:
         """
@@ -531,8 +520,7 @@ class AsyncWebSocketSession(anyio.AsyncContextManagerMixin):
 
         Raises `WebSocketNetworkError` if a network error occurred.
         """
-        event = wsproto.events.TextMessage(data=data)
-        await self.send(event)
+        await self._send(self.protocol.send_text, data.encode("utf-8"))
 
     async def send_bytes(self, data: bytes) -> None:
         """
@@ -540,8 +528,7 @@ class AsyncWebSocketSession(anyio.AsyncContextManagerMixin):
 
         Raises `WebSocketNetworkError` if a network error occurred.
         """
-        event = wsproto.events.BytesMessage(data=data)
-        await self.send(event)
+        await self._send(self.protocol.send_binary, data)
 
     async def send_json(self, data: typing.Any, mode: JSONMode = "text") -> None:
         """
@@ -556,17 +543,14 @@ class AsyncWebSocketSession(anyio.AsyncContextManagerMixin):
         else:
             await self.send_bytes(serialized_data.encode("utf-8"))
 
-    async def receive(self, timeout: float | None = None) -> wsproto.events.Event:
+    async def receive(self, timeout: float | None = None) -> str | bytes:
         """
-        Receive a raw `wsproto.events.Event` from the server.
+        Receive a message from the server, either text or bytes.
 
-        Mainly useful to receive raw events. Most of the time,
-        `receive_text()`, `receive_bytes()`, and `receive_json()` are preferred.
-
-        If `timeout` is `None`, this blocks until an event is available.
+        If `timeout` is `None`, this blocks until a message is available.
 
         Raises:
-            TimeoutError: No event was received before the timeout delay.
+            TimeoutError: No message was received before the timeout delay.
             WebSocketDisconnect: The server closed the WebSocket.
             WebSocketNetworkError: A network error occurred.
         """
@@ -574,55 +558,53 @@ class AsyncWebSocketSession(anyio.AsyncContextManagerMixin):
             event = await self._receive_event.receive()
         if isinstance(event, WebSocketException):
             raise event
-        if isinstance(event, wsproto.events.CloseConnection):
-            raise WebSocketDisconnect(event.code, event.reason)
         return event
 
     async def receive_text(self, timeout: float | None = None) -> str:
         """
         Receive text from the server.
 
-        If `timeout` is `None`, this blocks until an event is available.
+        If `timeout` is `None`, this blocks until a message is available.
 
         Raises:
-            TimeoutError: No event was received before the timeout delay.
+            TimeoutError: No message was received before the timeout delay.
             WebSocketDisconnect: The server closed the WebSocket.
             WebSocketNetworkError: A network error occurred.
-            WebSocketInvalidTypeReceived: The received event was not a text message.
+            WebSocketInvalidTypeReceived: The received message was not a text message.
         """
-        event = await self.receive(timeout)
-        if isinstance(event, wsproto.events.TextMessage):
-            return event.data
-        raise WebSocketInvalidTypeReceived(event)
+        message = await self.receive(timeout)
+        if isinstance(message, str):
+            return message
+        raise WebSocketInvalidTypeReceived(message)
 
     async def receive_bytes(self, timeout: float | None = None) -> bytes:
         """
         Receive bytes from the server.
 
-        If `timeout` is `None`, this blocks until an event is available.
+        If `timeout` is `None`, this blocks until a message is available.
 
         Raises:
-            TimeoutError: No event was received before the timeout delay.
+            TimeoutError: No message was received before the timeout delay.
             WebSocketDisconnect: The server closed the WebSocket.
             WebSocketNetworkError: A network error occurred.
-            WebSocketInvalidTypeReceived: The received event was not a bytes message.
+            WebSocketInvalidTypeReceived: The received message was not a bytes message.
         """
-        event = await self.receive(timeout)
-        if isinstance(event, wsproto.events.BytesMessage):
-            return bytes(event.data)
-        raise WebSocketInvalidTypeReceived(event)
+        message = await self.receive(timeout)
+        if isinstance(message, bytes):
+            return message
+        raise WebSocketInvalidTypeReceived(message)
 
     async def receive_json(self, timeout: float | None = None, mode: JSONMode = "text") -> typing.Any:
         """
         Receive JSON data from the server, parsed with `json.loads()`, in `'text'` or `'binary'` mode.
 
-        If `timeout` is `None`, this blocks until an event is available.
+        If `timeout` is `None`, this blocks until a message is available.
 
         Raises:
-            TimeoutError: No event was received before the timeout delay.
+            TimeoutError: No message was received before the timeout delay.
             WebSocketDisconnect: The server closed the WebSocket.
             WebSocketNetworkError: A network error occurred.
-            WebSocketInvalidTypeReceived: The received event didn't correspond to the specified mode.
+            WebSocketInvalidTypeReceived: The received message didn't correspond to the specified mode.
         """
         assert mode in ["text", "binary"]
         data: str | bytes
@@ -636,23 +618,33 @@ class AsyncWebSocketSession(anyio.AsyncContextManagerMixin):
         """
         Close the WebSocket session.
 
-        Internally, it'll send the `wsproto.events.CloseConnection` event.
+        Internally, it'll send a Close frame.
 
         *This method is automatically called when exiting the context manager.*
         """
         self._should_close.set()
-        if self.connection.state not in {
-            wsproto.connection.ConnectionState.LOCAL_CLOSING,
-            wsproto.connection.ConnectionState.CLOSED,
-        }:
-            event = wsproto.events.CloseConnection(code, reason)
-            data = self.connection.send(event)
-            try:
-                async with self._write_lock:
-                    await self.stream.write(data)
-            except httpcore2.WriteError:
-                pass
+        try:
+            async with self._write_lock:
+                if self.protocol.state is State.OPEN:
+                    self.protocol.send_close(code, reason or "")
+                    await self._write_protocol_data()
+        except (httpcore2.WriteError, InvalidState):
+            pass
         await self.stream.aclose()
+
+    async def _send(self, send_event: typing.Callable[[bytes], None], data: bytes) -> None:
+        try:
+            async with self._write_lock:
+                send_event(data)
+                await self._write_protocol_data()
+        except httpcore2.WriteError as e:
+            await self.close(INTERNAL_ERROR, "Stream write error")
+            raise WebSocketNetworkError() from e
+
+    async def _write_protocol_data(self) -> None:
+        for data in self.protocol.data_to_send():
+            if data:
+                await self.stream.write(data)
 
     async def _background_receive(self, max_bytes: int) -> None:
         """
@@ -660,46 +652,38 @@ class AsyncWebSocketSession(anyio.AsyncContextManagerMixin):
 
         Internally, it'll:
 
-        * Answer to Ping events.
-        * Acknowledge Pong events.
-        * Put other events in the `_events` queue that'll eventually be consumed by the user.
+        * Answer to Ping frames.
+        * Acknowledge Pong frames.
+        * Put messages in the `_events` queue that'll eventually be consumed by the user.
         """
-        partial_message_buffer: str | bytes | None = None
         try:
             while not self._should_close.is_set():
                 data = await self._read_stream(max_bytes)
-                self.connection.receive_data(data)
-                for event in self.connection.events():
-                    if isinstance(event, wsproto.events.Ping):
-                        data = self.connection.send(event.response())
-                        async with self._write_lock:
-                            await self.stream.write(data)
+                self.protocol.receive_data(data)
+                try:
+                    async with self._write_lock:
+                        await self._write_protocol_data()
+                except httpcore2.WriteError:
+                    # Tolerate failing to reply once the peer started the closing handshake.
+                    if self.protocol.state is State.OPEN:
+                        raise
+                for frame in self.protocol.events_received():
+                    assert isinstance(frame, Frame)
+                    if frame.opcode is Opcode.PING:
                         continue
-                    if isinstance(event, wsproto.events.Pong):
-                        self._ping_manager.ack(event.payload)
+                    if frame.opcode is Opcode.PONG:
+                        self._ping_manager.ack(frame.data)
                         continue
-                    if isinstance(event, wsproto.events.CloseConnection):
+                    if frame.opcode is Opcode.CLOSE:
                         self._should_close.set()
-                    if isinstance(event, wsproto.events.Message):
-                        # Unfinished message: bufferize
-                        if not event.message_finished:
-                            if partial_message_buffer is None:
-                                partial_message_buffer = event.data
-                            else:
-                                partial_message_buffer += event.data
-                        # Finished message but no buffer: just emit the event
-                        elif partial_message_buffer is None:
-                            await self._send_event.send(event)
-                        # Finished message with buffer: emit the full event
-                        else:
-                            event_type = type(event)
-                            full_message_event = event_type(partial_message_buffer + event.data)
-                            partial_message_buffer = None
-                            await self._send_event.send(full_message_event)
+                        close = Close.parse(frame.data)
+                        await self._send_event.send(WebSocketDisconnect(close.code, close.reason))
                         continue
-                    await self._send_event.send(event)
+                    message = self._assembler.feed(frame)
+                    if message is not None:
+                        await self._send_event.send(message)
         except (httpcore2.ReadError, httpcore2.WriteError, EndOfStream):
-            await self.close(CloseReason.INTERNAL_ERROR, "Stream error")
+            await self.close(INTERNAL_ERROR, "Stream error")
             await self._send_event.send(WebSocketNetworkError())
 
     async def _background_keepalive_ping(self, interval_seconds: float, timeout_seconds: float | None = None) -> None:
@@ -709,7 +693,7 @@ class AsyncWebSocketSession(anyio.AsyncContextManagerMixin):
             try:
                 pong_callback = await self.ping()
             # Connection is closing, exit the task
-            except wsproto.utilities.LocalProtocolError:
+            except InvalidState:
                 return
 
             if timeout_seconds is not None:
@@ -717,7 +701,7 @@ class AsyncWebSocketSession(anyio.AsyncContextManagerMixin):
                     with anyio.fail_after(timeout_seconds):
                         await pong_callback.wait()
                 except TimeoutError:
-                    await self.close(CloseReason.INTERNAL_ERROR, "Keepalive ping timeout")
+                    await self.close(INTERNAL_ERROR, "Keepalive ping timeout")
                     await self._send_event.send(WebSocketNetworkError())
 
     async def _read_stream(self, max_bytes: int) -> bytes:

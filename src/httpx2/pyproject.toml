@@ -49,7 +49,7 @@ dependencies = [
     "anyio>=4.10",
     "idna>=3.18",
     "typing_extensions>=4.5.0; python_version < '3.13'",
-    "wsproto>=1.2",
+    "websockets>=15",
 ]
 
 [project.optional-dependencies]

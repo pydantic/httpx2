@@ -5,13 +5,14 @@ import typing
 
 import anyio
 import pytest
-import wsproto
 from anyio import CancelScope, ClosedResourceError, create_task_group
 from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse
 from starlette.routing import Route, WebSocketRoute
 from starlette.websockets import WebSocket
+from websockets.frames import Frame, Opcode
+from websockets.protocol import Protocol, Side, State
 
 import httpx2
 from httpx2 import ASGIWebSocketTransport, WebSocketDisconnect, WebSocketUpgradeError
@@ -22,11 +23,15 @@ from httpx2._websockets._transport import (
     Scope,
     Send,
     UnhandledASGIMessageType,
-    UnhandledWebSocketEvent,
+    UnhandledWebSocketFrame,
 )
 
 if sys.version_info < (3, 11):
-    from exceptiongroup import ExceptionGroup
+    from exceptiongroup import ExceptionGroup  # pragma: no cover
+
+
+def wire(protocol: Protocol) -> bytes:
+    return b"".join(data for data in protocol.data_to_send() if data)
 
 
 @pytest.fixture
@@ -48,8 +53,8 @@ def scope(websocket_request_headers: dict[str, str]) -> Scope:
         "root_path": "/",
         "scheme": "ws",
         "headers": [
-            ("host", "localhost"),
-            *websocket_request_headers.items(),
+            (b"host", b"localhost"),
+            *((key.encode("utf-8"), value.encode("utf-8")) for key, value in websocket_request_headers.items()),
         ],
         "subprotocols": [],
         "server": ("localhost", 8000),
@@ -69,19 +74,19 @@ class TestASGIWebSocketAsyncNetworkStream:
                 message = await receive()
                 received_messages.append(message)
 
-        connection = wsproto.connection.Connection(wsproto.connection.CLIENT)
+        protocol = Protocol(Side.CLIENT, state=State.OPEN, max_size=None)
         async with (
             create_task_group() as tg,
             ASGIWebSocketAsyncNetworkStream(app, scope, tg) as (stream, _),
         ):
-            text_event = wsproto.events.TextMessage("CLIENT_MESSAGE")
-            await stream.write(connection.send(text_event))
+            protocol.send_text(b"CLIENT_MESSAGE")
+            await stream.write(wire(protocol))
 
-            bytes_event = wsproto.events.BytesMessage(b"CLIENT_MESSAGE")
-            await stream.write(connection.send(bytes_event))
+            protocol.send_binary(b"CLIENT_MESSAGE")
+            await stream.write(wire(protocol))
 
-            close_event = wsproto.events.CloseConnection(1000)
-            await stream.write(connection.send(close_event))
+            protocol.send_close(1000)
+            await stream.write(wire(protocol))
 
             # Add a small delay to ensure the app has processed all messages
             await anyio.sleep(0.1)
@@ -98,14 +103,14 @@ class TestASGIWebSocketAsyncNetworkStream:
             await send({"type": "websocket.accept"})
             await receive()
 
-        connection = wsproto.connection.Connection(wsproto.connection.CLIENT)
+        protocol = Protocol(Side.CLIENT, state=State.OPEN, max_size=None)
         async with (
             create_task_group() as tg,
             ASGIWebSocketAsyncNetworkStream(app, scope, tg) as (stream, _),
         ):
-            with pytest.raises(UnhandledWebSocketEvent):
-                ping_event = wsproto.events.Ping(b"PING")
-                await stream.write(connection.send(ping_event))
+            with pytest.raises(UnhandledWebSocketFrame):
+                protocol.send_ping(b"PING")
+                await stream.write(wire(protocol))
 
     async def test_read(self, scope: Scope) -> None:
         async def app(scope: Scope, receive: Receive, send: Send) -> None:
@@ -114,21 +119,19 @@ class TestASGIWebSocketAsyncNetworkStream:
             await send({"type": "websocket.send", "bytes": b"SERVER_MESSAGE"})
             await send({"type": "websocket.close", "code": 1000, "reason": ""})
 
-        connection = wsproto.connection.Connection(wsproto.connection.CLIENT)
+        protocol = Protocol(Side.CLIENT, state=State.OPEN, max_size=None)
         async with (
             create_task_group() as tg,
             ASGIWebSocketAsyncNetworkStream(app, scope, tg) as (stream, _),
         ):
             for _ in range(3):
                 data = await stream.read(4096)
-                connection.receive_data(data)
+                protocol.receive_data(data)
 
-        events = list(connection.events())
-        assert events == [
-            wsproto.events.TextMessage("SERVER_MESSAGE"),
-            wsproto.events.BytesMessage(bytearray(b"SERVER_MESSAGE")),
-            wsproto.events.CloseConnection(1000, ""),
-        ]
+        frames = [event for event in protocol.events_received() if isinstance(event, Frame)]
+        assert [frame.opcode for frame in frames] == [Opcode.TEXT, Opcode.BINARY, Opcode.CLOSE]
+        assert bytes(frames[0].data) == b"SERVER_MESSAGE"
+        assert bytes(frames[1].data) == b"SERVER_MESSAGE"
 
     async def test_read_unhandled_asgi_message(self, scope: Scope) -> None:
         async def app(scope: Scope, receive: Receive, send: Send) -> None:
@@ -200,6 +203,18 @@ class TestASGIWebSocketAsyncNetworkStream:
 
         assert excinfo.group_contains(RuntimeError)
 
+    async def test_context_manager_twice(self, scope: Scope) -> None:
+        async def app(scope: Scope, receive: Receive, send: Send) -> None:
+            await send({"type": "websocket.accept"})
+            await receive()
+
+        async with (
+            create_task_group() as tg,
+            ASGIWebSocketAsyncNetworkStream(app, scope, tg) as (stream, _),
+        ):
+            with pytest.raises(RuntimeError):
+                await stream.__aenter__()
+
     async def test_app_exception_with_closed_send_queue(self, scope: Scope) -> None:
         async def app(scope: Scope, receive: Receive, send: Send) -> None:
             await send({"type": "websocket.accept"})
@@ -222,7 +237,7 @@ def test_app() -> Starlette:
     async def websocket_endpoint(websocket: WebSocket) -> None:
         await websocket.accept()
         await websocket.receive_text()
-        await websocket.close()
+        await websocket.close()  # pragma: no cover
 
     routes = [
         Route("/http", endpoint=http_endpoint),
@@ -324,7 +339,7 @@ async def test_keepalive_ping_disabled() -> None:
     async def websocket_endpoint(websocket: WebSocket) -> None:
         await websocket.accept()
         await websocket.receive_text()
-        await websocket.close()
+        await websocket.close()  # pragma: no cover
 
     app = Starlette(
         routes=[
@@ -342,7 +357,7 @@ async def test_cancel_scope_integrity() -> None:
     async def websocket_endpoint(websocket: WebSocket) -> None:
         await websocket.accept()
         await websocket.receive_text()
-        await websocket.close()
+        await websocket.close()  # pragma: no cover
 
     app = Starlette(
         routes=[
