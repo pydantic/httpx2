@@ -16,7 +16,6 @@ from .._exceptions import (
     LocalProtocolError,
     RemoteProtocolError,
     WriteError,
-    map_exceptions,
 )
 from .._models import Origin, Request, Response
 from .._synchronization import AsyncLock, AsyncShieldCancellation
@@ -130,12 +129,14 @@ class AsyncHTTP11Connection(AsyncConnectionInterface):
         timeouts = request.extensions.get("timeout", {})
         timeout = timeouts.get("write", None)
 
-        with map_exceptions({h11.LocalProtocolError: LocalProtocolError}):
+        try:
             event = h11.Request(
                 method=request.method,
                 target=request.url.target,
                 headers=request.headers,
             )
+        except h11.LocalProtocolError as exc:
+            raise LocalProtocolError(exc) from exc
         await self._send_event(event, timeout=timeout)
 
     async def _send_request_body(self, request: Request) -> None:
@@ -193,8 +194,10 @@ class AsyncHTTP11Connection(AsyncConnectionInterface):
 
     async def _receive_event(self, timeout: float | None = None) -> h11.Event | type[h11.PAUSED]:
         while True:
-            with map_exceptions({h11.RemoteProtocolError: RemoteProtocolError}):
+            try:
                 event = self._h11_state.next_event()
+            except h11.RemoteProtocolError as exc:
+                raise RemoteProtocolError(exc) from exc
 
             if event is h11.NEED_DATA:
                 data = await self._network_stream.read(self.READ_NUM_BYTES, timeout=timeout)
