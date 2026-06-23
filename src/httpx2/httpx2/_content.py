@@ -35,6 +35,22 @@ class ByteStream(AsyncByteStream, SyncByteStream):
         yield self._stream
 
 
+class BufferStream(AsyncByteStream, SyncByteStream):
+    """
+    A request body backed by a `memoryview`, yielded as a single chunk and not
+    eagerly read into `bytes` at request construction (see `Request.__init__`).
+    """
+
+    def __init__(self, buffer: memoryview) -> None:
+        self._buffer = buffer
+
+    def __iter__(self) -> Iterator[bytes]:
+        yield self._buffer  # type: ignore[misc]
+
+    async def __aiter__(self) -> AsyncIterator[bytes]:
+        yield self._buffer  # type: ignore[misc]
+
+
 class IteratorByteStream(SyncByteStream):
     CHUNK_SIZE = 65_536
 
@@ -100,13 +116,25 @@ class UnattachedStream(AsyncByteStream, SyncByteStream):
 
 
 def encode_content(
-    content: str | bytes | Iterable[bytes] | AsyncIterable[bytes],
+    content: str | bytes | memoryview | Iterable[bytes] | AsyncIterable[bytes],
 ) -> tuple[dict[str, str], SyncByteStream | AsyncByteStream]:
     if isinstance(content, (bytes, str)):
         body = content.encode("utf-8") if isinstance(content, str) else content
         content_length = len(body)
         headers = {"Content-Length": str(content_length)} if body else {}
         return headers, ByteStream(body)
+
+    elif isinstance(content, memoryview):
+        # A non-contiguous view can't be sent without copying it, so require
+        # the caller to opt into that explicitly.
+        if not content.c_contiguous:
+            raise TypeError("content memoryview must be C-contiguous; copy it first, e.g. content=bytes(view)")
+        # Pass the buffer through as a single chunk so a large buffer isn't
+        # copied up front; normalise to 1-D unsigned bytes for the byte count.
+        buffer = content.cast("B")
+        content_length = buffer.nbytes
+        headers = {"Content-Length": str(content_length)} if content_length else {}
+        return headers, BufferStream(buffer)
 
     elif isinstance(content, Iterable) and not isinstance(content, dict):
         # `not isinstance(content, dict)` is a bit oddly specific, but it

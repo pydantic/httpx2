@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## Unreleased
+
+### Added
+
+* Support uploading a `memoryview` (e.g. over a `bytearray`, `array.array`, or an `mmap`) as request `content`, without copying it into a `bytes` object up front. A non-contiguous view raises rather than being silently copied.
+
 ## 2.4.0 (June 11th, 2026)
 
 ### Added

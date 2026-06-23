@@ -42,8 +42,8 @@ CertTypes = str | tuple[str, str] | tuple[str, str, str]
 
 AuthTypes = Union[tuple[str | bytes, str | bytes], Callable[["Request"], "Request"], "Auth"]
 
-RequestContent = str | bytes | Iterable[bytes] | AsyncIterable[bytes]
-ResponseContent = str | bytes | Iterable[bytes] | AsyncIterable[bytes]
+RequestContent = str | bytes | memoryview | Iterable[bytes] | AsyncIterable[bytes]
+ResponseContent = str | bytes | memoryview | Iterable[bytes] | AsyncIterable[bytes]
 ResponseExtensions = Mapping[str, Any]
 
 RequestData = Mapping[str, Any]

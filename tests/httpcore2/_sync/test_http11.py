@@ -1,3 +1,5 @@
+import typing
+
 import pytest
 
 import httpcore2
@@ -345,3 +347,113 @@ def test_http11_header_sub_100kb() -> None:
         response = conn.request("GET", "https://example.com/")
         assert response.status == 200
         assert response.content == b""
+
+
+class RecordingStream(httpcore2.MockStream):
+    """A mock stream that records the exact objects passed to `write`."""
+
+    def __init__(self, buffer: list[bytes]) -> None:
+        super().__init__(buffer)
+        self.writes: list[bytes | memoryview] = []
+
+    def write(self, buffer: bytes | memoryview, timeout: float | None = None) -> None:
+        self.writes.append(buffer)
+
+
+
+def test_http11_request_body_buffer_is_passed_through() -> None:
+    """
+    A `Content-Length` body chunk that is a bytes-like buffer (e.g. a
+    `memoryview`) is written straight to the network without being copied into
+    a new `bytes` object first, so a large buffer is only faulted into memory
+    as it is written out. See `_send_event`, which uses h11's
+    `send_with_data_passthrough` for `Data` events.
+    """
+    origin = httpcore2.Origin(b"https", b"example.com", 443)
+    stream = RecordingStream(
+        [
+            b"HTTP/1.1 200 OK\r\n",
+            b"Content-Length: 0\r\n",
+            b"\r\n",
+        ]
+    )
+    body = memoryview(bytearray(b"Hello, world!"))
+
+    def stream_body() -> typing.Iterator[bytes]:
+        yield body  # type: ignore[misc]
+
+    with httpcore2.HTTP11Connection(origin=origin, stream=stream, keepalive_expiry=5.0) as conn:
+        response = conn.request(
+            "POST",
+            "https://example.com/",
+            headers={"Content-Length": "13"},
+            content=stream_body(),
+        )
+        assert response.status == 200
+
+    # The exact object we passed as the body reached the network stream, i.e.
+    # it was not copied into a new `bytes` object along the way.
+    assert any(chunk is body for chunk in stream.writes)
+    # ...and the bytes actually written form a correct, fully-framed request.
+    assert b"".join(bytes(chunk) for chunk in stream.writes) == (
+        b"POST / HTTP/1.1\r\nHost: example.com\r\nContent-Length: 13\r\n\r\nHello, world!"
+    )
+
+
+
+def test_http11_request_body_buffer_chunked() -> None:
+    """
+    With chunked transfer encoding the body is wrapped in framing, so the
+    passthrough list has multiple fragments. `_send_event` coalesces these into
+    a single write (its `else` branch).
+    """
+    origin = httpcore2.Origin(b"https", b"example.com", 443)
+    stream = RecordingStream([b"HTTP/1.1 200 OK\r\n", b"Content-Length: 0\r\n", b"\r\n"])
+    body = memoryview(bytearray(b"Hello, world!"))
+
+    def stream_body() -> typing.Iterator[bytes]:
+        yield body  # type: ignore[misc]
+
+    with httpcore2.HTTP11Connection(origin=origin, stream=stream) as conn:
+        # No Content-Length, so the request is sent with chunked framing.
+        response = conn.request("POST", "https://example.com/", content=stream_body())
+        assert response.status == 200
+
+    raw = b"".join(bytes(chunk) for chunk in stream.writes)
+    assert b"transfer-encoding: chunked" in raw.lower()
+    # 0xd == 13: one data chunk followed by the terminating zero-length chunk.
+    assert raw.endswith(b"\r\nd\r\nHello, world!\r\n0\r\n\r\n")
+
+
+
+def test_http11_request_body_buffer_itemsize_normalised() -> None:
+    """
+    A `memoryview` with itemsize > 1 is normalised to a flat byte view before
+    being sent, so neither h11's `Content-Length` tracking (which uses `len()`)
+    nor the backend's byte-count slicing is misled into truncating the body.
+    """
+    import array
+
+    origin = httpcore2.Origin(b"https", b"example.com", 443)
+    stream = RecordingStream([b"HTTP/1.1 200 OK\r\n", b"Content-Length: 0\r\n", b"\r\n"])
+    body = memoryview(array.array("I", [0x01020304] * 4))  # 16 bytes, itemsize 4
+
+    def stream_body() -> typing.Iterator[bytes]:
+        yield body  # type: ignore[misc]
+
+    with httpcore2.HTTP11Connection(origin=origin, stream=stream) as conn:
+        response = conn.request(
+            "POST",
+            "https://example.com/",
+            headers={"Content-Length": str(body.nbytes)},
+            content=stream_body(),
+        )
+        assert response.status == 200
+
+    raw = b"".join(bytes(chunk) for chunk in stream.writes)
+    # All 16 bytes are written (not truncated to 4 elements), and the body
+    # reaches the stream as a byte-granular (itemsize 1) view.
+    assert b"Content-Length: 16\r\n" in raw
+    assert raw.endswith(b"\r\n\r\n" + bytes(body))
+    body_writes = [w for w in stream.writes if isinstance(w, memoryview)]
+    assert body_writes and all(w.itemsize == 1 for w in body_writes)
