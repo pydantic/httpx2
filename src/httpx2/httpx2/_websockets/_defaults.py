@@ -6,10 +6,3 @@ DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS = 20.0
 DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS = 20.0
 
 WS_EXTRA_INSTALL_MESSAGE = "WebSocket support requires the `wsproto` package. Install it with `pip install httpx2[ws]`."
-
-
-def require_wsproto() -> None:
-    try:
-        import wsproto  # noqa: F401
-    except ImportError as exc:  # pragma: no cover
-        raise ImportError(WS_EXTRA_INSTALL_MESSAGE) from exc

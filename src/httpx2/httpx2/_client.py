@@ -53,6 +53,7 @@ from ._websockets._defaults import (
     DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
     DEFAULT_MAX_MESSAGE_SIZE_BYTES,
     DEFAULT_QUEUE_SIZE,
+    WS_EXTRA_INSTALL_MESSAGE,
 )
 
 if typing.TYPE_CHECKING:
@@ -877,11 +878,10 @@ class Client(BaseClient):
                 message = ws.receive_text()
         ```
         """
-        from ._websockets._defaults import require_wsproto
-
-        require_wsproto()
-
-        from ._websockets._api import connect_ws
+        try:
+            from ._websockets._api import connect_ws
+        except ImportError:
+            raise ImportError(WS_EXTRA_INSTALL_MESSAGE)
 
         with connect_ws(
             str(url),
@@ -1622,11 +1622,10 @@ class AsyncClient(BaseClient):
                 message = await ws.receive_text()
         ```
         """
-        from ._websockets._defaults import require_wsproto
-
-        require_wsproto()
-
-        from ._websockets._api import aconnect_ws
+        try:
+            from ._websockets._api import aconnect_ws
+        except ImportError:
+            raise ImportError(WS_EXTRA_INSTALL_MESSAGE)
 
         async with aconnect_ws(
             str(url),

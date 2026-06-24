@@ -115,7 +115,6 @@ _WEBSOCKET_NAMES = {
     "WebSocketNetworkError",
     "WebSocketSession",
     "WebSocketUpgradeError",
-    "websocket",
 }
 
 __locals = locals()
@@ -139,17 +138,12 @@ def __getattr__(name: str) -> object:
         return main
 
     if name in _WEBSOCKET_NAMES:
-        from ._websockets._defaults import require_wsproto
-
-        require_wsproto()
-
-        if name == "websocket":
-            from ._api import websocket
-
-            return websocket
-
         from . import _websockets
+        from ._websockets._defaults import WS_EXTRA_INSTALL_MESSAGE
 
-        return getattr(_websockets, name)
+        try:
+            return getattr(_websockets, name)
+        except ImportError:
+            raise ImportError(WS_EXTRA_INSTALL_MESSAGE)
 
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
