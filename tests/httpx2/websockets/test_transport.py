@@ -1,20 +1,26 @@
+from __future__ import annotations
+
 import base64
 import secrets
 from typing import Any
 
-import httpx
 import pytest
 import wsproto
 from starlette.applications import Starlette
+from starlette.requests import Request
 from starlette.responses import PlainTextResponse
 from starlette.routing import Route, WebSocketRoute
 from starlette.websockets import WebSocket
 
-from httpx_ws import WebSocketDisconnect, aconnect_ws
-from httpx_ws.transport import (
+import httpx2 as httpx
+from httpx2._websockets._api import aconnect_ws
+from httpx2._websockets._exceptions import WebSocketDisconnect
+from httpx2._websockets._transport import (
     ASGIWebSocketAsyncNetworkStream,
     ASGIWebSocketTransport,
+    Receive,
     Scope,
+    Send,
     UnhandledASGIMessageType,
     UnhandledWebSocketEvent,
 )
@@ -49,10 +55,10 @@ def scope(websocket_request_headers: dict[str, str]) -> Scope:
 
 @pytest.mark.anyio
 class TestASGIWebSocketAsyncNetworkStream:
-    async def test_write(self, scope: Scope):
+    async def test_write(self, scope: Scope) -> None:
         received_messages = []
 
-        async def app(scope, receive, send):
+        async def app(scope: Scope, receive: Receive, send: Send) -> None:
             await send({"type": "websocket.accept"})
             message = await receive()
             received_messages.append(message)
@@ -78,8 +84,8 @@ class TestASGIWebSocketAsyncNetworkStream:
             {"type": "websocket.close", "code": 1000, "reason": ""},
         ]
 
-    async def test_write_unhandled_event(self, scope: Scope):
-        async def app(scope, receive, send):
+    async def test_write_unhandled_event(self, scope: Scope) -> None:
+        async def app(scope: Scope, receive: Receive, send: Send) -> None:
             await send({"type": "websocket.accept"})
             await receive()
 
@@ -89,8 +95,8 @@ class TestASGIWebSocketAsyncNetworkStream:
                 ping_event = wsproto.events.Ping(b"PING")
                 await stream.write(connection.send(ping_event))
 
-    async def test_read(self, scope):
-        async def app(scope, receive, send):
+    async def test_read(self, scope: Scope) -> None:
+        async def app(scope: Scope, receive: Receive, send: Send) -> None:
             await send({"type": "websocket.accept"})
             await send({"type": "websocket.send", "text": "SERVER_MESSAGE"})
             await send({"type": "websocket.send", "bytes": b"SERVER_MESSAGE"})
@@ -110,8 +116,8 @@ class TestASGIWebSocketAsyncNetworkStream:
             wsproto.events.CloseConnection(1000, ""),
         ]
 
-    async def test_read_unhandled_asgi_message(self, scope):
-        async def app(scope, receive, send):
+    async def test_read_unhandled_asgi_message(self, scope: Scope) -> None:
+        async def app(scope: Scope, receive: Receive, send: Send) -> None:
             await send({"type": "websocket.accept"})
             await send({"type": "websocket.foo"})
 
@@ -119,16 +125,16 @@ class TestASGIWebSocketAsyncNetworkStream:
             with pytest.raises(UnhandledASGIMessageType):
                 await stream.read(4096)
 
-    async def test_close_immediately(self, scope):
-        async def app(scope, receive, send):
+    async def test_close_immediately(self, scope: Scope) -> None:
+        async def app(scope: Scope, receive: Receive, send: Send) -> None:
             await send({"type": "websocket.close", "code": 1000, "reason": ""})
 
         with pytest.raises(WebSocketDisconnect):
             async with ASGIWebSocketAsyncNetworkStream(app, scope):
                 pass
 
-    async def test_exception(self, scope):
-        async def app(scope, receive, send):
+    async def test_exception(self, scope: Scope) -> None:
+        async def app(scope: Scope, receive: Receive, send: Send) -> None:
             raise Exception("Error")
 
         with pytest.raises(WebSocketDisconnect) as excinfo:
@@ -140,10 +146,10 @@ class TestASGIWebSocketAsyncNetworkStream:
 
 @pytest.fixture
 def test_app() -> Starlette:
-    async def http_endpoint(request):
+    async def http_endpoint(request: Request) -> PlainTextResponse:
         return PlainTextResponse("Hello, world!")
 
-    async def websocket_endpoint(websocket: WebSocket):
+    async def websocket_endpoint(websocket: WebSocket) -> None:
         await websocket.accept()
         await websocket.receive_text()
         await websocket.close()
@@ -158,7 +164,7 @@ def test_app() -> Starlette:
 
 @pytest.mark.anyio
 class TestASGIWebSocketTransport:
-    async def test_http(self, test_app: Starlette):
+    async def test_http(self, test_app: Starlette) -> None:
         async with ASGIWebSocketTransport(app=test_app) as transport:
             request = httpx.Request("GET", "http://localhost:8000/http")
             response = await transport.handle_async_request(request)
@@ -178,22 +184,18 @@ class TestASGIWebSocketTransport:
         headers: dict[str, Any],
         test_app: Starlette,
         websocket_request_headers: dict[str, str],
-    ):
+    ) -> None:
         async with ASGIWebSocketTransport(app=test_app) as transport:
-            request = httpx.Request(
-                "GET", url, headers={**websocket_request_headers, **headers}
-            )
+            request = httpx.Request("GET", url, headers={**websocket_request_headers, **headers})
             response = await transport.handle_async_request(request)
             assert response.status_code == 101
 
-            assert isinstance(
-                response.extensions["network_stream"], ASGIWebSocketAsyncNetworkStream
-            )
+            assert isinstance(response.extensions["network_stream"], ASGIWebSocketAsyncNetworkStream)
 
 
 @pytest.mark.anyio
-async def test_subprotocol_support():
-    async def websocket_endpoint(websocket: WebSocket):
+async def test_subprotocol_support() -> None:
+    async def websocket_endpoint(websocket: WebSocket) -> None:
         await websocket.accept("custom_protocol")
         assert websocket.scope.get("subprotocols") == ["custom_protocol"]
         await websocket.send_text("SERVER_MESSAGE")
@@ -206,16 +208,14 @@ async def test_subprotocol_support():
     )
 
     async with httpx.AsyncClient(transport=ASGIWebSocketTransport(app)) as client:
-        async with aconnect_ws(
-            "ws://localhost:8000/ws", client, subprotocols=["custom_protocol"]
-        ) as ws:
+        async with aconnect_ws("ws://localhost:8000/ws", client, subprotocols=["custom_protocol"]) as ws:
             await ws.receive_text()
             assert ws.subprotocol == "custom_protocol"
 
 
 @pytest.mark.anyio
-async def test_keepalive_ping_disabled():
-    async def websocket_endpoint(websocket: WebSocket):
+async def test_keepalive_ping_disabled() -> None:
+    async def websocket_endpoint(websocket: WebSocket) -> None:
         await websocket.accept()
         await websocket.receive_text()
         await websocket.close()
