@@ -7,10 +7,47 @@ import typing
 import pytest
 
 import httpx2
+from httpx2._multipart import append_boundary_to_content_type, is_multipart_form_data_content_type
 
 
 def echo_request_content(request: httpx2.Request) -> httpx2.Response:
     return httpx2.Response(200, content=request.content)
+
+
+@pytest.mark.parametrize(
+    ("content_type", "expected"),
+    [
+        ("multipart/form-data", True),
+        ("Multipart/Form-Data", True),
+        ("multipart/form-data; charset=utf-8", True),
+        (b"multipart/form-data; charset=utf-8", True),
+        (b"MULTIPART/FORM-DATA", True),
+        ("application/json", False),
+        (None, False),
+    ],
+)
+def test_is_multipart_form_data_content_type(content_type: str | bytes | None, expected: bool) -> None:
+    assert is_multipart_form_data_content_type(content_type) is expected
+
+
+@pytest.mark.parametrize(
+    ("content_type", "boundary", "expected"),
+    [
+        ("multipart/form-data", "abc123", "multipart/form-data; boundary=abc123"),
+        (
+            "multipart/form-data; charset=utf-8",
+            "abc123",
+            "multipart/form-data; charset=utf-8; boundary=abc123",
+        ),
+        (
+            "multipart/form-data; charset=utf-8; ",
+            "abc123",
+            "multipart/form-data; charset=utf-8; boundary=abc123",
+        ),
+    ],
+)
+def test_append_boundary_to_content_type(content_type: str, boundary: str, expected: str) -> None:
+    assert append_boundary_to_content_type(content_type, boundary) == expected
 
 
 @pytest.mark.parametrize(("value,output"), (("abc", b"abc"), (b"abc", b"abc")))
@@ -79,8 +116,10 @@ def test_multipart_explicit_boundary(header: str) -> None:
 @pytest.mark.parametrize(
     "header",
     [
+        "multipart/form-data",
         "multipart/form-data; charset=utf-8",
         "multipart/form-data; charset=utf-8; ",
+        "Multipart/Form-Data; charset=utf-8",
     ],
 )
 def test_multipart_header_without_boundary(header: str) -> None:
@@ -91,7 +130,28 @@ def test_multipart_header_without_boundary(header: str) -> None:
     response = client.post("http://127.0.0.1:8000/", files=files, headers=headers)
 
     assert response.status_code == 200
-    assert response.request.headers["Content-Type"] == header
+    # The user-supplied content-type has no boundary, so httpx generates one and
+    # injects it into the header. The boundary must match the one used in the body.
+    content_type = response.request.headers["Content-Type"]
+    expected_base = header.rstrip()
+    while expected_base.endswith(";"):
+        expected_base = expected_base[:-1].rstrip()
+    boundary = content_type.removeprefix(f"{expected_base}; boundary=")
+    assert boundary
+    assert len(boundary) == 32
+    assert all(c in "0123456789abcdef" for c in boundary)
+    assert content_type == f"{expected_base}; boundary={boundary}"
+    boundary_bytes = boundary.encode("ascii")
+    assert response.content == b"".join(
+        [
+            b"--" + boundary_bytes + b"\r\n",
+            b'Content-Disposition: form-data; name="file"; filename="upload"\r\n',
+            b"Content-Type: application/octet-stream\r\n",
+            b"\r\n",
+            b"<file content>\r\n",
+            b"--" + boundary_bytes + b"--\r\n",
+        ]
+    )
 
 
 @pytest.mark.parametrize(("key"), (b"abc", 1, 2.3, None))
