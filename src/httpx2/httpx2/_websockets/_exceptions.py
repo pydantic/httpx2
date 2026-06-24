@@ -1,7 +1,11 @@
+from __future__ import annotations
+
 import typing
 
-import httpx
-import wsproto
+if typing.TYPE_CHECKING:
+    import wsproto
+
+    from .._models import Response
 
 
 class HTTPXWSException(Exception):
@@ -9,15 +13,13 @@ class HTTPXWSException(Exception):
     Base exception class for HTTPX WS.
     """
 
-    pass
-
 
 class WebSocketUpgradeError(HTTPXWSException):
     """
     Raised when the initial connection didn't correctly upgrade to a WebSocket session.
     """
 
-    def __init__(self, response: httpx.Response) -> None:
+    def __init__(self, response: Response) -> None:
         self.response = response
 
 
@@ -32,7 +34,7 @@ class WebSocketDisconnect(HTTPXWSException):
             Additional reasoning for why the connection has closed.
     """
 
-    def __init__(self, code: int = 1000, reason: typing.Optional[str] = None) -> None:
+    def __init__(self, code: int = 1000, reason: str | None = None) -> None:
         self.code = code
         self.reason = reason or ""
 
@@ -51,5 +53,3 @@ class WebSocketNetworkError(HTTPXWSException):
     Raised when a network error occured,
     typically if the underlying stream has closed or timeout.
     """
-
-    pass

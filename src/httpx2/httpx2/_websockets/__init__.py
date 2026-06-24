@@ -1,22 +1,17 @@
-__version__ = "0.6.2"
-
-from ._api import (
-    AsyncWebSocketSession,
-    JSONMode,
-    WebSocketSession,
-    aconnect_ws,
-    connect_ws,
-)
-from ._exceptions import (
-    HTTPXWSException,
-    WebSocketDisconnect,
-    WebSocketInvalidTypeReceived,
-    WebSocketNetworkError,
-    WebSocketUpgradeError,
+from ._defaults import (
+    DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS,
+    DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
+    DEFAULT_MAX_MESSAGE_SIZE_BYTES,
+    DEFAULT_QUEUE_SIZE,
 )
 
 __all__ = [
+    "ASGIWebSocketTransport",
     "AsyncWebSocketSession",
+    "DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS",
+    "DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS",
+    "DEFAULT_MAX_MESSAGE_SIZE_BYTES",
+    "DEFAULT_QUEUE_SIZE",
     "HTTPXWSException",
     "JSONMode",
     "WebSocketDisconnect",
@@ -27,3 +22,34 @@ __all__ = [
     "aconnect_ws",
     "connect_ws",
 ]
+
+_API_NAMES = {
+    "AsyncWebSocketSession",
+    "JSONMode",
+    "WebSocketSession",
+    "aconnect_ws",
+    "connect_ws",
+}
+_EXCEPTION_NAMES = {
+    "HTTPXWSException",
+    "WebSocketDisconnect",
+    "WebSocketInvalidTypeReceived",
+    "WebSocketNetworkError",
+    "WebSocketUpgradeError",
+}
+
+
+def __getattr__(name: str) -> object:
+    if name in _API_NAMES:
+        from . import _api
+
+        return getattr(_api, name)
+    if name in _EXCEPTION_NAMES:
+        from . import _exceptions
+
+        return getattr(_exceptions, name)
+    if name == "ASGIWebSocketTransport":
+        from ._transport import ASGIWebSocketTransport
+
+        return ASGIWebSocketTransport
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

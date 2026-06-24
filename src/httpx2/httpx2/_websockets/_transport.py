@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import contextlib
 import queue
 import typing
@@ -5,10 +7,11 @@ from concurrent.futures import Future
 
 import anyio
 import wsproto
-from httpcore import AsyncNetworkStream
-from httpx import ASGITransport, AsyncByteStream, Request, Response
 from wsproto.frame_protocol import CloseReason
 
+from .._models import Request, Response
+from .._transports.asgi import ASGITransport, _ASGIApp
+from .._types import AsyncByteStream
 from ._exceptions import WebSocketDisconnect
 
 Scope = dict[str, typing.Any]
@@ -32,7 +35,7 @@ class UnhandledWebSocketEvent(ASGIWebSocketTransportError):
         self.event = event
 
 
-class ASGIWebSocketAsyncNetworkStream(AsyncNetworkStream):
+class ASGIWebSocketAsyncNetworkStream:
     def __init__(self, app: ASGIApp, scope: Scope) -> None:
         self.app = app
         self.scope = scope
@@ -43,11 +46,9 @@ class ASGIWebSocketAsyncNetworkStream(AsyncNetworkStream):
 
     async def __aenter__(
         self,
-    ) -> tuple["ASGIWebSocketAsyncNetworkStream", bytes]:
+    ) -> tuple[ASGIWebSocketAsyncNetworkStream, bytes]:
         self.exit_stack = contextlib.ExitStack()
-        self.portal = self.exit_stack.enter_context(
-            anyio.from_thread.start_blocking_portal("asyncio")
-        )
+        self.portal = self.exit_stack.enter_context(anyio.from_thread.start_blocking_portal("asyncio"))
         _: Future[None] = self.portal.start_task_soon(self._run)
 
         await self.send({"type": "websocket.connect"})
@@ -63,9 +64,7 @@ class ASGIWebSocketAsyncNetworkStream(AsyncNetworkStream):
     async def __aexit__(self, *args: typing.Any) -> None:
         await self.aclose()
 
-    async def read(
-        self, max_bytes: int, timeout: typing.Optional[float] = None
-    ) -> bytes:
+    async def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
         message: Message = await self.receive(timeout=timeout)
         type = message["type"]
 
@@ -74,10 +73,10 @@ class ASGIWebSocketAsyncNetworkStream(AsyncNetworkStream):
 
         event: wsproto.events.Event
         if type == "websocket.send":
-            data_str: typing.Optional[str] = message.get("text")
+            data_str: str | None = message.get("text")
             if data_str is not None:
                 event = wsproto.events.TextMessage(data_str)
-            data_bytes: typing.Optional[bytes] = message.get("bytes")
+            data_bytes: bytes | None = message.get("bytes")
             if data_bytes is not None:
                 event = wsproto.events.BytesMessage(data_bytes)
         elif type == "websocket.close":
@@ -85,9 +84,7 @@ class ASGIWebSocketAsyncNetworkStream(AsyncNetworkStream):
 
         return self.connection.send(event)
 
-    async def write(
-        self, buffer: bytes, timeout: typing.Optional[float] = None
-    ) -> None:
+    async def write(self, buffer: bytes, timeout: float | None = None) -> None:
         self.connection.receive_data(buffer)
         for event in self.connection.events():
             if isinstance(event, wsproto.events.Request):
@@ -114,7 +111,7 @@ class ASGIWebSocketAsyncNetworkStream(AsyncNetworkStream):
     async def send(self, message: Message) -> None:
         self._receive_queue.put(message)
 
-    async def receive(self, timeout: typing.Optional[float] = None) -> Message:
+    async def receive(self, timeout: float | None = None) -> Message:
         while self._send_queue.empty():
             await anyio.sleep(0)
         return self._send_queue.get(timeout=timeout)
@@ -156,9 +153,15 @@ class ASGIWebSocketAsyncNetworkStream(AsyncNetworkStream):
 
 
 class ASGIWebSocketTransport(ASGITransport):
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        self.exit_stack: typing.Optional[contextlib.AsyncExitStack] = None
+    def __init__(
+        self,
+        app: _ASGIApp,
+        raise_app_exceptions: bool = True,
+        root_path: str = "",
+        client: tuple[str, int] = ("127.0.0.1", 123),
+    ) -> None:
+        super().__init__(app, raise_app_exceptions, root_path, client)
+        self.exit_stack: contextlib.AsyncExitStack | None = None
 
     async def handle_async_request(self, request: Request) -> Response:
         scheme = request.url.scheme
@@ -166,9 +169,7 @@ class ASGIWebSocketTransport(ASGITransport):
 
         if scheme in {"ws", "wss"} or headers.get("upgrade") == "websocket":
             subprotocols: list[str] = []
-            if (
-                subprotocols_header := headers.get("sec-websocket-protocol")
-            ) is not None:
+            if (subprotocols_header := headers.get("sec-websocket-protocol")) is not None:
                 subprotocols = subprotocols_header.split(",")
 
             scope = {
