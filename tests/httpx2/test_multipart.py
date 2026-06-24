@@ -44,6 +44,18 @@ def test_is_multipart_form_data_content_type(content_type: str | bytes | None, e
             "abc123",
             "multipart/form-data; charset=utf-8; boundary=abc123",
         ),
+        # RFC 2046 section 5.1.1 permits boundaries containing tspecials such as
+        # ":", which RFC 2045 requires to be transmitted as a quoted-string.
+        (
+            "multipart/form-data",
+            "gc0pJq0M:08jU534c0p",
+            'multipart/form-data; boundary="gc0pJq0M:08jU534c0p"',
+        ),
+        (
+            "multipart/form-data",
+            "with space",
+            'multipart/form-data; boundary="with space"',
+        ),
     ],
 )
 def test_append_boundary_to_content_type(content_type: str, boundary: str, expected: str) -> None:
