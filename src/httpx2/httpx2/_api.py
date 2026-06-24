@@ -19,9 +19,17 @@ from ._types import (
     TimeoutTypes,
 )
 from ._urls import URL
+from ._websockets._defaults import (
+    DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS,
+    DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
+    DEFAULT_MAX_MESSAGE_SIZE_BYTES,
+    DEFAULT_QUEUE_SIZE,
+)
 
 if typing.TYPE_CHECKING:
     import ssl  # pragma: no cover
+
+    from ._websockets._api import WebSocketSession
 
 
 __all__ = [
@@ -34,6 +42,7 @@ __all__ = [
     "put",
     "request",
     "stream",
+    "websocket",
 ]
 
 
@@ -424,3 +433,57 @@ def delete(
         timeout=timeout,
         trust_env=trust_env,
     )
+
+
+@contextmanager
+def websocket(
+    url: URL | str,
+    *,
+    params: QueryParamTypes | None = None,
+    headers: HeaderTypes | None = None,
+    cookies: CookieTypes | None = None,
+    auth: AuthTypes | None = None,
+    proxy: ProxyTypes | None = None,
+    follow_redirects: bool = False,
+    timeout: TimeoutTypes = DEFAULT_TIMEOUT_CONFIG,
+    verify: ssl.SSLContext | str | bool = True,
+    trust_env: bool = True,
+    subprotocols: list[str] | None = None,
+    max_message_size_bytes: int = DEFAULT_MAX_MESSAGE_SIZE_BYTES,
+    queue_size: int = DEFAULT_QUEUE_SIZE,
+    keepalive_ping_interval_seconds: float | None = DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS,
+    keepalive_ping_timeout_seconds: float | None = DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
+) -> Generator[WebSocketSession]:
+    """
+    Open a WebSocket session.
+
+    The session is closed automatically when exiting the context manager.
+
+    ```python
+    with httpx2.websocket("ws://localhost:8000/ws") as ws:
+        ws.send_text("Hello!")
+        message = ws.receive_text()
+    ```
+
+    **Parameters**: See `httpx2.request` and `httpx2.Client.websocket`.
+    """
+    with Client(
+        cookies=cookies,
+        proxy=proxy,
+        verify=verify,
+        timeout=timeout,
+        trust_env=trust_env,
+    ) as client:
+        with client.websocket(
+            url,
+            params=params,
+            headers=headers,
+            auth=auth,
+            follow_redirects=follow_redirects,
+            subprotocols=subprotocols,
+            max_message_size_bytes=max_message_size_bytes,
+            queue_size=queue_size,
+            keepalive_ping_interval_seconds=keepalive_ping_interval_seconds,
+            keepalive_ping_timeout_seconds=keepalive_ping_timeout_seconds,
+        ) as session:
+            yield session

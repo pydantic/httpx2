@@ -1,3 +1,5 @@
+import typing as _typing
+
 from .__version__ import __description__, __title__, __version__
 from ._api import *
 from ._auth import *
@@ -11,15 +13,28 @@ from ._transports import *
 from ._types import *
 from ._urls import *
 
+if _typing.TYPE_CHECKING:
+    from ._websockets._api import AsyncWebSocketSession, WebSocketSession
+    from ._websockets._exceptions import (
+        HTTPXWSException,
+        WebSocketDisconnect,
+        WebSocketInvalidTypeReceived,
+        WebSocketNetworkError,
+        WebSocketUpgradeError,
+    )
+    from ._websockets._transport import ASGIWebSocketTransport
+
 __all__ = [
     "__description__",
     "__title__",
     "__version__",
     "ASGITransport",
+    "ASGIWebSocketTransport",
     "AsyncBaseTransport",
     "AsyncByteStream",
     "AsyncClient",
     "AsyncHTTPTransport",
+    "AsyncWebSocketSession",
     "Auth",
     "BaseTransport",
     "BasicAuth",
@@ -42,6 +57,7 @@ __all__ = [
     "HTTPError",
     "HTTPStatusError",
     "HTTPTransport",
+    "HTTPXWSException",
     "InvalidURL",
     "Limits",
     "LocalProtocolError",
@@ -78,20 +94,38 @@ __all__ = [
     "UnsupportedProtocol",
     "URL",
     "USE_CLIENT_DEFAULT",
+    "websocket",
+    "WebSocketDisconnect",
+    "WebSocketInvalidTypeReceived",
+    "WebSocketNetworkError",
+    "WebSocketSession",
+    "WebSocketUpgradeError",
     "WriteError",
     "WriteTimeout",
     "WSGITransport",
 ]
 
 
+_WEBSOCKET_NAMES = {
+    "ASGIWebSocketTransport",
+    "AsyncWebSocketSession",
+    "HTTPXWSException",
+    "WebSocketDisconnect",
+    "WebSocketInvalidTypeReceived",
+    "WebSocketNetworkError",
+    "WebSocketSession",
+    "WebSocketUpgradeError",
+    "websocket",
+}
+
 __locals = locals()
 for __name in __all__:
-    if not __name.startswith("__"):
+    if not __name.startswith("__") and __name not in _WEBSOCKET_NAMES:
         setattr(__locals[__name], "__module__", "httpx2")  # noqa
 
 
-def __getattr__(name: str) -> object:  # pragma: no cover
-    if name == "main":
+def __getattr__(name: str) -> object:
+    if name == "main":  # pragma: no cover
         import warnings
 
         warnings.warn(
@@ -103,5 +137,19 @@ def __getattr__(name: str) -> object:  # pragma: no cover
         from ._main import main
 
         return main
+
+    if name in _WEBSOCKET_NAMES:
+        from ._websockets._defaults import require_wsproto
+
+        require_wsproto()
+
+        if name == "websocket":
+            from ._api import websocket
+
+            return websocket
+
+        from . import _websockets
+
+        return getattr(_websockets, name)
 
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

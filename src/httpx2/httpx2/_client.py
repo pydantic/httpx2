@@ -48,9 +48,17 @@ from ._types import (
 )
 from ._urls import URL, QueryParams
 from ._utils import URLPattern, get_environment_proxies
+from ._websockets._defaults import (
+    DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS,
+    DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
+    DEFAULT_MAX_MESSAGE_SIZE_BYTES,
+    DEFAULT_QUEUE_SIZE,
+)
 
 if typing.TYPE_CHECKING:
     import ssl  # pragma: no cover
+
+    from ._websockets._api import AsyncWebSocketSession, WebSocketSession
 
 __all__ = ["USE_CLIENT_DEFAULT", "AsyncClient", "Client"]
 
@@ -845,6 +853,48 @@ class Client(BaseClient):
         finally:
             response.close()
 
+    @contextmanager
+    def websocket(
+        self,
+        url: URL | str,
+        *,
+        max_message_size_bytes: int = DEFAULT_MAX_MESSAGE_SIZE_BYTES,
+        queue_size: int = DEFAULT_QUEUE_SIZE,
+        keepalive_ping_interval_seconds: float | None = DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS,
+        keepalive_ping_timeout_seconds: float | None = DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
+        subprotocols: list[str] | None = None,
+        **kwargs: typing.Any,
+    ) -> Generator[WebSocketSession]:
+        """
+        Open a WebSocket session, using this client's configuration.
+
+        The session is closed automatically when exiting the context manager.
+
+        ```python
+        with httpx2.Client() as client:
+            with client.websocket("ws://localhost:8000/ws") as ws:
+                ws.send_text("Hello!")
+                message = ws.receive_text()
+        ```
+        """
+        from ._websockets._defaults import require_wsproto
+
+        require_wsproto()
+
+        from ._websockets._api import connect_ws
+
+        with connect_ws(
+            str(url),
+            self,
+            max_message_size_bytes=max_message_size_bytes,
+            queue_size=queue_size,
+            keepalive_ping_interval_seconds=keepalive_ping_interval_seconds,
+            keepalive_ping_timeout_seconds=keepalive_ping_timeout_seconds,
+            subprotocols=subprotocols,
+            **kwargs,
+        ) as session:
+            yield session
+
     def send(
         self,
         request: Request,
@@ -1547,6 +1597,48 @@ class AsyncClient(BaseClient):
             yield response
         finally:
             await response.aclose()
+
+    @asynccontextmanager
+    async def websocket(
+        self,
+        url: URL | str,
+        *,
+        max_message_size_bytes: int = DEFAULT_MAX_MESSAGE_SIZE_BYTES,
+        queue_size: int = DEFAULT_QUEUE_SIZE,
+        keepalive_ping_interval_seconds: float | None = DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS,
+        keepalive_ping_timeout_seconds: float | None = DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
+        subprotocols: list[str] | None = None,
+        **kwargs: typing.Any,
+    ) -> AsyncGenerator[AsyncWebSocketSession]:
+        """
+        Open a WebSocket session, using this client's configuration.
+
+        The session is closed automatically when exiting the context manager.
+
+        ```python
+        async with httpx2.AsyncClient() as client:
+            async with client.websocket("ws://localhost:8000/ws") as ws:
+                await ws.send_text("Hello!")
+                message = await ws.receive_text()
+        ```
+        """
+        from ._websockets._defaults import require_wsproto
+
+        require_wsproto()
+
+        from ._websockets._api import aconnect_ws
+
+        async with aconnect_ws(
+            str(url),
+            self,
+            max_message_size_bytes=max_message_size_bytes,
+            queue_size=queue_size,
+            keepalive_ping_interval_seconds=keepalive_ping_interval_seconds,
+            keepalive_ping_timeout_seconds=keepalive_ping_timeout_seconds,
+            subprotocols=subprotocols,
+            **kwargs,
+        ) as session:
+            yield session
 
     async def send(
         self,
