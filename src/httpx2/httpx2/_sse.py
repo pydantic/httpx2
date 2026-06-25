@@ -1,3 +1,9 @@
+"""
+Server-sent events support, derived from httpx-sse (https://github.com/florimondmanca/httpx-sse).
+
+Copyright (c) 2022 Florimond Manca, MIT License (https://github.com/florimondmanca/httpx-sse/blob/master/LICENSE).
+"""
+
 from __future__ import annotations
 
 import json as jsonlib
