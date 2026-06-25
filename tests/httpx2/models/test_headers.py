@@ -100,9 +100,9 @@ def test_headers_ior_accepts_update_inputs() -> None:
 
 def test_headers_or_unsupported_type() -> None:
     with pytest.raises(TypeError):
-        httpx2.Headers({"a": "1"}) | [("b", "2")]
+        httpx2.Headers({"a": "1"}) | [("b", "2")]  # type: ignore[operator]
     with pytest.raises(TypeError):
-        [("b", "2")] | httpx2.Headers({"a": "1"})
+        [("b", "2")] | httpx2.Headers({"a": "1"})  # type: ignore[operator]
 
 
 def test_headers_insert_retains_ordering() -> None:
