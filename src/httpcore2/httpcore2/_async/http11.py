@@ -145,15 +145,34 @@ class AsyncHTTP11Connection(AsyncConnectionInterface):
         assert isinstance(request.stream, typing.AsyncIterable)
         async with safe_async_iterate(request.stream) as iterator:
             async for chunk in iterator:
+                if isinstance(chunk, memoryview) and chunk.itemsize != 1:
+                    # h11 tracks Content-Length with `len()`, and the network
+                    # backends slice send progress by byte count - both of which
+                    # assume one byte per element. Normalise wider item types to
+                    # a flat unsigned-byte view (zero-copy) so neither is misled.
+                    chunk = chunk.cast("B")
                 event = h11.Data(data=chunk)
                 await self._send_event(event, timeout=timeout)
 
         await self._send_event(h11.EndOfMessage(), timeout=timeout)
 
     async def _send_event(self, event: h11.Event, timeout: float | None = None) -> None:
-        bytes_to_send = self._h11_state.send(event)
-        if bytes_to_send is not None:
-            await self._network_stream.write(bytes_to_send, timeout=timeout)
+        if isinstance(event, h11.Data):
+            # Use passthrough so a Content-Length body (a single element) is
+            # written straight to the network instead of through `send`'s
+            # `b"".join`, leaving a `memoryview` body uncopied.
+            chunks = self._h11_state.send_with_data_passthrough(event)
+            assert chunks is not None  # Only `ConnectionClosed` yields `None`.
+            if len(chunks) == 1:
+                await self._network_stream.write(chunks[0], timeout=timeout)
+            else:
+                # Chunked framing wraps the body, so coalesce into one write
+                # as before.
+                await self._network_stream.write(b"".join(chunks), timeout=timeout)
+        else:
+            bytes_to_send = self._h11_state.send(event)
+            if bytes_to_send is not None:
+                await self._network_stream.write(bytes_to_send, timeout=timeout)
 
     # Receiving the response...
 

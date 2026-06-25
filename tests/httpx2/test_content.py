@@ -51,6 +51,52 @@ async def test_bytes_content() -> None:
 
 
 @pytest.mark.anyio
+async def test_memoryview_content() -> None:
+    request = httpx2.Request(method, url, content=memoryview(b"Hello, world!"))
+    assert isinstance(request.stream, typing.Iterable)
+    assert isinstance(request.stream, typing.AsyncIterable)
+
+    assert request.headers == {"Host": "www.example.com", "Content-Length": "13"}
+
+    # A bytes-like buffer is treated as (replayable) streaming content: it is
+    # not eagerly copied into a `bytes` object, so - like other streaming
+    # bodies - the content is not available until it has been explicitly read.
+    with pytest.raises(httpx2.RequestNotRead):
+        request.content  # noqa: B018
+
+    sync_content = b"".join(list(request.stream))
+    async_content = b"".join([part async for part in request.stream])
+    assert sync_content == b"Hello, world!"
+    assert async_content == b"Hello, world!"
+
+
+def test_memoryview_content_is_not_copied() -> None:
+    # The memoryview passed as content is yielded through as-is rather than
+    # being copied up front. This is what lets a large buffer (e.g. a
+    # `memoryview` over an `mmap`) be faulted into memory only as it is written
+    # out, rather than all at once. We verify it by mutating the underlying
+    # buffer after building the request and observing the change downstream.
+    # (`BufferStream.__iter__`/`__aiter__` both yield the same view, so the
+    # sync path is representative.)
+    data = bytearray(b"Hello, world!")
+    request = httpx2.Request(method, url, content=memoryview(data))
+    data[0:5] = b"HELLO"
+
+    assert isinstance(request.stream, typing.Iterable)
+    (chunk,) = list(request.stream)
+    assert bytes(chunk) == b"HELLO, world!"
+
+
+def test_noncontiguous_memoryview_content_raises() -> None:
+    # A non-contiguous view can't be sent without copying, so we reject it
+    # rather than silently materialising it (the opposite of what passing a
+    # memoryview asks for).
+    strided = memoryview(bytearray(b"0123456789"))[::2]
+    with pytest.raises(TypeError, match="must be C-contiguous"):
+        httpx2.Request(method, url, content=strided)
+
+
+@pytest.mark.anyio
 async def test_bytesio_content() -> None:
     request = httpx2.Request(method, url, content=io.BytesIO(b"Hello, world!"))
     assert isinstance(request.stream, typing.Iterable)

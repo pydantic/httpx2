@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## Unreleased
+
+### Changed
+
+* Write request body chunks to the network without copying them, using h11's `send_with_data_passthrough`. A bytes-like body (e.g. a `memoryview` over an `mmap`) is now only faulted into memory as it is written to the socket. Chunked framing and header writes are unchanged.
+
 ## 2.4.0 (June 11th, 2026)
 
 ### Fixed
