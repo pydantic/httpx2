@@ -92,11 +92,17 @@ def test_headers_ior() -> None:
     assert dict(headers) == {"a": "2", "b": "3"}
 
 
+def test_headers_ior_accepts_update_inputs() -> None:
+    headers = httpx2.Headers({"a": "1"})
+    headers |= [("a", "2"), ("b", "3")]
+    assert dict(headers) == {"a": "2", "b": "3"}
+
+
 def test_headers_or_unsupported_type() -> None:
     with pytest.raises(TypeError):
-        httpx2.Headers({"a": "1"}) | ["b", "2"]
+        httpx2.Headers({"a": "1"}) | [("b", "2")]
     with pytest.raises(TypeError):
-        ["b", "2"] | httpx2.Headers({"a": "1"})
+        [("b", "2")] | httpx2.Headers({"a": "1"})
 
 
 def test_headers_insert_retains_ordering() -> None:

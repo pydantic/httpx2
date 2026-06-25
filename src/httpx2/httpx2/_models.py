@@ -291,9 +291,7 @@ class Headers(typing.MutableMapping[str, str]):
         merged.update(self)
         return merged
 
-    def __ior__(self, other: Mapping[str, str]) -> Headers:
-        if not isinstance(other, Mapping):
-            return NotImplemented
+    def __ior__(self, other: HeaderTypes) -> Headers:
         self.update(other)
         return self
 
