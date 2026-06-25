@@ -61,15 +61,6 @@ T = typing.TypeVar("T", bound="Client")
 U = typing.TypeVar("U", bound="AsyncClient")
 
 
-def _merge_sse_headers(headers: HeaderTypes | None) -> Headers:
-    merged = Headers(headers)
-    if "Accept" not in merged:
-        merged["Accept"] = "text/event-stream"
-    if "Cache-Control" not in merged:
-        merged["Cache-Control"] = "no-store"
-    return merged
-
-
 def _is_https_redirect(url: URL, location: URL) -> bool:
     """
     Return 'True' if 'location' is a HTTPS upgrade of 'url'
@@ -888,7 +879,7 @@ class Client(BaseClient):
             files=files,
             json=json,
             params=params,
-            headers=_merge_sse_headers(headers),
+            headers={"Accept": "text/event-stream", "Cache-Control": "no-store"} | Headers(headers),
             cookies=cookies,
             auth=auth,
             follow_redirects=follow_redirects,
@@ -1633,7 +1624,7 @@ class AsyncClient(BaseClient):
             files=files,
             json=json,
             params=params,
-            headers=_merge_sse_headers(headers),
+            headers={"Accept": "text/event-stream", "Cache-Control": "no-store"} | Headers(headers),
             cookies=cookies,
             auth=auth,
             follow_redirects=follow_redirects,
