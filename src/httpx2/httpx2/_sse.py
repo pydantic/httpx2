@@ -39,10 +39,11 @@ class _SSEDecoder:
         self._data: list[str] = []
         self._last_event_id = ""
         self._retry: int | None = None
+        self._pending = False
 
     def decode(self, line: str) -> ServerSentEvent | None:
         if not line:
-            if not self._event and not self._data and not self._last_event_id and self._retry is None:
+            if not self._pending:
                 return None
 
             sse = ServerSentEvent(
@@ -54,6 +55,7 @@ class _SSEDecoder:
             self._event = ""
             self._data = []
             self._retry = None
+            self._pending = False
             return sse
 
         if line.startswith(":"):
@@ -64,14 +66,18 @@ class _SSEDecoder:
 
         if fieldname == "event":
             self._event = value
+            self._pending = True
         elif fieldname == "data":
             self._data.append(value)
+            self._pending = True
         elif fieldname == "id":
             if "\0" not in value:
                 self._last_event_id = value
+                self._pending = True
         elif fieldname == "retry":
             try:
                 self._retry = int(value)
+                self._pending = True
             except ValueError:
                 pass
 
@@ -117,7 +123,7 @@ class EventSource:
 
     def _check_content_type(self) -> None:
         content_type, _, _ = self._response.headers.get("content-type", "").partition(";")
-        if content_type.strip() != "text/event-stream":
+        if content_type.strip().lower() != "text/event-stream":
             raise SSEError(
                 f"Expected response with content type 'text/event-stream', got {content_type.strip()!r}.",
                 request=self._response.request,

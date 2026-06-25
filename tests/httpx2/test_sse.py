@@ -108,7 +108,34 @@ def test_last_event_id_persists() -> None:
     assert [event.id for event in events] == ["1", "1"]
 
 
-@pytest.mark.parametrize("content_type", ["text/event-stream", "text/event-stream; charset=utf-8"])
+def test_blank_lines_after_id_do_not_dispatch() -> None:
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        body = b"id: 1\ndata: a\n\n\n\ndata: b\n\n"
+        return httpx2.Response(200, content=body, headers={"Content-Type": "text/event-stream"})
+
+    with httpx2.Client(transport=httpx2.MockTransport(handler)) as client:
+        with client.sse("http://testserver/sse") as source:
+            events = list(source)
+
+    assert [event.data for event in events] == ["a", "b"]
+
+
+def test_id_only_block_is_dispatched() -> None:
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(200, content=b"id: 1\n\n", headers={"Content-Type": "text/event-stream"})
+
+    with httpx2.Client(transport=httpx2.MockTransport(handler)) as client:
+        with client.sse("http://testserver/sse") as source:
+            (event,) = list(source)
+
+    assert event.id == "1"
+    assert event.data == ""
+
+
+@pytest.mark.parametrize(
+    "content_type",
+    ["text/event-stream", "text/event-stream; charset=utf-8", "Text/Event-Stream", "TEXT/EVENT-STREAM"],
+)
 def test_content_type_accepted(content_type: str) -> None:
     def handler(request: httpx2.Request) -> httpx2.Response:
         return httpx2.Response(200, content=b"data: hi\n\n", headers={"Content-Type": content_type})
