@@ -11,6 +11,18 @@ import httpx2
 import httpx2._opentelemetry as otel_module
 
 
+class FailingSyncStream(httpx2.SyncByteStream):
+    def __iter__(self) -> typing.Iterator[bytes]:
+        yield b"partial"
+        raise RuntimeError("stream failed")
+
+
+class FailingAsyncStream(httpx2.AsyncByteStream):
+    async def __aiter__(self) -> typing.AsyncIterator[bytes]:
+        yield b"partial"
+        raise RuntimeError("stream failed")
+
+
 @pytest.fixture(autouse=True)
 def clear_opentelemetry_cache() -> typing.Iterator[None]:
     otel_module._get_opentelemetry.cache_clear()
@@ -98,6 +110,36 @@ def test_opentelemetry_honors_logfire_suppression_context(capfire: CaptureLogfir
     assert _duration_metrics(capfire) == []
 
 
+def test_opentelemetry_honors_context_suppression_fallback(capfire: CaptureLogfire) -> None:
+    otel = otel_module.get_opentelemetry()
+    assert otel is not None
+    otel._is_http_instrumentation_enabled = None
+
+    request = httpx2.Request("GET", "https://example.com/")
+    assert otel.is_enabled(request) is True
+
+    with logfire.suppress_instrumentation():
+        assert otel.is_enabled(request) is False
+
+    assert capfire.exporter.exported_spans == []
+
+
+def test_opentelemetry_honors_http_context_suppression_fallback(capfire: CaptureLogfire) -> None:
+    otel = otel_module.get_opentelemetry()
+    assert otel is not None
+    otel._is_http_instrumentation_enabled = None
+    otel._suppress_http_instrumentation_key = "httpx2.suppress_http_instrumentation"
+
+    request = httpx2.Request("GET", "https://example.com/")
+    token = otel._context.attach(otel._context.set_value(otel._suppress_http_instrumentation_key, True))
+    try:
+        assert otel.is_enabled(request) is False
+    finally:
+        otel._context.detach(token)
+
+    assert capfire.exporter.exported_spans == []
+
+
 def test_opentelemetry_records_exceptions(capfire: CaptureLogfire) -> None:
     def handler(request: httpx2.Request) -> httpx2.Response:
         raise httpx2.ConnectError("no route")
@@ -111,6 +153,74 @@ def test_opentelemetry_records_exceptions(capfire: CaptureLogfire) -> None:
     assert span.attributes["error.type"] == "httpx2.ConnectError"
     assert span.status.status_code is StatusCode.ERROR
     assert _duration_metric(capfire)["data"]["data_points"][0]["attributes"]["error.type"] == "httpx2.ConnectError"
+
+
+def test_opentelemetry_records_sync_body_read_exceptions(capfire: CaptureLogfire) -> None:
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(200, stream=FailingSyncStream())
+
+    transport = httpx2.MockTransport(handler)
+    with httpx2.Client(transport=transport) as client:
+        with pytest.raises(RuntimeError, match="stream failed"):
+            client.get("https://example.com/")
+
+    [span] = _httpx2_spans(capfire)
+    assert span.attributes["error.type"] == "builtins.RuntimeError"
+    assert span.status.status_code is StatusCode.ERROR
+    assert _duration_metric(capfire)["data"]["data_points"][0]["attributes"]["error.type"] == "builtins.RuntimeError"
+
+
+@pytest.mark.anyio
+async def test_opentelemetry_records_async_body_read_exceptions(capfire: CaptureLogfire) -> None:
+    async def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(200, stream=FailingAsyncStream())
+
+    transport = httpx2.MockTransport(handler)
+    async with httpx2.AsyncClient(transport=transport) as client:
+        with pytest.raises(RuntimeError, match="stream failed"):
+            await client.get("https://example.com/")
+
+    [span] = _httpx2_spans(capfire)
+    assert span.attributes["error.type"] == "builtins.RuntimeError"
+    assert span.status.status_code is StatusCode.ERROR
+    assert _duration_metric(capfire)["data"]["data_points"][0]["attributes"]["error.type"] == "builtins.RuntimeError"
+
+
+def test_opentelemetry_honors_configured_known_methods(
+    capfire: CaptureLogfire,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("OTEL_INSTRUMENTATION_HTTP_KNOWN_METHODS", "GET,PROPFIND")
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(200)
+
+    transport = httpx2.MockTransport(handler)
+    with httpx2.Client(transport=transport) as client:
+        client.request("PROPFIND", "https://example.com/")
+
+    [span] = _httpx2_spans(capfire)
+    assert span.name == "PROPFIND"
+    assert span.attributes["http.request.method"] == "PROPFIND"
+    assert "http.request.method_original" not in span.attributes
+    assert _duration_metric(capfire)["data"]["data_points"][0]["attributes"]["http.request.method"] == "PROPFIND"
+
+
+def test_opentelemetry_uses_other_for_unknown_methods(capfire: CaptureLogfire) -> None:
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(200)
+
+    transport = httpx2.MockTransport(handler)
+    with httpx2.Client(transport=transport) as client:
+        client.request("BREW", "https://example.com/")
+
+    [span] = _httpx2_spans(capfire)
+    assert span.name == "HTTP"
+    assert span.attributes["http.request.method"] == "_OTHER"
+    assert span.attributes["http.request.method_original"] == "BREW"
+    metric_attributes = _duration_metric(capfire)["data"]["data_points"][0]["attributes"]
+    assert metric_attributes["http.request.method"] == "_OTHER"
+    assert metric_attributes["http.request.method_original"] == "BREW"
 
 
 def test_opentelemetry_captures_and_sanitizes_opt_in_headers(

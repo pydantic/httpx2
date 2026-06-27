@@ -1020,9 +1020,21 @@ class Client(BaseClient):
             if otel is None or not otel.is_enabled(request):
                 response = transport.handle_request(request)
             else:
-                with otel.trace_request(request) as trace:
+                trace = otel.start_request(request)
+                try:
                     response = transport.handle_request(request)
                     trace.set_response(response)
+                except BaseException as exc:
+                    trace.set_exception(exc)
+                    trace.detach_current(type(exc), exc, exc.__traceback__)
+                    trace.close()
+                    raise
+                trace.detach_current()
+                if response.is_closed:
+                    trace.close()
+                else:
+                    assert isinstance(response.stream, SyncByteStream)
+                    response.stream = trace.wrap_sync_stream(response.stream)
 
         assert isinstance(response.stream, SyncByteStream)
 
@@ -1772,9 +1784,21 @@ class AsyncClient(BaseClient):
             if otel is None or not otel.is_enabled(request):
                 response = await transport.handle_async_request(request)
             else:
-                with otel.trace_request(request) as trace:
+                trace = otel.start_request(request)
+                try:
                     response = await transport.handle_async_request(request)
                     trace.set_response(response)
+                except BaseException as exc:
+                    trace.set_exception(exc)
+                    trace.detach_current(type(exc), exc, exc.__traceback__)
+                    trace.close()
+                    raise
+                trace.detach_current()
+                if response.is_closed:
+                    trace.close()
+                else:
+                    assert isinstance(response.stream, AsyncByteStream)
+                    response.stream = trace.wrap_async_stream(response.stream)
 
         assert isinstance(response.stream, AsyncByteStream)
         response.request = request

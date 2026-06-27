@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import contextlib
 import os
 import re
 import time
@@ -9,9 +8,7 @@ from functools import cache
 
 from .__version__ import __version__
 from ._models import Headers, Request, Response
-
-if typing.TYPE_CHECKING:  # pragma: no cover
-    from collections.abc import Generator
+from ._types import AsyncByteStream, SyncByteStream
 
 KNOWN_HTTP_METHODS = {
     "CONNECT",
@@ -57,13 +54,13 @@ def _get_opentelemetry() -> OpenTelemetry | None:
     try:
         from opentelemetry import context, metrics, propagate, trace
         from opentelemetry.trace import SpanKind, Status, StatusCode
-    except ImportError:
+    except ImportError:  # pragma: no cover
         return None
 
     is_http_instrumentation_enabled: typing.Callable[[], bool] | None
     try:
         from opentelemetry.instrumentation.utils import is_http_instrumentation_enabled
-    except ImportError:
+    except ImportError:  # pragma: no cover
         is_http_instrumentation_enabled = None
 
     return OpenTelemetry(
@@ -93,6 +90,7 @@ class OpenTelemetry:
     ) -> None:
         self._context = context
         self._propagate = propagate
+        self._trace = trace
         self._span_kind = span_kind
         self._status = status
         self._status_code = status_code
@@ -122,8 +120,7 @@ class OpenTelemetry:
 
         return True
 
-    @contextlib.contextmanager
-    def trace_request(self, request: Request) -> Generator[RequestTrace]:
+    def start_request(self, request: Request) -> RequestTrace:
         span_attributes = _request_attributes(request)
         metric_attributes = _request_metric_attributes(request)
         span_name = _span_name(request.method)
@@ -131,6 +128,7 @@ class OpenTelemetry:
             span_name,
             kind=self._span_kind.CLIENT,
             attributes=span_attributes,
+            end_on_exit=False,
         )
         span = span_cm.__enter__()
         trace = RequestTrace(
@@ -139,17 +137,11 @@ class OpenTelemetry:
             metric_attributes=metric_attributes,
             status=self._status,
             status_code=self._status_code,
+            span_context_manager=span_cm,
+            start=time.perf_counter(),
         )
-        start = time.perf_counter()
-        try:
-            self._propagate.inject(request.headers)
-            yield trace
-        except BaseException as exc:
-            trace.set_exception(exc)
-            raise
-        finally:
-            trace.record_duration(time.perf_counter() - start)
-            span_cm.__exit__(*trace.exc_info)
+        self._propagate.inject(request.headers)
+        return trace
 
 
 class RequestTrace:
@@ -161,13 +153,18 @@ class RequestTrace:
         metric_attributes: dict[str, typing.Any],
         status: typing.Any,
         status_code: typing.Any,
+        span_context_manager: typing.Any,
+        start: float,
     ) -> None:
         self._span = span
         self._duration_histogram = duration_histogram
         self._metric_attributes = metric_attributes
         self._status = status
         self._status_code = status_code
-        self.exc_info: tuple[type[BaseException] | None, BaseException | None, typing.Any] = (None, None, None)
+        self._span_context_manager = span_context_manager
+        self._start = start
+        self._closed = False
+        self._detached = False
 
     def set_response(self, response: Response) -> None:
         response_attributes = _response_attributes(response)
@@ -178,17 +175,84 @@ class RequestTrace:
             self._set_error(str(response.status_code))
 
     def set_exception(self, exc: BaseException) -> None:
-        self.exc_info = (type(exc), exc, exc.__traceback__)
+        if self._span.is_recording():
+            self._span.record_exception(exc)
         self._set_error(f"{type(exc).__module__}.{type(exc).__qualname__}")
 
     def record_duration(self, duration: float) -> None:
         self._duration_histogram.record(max(duration, 0), attributes=self._metric_attributes)
+
+    def close(self) -> None:
+        if self._closed:  # pragma: no cover
+            return
+
+        self._closed = True
+        self.detach_current()
+        self.record_duration(time.perf_counter() - self._start)
+        self._span.end()
+
+    def detach_current(
+        self,
+        exc_type: type[BaseException] | None = None,
+        exc_value: BaseException | None = None,
+        traceback: typing.Any = None,
+    ) -> None:
+        if self._detached:
+            return
+
+        self._detached = True
+        self._span_context_manager.__exit__(exc_type, exc_value, traceback)
+
+    def wrap_sync_stream(self, stream: SyncByteStream) -> SyncByteStream:
+        return OpenTelemetrySyncStream(stream=stream, trace=self)
+
+    def wrap_async_stream(self, stream: AsyncByteStream) -> AsyncByteStream:
+        return OpenTelemetryAsyncStream(stream=stream, trace=self)
 
     def _set_error(self, error_type: str) -> None:
         self._metric_attributes["error.type"] = error_type
         if self._span.is_recording():
             self._span.set_attribute("error.type", error_type)
             self._span.set_status(self._status(self._status_code.ERROR))
+
+
+class OpenTelemetrySyncStream(SyncByteStream):
+    def __init__(self, *, stream: SyncByteStream, trace: RequestTrace) -> None:
+        self._stream = stream
+        self._trace = trace
+
+    def __iter__(self) -> typing.Iterator[bytes]:
+        try:
+            yield from self._stream
+        except BaseException as exc:
+            self._trace.set_exception(exc)
+            raise
+
+    def close(self) -> None:
+        try:
+            self._stream.close()
+        finally:
+            self._trace.close()
+
+
+class OpenTelemetryAsyncStream(AsyncByteStream):
+    def __init__(self, *, stream: AsyncByteStream, trace: RequestTrace) -> None:
+        self._stream = stream
+        self._trace = trace
+
+    async def __aiter__(self) -> typing.AsyncIterator[bytes]:
+        try:
+            async for chunk in self._stream:
+                yield chunk
+        except BaseException as exc:
+            self._trace.set_exception(exc)
+            raise
+
+    async def aclose(self) -> None:
+        try:
+            await self._stream.aclose()
+        finally:
+            self._trace.close()
 
 
 def _request_attributes(request: Request) -> dict[str, typing.Any]:
@@ -250,7 +314,15 @@ def _span_name(method: str) -> str:
 
 
 def _known_method(method: str) -> str:
-    return method if method in KNOWN_HTTP_METHODS else "_OTHER"
+    return method if method in _known_methods() else "_OTHER"
+
+
+def _known_methods() -> set[str]:
+    configured_methods = os.environ.get("OTEL_INSTRUMENTATION_HTTP_KNOWN_METHODS")
+    if configured_methods is None:
+        return KNOWN_HTTP_METHODS
+
+    return {method.strip().upper() for method in configured_methods.split(",") if method.strip()}
 
 
 def _redact_url(request: Request) -> str:
@@ -311,7 +383,7 @@ def _get_tracer(trace: typing.Any) -> typing.Any:
             instrumenting_library_version=__version__,
             schema_url=SEMCONV_SCHEMA_URL,
         )
-    except TypeError:
+    except TypeError:  # pragma: no cover
         return trace.get_tracer(INSTRUMENTATION_NAME, __version__)
 
 
@@ -322,7 +394,7 @@ def _get_meter(metrics: typing.Any) -> typing.Any:
             instrumenting_library_version=__version__,
             schema_url=SEMCONV_SCHEMA_URL,
         )
-    except TypeError:
+    except TypeError:  # pragma: no cover
         return metrics.get_meter(INSTRUMENTATION_NAME, __version__)
 
 
@@ -334,7 +406,7 @@ def _create_duration_histogram(meter: typing.Any) -> typing.Any:
             description="Duration of HTTP client requests.",
             explicit_bucket_boundaries_advisory=HTTP_CLIENT_REQUEST_DURATION_BUCKETS,
         )
-    except TypeError:
+    except TypeError:  # pragma: no cover
         return meter.create_histogram(
             name=CLIENT_REQUEST_DURATION,
             unit="s",
