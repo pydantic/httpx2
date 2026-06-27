@@ -8,7 +8,6 @@ from functools import cache
 
 from .__version__ import __version__
 from ._models import Headers, Request, Response
-from ._types import AsyncByteStream, SyncByteStream
 
 KNOWN_HTTP_METHODS = {
     "CONNECT",
@@ -209,56 +208,11 @@ class RequestTrace:
         self._detached = True
         self._span_context_manager.__exit__(exc_type, exc_value, traceback)
 
-    def wrap_sync_stream(self, stream: SyncByteStream) -> SyncByteStream:
-        return OpenTelemetrySyncStream(stream=stream, trace=self)
-
-    def wrap_async_stream(self, stream: AsyncByteStream) -> AsyncByteStream:
-        return OpenTelemetryAsyncStream(stream=stream, trace=self)
-
     def _set_error(self, error_type: str) -> None:
         self._metric_attributes["error.type"] = error_type
         if self._span.is_recording():
             self._span.set_attribute("error.type", error_type)
             self._span.set_status(self._status(self._status_code.ERROR))
-
-
-class OpenTelemetrySyncStream(SyncByteStream):
-    def __init__(self, *, stream: SyncByteStream, trace: RequestTrace) -> None:
-        self._stream = stream
-        self._trace = trace
-
-    def __iter__(self) -> typing.Iterator[bytes]:
-        try:
-            yield from self._stream
-        except BaseException as exc:
-            self._trace.set_exception(exc)
-            raise
-
-    def close(self) -> None:
-        try:
-            self._stream.close()
-        finally:
-            self._trace.close()
-
-
-class OpenTelemetryAsyncStream(AsyncByteStream):
-    def __init__(self, *, stream: AsyncByteStream, trace: RequestTrace) -> None:
-        self._stream = stream
-        self._trace = trace
-
-    async def __aiter__(self) -> typing.AsyncIterator[bytes]:
-        try:
-            async for chunk in self._stream:
-                yield chunk
-        except BaseException as exc:
-            self._trace.set_exception(exc)
-            raise
-
-    async def aclose(self) -> None:
-        try:
-            await self._stream.aclose()
-        finally:
-            self._trace.close()
 
 
 def _request_attributes(request: Request) -> dict[str, typing.Any]:

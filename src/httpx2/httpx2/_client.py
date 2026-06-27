@@ -1030,11 +1030,7 @@ class Client(BaseClient):
                     trace.close()
                     raise
                 trace.detach_current()
-                if response.is_closed:
-                    trace.close()
-                else:
-                    assert isinstance(response.stream, SyncByteStream)
-                    response.stream = trace.wrap_sync_stream(response.stream)
+                trace.close()
 
         assert isinstance(response.stream, SyncByteStream)
 
@@ -1794,11 +1790,7 @@ class AsyncClient(BaseClient):
                     trace.close()
                     raise
                 trace.detach_current()
-                if response.is_closed:
-                    trace.close()
-                else:
-                    assert isinstance(response.stream, AsyncByteStream)
-                    response.stream = trace.wrap_async_stream(response.stream)
+                trace.close()
 
         assert isinstance(response.stream, AsyncByteStream)
         response.request = request

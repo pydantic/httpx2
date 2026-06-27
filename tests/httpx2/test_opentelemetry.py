@@ -11,18 +11,6 @@ import httpx2
 import httpx2._opentelemetry as otel_module
 
 
-class FailingSyncStream(httpx2.SyncByteStream):
-    def __iter__(self) -> typing.Iterator[bytes]:
-        yield b"partial"
-        raise RuntimeError("stream failed")
-
-
-class FailingAsyncStream(httpx2.AsyncByteStream):
-    async def __aiter__(self) -> typing.AsyncIterator[bytes]:
-        yield b"partial"
-        raise RuntimeError("stream failed")
-
-
 @pytest.fixture(autouse=True)
 def clear_opentelemetry_cache() -> typing.Iterator[None]:
     otel_module._get_opentelemetry.cache_clear()
@@ -283,105 +271,6 @@ def test_opentelemetry_records_propagation_injection_exceptions(
                             "exception.escaped": "False",
                         },
                     },
-                ],
-            }
-        ]
-    )
-    assert _duration_metric(capfire)["data"]["data_points"][0]["attributes"]["error.type"] == "builtins.RuntimeError"
-
-
-def test_opentelemetry_records_sync_body_read_exceptions(capfire: CaptureLogfire) -> None:
-    def handler(request: httpx2.Request) -> httpx2.Response:
-        return httpx2.Response(200, stream=FailingSyncStream())
-
-    transport = httpx2.MockTransport(handler)
-    with httpx2.Client(transport=transport) as client:
-        with pytest.raises(RuntimeError, match="stream failed"):
-            client.get("https://example.com/")
-
-    assert capfire.exporter.exported_spans_as_dict(include_instrumentation_scope=True) == snapshot(
-        [
-            {
-                "name": "GET",
-                "context": {"trace_id": 1, "span_id": 1, "is_remote": False},
-                "parent": None,
-                "start_time": 1000000000,
-                "end_time": 3000000000,
-                "instrumentation_scope": "httpx2",
-                "attributes": {
-                    "http.request.method": "GET",
-                    "server.address": "example.com",
-                    "server.port": 443,
-                    "url.full": "https://example.com/",
-                    "logfire.span_type": "span",
-                    "logfire.msg": "GET",
-                    "http.response.status_code": 200,
-                    "network.protocol.version": "1.1",
-                    "logfire.exception.fingerprint": "0000000000000000000000000000000000000000000000000000000000000000",
-                    "error.type": "builtins.RuntimeError",
-                    "logfire.level_num": 17,
-                },
-                "events": [
-                    {
-                        "name": "exception",
-                        "timestamp": 2000000000,
-                        "attributes": {
-                            "exception.type": "RuntimeError",
-                            "exception.message": "stream failed",
-                            "exception.stacktrace": "RuntimeError: stream failed",
-                            "exception.escaped": "False",
-                        },
-                    }
-                ],
-            }
-        ]
-    )
-    assert _duration_metric(capfire)["data"]["data_points"][0]["attributes"]["error.type"] == "builtins.RuntimeError"
-
-
-@pytest.mark.anyio
-async def test_opentelemetry_records_async_body_read_exceptions(capfire: CaptureLogfire) -> None:
-    async def handler(request: httpx2.Request) -> httpx2.Response:
-        return httpx2.Response(200, stream=FailingAsyncStream())
-
-    transport = httpx2.MockTransport(handler)
-    async with httpx2.AsyncClient(transport=transport) as client:
-        with pytest.raises(RuntimeError, match="stream failed"):
-            await client.get("https://example.com/")
-
-    assert capfire.exporter.exported_spans_as_dict(include_instrumentation_scope=True) == snapshot(
-        [
-            {
-                "name": "GET",
-                "context": {"trace_id": 1, "span_id": 1, "is_remote": False},
-                "parent": None,
-                "start_time": 1000000000,
-                "end_time": 3000000000,
-                "instrumentation_scope": "httpx2",
-                "attributes": {
-                    "http.request.method": "GET",
-                    "server.address": "example.com",
-                    "server.port": 443,
-                    "url.full": "https://example.com/",
-                    "logfire.span_type": "span",
-                    "logfire.msg": "GET",
-                    "http.response.status_code": 200,
-                    "network.protocol.version": "1.1",
-                    "logfire.exception.fingerprint": "0000000000000000000000000000000000000000000000000000000000000000",
-                    "error.type": "builtins.RuntimeError",
-                    "logfire.level_num": 17,
-                },
-                "events": [
-                    {
-                        "name": "exception",
-                        "timestamp": 2000000000,
-                        "attributes": {
-                            "exception.type": "RuntimeError",
-                            "exception.message": "stream failed",
-                            "exception.stacktrace": "RuntimeError: stream failed",
-                            "exception.escaped": "False",
-                        },
-                    }
                 ],
             }
         ]
