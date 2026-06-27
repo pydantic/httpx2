@@ -4,8 +4,8 @@ import typing
 
 import logfire
 import pytest
+from inline_snapshot import snapshot
 from logfire.testing import CaptureLogfire
-from opentelemetry.trace import SpanKind, StatusCode
 
 import httpx2
 import httpx2._opentelemetry as otel_module
@@ -44,24 +44,30 @@ def test_sync_client_emits_current_http_client_span_and_duration_metric(capfire:
         response = client.get("https://user:password@example.com:8443/example")
 
     assert response.status_code == 404
-    [span] = _httpx2_spans(capfire)
-    assert span.name == "GET"
-    assert span.kind is SpanKind.CLIENT
-    assert span.status.status_code is StatusCode.ERROR
-    _assert_attributes_include(
-        span.attributes,
-        {
-            "http.request.method": "GET",
-            "url.full": "https://REDACTED:REDACTED@example.com:8443/example",
-            "server.address": "example.com",
-            "server.port": 8443,
-            "http.response.status_code": 404,
-            "network.protocol.version": "2",
-            "error.type": "404",
-        },
+    assert capfire.exporter.exported_spans_as_dict(include_instrumentation_scope=True) == snapshot(
+        [
+            {
+                "name": "GET",
+                "context": {"trace_id": 1, "span_id": 1, "is_remote": False},
+                "parent": None,
+                "start_time": 1000000000,
+                "end_time": 2000000000,
+                "instrumentation_scope": "httpx2",
+                "attributes": {
+                    "http.request.method": "GET",
+                    "server.address": "example.com",
+                    "server.port": 8443,
+                    "url.full": "https://REDACTED:REDACTED@example.com:8443/example",
+                    "logfire.span_type": "span",
+                    "logfire.msg": "GET",
+                    "http.response.status_code": 404,
+                    "network.protocol.version": "2",
+                    "error.type": "404",
+                    "logfire.level_num": 17,
+                },
+            }
+        ]
     )
-    assert "http.method" not in span.attributes
-    assert "http.status_code" not in span.attributes
 
     metric = _duration_metric(capfire)
     assert metric["name"] == "http.client.request.duration"
@@ -89,9 +95,28 @@ async def test_async_client_emits_opentelemetry(capfire: CaptureLogfire) -> None
         response = await client.get("https://example.com/")
 
     assert response.status_code == 204
-    [span] = _httpx2_spans(capfire)
-    assert span.kind is SpanKind.CLIENT
-    assert span.attributes["http.response.status_code"] == 204
+    assert capfire.exporter.exported_spans_as_dict(include_instrumentation_scope=True) == snapshot(
+        [
+            {
+                "name": "GET",
+                "context": {"trace_id": 1, "span_id": 1, "is_remote": False},
+                "parent": None,
+                "start_time": 1000000000,
+                "end_time": 2000000000,
+                "instrumentation_scope": "httpx2",
+                "attributes": {
+                    "http.request.method": "GET",
+                    "server.address": "example.com",
+                    "server.port": 443,
+                    "url.full": "https://example.com/",
+                    "logfire.span_type": "span",
+                    "logfire.msg": "GET",
+                    "http.response.status_code": 204,
+                    "network.protocol.version": "1.1",
+                },
+            }
+        ]
+    )
     assert _duration_metric(capfire)["data"]["data_points"]
 
 
@@ -106,7 +131,7 @@ def test_opentelemetry_honors_logfire_suppression_context(capfire: CaptureLogfir
             response = client.get("https://example.com/")
 
     assert response.status_code == 200
-    assert _httpx2_spans(capfire) == []
+    assert capfire.exporter.exported_spans_as_dict(include_instrumentation_scope=True) == snapshot([])
     assert _duration_metrics(capfire) == []
 
 
@@ -121,7 +146,7 @@ def test_opentelemetry_honors_context_suppression_fallback(capfire: CaptureLogfi
     with logfire.suppress_instrumentation():
         assert otel.is_enabled(request) is False
 
-    assert capfire.exporter.exported_spans == []
+    assert capfire.exporter.exported_spans_as_dict(include_instrumentation_scope=True) == snapshot([])
 
 
 def test_opentelemetry_honors_http_context_suppression_fallback(capfire: CaptureLogfire) -> None:
@@ -137,7 +162,7 @@ def test_opentelemetry_honors_http_context_suppression_fallback(capfire: Capture
     finally:
         otel._context.detach(token)
 
-    assert capfire.exporter.exported_spans == []
+    assert capfire.exporter.exported_spans_as_dict(include_instrumentation_scope=True) == snapshot([])
 
 
 def test_opentelemetry_records_exceptions(capfire: CaptureLogfire) -> None:
@@ -149,9 +174,51 @@ def test_opentelemetry_records_exceptions(capfire: CaptureLogfire) -> None:
         with pytest.raises(httpx2.ConnectError):
             client.get("https://example.com/")
 
-    [span] = _httpx2_spans(capfire)
-    assert span.attributes["error.type"] == "httpx2.ConnectError"
-    assert span.status.status_code is StatusCode.ERROR
+    assert capfire.exporter.exported_spans_as_dict(include_instrumentation_scope=True) == snapshot(
+        [
+            {
+                "name": "GET",
+                "context": {"trace_id": 1, "span_id": 1, "is_remote": False},
+                "parent": None,
+                "start_time": 1000000000,
+                "end_time": 4000000000,
+                "instrumentation_scope": "httpx2",
+                "attributes": {
+                    "http.request.method": "GET",
+                    "server.address": "example.com",
+                    "server.port": 443,
+                    "url.full": "https://example.com/",
+                    "logfire.span_type": "span",
+                    "logfire.msg": "GET",
+                    "error.type": "httpx2.ConnectError",
+                    "logfire.exception.fingerprint": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "logfire.level_num": 17,
+                },
+                "events": [
+                    {
+                        "name": "exception",
+                        "timestamp": 2000000000,
+                        "attributes": {
+                            "exception.type": "httpx2.ConnectError",
+                            "exception.message": "no route",
+                            "exception.stacktrace": "httpx2.ConnectError: no route",
+                            "exception.escaped": "False",
+                        },
+                    },
+                    {
+                        "name": "exception",
+                        "timestamp": 3000000000,
+                        "attributes": {
+                            "exception.type": "httpx2.ConnectError",
+                            "exception.message": "no route",
+                            "exception.stacktrace": "httpx2.ConnectError: no route",
+                            "exception.escaped": "False",
+                        },
+                    },
+                ],
+            }
+        ]
+    )
     assert _duration_metric(capfire)["data"]["data_points"][0]["attributes"]["error.type"] == "httpx2.ConnectError"
 
 
@@ -175,9 +242,51 @@ def test_opentelemetry_records_propagation_injection_exceptions(
         with pytest.raises(RuntimeError, match="inject failed"):
             client.get("https://example.com/")
 
-    [span] = _httpx2_spans(capfire)
-    assert span.attributes["error.type"] == "builtins.RuntimeError"
-    assert span.status.status_code is StatusCode.ERROR
+    assert capfire.exporter.exported_spans_as_dict(include_instrumentation_scope=True) == snapshot(
+        [
+            {
+                "name": "GET",
+                "context": {"trace_id": 1, "span_id": 1, "is_remote": False},
+                "parent": None,
+                "start_time": 1000000000,
+                "end_time": 4000000000,
+                "instrumentation_scope": "httpx2",
+                "attributes": {
+                    "http.request.method": "GET",
+                    "server.address": "example.com",
+                    "server.port": 443,
+                    "url.full": "https://example.com/",
+                    "logfire.span_type": "span",
+                    "logfire.msg": "GET",
+                    "error.type": "builtins.RuntimeError",
+                    "logfire.exception.fingerprint": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "logfire.level_num": 17,
+                },
+                "events": [
+                    {
+                        "name": "exception",
+                        "timestamp": 2000000000,
+                        "attributes": {
+                            "exception.type": "RuntimeError",
+                            "exception.message": "inject failed",
+                            "exception.stacktrace": "RuntimeError: inject failed",
+                            "exception.escaped": "False",
+                        },
+                    },
+                    {
+                        "name": "exception",
+                        "timestamp": 3000000000,
+                        "attributes": {
+                            "exception.type": "RuntimeError",
+                            "exception.message": "inject failed",
+                            "exception.stacktrace": "RuntimeError: inject failed",
+                            "exception.escaped": "False",
+                        },
+                    },
+                ],
+            }
+        ]
+    )
     assert _duration_metric(capfire)["data"]["data_points"][0]["attributes"]["error.type"] == "builtins.RuntimeError"
 
 
@@ -190,9 +299,43 @@ def test_opentelemetry_records_sync_body_read_exceptions(capfire: CaptureLogfire
         with pytest.raises(RuntimeError, match="stream failed"):
             client.get("https://example.com/")
 
-    [span] = _httpx2_spans(capfire)
-    assert span.attributes["error.type"] == "builtins.RuntimeError"
-    assert span.status.status_code is StatusCode.ERROR
+    assert capfire.exporter.exported_spans_as_dict(include_instrumentation_scope=True) == snapshot(
+        [
+            {
+                "name": "GET",
+                "context": {"trace_id": 1, "span_id": 1, "is_remote": False},
+                "parent": None,
+                "start_time": 1000000000,
+                "end_time": 3000000000,
+                "instrumentation_scope": "httpx2",
+                "attributes": {
+                    "http.request.method": "GET",
+                    "server.address": "example.com",
+                    "server.port": 443,
+                    "url.full": "https://example.com/",
+                    "logfire.span_type": "span",
+                    "logfire.msg": "GET",
+                    "http.response.status_code": 200,
+                    "network.protocol.version": "1.1",
+                    "logfire.exception.fingerprint": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "error.type": "builtins.RuntimeError",
+                    "logfire.level_num": 17,
+                },
+                "events": [
+                    {
+                        "name": "exception",
+                        "timestamp": 2000000000,
+                        "attributes": {
+                            "exception.type": "RuntimeError",
+                            "exception.message": "stream failed",
+                            "exception.stacktrace": "RuntimeError: stream failed",
+                            "exception.escaped": "False",
+                        },
+                    }
+                ],
+            }
+        ]
+    )
     assert _duration_metric(capfire)["data"]["data_points"][0]["attributes"]["error.type"] == "builtins.RuntimeError"
 
 
@@ -206,9 +349,43 @@ async def test_opentelemetry_records_async_body_read_exceptions(capfire: Capture
         with pytest.raises(RuntimeError, match="stream failed"):
             await client.get("https://example.com/")
 
-    [span] = _httpx2_spans(capfire)
-    assert span.attributes["error.type"] == "builtins.RuntimeError"
-    assert span.status.status_code is StatusCode.ERROR
+    assert capfire.exporter.exported_spans_as_dict(include_instrumentation_scope=True) == snapshot(
+        [
+            {
+                "name": "GET",
+                "context": {"trace_id": 1, "span_id": 1, "is_remote": False},
+                "parent": None,
+                "start_time": 1000000000,
+                "end_time": 3000000000,
+                "instrumentation_scope": "httpx2",
+                "attributes": {
+                    "http.request.method": "GET",
+                    "server.address": "example.com",
+                    "server.port": 443,
+                    "url.full": "https://example.com/",
+                    "logfire.span_type": "span",
+                    "logfire.msg": "GET",
+                    "http.response.status_code": 200,
+                    "network.protocol.version": "1.1",
+                    "logfire.exception.fingerprint": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "error.type": "builtins.RuntimeError",
+                    "logfire.level_num": 17,
+                },
+                "events": [
+                    {
+                        "name": "exception",
+                        "timestamp": 2000000000,
+                        "attributes": {
+                            "exception.type": "RuntimeError",
+                            "exception.message": "stream failed",
+                            "exception.stacktrace": "RuntimeError: stream failed",
+                            "exception.escaped": "False",
+                        },
+                    }
+                ],
+            }
+        ]
+    )
     assert _duration_metric(capfire)["data"]["data_points"][0]["attributes"]["error.type"] == "builtins.RuntimeError"
 
 
@@ -225,10 +402,28 @@ def test_opentelemetry_honors_configured_known_methods(
     with httpx2.Client(transport=transport) as client:
         client.request("PROPFIND", "https://example.com/")
 
-    [span] = _httpx2_spans(capfire)
-    assert span.name == "PROPFIND"
-    assert span.attributes["http.request.method"] == "PROPFIND"
-    assert "http.request.method_original" not in span.attributes
+    assert capfire.exporter.exported_spans_as_dict(include_instrumentation_scope=True) == snapshot(
+        [
+            {
+                "name": "PROPFIND",
+                "context": {"trace_id": 1, "span_id": 1, "is_remote": False},
+                "parent": None,
+                "start_time": 1000000000,
+                "end_time": 2000000000,
+                "instrumentation_scope": "httpx2",
+                "attributes": {
+                    "http.request.method": "PROPFIND",
+                    "server.address": "example.com",
+                    "server.port": 443,
+                    "url.full": "https://example.com/",
+                    "logfire.span_type": "span",
+                    "logfire.msg": "PROPFIND",
+                    "http.response.status_code": 200,
+                    "network.protocol.version": "1.1",
+                },
+            }
+        ]
+    )
     assert _duration_metric(capfire)["data"]["data_points"][0]["attributes"]["http.request.method"] == "PROPFIND"
 
 
@@ -240,10 +435,29 @@ def test_opentelemetry_uses_other_for_unknown_methods(capfire: CaptureLogfire) -
     with httpx2.Client(transport=transport) as client:
         client.request("BREW", "https://example.com/")
 
-    [span] = _httpx2_spans(capfire)
-    assert span.name == "HTTP"
-    assert span.attributes["http.request.method"] == "_OTHER"
-    assert span.attributes["http.request.method_original"] == "BREW"
+    assert capfire.exporter.exported_spans_as_dict(include_instrumentation_scope=True) == snapshot(
+        [
+            {
+                "name": "HTTP",
+                "context": {"trace_id": 1, "span_id": 1, "is_remote": False},
+                "parent": None,
+                "start_time": 1000000000,
+                "end_time": 2000000000,
+                "instrumentation_scope": "httpx2",
+                "attributes": {
+                    "http.request.method": "_OTHER",
+                    "http.request.method_original": "BREW",
+                    "server.address": "example.com",
+                    "server.port": 443,
+                    "url.full": "https://example.com/",
+                    "logfire.span_type": "span",
+                    "logfire.msg": "HTTP",
+                    "http.response.status_code": 200,
+                    "network.protocol.version": "1.1",
+                },
+            }
+        ]
+    )
     metric_attributes = _duration_metric(capfire)["data"]["data_points"][0]["attributes"]
     assert metric_attributes["http.request.method"] == "_OTHER"
     assert metric_attributes["http.request.method_original"] == "BREW"
@@ -267,10 +481,31 @@ def test_opentelemetry_captures_and_sanitizes_opt_in_headers(
     with httpx2.Client(transport=transport, headers={"x-private": "secret", "x-request-id": "abc"}) as client:
         client.get("https://example.com/")
 
-    [span] = _httpx2_spans(capfire)
-    assert span.attributes["http.request.header.x_private"] == ("[REDACTED]",)
-    assert span.attributes["http.request.header.x_request_id"] == ("abc",)
-    assert span.attributes["http.response.header.x_response_private"] == ("[REDACTED]",)
+    assert capfire.exporter.exported_spans_as_dict(include_instrumentation_scope=True) == snapshot(
+        [
+            {
+                "name": "GET",
+                "context": {"trace_id": 1, "span_id": 1, "is_remote": False},
+                "parent": None,
+                "start_time": 1000000000,
+                "end_time": 2000000000,
+                "instrumentation_scope": "httpx2",
+                "attributes": {
+                    "http.request.method": "GET",
+                    "server.address": "example.com",
+                    "server.port": 443,
+                    "url.full": "https://example.com/",
+                    "http.request.header.x_private": ("[REDACTED]",),
+                    "http.request.header.x_request_id": ("abc",),
+                    "logfire.span_type": "span",
+                    "logfire.msg": "GET",
+                    "http.response.status_code": 200,
+                    "network.protocol.version": "1.1",
+                    "http.response.header.x_response_private": ("[REDACTED]",),
+                },
+            }
+        ]
+    )
     assert "http.request.header.x_private" not in _duration_metric(capfire)["data"]["data_points"][0]["attributes"]
 
 
@@ -285,22 +520,3 @@ def _duration_metrics(capfire: CaptureLogfire) -> list[dict[str, typing.Any]]:
     except AttributeError:
         return []
     return [metric for metric in metrics if metric["name"] == "http.client.request.duration"]
-
-
-def _httpx2_spans(capfire: CaptureLogfire) -> list[typing.Any]:
-    return [
-        span
-        for span in capfire.exporter.exported_spans
-        if span.instrumentation_scope is not None
-        and span.instrumentation_scope.name == "httpx2"
-        and span.attributes is not None
-        and span.attributes.get("logfire.span_type") == "span"
-    ]
-
-
-def _assert_attributes_include(
-    attributes: typing.Mapping[str, typing.Any],
-    expected: dict[str, typing.Any],
-) -> None:
-    for key, value in expected.items():
-        assert attributes[key] == value
