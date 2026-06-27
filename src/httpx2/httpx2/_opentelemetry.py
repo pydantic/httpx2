@@ -140,7 +140,13 @@ class OpenTelemetry:
             span_context_manager=span_cm,
             start=time.perf_counter(),
         )
-        self._propagate.inject(request.headers)
+        try:
+            self._propagate.inject(request.headers)
+        except BaseException as exc:
+            trace.set_exception(exc)
+            trace.detach_current(type(exc), exc, exc.__traceback__)
+            trace.close()
+            raise
         return trace
 
 

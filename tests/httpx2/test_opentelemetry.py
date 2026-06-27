@@ -155,6 +155,32 @@ def test_opentelemetry_records_exceptions(capfire: CaptureLogfire) -> None:
     assert _duration_metric(capfire)["data"]["data_points"][0]["attributes"]["error.type"] == "httpx2.ConnectError"
 
 
+def test_opentelemetry_records_propagation_injection_exceptions(
+    capfire: CaptureLogfire,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    otel = otel_module.get_opentelemetry()
+    assert otel is not None
+
+    def inject(headers: httpx2.Headers) -> None:
+        raise RuntimeError("inject failed")
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        pytest.fail("transport should not be called")  # pragma: no cover
+
+    monkeypatch.setattr(otel._propagate, "inject", inject)
+
+    transport = httpx2.MockTransport(handler)
+    with httpx2.Client(transport=transport) as client:
+        with pytest.raises(RuntimeError, match="inject failed"):
+            client.get("https://example.com/")
+
+    [span] = _httpx2_spans(capfire)
+    assert span.attributes["error.type"] == "builtins.RuntimeError"
+    assert span.status.status_code is StatusCode.ERROR
+    assert _duration_metric(capfire)["data"]["data_points"][0]["attributes"]["error.type"] == "builtins.RuntimeError"
+
+
 def test_opentelemetry_records_sync_body_read_exceptions(capfire: CaptureLogfire) -> None:
     def handler(request: httpx2.Request) -> httpx2.Response:
         return httpx2.Response(200, stream=FailingSyncStream())
