@@ -4,6 +4,7 @@ import os
 import re
 import time
 import typing
+from contextlib import contextmanager
 from functools import cache
 
 from .__version__ import __version__
@@ -147,6 +148,18 @@ class OpenTelemetry:
             trace.close()
             raise
         return trace
+
+    @contextmanager
+    def trace_request(self, request: Request) -> typing.Iterator[RequestTrace]:
+        trace = self.start_request(request)
+        try:
+            yield trace
+        except BaseException as exc:
+            trace.set_exception(exc)
+            trace.detach_current(type(exc), exc, exc.__traceback__)
+            raise
+        finally:
+            trace.close()
 
 
 class RequestTrace:
