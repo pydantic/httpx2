@@ -1403,6 +1403,7 @@ http2 = [
 ]
 opentelemetry = [
     { name = "opentelemetry-api" },
+    { name = "opentelemetry-instrumentation" },
 ]
 socks = [
     { name = "socksio" },
@@ -1421,6 +1422,7 @@ requires-dist = [
     { name = "httpcore2", editable = "src/httpcore2" },
     { name = "idna", specifier = ">=3.18" },
     { name = "opentelemetry-api", marker = "extra == 'opentelemetry'", specifier = ">=1.42.0" },
+    { name = "opentelemetry-instrumentation", marker = "extra == 'opentelemetry'", specifier = ">=0.63b0" },
     { name = "pygments", marker = "extra == 'cli'", specifier = "==2.*" },
     { name = "rich", marker = "extra == 'cli'", specifier = ">=10,<16" },
     { name = "socksio", marker = "extra == 'socks'", specifier = "==1.*" },

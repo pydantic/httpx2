@@ -66,6 +66,7 @@ http2 = [
 ]
 opentelemetry = [
     "opentelemetry-api>=1.42.0",
+    "opentelemetry-instrumentation>=0.63b0",
 ]
 socks = [
     "socksio==1.*",

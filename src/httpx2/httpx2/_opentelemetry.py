@@ -53,15 +53,10 @@ def get_opentelemetry() -> OpenTelemetry | None:
 def _get_opentelemetry() -> OpenTelemetry | None:
     try:
         from opentelemetry import context, metrics, propagate, trace
+        from opentelemetry.instrumentation.utils import is_http_instrumentation_enabled
         from opentelemetry.trace import SpanKind, Status, StatusCode
     except ImportError:  # pragma: no cover
         return None
-
-    is_http_instrumentation_enabled: typing.Callable[[], bool] | None
-    try:
-        from opentelemetry.instrumentation.utils import is_http_instrumentation_enabled
-    except ImportError:  # pragma: no cover
-        is_http_instrumentation_enabled = None
 
     return OpenTelemetry(
         context=context,
