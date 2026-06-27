@@ -64,6 +64,9 @@ cli = [
 http2 = [
     "h2>=3,<5",
 ]
+opentelemetry = [
+    "opentelemetry-api>=1.42.0",
+]
 socks = [
     "socksio==1.*",
 ]

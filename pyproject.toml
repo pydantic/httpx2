@@ -35,6 +35,7 @@ dev = [
   # Packaging
   "build==1.3.0",
   "twine==6.1.0",
+  "logfire>=4.37.0",
 ]
 docs = ["zensical>=0.0.41", "mkdocstrings[python]>=0.27"]
 bench = [
