@@ -3,12 +3,58 @@ from __future__ import annotations
 import os
 import re
 import time
-import typing
-from contextlib import contextmanager
+from collections.abc import Callable, Iterator, Mapping, Sequence
+from contextlib import AbstractContextManager, contextmanager
 from functools import cache
+from types import TracebackType
+from typing import TYPE_CHECKING, NamedTuple, Protocol, TypeAlias
 
 from .__version__ import __version__
 from ._models import Headers, Request, Response
+
+if TYPE_CHECKING:
+    from opentelemetry.metrics import Histogram, Meter, MeterProvider
+    from opentelemetry.trace import Span, SpanKind, Status, StatusCode, Tracer, TracerProvider
+
+AttributeValue: TypeAlias = str | bool | int | float | Sequence[str] | Sequence[bool] | Sequence[int] | Sequence[float]
+Attributes: TypeAlias = dict[str, AttributeValue]
+
+
+class PropagateModule(Protocol):
+    def inject(self, carrier: Headers) -> None: ...
+
+
+class MetricsModule(Protocol):
+    def get_meter(
+        self,
+        name: str,
+        version: str = "",
+        meter_provider: MeterProvider | None = None,
+        schema_url: str | None = None,
+        attributes: Mapping[str, AttributeValue] | None = None,
+    ) -> Meter: ...
+
+
+class TraceModule(Protocol):
+    def get_tracer(
+        self,
+        instrumenting_module_name: str,
+        instrumenting_library_version: str | None = None,
+        tracer_provider: TracerProvider | None = None,
+        schema_url: str | None = None,
+        attributes: Mapping[str, AttributeValue] | None = None,
+    ) -> Tracer: ...
+
+
+class OpenTelemetryDependencies(NamedTuple):
+    propagate: PropagateModule
+    span_kind: type[SpanKind]
+    status: type[Status]
+    status_code: type[StatusCode]
+    is_http_instrumentation_enabled: Callable[[], bool]
+    tracer: Tracer
+    duration_histogram: Histogram
+
 
 KNOWN_HTTP_METHODS = {
     "CONNECT",
@@ -45,138 +91,95 @@ HTTP_CLIENT_REQUEST_DURATION_BUCKETS = (
 )
 
 
-def get_opentelemetry() -> OpenTelemetry | None:
-    return _get_opentelemetry()
-
-
 @contextmanager
-def trace_request(request: Request) -> typing.Iterator[RequestTrace | _NoOpRequestTrace]:
-    otel = get_opentelemetry()
-    if otel is None or not otel.is_enabled(request):
-        yield _NOOP_REQUEST_TRACE
+def trace_request(request: Request) -> Iterator[RequestTrace | NoOpRequestTrace]:
+    dependencies = opentelemetry_dependencies()
+    if dependencies is None or not is_enabled(request, dependencies):
+        yield NOOP_REQUEST_TRACE
     else:
-        with otel.trace_request(request) as trace:
+        with record_request(request, dependencies) as trace:
             yield trace
 
 
 @cache
-def _get_opentelemetry() -> OpenTelemetry | None:
+def opentelemetry_dependencies() -> OpenTelemetryDependencies | None:
     try:
-        from opentelemetry import context, metrics, propagate, trace
+        from opentelemetry import metrics, propagate, trace
         from opentelemetry.instrumentation.utils import is_http_instrumentation_enabled
         from opentelemetry.trace import SpanKind, Status, StatusCode
     except ImportError:  # pragma: no cover
         return None
 
-    return OpenTelemetry(
-        context=context,
-        metrics=metrics,
+    tracer = get_tracer(trace)
+    meter = get_meter(metrics)
+    return OpenTelemetryDependencies(
         propagate=propagate,
-        trace=trace,
         span_kind=SpanKind,
         status=Status,
         status_code=StatusCode,
         is_http_instrumentation_enabled=is_http_instrumentation_enabled,
+        tracer=tracer,
+        duration_histogram=create_duration_histogram(meter),
     )
 
 
-class OpenTelemetry:
-    def __init__(
-        self,
-        *,
-        context: typing.Any,
-        metrics: typing.Any,
-        propagate: typing.Any,
-        trace: typing.Any,
-        span_kind: typing.Any,
-        status: typing.Any,
-        status_code: typing.Any,
-        is_http_instrumentation_enabled: typing.Callable[[], bool] | None,
-    ) -> None:
-        self._context = context
-        self._propagate = propagate
-        self._trace = trace
-        self._span_kind = span_kind
-        self._status = status
-        self._status_code = status_code
-        self._is_http_instrumentation_enabled = is_http_instrumentation_enabled
-        self._suppress_instrumentation_key = getattr(context, "_SUPPRESS_INSTRUMENTATION_KEY", None)
-        self._suppress_http_instrumentation_key = getattr(context, "_SUPPRESS_HTTP_INSTRUMENTATION_KEY", None)
-        self._tracer = _get_tracer(trace)
-        meter = _get_meter(metrics)
-        self._duration_histogram = _create_duration_histogram(meter)
+def is_enabled(request: Request, dependencies: OpenTelemetryDependencies) -> bool:
+    return is_http_url(request) and dependencies.is_http_instrumentation_enabled()
 
-    def is_enabled(self, request: Request) -> bool:
-        if not _is_http_url(request):
-            return False
 
-        if self._is_http_instrumentation_enabled is not None:
-            return self._is_http_instrumentation_enabled()
+def start_request(request: Request, dependencies: OpenTelemetryDependencies) -> RequestTrace:
+    span_attributes = request_attributes(request)
+    metric_attributes = request_metric_attributes(request)
+    name = span_name(request.method)
+    span_cm = dependencies.tracer.start_as_current_span(
+        name,
+        kind=dependencies.span_kind.CLIENT,
+        attributes=span_attributes,
+        end_on_exit=False,
+    )
+    span = span_cm.__enter__()
+    trace = RequestTrace(
+        span=span,
+        duration_histogram=dependencies.duration_histogram,
+        metric_attributes=metric_attributes,
+        status=dependencies.status,
+        status_code=dependencies.status_code,
+        span_context_manager=span_cm,
+        start=time.perf_counter(),
+    )
+    try:
+        dependencies.propagate.inject(request.headers)
+    except Exception as exc:
+        trace.set_exception(exc)
+        trace.detach_current(type(exc), exc, exc.__traceback__)
+        trace.close()
+        raise
+    return trace
 
-        if self._suppress_instrumentation_key is not None and self._context.get_value(
-            self._suppress_instrumentation_key
-        ):
-            return False
 
-        if self._suppress_http_instrumentation_key is not None and self._context.get_value(
-            self._suppress_http_instrumentation_key
-        ):
-            return False
-
-        return True
-
-    def start_request(self, request: Request) -> RequestTrace:
-        span_attributes = _request_attributes(request)
-        metric_attributes = _request_metric_attributes(request)
-        span_name = _span_name(request.method)
-        span_cm = self._tracer.start_as_current_span(
-            span_name,
-            kind=self._span_kind.CLIENT,
-            attributes=span_attributes,
-            end_on_exit=False,
-        )
-        span = span_cm.__enter__()
-        trace = RequestTrace(
-            span=span,
-            duration_histogram=self._duration_histogram,
-            metric_attributes=metric_attributes,
-            status=self._status,
-            status_code=self._status_code,
-            span_context_manager=span_cm,
-            start=time.perf_counter(),
-        )
-        try:
-            self._propagate.inject(request.headers)
-        except Exception as exc:
-            trace.set_exception(exc)
-            trace.detach_current(type(exc), exc, exc.__traceback__)
-            trace.close()
-            raise
-        return trace
-
-    @contextmanager
-    def trace_request(self, request: Request) -> typing.Iterator[RequestTrace]:
-        trace = self.start_request(request)
-        try:
-            yield trace
-        except Exception as exc:
-            trace.set_exception(exc)
-            trace.detach_current(type(exc), exc, exc.__traceback__)
-            raise
-        finally:
-            trace.close()
+@contextmanager
+def record_request(request: Request, dependencies: OpenTelemetryDependencies) -> Iterator[RequestTrace]:
+    trace = start_request(request, dependencies)
+    try:
+        yield trace
+    except Exception as exc:
+        trace.set_exception(exc)
+        trace.detach_current(type(exc), exc, exc.__traceback__)
+        raise
+    finally:
+        trace.close()
 
 
 class RequestTrace:
     def __init__(
         self,
         *,
-        span: typing.Any,
-        duration_histogram: typing.Any,
-        metric_attributes: dict[str, typing.Any],
-        status: typing.Any,
-        status_code: typing.Any,
-        span_context_manager: typing.Any,
+        span: Span,
+        duration_histogram: Histogram,
+        metric_attributes: Attributes,
+        status: type[Status],
+        status_code: type[StatusCode],
+        span_context_manager: AbstractContextManager[Span],
         start: float,
     ) -> None:
         self._span = span
@@ -190,17 +193,17 @@ class RequestTrace:
         self._detached = False
 
     def set_response(self, response: Response) -> None:
-        response_attributes = _response_attributes(response)
-        self._metric_attributes.update(_response_metric_attributes(response))
-        _set_attributes(self._span, response_attributes)
+        attributes = response_attributes(response)
+        self._metric_attributes.update(response_metric_attributes(response))
+        set_attributes(self._span, attributes)
 
-        if _is_error_status(response.status_code):
-            self._set_error(str(response.status_code))
+        if is_error_status(response.status_code):
+            self.set_error(str(response.status_code))
 
-    def set_exception(self, exc: BaseException) -> None:
+    def set_exception(self, exc: Exception) -> None:
         if self._span.is_recording():
             self._span.record_exception(exc)
-        self._set_error(f"{type(exc).__module__}.{type(exc).__qualname__}")
+        self.set_error(f"{type(exc).__module__}.{type(exc).__qualname__}")
 
     def record_duration(self, duration: float) -> None:
         self._duration_histogram.record(max(duration, 0), attributes=self._metric_attributes)
@@ -218,7 +221,7 @@ class RequestTrace:
         self,
         exc_type: type[BaseException] | None = None,
         exc_value: BaseException | None = None,
-        traceback: typing.Any = None,
+        traceback: TracebackType | None = None,
     ) -> None:
         if self._detached:
             return
@@ -226,35 +229,35 @@ class RequestTrace:
         self._detached = True
         self._span_context_manager.__exit__(exc_type, exc_value, traceback)
 
-    def _set_error(self, error_type: str) -> None:
+    def set_error(self, error_type: str) -> None:
         self._metric_attributes["error.type"] = error_type
         if self._span.is_recording():
             self._span.set_attribute("error.type", error_type)
             self._span.set_status(self._status(self._status_code.ERROR))
 
 
-class _NoOpRequestTrace:
+class NoOpRequestTrace:
     def set_response(self, response: Response) -> None:
         pass
 
 
-_NOOP_REQUEST_TRACE = _NoOpRequestTrace()
+NOOP_REQUEST_TRACE = NoOpRequestTrace()
 
 
-def _request_attributes(request: Request) -> dict[str, typing.Any]:
-    attributes = _request_metric_attributes(request)
-    attributes["url.full"] = _redact_url(request)
+def request_attributes(request: Request) -> Attributes:
+    attributes = request_metric_attributes(request)
+    attributes["url.full"] = redact_url(request)
 
-    captured_headers = _captured_headers("OTEL_INSTRUMENTATION_HTTP_CAPTURE_HEADERS_CLIENT_REQUEST")
-    if captured_headers:
-        attributes.update(_header_attributes("http.request.header", request.headers, captured_headers))
+    header_patterns = captured_headers("OTEL_INSTRUMENTATION_HTTP_CAPTURE_HEADERS_CLIENT_REQUEST")
+    if header_patterns:
+        attributes.update(header_attributes("http.request.header", request.headers, header_patterns))
 
     return attributes
 
 
-def _request_metric_attributes(request: Request) -> dict[str, typing.Any]:
-    method = _known_method(request.method)
-    attributes: dict[str, typing.Any] = {
+def request_metric_attributes(request: Request) -> Attributes:
+    method = known_method(request.method)
+    attributes: Attributes = {
         "http.request.method": method,
     }
 
@@ -271,18 +274,18 @@ def _request_metric_attributes(request: Request) -> dict[str, typing.Any]:
     return attributes
 
 
-def _response_attributes(response: Response) -> dict[str, typing.Any]:
-    attributes = _response_metric_attributes(response)
+def response_attributes(response: Response) -> Attributes:
+    attributes = response_metric_attributes(response)
 
-    captured_headers = _captured_headers("OTEL_INSTRUMENTATION_HTTP_CAPTURE_HEADERS_CLIENT_RESPONSE")
-    if captured_headers:
-        attributes.update(_header_attributes("http.response.header", response.headers, captured_headers))
+    header_patterns = captured_headers("OTEL_INSTRUMENTATION_HTTP_CAPTURE_HEADERS_CLIENT_RESPONSE")
+    if header_patterns:
+        attributes.update(header_attributes("http.response.header", response.headers, header_patterns))
 
     return attributes
 
 
-def _response_metric_attributes(response: Response) -> dict[str, typing.Any]:
-    attributes: dict[str, typing.Any] = {"http.response.status_code": response.status_code}
+def response_metric_attributes(response: Response) -> Attributes:
+    attributes: Attributes = {"http.response.status_code": response.status_code}
 
     if response.http_version:
         attributes["network.protocol.version"] = response.http_version.removeprefix("HTTP/")
@@ -290,20 +293,20 @@ def _response_metric_attributes(response: Response) -> dict[str, typing.Any]:
     return attributes
 
 
-def _is_http_url(request: Request) -> bool:
+def is_http_url(request: Request) -> bool:
     return request.url.scheme in {"http", "https"}
 
 
-def _span_name(method: str) -> str:
-    method = _known_method(method)
+def span_name(method: str) -> str:
+    method = known_method(method)
     return "HTTP" if method == "_OTHER" else method
 
 
-def _known_method(method: str) -> str:
-    return method if method in _known_methods() else "_OTHER"
+def known_method(method: str) -> str:
+    return method if method in known_methods() else "_OTHER"
 
 
-def _known_methods() -> set[str]:
+def known_methods() -> set[str]:
     configured_methods = os.environ.get("OTEL_INSTRUMENTATION_HTTP_KNOWN_METHODS")
     if configured_methods is None:
         return KNOWN_HTTP_METHODS
@@ -311,17 +314,17 @@ def _known_methods() -> set[str]:
     return {method.strip().upper() for method in configured_methods.split(",") if method.strip()}
 
 
-def _redact_url(request: Request) -> str:
+def redact_url(request: Request) -> str:
     if request.url.userinfo:
         return str(request.url.copy_with(username="REDACTED", password="REDACTED"))
     return str(request.url)
 
 
-def _is_error_status(status_code: int) -> bool:
+def is_error_status(status_code: int) -> bool:
     return status_code >= 400
 
 
-def _set_attributes(span: typing.Any, attributes: dict[str, typing.Any]) -> None:
+def set_attributes(span: Span, attributes: Attributes) -> None:
     if not span.is_recording():
         return
 
@@ -329,40 +332,40 @@ def _set_attributes(span: typing.Any, attributes: dict[str, typing.Any]) -> None
         span.set_attribute(name, value)
 
 
-def _captured_headers(name: str) -> list[re.Pattern[str]]:
+def captured_headers(name: str) -> list[re.Pattern[str]]:
     value = os.environ.get(name, "")
     return [re.compile(pattern.strip(), re.IGNORECASE) for pattern in value.split(",") if pattern.strip()]
 
 
-def _header_attributes(
+def header_attributes(
     prefix: str,
     headers: Headers,
     captured_headers: list[re.Pattern[str]],
-) -> dict[str, list[str]]:
-    sensitive_headers = _sensitive_headers()
-    attributes: dict[str, list[str]] = {}
+) -> Attributes:
+    sensitive_headers = sensitive_header_patterns()
+    attributes: Attributes = {}
     for key in headers.keys():
         if not any(pattern.fullmatch(key) for pattern in captured_headers):
             continue
         attribute = f"{prefix}.{key.lower().replace('-', '_')}"
         values = headers.get_list(key, split_commas=True)
-        attributes[attribute] = [
-            "[REDACTED]" if _is_sensitive_header(key, sensitive_headers) else value for value in values
-        ]
+        attributes[attribute] = tuple(
+            "[REDACTED]" if is_sensitive_header(key, sensitive_headers) else value for value in values
+        )
     return attributes
 
 
-def _sensitive_headers() -> list[re.Pattern[str]]:
+def sensitive_header_patterns() -> list[re.Pattern[str]]:
     value = os.environ.get("OTEL_INSTRUMENTATION_HTTP_CAPTURE_HEADERS_SANITIZE_FIELDS", "")
     names = [*SENSITIVE_HEADERS, *[item.strip() for item in value.split(",") if item.strip()]]
     return [re.compile(name, re.IGNORECASE) for name in names]
 
 
-def _is_sensitive_header(key: str, sensitive_headers: list[re.Pattern[str]]) -> bool:
+def is_sensitive_header(key: str, sensitive_headers: list[re.Pattern[str]]) -> bool:
     return any(pattern.fullmatch(key) for pattern in sensitive_headers)
 
 
-def _get_tracer(trace: typing.Any) -> typing.Any:
+def get_tracer(trace: TraceModule) -> Tracer:
     try:
         return trace.get_tracer(
             INSTRUMENTATION_NAME,
@@ -373,18 +376,18 @@ def _get_tracer(trace: typing.Any) -> typing.Any:
         return trace.get_tracer(INSTRUMENTATION_NAME, __version__)
 
 
-def _get_meter(metrics: typing.Any) -> typing.Any:
+def get_meter(metrics: MetricsModule) -> Meter:
     try:
         return metrics.get_meter(
             INSTRUMENTATION_NAME,
-            instrumenting_library_version=__version__,
+            version=__version__,
             schema_url=SEMCONV_SCHEMA_URL,
         )
     except TypeError:  # pragma: no cover
         return metrics.get_meter(INSTRUMENTATION_NAME, __version__)
 
 
-def _create_duration_histogram(meter: typing.Any) -> typing.Any:
+def create_duration_histogram(meter: Meter) -> Histogram:
     try:
         return meter.create_histogram(
             name=CLIENT_REQUEST_DURATION,

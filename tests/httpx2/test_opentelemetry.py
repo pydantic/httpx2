@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import asyncio
-import typing
+from collections.abc import Iterator
+from typing import Any, cast
 
 import logfire
 import pytest
@@ -13,10 +14,10 @@ import httpx2._opentelemetry as otel_module
 
 
 @pytest.fixture(autouse=True)
-def clear_opentelemetry_cache() -> typing.Iterator[None]:
-    otel_module._get_opentelemetry.cache_clear()
+def clear_opentelemetry_cache() -> Iterator[None]:
+    otel_module.opentelemetry_dependencies.cache_clear()
     yield
-    otel_module._get_opentelemetry.cache_clear()
+    otel_module.opentelemetry_dependencies.cache_clear()
 
 
 def test_sync_client_emits_current_http_client_span_and_duration_metric(capfire: CaptureLogfire) -> None:
@@ -124,36 +125,6 @@ def test_opentelemetry_honors_logfire_suppression_context(capfire: CaptureLogfir
     assert _duration_metrics(capfire) == []
 
 
-def test_opentelemetry_honors_context_suppression_fallback(capfire: CaptureLogfire) -> None:
-    otel = otel_module.get_opentelemetry()
-    assert otel is not None
-    otel._is_http_instrumentation_enabled = None
-
-    request = httpx2.Request("GET", "https://example.com/")
-    assert otel.is_enabled(request) is True
-
-    with logfire.suppress_instrumentation():
-        assert otel.is_enabled(request) is False
-
-    assert capfire.exporter.exported_spans_as_dict(include_instrumentation_scope=True) == snapshot([])
-
-
-def test_opentelemetry_honors_http_context_suppression_fallback(capfire: CaptureLogfire) -> None:
-    otel = otel_module.get_opentelemetry()
-    assert otel is not None
-    otel._is_http_instrumentation_enabled = None
-    otel._suppress_http_instrumentation_key = "httpx2.suppress_http_instrumentation"
-
-    request = httpx2.Request("GET", "https://example.com/")
-    token = otel._context.attach(otel._context.set_value(otel._suppress_http_instrumentation_key, True))
-    try:
-        assert otel.is_enabled(request) is False
-    finally:
-        otel._context.detach(token)
-
-    assert capfire.exporter.exported_spans_as_dict(include_instrumentation_scope=True) == snapshot([])
-
-
 def test_opentelemetry_records_exceptions(capfire: CaptureLogfire) -> None:
     def handler(request: httpx2.Request) -> httpx2.Response:
         raise httpx2.ConnectError("no route")
@@ -247,8 +218,8 @@ def test_opentelemetry_records_propagation_injection_exceptions(
     capfire: CaptureLogfire,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    otel = otel_module.get_opentelemetry()
-    assert otel is not None
+    dependencies = otel_module.opentelemetry_dependencies()
+    assert dependencies is not None
 
     def inject(headers: httpx2.Headers) -> None:
         raise RuntimeError("inject failed")
@@ -256,7 +227,7 @@ def test_opentelemetry_records_propagation_injection_exceptions(
     def handler(request: httpx2.Request) -> httpx2.Response:
         pytest.fail("transport should not be called")  # pragma: no cover
 
-    monkeypatch.setattr(otel._propagate, "inject", inject)
+    monkeypatch.setattr(dependencies.propagate, "inject", inject)
 
     transport = httpx2.MockTransport(handler)
     with httpx2.Client(transport=transport) as client:
@@ -431,14 +402,14 @@ def test_opentelemetry_captures_and_sanitizes_opt_in_headers(
     assert "http.request.header.x_private" not in _duration_metric(capfire)["data"]["data_points"][0]["attributes"]
 
 
-def _duration_metric(capfire: CaptureLogfire) -> dict[str, typing.Any]:
+def _duration_metric(capfire: CaptureLogfire) -> dict[str, Any]:
     [metric] = _duration_metrics(capfire)
     return metric
 
 
-def _duration_metrics(capfire: CaptureLogfire) -> list[dict[str, typing.Any]]:
+def _duration_metrics(capfire: CaptureLogfire) -> list[dict[str, Any]]:
     try:
-        metrics = typing.cast(typing.Any, capfire).get_collected_metrics()
+        metrics = cast(Any, capfire).get_collected_metrics()
     except AttributeError:
         return []
     return [metric for metric in metrics if metric["name"] == "http.client.request.duration"]
