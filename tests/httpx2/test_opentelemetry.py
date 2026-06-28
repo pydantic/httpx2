@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import typing
 
 import logfire
@@ -208,6 +209,38 @@ def test_opentelemetry_records_exceptions(capfire: CaptureLogfire) -> None:
         ]
     )
     assert _duration_metric(capfire)["data"]["data_points"][0]["attributes"]["error.type"] == "httpx2.ConnectError"
+
+
+def test_opentelemetry_does_not_record_cancelled_error_as_request_error(capfire: CaptureLogfire) -> None:
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        raise asyncio.CancelledError
+
+    transport = httpx2.MockTransport(handler)
+    with httpx2.Client(transport=transport) as client:
+        with pytest.raises(asyncio.CancelledError):
+            client.get("https://example.com/")
+
+    assert capfire.exporter.exported_spans_as_dict(include_instrumentation_scope=True) == snapshot(
+        [
+            {
+                "name": "GET",
+                "context": {"trace_id": 1, "span_id": 1, "is_remote": False},
+                "parent": None,
+                "start_time": 1000000000,
+                "end_time": 2000000000,
+                "instrumentation_scope": "httpx2",
+                "attributes": {
+                    "http.request.method": "GET",
+                    "server.address": "example.com",
+                    "server.port": 443,
+                    "url.full": "https://example.com/",
+                    "logfire.span_type": "span",
+                    "logfire.msg": "GET",
+                },
+            }
+        ]
+    )
+    assert "error.type" not in _duration_metric(capfire)["data"]["data_points"][0]["attributes"]
 
 
 def test_opentelemetry_records_propagation_injection_exceptions(

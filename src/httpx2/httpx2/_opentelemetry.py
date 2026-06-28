@@ -137,7 +137,7 @@ class OpenTelemetry:
         )
         try:
             self._propagate.inject(request.headers)
-        except BaseException as exc:
+        except Exception as exc:
             trace.set_exception(exc)
             trace.detach_current(type(exc), exc, exc.__traceback__)
             trace.close()
@@ -149,7 +149,7 @@ class OpenTelemetry:
         trace = self.start_request(request)
         try:
             yield trace
-        except BaseException as exc:
+        except Exception as exc:
             trace.set_exception(exc)
             trace.detach_current(type(exc), exc, exc.__traceback__)
             raise
