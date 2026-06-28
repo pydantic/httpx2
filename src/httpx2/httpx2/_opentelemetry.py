@@ -49,6 +49,16 @@ def get_opentelemetry() -> OpenTelemetry | None:
     return _get_opentelemetry()
 
 
+@contextmanager
+def trace_request(request: Request) -> typing.Iterator[RequestTrace | _NoOpRequestTrace]:
+    otel = get_opentelemetry()
+    if otel is None or not otel.is_enabled(request):
+        yield _NOOP_REQUEST_TRACE
+    else:
+        with otel.trace_request(request) as trace:
+            yield trace
+
+
 @cache
 def _get_opentelemetry() -> OpenTelemetry | None:
     try:
@@ -221,6 +231,14 @@ class RequestTrace:
         if self._span.is_recording():
             self._span.set_attribute("error.type", error_type)
             self._span.set_status(self._status(self._status_code.ERROR))
+
+
+class _NoOpRequestTrace:
+    def set_response(self, response: Response) -> None:
+        pass
+
+
+_NOOP_REQUEST_TRACE = _NoOpRequestTrace()
 
 
 def _request_attributes(request: Request) -> dict[str, typing.Any]:

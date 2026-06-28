@@ -28,7 +28,7 @@ from ._exceptions import (
     request_context,
 )
 from ._models import Cookies, Headers, Request, Response
-from ._opentelemetry import get_opentelemetry
+from ._opentelemetry import trace_request
 from ._sse import EventSource
 from ._status_codes import codes
 from ._transports.base import AsyncBaseTransport, BaseTransport
@@ -1016,13 +1016,9 @@ class Client(BaseClient):
             raise RuntimeError("Attempted to send an async request with a sync Client instance.")
 
         with request_context(request=request):
-            otel = get_opentelemetry()
-            if otel is None or not otel.is_enabled(request):
+            with trace_request(request) as trace:
                 response = transport.handle_request(request)
-            else:
-                with otel.trace_request(request) as trace:
-                    response = transport.handle_request(request)
-                    trace.set_response(response)
+                trace.set_response(response)
 
         assert isinstance(response.stream, SyncByteStream)
 
@@ -1768,13 +1764,9 @@ class AsyncClient(BaseClient):
             raise RuntimeError("Attempted to send a sync request with an AsyncClient instance.")
 
         with request_context(request=request):
-            otel = get_opentelemetry()
-            if otel is None or not otel.is_enabled(request):
+            with trace_request(request) as trace:
                 response = await transport.handle_async_request(request)
-            else:
-                with otel.trace_request(request) as trace:
-                    response = await transport.handle_async_request(request)
-                    trace.set_response(response)
+                trace.set_response(response)
 
         assert isinstance(response.stream, AsyncByteStream)
         response.request = request
