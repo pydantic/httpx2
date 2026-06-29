@@ -1,3 +1,9 @@
+"""
+WebSocket support, derived from httpx-ws (https://github.com/frankie567/httpx-ws).
+
+Copyright (c) 2021 François Voron, MIT License (https://github.com/frankie567/httpx-ws/blob/main/LICENSE).
+"""
+
 from ._defaults import (
     DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS,
     DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
