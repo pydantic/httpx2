@@ -28,6 +28,7 @@ from ._exceptions import (
     request_context,
 )
 from ._models import Cookies, Headers, Request, Response
+from ._sse import EventSource
 from ._status_codes import codes
 from ._transports.base import AsyncBaseTransport, BaseTransport
 from ._transports.default import AsyncHTTPTransport, HTTPTransport
@@ -855,6 +856,48 @@ class Client(BaseClient):
             response.close()
 
     @contextmanager
+    def sse(
+        self,
+        url: URL | str,
+        *,
+        method: str = "GET",
+        content: RequestContent | None = None,
+        data: RequestData | None = None,
+        files: RequestFiles | None = None,
+        json: typing.Any | None = None,
+        params: QueryParamTypes | None = None,
+        headers: HeaderTypes | None = None,
+        cookies: CookieTypes | None = None,
+        auth: AuthTypes | UseClientDefault | None = USE_CLIENT_DEFAULT,
+        follow_redirects: bool | UseClientDefault = USE_CLIENT_DEFAULT,
+        timeout: TimeoutTypes | UseClientDefault = USE_CLIENT_DEFAULT,
+        extensions: RequestExtensions | None = None,
+    ) -> Generator[EventSource]:
+        """
+        Connect to a server-sent events endpoint and yield an `EventSource`.
+
+        Iterating the `EventSource` yields `ServerSentEvent` instances.
+
+        **Parameters**: See `httpx2.request`.
+        """
+        with self.stream(
+            method,
+            url,
+            content=content,
+            data=data,
+            files=files,
+            json=json,
+            params=params,
+            headers={"Accept": "text/event-stream", "Cache-Control": "no-store"} | Headers(headers),
+            cookies=cookies,
+            auth=auth,
+            follow_redirects=follow_redirects,
+            timeout=timeout,
+            extensions=extensions,
+        ) as response:
+            yield EventSource(response)
+
+    @contextmanager
     def websocket(
         self,
         url: URL | str,
@@ -1597,6 +1640,48 @@ class AsyncClient(BaseClient):
             yield response
         finally:
             await response.aclose()
+
+    @asynccontextmanager
+    async def sse(
+        self,
+        url: URL | str,
+        *,
+        method: str = "GET",
+        content: RequestContent | None = None,
+        data: RequestData | None = None,
+        files: RequestFiles | None = None,
+        json: typing.Any | None = None,
+        params: QueryParamTypes | None = None,
+        headers: HeaderTypes | None = None,
+        cookies: CookieTypes | None = None,
+        auth: AuthTypes | UseClientDefault | None = USE_CLIENT_DEFAULT,
+        follow_redirects: bool | UseClientDefault = USE_CLIENT_DEFAULT,
+        timeout: TimeoutTypes | UseClientDefault = USE_CLIENT_DEFAULT,
+        extensions: RequestExtensions | None = None,
+    ) -> AsyncGenerator[EventSource]:
+        """
+        Connect to a server-sent events endpoint and yield an `EventSource`.
+
+        Iterating the `EventSource` yields `ServerSentEvent` instances.
+
+        **Parameters**: See `httpx2.request`.
+        """
+        async with self.stream(
+            method,
+            url,
+            content=content,
+            data=data,
+            files=files,
+            json=json,
+            params=params,
+            headers={"Accept": "text/event-stream", "Cache-Control": "no-store"} | Headers(headers),
+            cookies=cookies,
+            auth=auth,
+            follow_redirects=follow_redirects,
+            timeout=timeout,
+            extensions=extensions,
+        ) as response:
+            yield EventSource(response)
 
     @asynccontextmanager
     async def websocket(

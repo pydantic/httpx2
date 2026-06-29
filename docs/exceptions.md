@@ -24,6 +24,7 @@ For an overview of how to work with HTTPX exceptions, see [Exceptions (Quickstar
                 * RemoteProtocolError
             * ProxyError
             * UnsupportedProtocol
+            * SSEError
         * DecodingError
         * TooManyRedirects
     * HTTPStatusError
@@ -74,6 +75,8 @@ For an overview of how to work with HTTPX exceptions, see [Exceptions (Quickstar
 ::: httpx2.ProxyError
 
 ::: httpx2.UnsupportedProtocol
+
+::: httpx2.SSEError
 
 ::: httpx2.DecodingError
 

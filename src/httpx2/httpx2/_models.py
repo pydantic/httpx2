@@ -277,6 +277,24 @@ class Headers(typing.MutableMapping[str, str]):
     def copy(self) -> Headers:
         return Headers(self, encoding=self.encoding)
 
+    def __or__(self, other: Mapping[str, str]) -> Headers:
+        if not isinstance(other, Mapping):
+            return NotImplemented
+        merged = self.copy()
+        merged.update(other)
+        return merged
+
+    def __ror__(self, other: Mapping[str, str]) -> Headers:
+        if not isinstance(other, Mapping):
+            return NotImplemented
+        merged = Headers(other)
+        merged.update(self)
+        return merged
+
+    def __ior__(self, other: HeaderTypes) -> Headers:
+        self.update(other)
+        return self
+
     def __getitem__(self, key: str) -> str:
         """
         Return a single header value.

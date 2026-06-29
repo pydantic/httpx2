@@ -8,6 +8,7 @@ from ._config import *
 from ._content import *
 from ._exceptions import *
 from ._models import *
+from ._sse import *
 from ._status_codes import *
 from ._transports import *
 from ._types import *
@@ -50,6 +51,7 @@ __all__ = [
     "DecodingError",
     "delete",
     "DigestAuth",
+    "EventSource",
     "FunctionAuth",
     "get",
     "head",
@@ -82,6 +84,8 @@ __all__ = [
     "RequestNotRead",
     "Response",
     "ResponseNotRead",
+    "ServerSentEvent",
+    "SSEError",
     "stream",
     "StreamClosed",
     "StreamConsumed",
