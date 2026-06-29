@@ -15,15 +15,15 @@ from ._types import *
 from ._urls import *
 
 if _typing.TYPE_CHECKING:
-    from ._websockets._api import AsyncWebSocketSession, WebSocketSession
-    from ._websockets._exceptions import (
+    from ._websockets.api import AsyncWebSocketSession, WebSocketSession
+    from ._websockets.exceptions import (
         HTTPXWSException,
         WebSocketDisconnect,
         WebSocketInvalidTypeReceived,
         WebSocketNetworkError,
         WebSocketUpgradeError,
     )
-    from ._websockets._transport import ASGIWebSocketTransport
+    from ._websockets.transport import ASGIWebSocketTransport
 
 __all__ = [
     "__description__",
@@ -143,7 +143,7 @@ def __getattr__(name: str) -> object:
 
     if name in _WEBSOCKET_NAMES:
         from . import _websockets
-        from ._websockets._defaults import WS_EXTRA_INSTALL_MESSAGE
+        from ._websockets.defaults import WS_EXTRA_INSTALL_MESSAGE
 
         try:
             return getattr(_websockets, name)

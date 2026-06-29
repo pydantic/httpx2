@@ -19,7 +19,7 @@ from ._types import (
     TimeoutTypes,
 )
 from ._urls import URL
-from ._websockets._defaults import (
+from ._websockets.defaults import (
     DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS,
     DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
     DEFAULT_MAX_MESSAGE_SIZE_BYTES,
@@ -29,7 +29,7 @@ from ._websockets._defaults import (
 if typing.TYPE_CHECKING:
     import ssl  # pragma: no cover
 
-    from ._websockets._api import WebSocketSession
+    from ._websockets.api import WebSocketSession
 
 
 __all__ = [

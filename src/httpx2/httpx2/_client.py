@@ -49,7 +49,7 @@ from ._types import (
 )
 from ._urls import URL, QueryParams
 from ._utils import URLPattern, get_environment_proxies
-from ._websockets._defaults import (
+from ._websockets.defaults import (
     DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS,
     DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
     DEFAULT_MAX_MESSAGE_SIZE_BYTES,
@@ -60,7 +60,7 @@ from ._websockets._defaults import (
 if typing.TYPE_CHECKING:
     import ssl  # pragma: no cover
 
-    from ._websockets._api import AsyncWebSocketSession, WebSocketSession
+    from ._websockets.api import AsyncWebSocketSession, WebSocketSession
 
 __all__ = ["USE_CLIENT_DEFAULT", "AsyncClient", "Client"]
 
@@ -922,7 +922,7 @@ class Client(BaseClient):
         ```
         """
         try:
-            from ._websockets._api import connect_ws
+            from ._websockets.api import connect_ws
         except ImportError:
             raise ImportError(WS_EXTRA_INSTALL_MESSAGE)
 
@@ -1708,7 +1708,7 @@ class AsyncClient(BaseClient):
         ```
         """
         try:
-            from ._websockets._api import aconnect_ws
+            from ._websockets.api import aconnect_ws
         except ImportError:
             raise ImportError(WS_EXTRA_INSTALL_MESSAGE)
 

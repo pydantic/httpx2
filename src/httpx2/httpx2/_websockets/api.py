@@ -15,21 +15,21 @@ import wsproto
 from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
 from wsproto.frame_protocol import CloseReason
 
-from ._defaults import (
+from .defaults import (
     DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS,
     DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
     DEFAULT_MAX_MESSAGE_SIZE_BYTES,
     DEFAULT_QUEUE_SIZE,
 )
-from ._exceptions import (
+from .exceptions import (
     HTTPXWSException,
     WebSocketDisconnect,
     WebSocketInvalidTypeReceived,
     WebSocketNetworkError,
     WebSocketUpgradeError,
 )
-from ._ping import AsyncPingManager, PingManager
-from ._transport import ASGIWebSocketAsyncNetworkStream
+from .ping import AsyncPingManager, PingManager
+from .transport import ASGIWebSocketAsyncNetworkStream
 
 if typing.TYPE_CHECKING:
     from httpcore2 import AsyncNetworkStream, NetworkStream
