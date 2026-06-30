@@ -131,7 +131,7 @@ class TestASGIWebSocketAsyncNetworkStream:
 
         with pytest.raises(WebSocketDisconnect):
             async with ASGIWebSocketAsyncNetworkStream(app, scope):
-                pass
+                pass  # pragma: no cover
 
     async def test_exception(self, scope: Scope) -> None:
         async def app(scope: Scope, receive: Receive, send: Send) -> None:
@@ -139,7 +139,7 @@ class TestASGIWebSocketAsyncNetworkStream:
 
         with pytest.raises(WebSocketDisconnect) as excinfo:
             async with ASGIWebSocketAsyncNetworkStream(app, scope):
-                pass
+                pass  # pragma: no cover
         assert excinfo.value.code == 1011
         assert excinfo.value.reason == "Error"
 
@@ -152,7 +152,7 @@ def test_app() -> Starlette:
     async def websocket_endpoint(websocket: WebSocket) -> None:
         await websocket.accept()
         await websocket.receive_text()
-        await websocket.close()
+        await websocket.close()  # pragma: no cover
 
     routes = [
         Route("/http", endpoint=http_endpoint),
@@ -218,7 +218,7 @@ async def test_keepalive_ping_disabled() -> None:
     async def websocket_endpoint(websocket: WebSocket) -> None:
         await websocket.accept()
         await websocket.receive_text()
-        await websocket.close()
+        await websocket.close()  # pragma: no cover
 
     app = Starlette(
         routes=[

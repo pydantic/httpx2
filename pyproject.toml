@@ -88,7 +88,7 @@ omit = ["src/httpcore2/httpcore2/_sync/*", "tests/test_benchmark.py"]
 [tool.coverage.report]
 exclude_also = [
   "if TYPE_CHECKING:",
-  "if typing.TYPE_CHECKING:",
+  "if (typing|_typing).TYPE_CHECKING:",
   "raise NotImplementedError",
   "@(typing\\.)?overload",
 ]

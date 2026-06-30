@@ -923,7 +923,7 @@ class Client(BaseClient):
         """
         try:
             from ._websockets.api import connect_ws
-        except ImportError:
+        except ImportError:  # pragma: no cover
             raise ImportError(WS_EXTRA_INSTALL_MESSAGE)
 
         with connect_ws(
@@ -1709,7 +1709,7 @@ class AsyncClient(BaseClient):
         """
         try:
             from ._websockets.api import aconnect_ws
-        except ImportError:
+        except ImportError:  # pragma: no cover
             raise ImportError(WS_EXTRA_INSTALL_MESSAGE)
 
         async with aconnect_ws(

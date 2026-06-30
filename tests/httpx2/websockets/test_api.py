@@ -38,12 +38,12 @@ async def test_upgrade_error() -> None:
     with httpx.Client(base_url="http://localhost:8000", transport=httpx.MockTransport(handler)) as client:
         with pytest.raises(WebSocketUpgradeError):
             with connect_ws("http://socket/ws", client):
-                pass
+                pass  # pragma: no cover
 
     async with httpx.AsyncClient(base_url="http://localhost:8000", transport=httpx.MockTransport(handler)) as aclient:
         with pytest.raises(WebSocketUpgradeError):
             async with aconnect_ws("http://socket/ws", aclient):
-                pass
+                pass  # pragma: no cover
 
 
 @pytest.mark.anyio
@@ -77,9 +77,9 @@ class TestSend:
                 self._should_close = False
 
             async def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
-                while not self._should_close:
+                while not self._should_close:  # pragma: no cover
                     await anyio.sleep(0.1)
-                raise httpcore.ReadError()
+                raise httpcore.ReadError()  # pragma: no cover
 
             async def write(self, buffer: bytes, timeout: float | None = None) -> None:
                 raise httpcore.WriteError()
@@ -110,14 +110,14 @@ class TestSend:
                 try:
                     with connect_ws("http://socket/ws", client) as ws:
                         ws.send(wsproto.events.TextMessage(data="CLIENT_MESSAGE"))
-                except WebSocketDisconnect:
+                except WebSocketDisconnect:  # pragma: no cover
                     pass
 
             async with httpx.AsyncClient(transport=httpx.AsyncHTTPTransport(uds=socket)) as aclient:
                 try:
                     async with aconnect_ws("http://socket/ws", aclient) as aws:
                         await aws.send(wsproto.events.TextMessage(data="CLIENT_MESSAGE"))
-                except WebSocketDisconnect:
+                except WebSocketDisconnect:  # pragma: no cover
                     pass
 
         on_receive_message.assert_has_calls([call("CLIENT_MESSAGE"), call("CLIENT_MESSAGE")])
@@ -140,14 +140,14 @@ class TestSend:
                 try:
                     with connect_ws("http://socket/ws", client) as ws:
                         ws.send_text("CLIENT_MESSAGE")
-                except WebSocketDisconnect:
+                except WebSocketDisconnect:  # pragma: no cover
                     pass
 
             async with httpx.AsyncClient(transport=httpx.AsyncHTTPTransport(uds=socket)) as aclient:
                 try:
                     async with aconnect_ws("http://socket/ws", aclient) as aws:
                         await aws.send_text("CLIENT_MESSAGE")
-                except WebSocketDisconnect:
+                except WebSocketDisconnect:  # pragma: no cover
                     pass
 
         on_receive_message.assert_has_calls([call("CLIENT_MESSAGE"), call("CLIENT_MESSAGE")])
@@ -170,14 +170,14 @@ class TestSend:
                 try:
                     with connect_ws("http://socket/ws", client) as ws:
                         ws.send_bytes(b"CLIENT_MESSAGE")
-                except WebSocketDisconnect:
+                except WebSocketDisconnect:  # pragma: no cover
                     pass
 
             async with httpx.AsyncClient(transport=httpx.AsyncHTTPTransport(uds=socket)) as aclient:
                 try:
                     async with aconnect_ws("http://socket/ws", aclient) as aws:
                         await aws.send_bytes(b"CLIENT_MESSAGE")
-                except WebSocketDisconnect:
+                except WebSocketDisconnect:  # pragma: no cover
                     pass
 
         on_receive_message.assert_has_calls([call(b"CLIENT_MESSAGE"), call(b"CLIENT_MESSAGE")])
@@ -202,14 +202,14 @@ class TestSend:
                 try:
                     with connect_ws("http://socket/ws", client) as ws:
                         ws.send_json({"message": "CLIENT_MESSAGE"}, mode=mode)
-                except WebSocketDisconnect:
+                except WebSocketDisconnect:  # pragma: no cover
                     pass
 
             async with httpx.AsyncClient(transport=httpx.AsyncHTTPTransport(uds=socket)) as aclient:
                 try:
                     async with aconnect_ws("http://socket/ws", aclient) as aws:
                         await aws.send_json({"message": "CLIENT_MESSAGE"}, mode=mode)
-                except WebSocketDisconnect:
+                except WebSocketDisconnect:  # pragma: no cover
                     pass
 
         on_receive_message.assert_has_calls([call({"message": "CLIENT_MESSAGE"}), call({"message": "CLIENT_MESSAGE"})])
@@ -270,7 +270,7 @@ class TestReceive:
                         event = ws.receive()
                         assert isinstance(event, wsproto.events.TextMessage)
                         assert event.data == "SERVER_MESSAGE"
-                except WebSocketDisconnect:
+                except WebSocketDisconnect:  # pragma: no cover
                     pass
 
             async with httpx.AsyncClient(transport=httpx.AsyncHTTPTransport(uds=socket)) as aclient:
@@ -279,7 +279,7 @@ class TestReceive:
                         event = await aws.receive()
                         assert isinstance(event, wsproto.events.TextMessage)
                         assert event.data == "SERVER_MESSAGE"
-                except WebSocketDisconnect:
+                except WebSocketDisconnect:  # pragma: no cover
                     pass
 
     @pytest.mark.parametrize(
@@ -310,7 +310,7 @@ class TestReceive:
                         event = ws.receive()
                         assert isinstance(event, wsproto.events.Message)
                         assert event.data == full_message
-                except WebSocketDisconnect:
+                except WebSocketDisconnect:  # pragma: no cover
                     pass
 
             async with httpx.AsyncClient(transport=httpx.AsyncHTTPTransport(uds=socket)) as aclient:
@@ -323,7 +323,7 @@ class TestReceive:
                         event = await aws.receive()
                         assert isinstance(event, wsproto.events.Message)
                         assert event.data == full_message
-                except WebSocketDisconnect:
+                except WebSocketDisconnect:  # pragma: no cover
                     pass
 
     async def test_receive_text(self, server_factory: ServerFactoryFixture) -> None:
@@ -340,7 +340,7 @@ class TestReceive:
                     with connect_ws("http://socket/ws", client) as ws:
                         data = ws.receive_text()
                         assert data == "SERVER_MESSAGE"
-                except WebSocketDisconnect:
+                except WebSocketDisconnect:  # pragma: no cover
                     pass
 
             async with httpx.AsyncClient(transport=httpx.AsyncHTTPTransport(uds=socket)) as aclient:
@@ -348,7 +348,7 @@ class TestReceive:
                     async with aconnect_ws("http://socket/ws", aclient) as aws:
                         data = await aws.receive_text()
                         assert data == "SERVER_MESSAGE"
-                except WebSocketDisconnect:
+                except WebSocketDisconnect:  # pragma: no cover
                     pass
 
     async def test_receive_text_invalid_type(self, server_factory: ServerFactoryFixture) -> None:
@@ -365,7 +365,7 @@ class TestReceive:
                     with connect_ws("http://socket/ws", client) as ws:
                         with pytest.raises(WebSocketInvalidTypeReceived):
                             ws.receive_text()
-                except WebSocketDisconnect:
+                except WebSocketDisconnect:  # pragma: no cover
                     pass
 
             async with httpx.AsyncClient(transport=httpx.AsyncHTTPTransport(uds=socket)) as aclient:
@@ -373,7 +373,7 @@ class TestReceive:
                     async with aconnect_ws("http://socket/ws", aclient) as aws:
                         with pytest.raises(WebSocketInvalidTypeReceived):
                             await aws.receive_text()
-                except WebSocketDisconnect:
+                except WebSocketDisconnect:  # pragma: no cover
                     pass
 
     async def test_receive_bytes(self, server_factory: ServerFactoryFixture) -> None:
@@ -390,7 +390,7 @@ class TestReceive:
                     with connect_ws("http://socket/ws", client) as ws:
                         data = ws.receive_bytes()
                         assert data == b"SERVER_MESSAGE"
-                except WebSocketDisconnect:
+                except WebSocketDisconnect:  # pragma: no cover
                     pass
 
             async with httpx.AsyncClient(transport=httpx.AsyncHTTPTransport(uds=socket)) as aclient:
@@ -398,7 +398,7 @@ class TestReceive:
                     async with aconnect_ws("http://socket/ws", aclient) as aws:
                         data = await aws.receive_bytes()
                         assert data == b"SERVER_MESSAGE"
-                except WebSocketDisconnect:
+                except WebSocketDisconnect:  # pragma: no cover
                     pass
 
     async def test_receive_bytes_invalid_type(self, server_factory: ServerFactoryFixture) -> None:
@@ -435,7 +435,7 @@ class TestReceive:
                     with connect_ws("http://socket/ws", client) as ws:
                         data = ws.receive_json(mode=mode)
                         assert data == {"message": "SERVER_MESSAGE"}
-                except WebSocketDisconnect:
+                except WebSocketDisconnect:  # pragma: no cover
                     pass
 
             async with httpx.AsyncClient(transport=httpx.AsyncHTTPTransport(uds=socket)) as aclient:
@@ -443,7 +443,7 @@ class TestReceive:
                     async with aconnect_ws("http://socket/ws", aclient) as aws:
                         data = await aws.receive_json(mode=mode)
                         assert data == {"message": "SERVER_MESSAGE"}
-                except WebSocketDisconnect:
+                except WebSocketDisconnect:  # pragma: no cover
                     pass
 
 
@@ -462,7 +462,7 @@ class TestReceivePing:
                 try:
                     event = self.events_to_send.pop(0)
                     return self.connection.send(event)
-                except IndexError:
+                except IndexError:  # pragma: no cover
                     raise httpcore.ReadError()
 
             def write(self, buffer: bytes, timeout: float | None = None) -> None:
@@ -494,7 +494,7 @@ class TestReceivePing:
                 try:
                     event = self.events_to_send.pop(0)
                     return self.connection.send(event)
-                except IndexError:
+                except IndexError:  # pragma: no cover
                     raise httpcore.ReadError()
 
             async def write(self, buffer: bytes, timeout: float | None = None) -> None:
@@ -603,7 +603,7 @@ class TestKeepalivePing:
                         return self.connection.send(event)
                     except anyio.WouldBlock:
                         await anyio.sleep(0.1)
-                raise httpcore.ReadError()
+                raise httpcore.ReadError()  # pragma: no cover
 
             async def write(self, buffer: bytes, timeout: float | None = None) -> None:
                 self.connection.receive_data(buffer)
@@ -635,9 +635,9 @@ class TestKeepalivePing:
                 self._should_close = False
 
             async def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
-                while not self._should_close:
+                while not self._should_close:  # pragma: no cover
                     await anyio.sleep(0.1)
-                raise httpcore.ReadError()
+                raise httpcore.ReadError()  # pragma: no cover
 
             async def write(self, buffer: bytes, timeout: float | None = None) -> None:
                 pass
