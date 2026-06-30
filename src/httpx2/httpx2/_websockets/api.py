@@ -517,7 +517,7 @@ class WebSocketSession:
         try:
             while not self._should_close.is_set():
                 should_close = self._wait_until_closed(self._should_close.wait, interval_seconds)
-                if should_close:
+                if should_close:  # pragma: no cover
                     raise ShouldClose()
                 pong_callback = self.ping()
                 if timeout_seconds is not None:

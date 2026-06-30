@@ -82,7 +82,6 @@ markers = [
 ]
 
 [tool.coverage.run]
-concurrency = ["thread"]
 source_pkgs = ["httpx2", "httpcore2", "tests"]
 omit = ["src/httpcore2/httpcore2/_sync/*", "tests/test_benchmark.py"]
 
