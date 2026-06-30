@@ -55,9 +55,9 @@ class TestSend:
                 self._should_close = False
 
             def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
-                while not self._should_close:  # pragma: no cover
+                while not self._should_close:
                     time.sleep(0.1)
-                raise httpcore.ReadError()  # pragma: no cover
+                raise httpcore.ReadError()
 
             def write(self, buffer: bytes, timeout: float | None = None) -> None:
                 raise httpcore.WriteError()
@@ -563,9 +563,9 @@ class TestKeepalivePing:
                 self._should_close = False
 
             def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
-                while not self._should_close:  # pragma: no cover
+                while not self._should_close:
                     time.sleep(0.1)
-                raise httpcore.ReadError()  # pragma: no cover
+                raise httpcore.ReadError()
 
             def write(self, buffer: bytes, timeout: float | None = None) -> None:
                 pass
