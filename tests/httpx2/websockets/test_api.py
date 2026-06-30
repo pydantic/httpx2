@@ -797,16 +797,22 @@ async def test_threads_wont_hang(server_factory: ServerFactoryFixture) -> None:
             await websocket.receive_text()
         await websocket.close()
 
+    def session_threads() -> set[threading.Thread]:
+        return set(threading.enumerate()) - threads_before
+
+    def wait_for_session_threads(expected: int) -> None:
+        for _ in range(100):
+            if len(session_threads()) == expected:
+                return
+            time.sleep(0.05)
+        assert len(session_threads()) == expected  # pragma: no cover
+
     with server_factory(websocket_endpoint) as socket:
         with httpx.Client(transport=httpx.HTTPTransport(uds=socket)) as client:
-            initial_threads_count = threading.active_count()
+            threads_before = set(threading.enumerate())
             with connect_ws("http://socket/ws", client, keepalive_ping_interval_seconds=None) as ws:
                 for _ in range(50):
                     ws.receive()
                     ws.send_text("CLIENT_MESSAGE")
-                time.sleep(0.1)  # Let the websocket endpoint finish its handling.
-                threads_count = threading.active_count()
-                assert initial_threads_count + 2 == threads_count
-            time.sleep(0.1)
-            final_threads_count = threading.active_count()
-            assert initial_threads_count == final_threads_count
+                wait_for_session_threads(2)
+            wait_for_session_threads(0)

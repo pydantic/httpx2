@@ -150,4 +150,9 @@ def __getattr__(name: str) -> object:
         except ImportError:  # pragma: no cover
             raise ImportError(WS_EXTRA_INSTALL_MESSAGE)
 
+    if name == "_websockets":
+        import importlib
+
+        return importlib.import_module(f"{__name__}._websockets")
+
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
