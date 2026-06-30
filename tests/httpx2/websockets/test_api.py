@@ -628,6 +628,27 @@ class TestKeepalivePing:
         assert stream.ping_received >= 1
         assert stream.ping_answered >= 1
 
+    async def test_async_keepalive_ping_skips_when_closing(self) -> None:
+        writes = 0
+
+        class MockAsyncNetworkStream(AsyncNetworkStream):
+            async def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
+                return b""  # pragma: no cover
+
+            async def write(self, buffer: bytes, timeout: float | None = None) -> None:
+                nonlocal writes
+                writes += 1  # pragma: no cover
+
+            async def aclose(self) -> None: ...  # pragma: no cover
+
+        session = AsyncWebSocketSession(MockAsyncNetworkStream(), keepalive_ping_interval_seconds=0.2)
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(session._background_keepalive_ping, 0.2)
+            await anyio.sleep(0.05)  # Let the loop enter its sleep before closing.
+            session._should_close.set()
+
+        assert writes == 0
+
     async def test_async_keepalive_ping_timeout(self) -> None:
         class MockAsyncNetworkStream(AsyncNetworkStream):
             def __init__(self) -> None:

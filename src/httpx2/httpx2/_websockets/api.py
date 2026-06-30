@@ -1013,6 +1013,8 @@ class AsyncWebSocketSession:
     async def _background_keepalive_ping(self, interval_seconds: float, timeout_seconds: float | None = None) -> None:
         while not self._should_close.is_set():
             await anyio.sleep(interval_seconds)
+            if self._should_close.is_set():
+                return
             pong_callback = await self.ping()
             if timeout_seconds is not None:
                 try:
