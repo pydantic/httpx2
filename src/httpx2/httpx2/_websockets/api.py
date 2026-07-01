@@ -15,6 +15,8 @@ import wsproto
 from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
 from wsproto.frame_protocol import CloseReason
 
+from .._client import USE_CLIENT_DEFAULT
+from .._models import Headers
 from .defaults import (
     DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS,
     DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
@@ -34,8 +36,16 @@ from .transport import ASGIWebSocketAsyncNetworkStream
 if typing.TYPE_CHECKING:
     from httpcore2 import AsyncNetworkStream, NetworkStream
 
-    from .._client import AsyncClient, Client
+    from .._client import AsyncClient, Client, UseClientDefault
     from .._models import Response
+    from .._types import (
+        AuthTypes,
+        CookieTypes,
+        HeaderTypes,
+        QueryParamTypes,
+        RequestExtensions,
+        TimeoutTypes,
+    )
 
 JSONMode = typing.Literal["text", "binary"]
 TaskFunction = typing.TypeVar("TaskFunction")
@@ -1049,12 +1059,25 @@ def _connect_ws(
     keepalive_ping_interval_seconds: float | None = DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS,
     keepalive_ping_timeout_seconds: float | None = DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
     subprotocols: list[str] | None = None,
-    **kwargs: typing.Any,
+    params: QueryParamTypes | None = None,
+    headers: HeaderTypes | None = None,
+    cookies: CookieTypes | None = None,
+    auth: AuthTypes | UseClientDefault | None = USE_CLIENT_DEFAULT,
+    follow_redirects: bool | UseClientDefault = USE_CLIENT_DEFAULT,
+    timeout: TimeoutTypes | UseClientDefault = USE_CLIENT_DEFAULT,
+    extensions: RequestExtensions | None = None,
 ) -> typing.Generator[WebSocketSession, None, None]:
-    headers = kwargs.pop("headers", {})
-    headers.update(_get_headers(subprotocols))
-
-    with client.stream("GET", url, headers=headers, **kwargs) as response:
+    with client.stream(
+        "GET",
+        url,
+        params=params,
+        headers=Headers(headers) | _get_headers(subprotocols),
+        cookies=cookies,
+        auth=auth,
+        follow_redirects=follow_redirects,
+        timeout=timeout,
+        extensions=extensions,
+    ) as response:
         if response.status_code != 101:
             raise WebSocketUpgradeError(response)
 
@@ -1079,7 +1102,13 @@ def connect_ws(
     keepalive_ping_interval_seconds: float | None = DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS,
     keepalive_ping_timeout_seconds: float | None = DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
     subprotocols: list[str] | None = None,
-    **kwargs: typing.Any,
+    params: QueryParamTypes | None = None,
+    headers: HeaderTypes | None = None,
+    cookies: CookieTypes | None = None,
+    auth: AuthTypes | UseClientDefault | None = USE_CLIENT_DEFAULT,
+    follow_redirects: bool | UseClientDefault = USE_CLIENT_DEFAULT,
+    timeout: TimeoutTypes | UseClientDefault = USE_CLIENT_DEFAULT,
+    extensions: RequestExtensions | None = None,
 ) -> typing.Generator[WebSocketSession, None, None]:
     """
     Start a sync WebSocket session.
@@ -1113,9 +1142,20 @@ def connect_ws(
             Defaults to 20 seconds.
         subprotocols:
             Optional list of suprotocols to negotiate with the server.
-        **kwargs:
-            Additional keyword arguments that will be passed to
-            the [HTTPX stream()](https://www.python-httpx.org/api/#request) method.
+        params:
+            Query parameters to include in the handshake request.
+        headers:
+            Headers to include in the handshake request.
+        cookies:
+            Cookies to include in the handshake request.
+        auth:
+            Authentication to use for the handshake request.
+        follow_redirects:
+            Whether to follow redirects on the handshake request.
+        timeout:
+            Timeout configuration for the handshake request.
+        extensions:
+            Request extensions for the handshake request.
 
     Returns:
         A [context manager][contextlib.AbstractContextManager]
@@ -1140,19 +1180,11 @@ def connect_ws(
     if client is None:
         from .._client import Client
 
-        with Client() as client:
-            with _connect_ws(
-                url,
-                client=client,
-                max_message_size_bytes=max_message_size_bytes,
-                queue_size=queue_size,
-                keepalive_ping_interval_seconds=keepalive_ping_interval_seconds,
-                keepalive_ping_timeout_seconds=keepalive_ping_timeout_seconds,
-                subprotocols=subprotocols,
-                **kwargs,
-            ) as websocket:
-                yield websocket
+        owned_client: contextlib.AbstractContextManager[Client] = Client()
     else:
+        owned_client = contextlib.nullcontext(client)
+
+    with owned_client as client:
         with _connect_ws(
             url,
             client=client,
@@ -1161,7 +1193,13 @@ def connect_ws(
             keepalive_ping_interval_seconds=keepalive_ping_interval_seconds,
             keepalive_ping_timeout_seconds=keepalive_ping_timeout_seconds,
             subprotocols=subprotocols,
-            **kwargs,
+            params=params,
+            headers=headers,
+            cookies=cookies,
+            auth=auth,
+            follow_redirects=follow_redirects,
+            timeout=timeout,
+            extensions=extensions,
         ) as websocket:
             yield websocket
 
@@ -1176,12 +1214,25 @@ async def _aconnect_ws(
     keepalive_ping_interval_seconds: float | None = DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS,
     keepalive_ping_timeout_seconds: float | None = DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
     subprotocols: list[str] | None = None,
-    **kwargs: typing.Any,
+    params: QueryParamTypes | None = None,
+    headers: HeaderTypes | None = None,
+    cookies: CookieTypes | None = None,
+    auth: AuthTypes | UseClientDefault | None = USE_CLIENT_DEFAULT,
+    follow_redirects: bool | UseClientDefault = USE_CLIENT_DEFAULT,
+    timeout: TimeoutTypes | UseClientDefault = USE_CLIENT_DEFAULT,
+    extensions: RequestExtensions | None = None,
 ) -> typing.AsyncGenerator[AsyncWebSocketSession, None]:
-    headers = kwargs.pop("headers", {})
-    headers.update(_get_headers(subprotocols))
-
-    async with client.stream("GET", url, headers=headers, **kwargs) as response:
+    async with client.stream(
+        "GET",
+        url,
+        params=params,
+        headers=Headers(headers) | _get_headers(subprotocols),
+        cookies=cookies,
+        auth=auth,
+        follow_redirects=follow_redirects,
+        timeout=timeout,
+        extensions=extensions,
+    ) as response:
         if response.status_code != 101:
             raise WebSocketUpgradeError(response)
 
@@ -1206,7 +1257,13 @@ async def aconnect_ws(
     keepalive_ping_interval_seconds: float | None = DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS,
     keepalive_ping_timeout_seconds: float | None = DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
     subprotocols: list[str] | None = None,
-    **kwargs: typing.Any,
+    params: QueryParamTypes | None = None,
+    headers: HeaderTypes | None = None,
+    cookies: CookieTypes | None = None,
+    auth: AuthTypes | UseClientDefault | None = USE_CLIENT_DEFAULT,
+    follow_redirects: bool | UseClientDefault = USE_CLIENT_DEFAULT,
+    timeout: TimeoutTypes | UseClientDefault = USE_CLIENT_DEFAULT,
+    extensions: RequestExtensions | None = None,
 ) -> typing.AsyncGenerator[AsyncWebSocketSession, None]:
     """
     Start an async WebSocket session.
@@ -1240,9 +1297,20 @@ async def aconnect_ws(
             Defaults to 20 seconds.
         subprotocols:
             Optional list of suprotocols to negotiate with the server.
-        **kwargs:
-            Additional keyword arguments that will be passed to
-            the [HTTPX stream()](https://www.python-httpx.org/api/#request) method.
+        params:
+            Query parameters to include in the handshake request.
+        headers:
+            Headers to include in the handshake request.
+        cookies:
+            Cookies to include in the handshake request.
+        auth:
+            Authentication to use for the handshake request.
+        follow_redirects:
+            Whether to follow redirects on the handshake request.
+        timeout:
+            Timeout configuration for the handshake request.
+        extensions:
+            Request extensions for the handshake request.
 
     Returns:
         An [async context manager][contextlib.AbstractAsyncContextManager]
@@ -1267,19 +1335,11 @@ async def aconnect_ws(
     if client is None:
         from .._client import AsyncClient
 
-        async with AsyncClient() as client:
-            async with _aconnect_ws(
-                url,
-                client=client,
-                max_message_size_bytes=max_message_size_bytes,
-                queue_size=queue_size,
-                keepalive_ping_interval_seconds=keepalive_ping_interval_seconds,
-                keepalive_ping_timeout_seconds=keepalive_ping_timeout_seconds,
-                subprotocols=subprotocols,
-                **kwargs,
-            ) as websocket:
-                yield websocket
+        owned_client: contextlib.AbstractAsyncContextManager[AsyncClient] = AsyncClient()
     else:
+        owned_client = contextlib.nullcontext(client)
+
+    async with owned_client as client:
         async with _aconnect_ws(
             url,
             client=client,
@@ -1288,6 +1348,12 @@ async def aconnect_ws(
             keepalive_ping_interval_seconds=keepalive_ping_interval_seconds,
             keepalive_ping_timeout_seconds=keepalive_ping_timeout_seconds,
             subprotocols=subprotocols,
-            **kwargs,
+            params=params,
+            headers=headers,
+            cookies=cookies,
+            auth=auth,
+            follow_redirects=follow_redirects,
+            timeout=timeout,
+            extensions=extensions,
         ) as websocket:
             yield websocket

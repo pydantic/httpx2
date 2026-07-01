@@ -57,6 +57,23 @@ async def test_client_websocket(server_factory: ServerFactoryFixture) -> None:
 
 
 @pytest.mark.anyio
+async def test_client_websocket_forwards_request_params(server_factory: ServerFactoryFixture) -> None:
+    async def websocket_endpoint(websocket: WebSocket) -> None:
+        await websocket.accept()
+        await websocket.send_text(websocket.headers.get("x-token", ""))
+        await websocket.close()
+
+    with server_factory(websocket_endpoint) as socket:
+        with httpx.Client(transport=httpx.HTTPTransport(uds=socket)) as client:
+            with client.websocket("http://socket/ws", headers={"x-token": "secret"}) as ws:
+                assert ws.receive_text() == "secret"
+
+        async with httpx.AsyncClient(transport=httpx.AsyncHTTPTransport(uds=socket)) as aclient:
+            async with aclient.websocket("http://socket/ws", headers={"x-token": "secret"}) as aws:
+                assert await aws.receive_text() == "secret"
+
+
+@pytest.mark.anyio
 async def test_async_receive_reassembles_fragmented_message() -> None:
     server = wsproto.connection.Connection(wsproto.connection.ConnectionType.SERVER)
     fragments = server.send(wsproto.events.TextMessage("FRAG", message_finished=False))
