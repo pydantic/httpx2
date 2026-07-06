@@ -182,6 +182,13 @@ def test_delete(server: TestServer) -> None:
     assert response.reason_phrase == "OK"
 
 
+def test_query(server: TestServer) -> None:
+    with httpx2.Client() as client:
+        response = client.query(server.url, content=b"Hello, world!")
+    assert response.status_code == 200
+    assert response.reason_phrase == "OK"
+
+
 def test_base_url(server: TestServer) -> None:
     base_url = server.url
     with httpx2.Client(base_url=base_url) as client:

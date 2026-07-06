@@ -58,6 +58,7 @@ __all__ = [
     "Proxy",
     "ProxyError",
     "put",
+    "query",
     "QueryParams",
     "ReadError",
     "ReadTimeout",

@@ -32,6 +32,7 @@ __all__ = [
     "patch",
     "post",
     "put",
+    "query",
     "request",
     "stream",
 ]
@@ -414,6 +415,47 @@ def delete(
     return request(
         "DELETE",
         url,
+        params=params,
+        headers=headers,
+        cookies=cookies,
+        auth=auth,
+        proxy=proxy,
+        follow_redirects=follow_redirects,
+        verify=verify,
+        timeout=timeout,
+        trust_env=trust_env,
+    )
+
+
+def query(
+    url: URL | str,
+    *,
+    content: RequestContent | None = None,
+    data: RequestData | None = None,
+    files: RequestFiles | None = None,
+    json: typing.Any | None = None,
+    params: QueryParamTypes | None = None,
+    headers: HeaderTypes | None = None,
+    cookies: CookieTypes | None = None,
+    auth: AuthTypes | None = None,
+    proxy: ProxyTypes | None = None,
+    follow_redirects: bool = False,
+    verify: ssl.SSLContext | str | bool = True,
+    timeout: TimeoutTypes = DEFAULT_TIMEOUT_CONFIG,
+    trust_env: bool = True,
+) -> Response:
+    """
+    Sends a `QUERY` request.
+
+    **Parameters**: See `httpx.request`.
+    """
+    return request(
+        "QUERY",
+        url,
+        content=content,
+        data=data,
+        files=files,
+        json=json,
         params=params,
         headers=headers,
         cookies=cookies,
