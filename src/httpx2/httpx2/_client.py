@@ -1281,7 +1281,7 @@ class Client(BaseClient):
         """
         Send a `QUERY` request.
 
-        **Parameters**: See `httpx.request`.
+        **Parameters**: See `httpx2.request`.
         """
         return self.request(
             "QUERY",
