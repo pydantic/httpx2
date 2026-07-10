@@ -110,7 +110,7 @@ A tool for python developers to easily debug the HTTP(S) client requests in a py
 httpx2_kerberos is a Python library that adds Kerberos/GSSAPI authentication support to the HTTPX2 client for making secure, authenticated HTTP requests.
 
 [github](https://github.com/achapkowski/httpx2_kerberos)
-[documentation](https://achapkowski.github.io/httpx2_kerberos)
+[Documentation](https://achapkowski.github.io/httpx2_kerberos)
 
 ### VCR.py
 
