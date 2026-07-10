@@ -99,18 +99,18 @@ A python library for building OAuth and OpenID Connect clients and servers. Incl
 
 An asynchronous GitHub API library. Includes [HTTPX support](https://gidgethub.readthedocs.io/en/latest/httpx.html).
 
+### httpdbg
+
+[GitHub](https://github.com/cle-b/httpdbg) - [Documentation](https://httpdbg.readthedocs.io/)
+
+A tool for python developers to easily debug the HTTP(S) client requests in a python program.
 
 ### httpx2_kerberos
 
 httpx2_kerberos is a Python library that adds Kerberos/GSSAPI authentication support to the HTTPX2 client for making secure, authenticated HTTP requests.
 
 [github](https://github.com/achapkowski/httpx2_kerberos)
-
-### httpdbg
-
-[GitHub](https://github.com/cle-b/httpdbg) - [Documentation](https://httpdbg.readthedocs.io/)
-
-A tool for python developers to easily debug the HTTP(S) client requests in a python program.
+[documentation](https://achapkowski.github.io/httpx2_kerberos)
 
 ### VCR.py
 
