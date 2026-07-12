@@ -447,7 +447,7 @@ def query(
     """
     Sends a `QUERY` request.
 
-    **Parameters**: See `httpx.request`.
+    **Parameters**: See `httpx2.request`.
     """
     return request(
         "QUERY",

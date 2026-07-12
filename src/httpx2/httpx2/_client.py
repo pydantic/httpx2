@@ -2063,7 +2063,7 @@ class AsyncClient(BaseClient):
         """
         Send a `QUERY` request.
 
-        **Parameters**: See `httpx.request`.
+        **Parameters**: See `httpx2.request`.
         """
         return await self.request(
             "QUERY",
