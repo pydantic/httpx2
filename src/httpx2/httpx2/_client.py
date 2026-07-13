@@ -20,7 +20,6 @@ from ._config import (
     DEFAULT_MAX_REDIRECTS,
     DEFAULT_QUEUE_SIZE,
     DEFAULT_TIMEOUT_CONFIG,
-    WS_EXTRA_INSTALL_MESSAGE,
     Limits,
     Proxy,
     Timeout,
@@ -928,7 +927,9 @@ class Client(BaseClient):
         try:
             from .websockets._api import connect_ws
         except ImportError:  # pragma: no cover
-            raise ImportError(WS_EXTRA_INSTALL_MESSAGE)
+            raise ImportError(
+                "WebSocket support requires the `wsproto` package. Install it with `pip install httpx2[ws]`."
+            )
 
         with connect_ws(
             str(url),
@@ -1726,7 +1727,9 @@ class AsyncClient(BaseClient):
         try:
             from .websockets._api import aconnect_ws
         except ImportError:  # pragma: no cover
-            raise ImportError(WS_EXTRA_INSTALL_MESSAGE)
+            raise ImportError(
+                "WebSocket support requires the `wsproto` package. Install it with `pip install httpx2[ws]`."
+            )
 
         async with aconnect_ws(
             str(url),
