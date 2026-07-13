@@ -83,6 +83,7 @@ __all__ = [
     "UnsupportedProtocol",
     "URL",
     "USE_CLIENT_DEFAULT",
+    "websocket",
     "WriteError",
     "WriteTimeout",
     "WSGITransport",
