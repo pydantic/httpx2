@@ -4,15 +4,15 @@ WebSocket support, derived from httpx-ws (https://github.com/frankie567/httpx-ws
 Copyright (c) 2021 François Voron, MIT License (https://github.com/frankie567/httpx-ws/blob/main/LICENSE).
 """
 
-from .api import AsyncWebSocketSession, JSONMode, WebSocketSession
-from .exceptions import (
+from ._api import AsyncWebSocketSession, JSONMode, WebSocketSession
+from ._exceptions import (
     HTTPXWSException,
     WebSocketDisconnect,
     WebSocketInvalidTypeReceived,
     WebSocketNetworkError,
     WebSocketUpgradeError,
 )
-from .transport import ASGIWebSocketTransport
+from ._transport import ASGIWebSocketTransport
 
 __all__ = [
     "ASGIWebSocketTransport",

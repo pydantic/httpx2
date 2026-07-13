@@ -23,15 +23,15 @@ from .._config import (
     DEFAULT_QUEUE_SIZE,
 )
 from .._models import Headers
-from .exceptions import (
+from ._exceptions import (
     HTTPXWSException,
     WebSocketDisconnect,
     WebSocketInvalidTypeReceived,
     WebSocketNetworkError,
     WebSocketUpgradeError,
 )
-from .ping import AsyncPingManager, PingManager
-from .transport import ASGIWebSocketAsyncNetworkStream
+from ._ping import AsyncPingManager, PingManager
+from ._transport import ASGIWebSocketAsyncNetworkStream
 
 if typing.TYPE_CHECKING:
     from httpcore2 import AsyncNetworkStream, NetworkStream

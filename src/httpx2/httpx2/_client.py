@@ -58,7 +58,7 @@ from ._utils import URLPattern, get_environment_proxies
 if typing.TYPE_CHECKING:
     import ssl  # pragma: no cover
 
-    from .websockets.api import AsyncWebSocketSession, WebSocketSession
+    from .websockets._api import AsyncWebSocketSession, WebSocketSession
 
 __all__ = ["USE_CLIENT_DEFAULT", "AsyncClient", "Client"]
 
@@ -926,7 +926,7 @@ class Client(BaseClient):
         ```
         """
         try:
-            from .websockets.api import connect_ws
+            from .websockets._api import connect_ws
         except ImportError:  # pragma: no cover
             raise ImportError(WS_EXTRA_INSTALL_MESSAGE)
 
@@ -1724,7 +1724,7 @@ class AsyncClient(BaseClient):
         ```
         """
         try:
-            from .websockets.api import aconnect_ws
+            from .websockets._api import aconnect_ws
         except ImportError:  # pragma: no cover
             raise ImportError(WS_EXTRA_INSTALL_MESSAGE)
 

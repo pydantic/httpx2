@@ -23,7 +23,7 @@ def test_importing_httpx2_does_not_import_wsproto() -> None:
 
 def test_top_level_websocket_uses_a_dedicated_client() -> None:
     mock_context = contextlib.ExitStack()
-    with patch("httpx2.websockets.api._connect_ws", return_value=mock_context) as mock_connect_ws:
+    with patch("httpx2.websockets._api._connect_ws", return_value=mock_context) as mock_connect_ws:
         with httpx.websocket("http://socket/ws"):
             pass
     mock_connect_ws.assert_called_once()

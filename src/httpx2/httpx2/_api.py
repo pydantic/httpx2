@@ -29,7 +29,7 @@ from ._urls import URL
 if typing.TYPE_CHECKING:
     import ssl  # pragma: no cover
 
-    from .websockets.api import WebSocketSession
+    from .websockets._api import WebSocketSession
 
 
 __all__ = [

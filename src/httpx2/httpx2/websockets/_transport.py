@@ -12,7 +12,7 @@ from wsproto.frame_protocol import CloseReason
 from .._models import Request, Response
 from .._transports.asgi import ASGITransport, _ASGIApp
 from .._types import AsyncByteStream
-from .exceptions import WebSocketDisconnect
+from ._exceptions import WebSocketDisconnect
 
 Scope = dict[str, typing.Any]
 Message = dict[str, typing.Any]
