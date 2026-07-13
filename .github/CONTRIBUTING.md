@@ -3,7 +3,7 @@
 Thank you for being interested in contributing to HTTPX2.
 There are many ways you can contribute to the project:
 
-- Try HTTPX2 and [report bugs/issues you find](https://github.com/encode/httpx/issues/new)
+- Try HTTPX2 and [report bugs/issues you find](https://github.com/pydantic/httpx2/issues/new)
 - [Implement new features](https://github.com/encode/httpx/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
 - [Review Pull Requests of others](https://github.com/encode/httpx/pulls)
 - Write documentation
