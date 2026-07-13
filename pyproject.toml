@@ -20,7 +20,7 @@ dev = [
   "chardet==6.0.0.post1",
   "coverage[toml]==7.10.6",
   "cryptography==46.0.7",
-  "pytest>=9.0.3",
+  "pytest>=9.1.0",
   "pytest-codspeed>=4.1.1",
   "pytest-httpbin==2.0.0",
   "pytest-trio==0.8.0",
