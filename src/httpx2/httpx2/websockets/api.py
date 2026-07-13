@@ -16,13 +16,13 @@ from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStre
 from wsproto.frame_protocol import CloseReason
 
 from .._client import USE_CLIENT_DEFAULT
-from .._models import Headers
-from .defaults import (
+from .._config import (
     DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS,
     DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
     DEFAULT_MAX_MESSAGE_SIZE_BYTES,
     DEFAULT_QUEUE_SIZE,
 )
+from .._models import Headers
 from .exceptions import (
     HTTPXWSException,
     WebSocketDisconnect,

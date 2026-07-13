@@ -13,9 +13,14 @@ from types import TracebackType
 from .__version__ import __version__
 from ._auth import Auth, BasicAuth, FunctionAuth
 from ._config import (
+    DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS,
+    DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
     DEFAULT_LIMITS,
+    DEFAULT_MAX_MESSAGE_SIZE_BYTES,
     DEFAULT_MAX_REDIRECTS,
+    DEFAULT_QUEUE_SIZE,
     DEFAULT_TIMEOUT_CONFIG,
+    WS_EXTRA_INSTALL_MESSAGE,
     Limits,
     Proxy,
     Timeout,
@@ -49,18 +54,11 @@ from ._types import (
 )
 from ._urls import URL, QueryParams
 from ._utils import URLPattern, get_environment_proxies
-from ._websockets.defaults import (
-    DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS,
-    DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
-    DEFAULT_MAX_MESSAGE_SIZE_BYTES,
-    DEFAULT_QUEUE_SIZE,
-    WS_EXTRA_INSTALL_MESSAGE,
-)
 
 if typing.TYPE_CHECKING:
     import ssl  # pragma: no cover
 
-    from ._websockets.api import AsyncWebSocketSession, WebSocketSession
+    from .websockets.api import AsyncWebSocketSession, WebSocketSession
 
 __all__ = ["USE_CLIENT_DEFAULT", "AsyncClient", "Client"]
 
@@ -928,7 +926,7 @@ class Client(BaseClient):
         ```
         """
         try:
-            from ._websockets.api import connect_ws
+            from .websockets.api import connect_ws
         except ImportError:  # pragma: no cover
             raise ImportError(WS_EXTRA_INSTALL_MESSAGE)
 
@@ -1726,7 +1724,7 @@ class AsyncClient(BaseClient):
         ```
         """
         try:
-            from ._websockets.api import aconnect_ws
+            from .websockets.api import aconnect_ws
         except ImportError:  # pragma: no cover
             raise ImportError(WS_EXTRA_INSTALL_MESSAGE)
 

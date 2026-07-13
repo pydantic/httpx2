@@ -13,9 +13,9 @@ from starlette.routing import Route, WebSocketRoute
 from starlette.websockets import WebSocket
 
 import httpx2 as httpx
-from httpx2._websockets.api import aconnect_ws
-from httpx2._websockets.exceptions import WebSocketDisconnect
-from httpx2._websockets.transport import (
+from httpx2.websockets.api import aconnect_ws
+from httpx2.websockets.exceptions import WebSocketDisconnect
+from httpx2.websockets.transport import (
     ASGIWebSocketAsyncNetworkStream,
     ASGIWebSocketTransport,
     Receive,

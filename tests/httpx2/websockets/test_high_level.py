@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import contextlib
+import subprocess
+import sys
 from unittest.mock import patch
 
 import anyio
@@ -10,27 +12,18 @@ from starlette.websockets import WebSocket
 
 import httpx2 as httpx
 from httpcore2 import AsyncNetworkStream
-from httpx2._websockets.api import AsyncWebSocketSession, WebSocketSession
-from httpx2._websockets.transport import ASGIWebSocketTransport
+from httpx2.websockets import AsyncWebSocketSession
 from tests.httpx2.websockets.conftest import ServerFactoryFixture
 
 
-@pytest.mark.parametrize(
-    ("name", "expected"),
-    [
-        ("WebSocketSession", WebSocketSession),
-        ("AsyncWebSocketSession", AsyncWebSocketSession),
-        ("ASGIWebSocketTransport", ASGIWebSocketTransport),
-        ("WebSocketDisconnect", httpx.WebSocketDisconnect),
-    ],
-)
-def test_top_level_names_are_lazily_exported(name: str, expected: object) -> None:
-    assert getattr(httpx, name) is expected
+def test_importing_httpx2_does_not_import_wsproto() -> None:
+    code = "import sys; import httpx2; assert 'wsproto' not in sys.modules"
+    assert subprocess.run([sys.executable, "-c", code], capture_output=True).returncode == 0
 
 
 def test_top_level_websocket_uses_a_dedicated_client() -> None:
     mock_context = contextlib.ExitStack()
-    with patch("httpx2._websockets.api._connect_ws", return_value=mock_context) as mock_connect_ws:
+    with patch("httpx2.websockets.api._connect_ws", return_value=mock_context) as mock_connect_ws:
         with httpx.websocket("http://socket/ws"):
             pass
     mock_connect_ws.assert_called_once()

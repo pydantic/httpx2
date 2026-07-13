@@ -5,7 +5,13 @@ from collections.abc import Generator
 from contextlib import contextmanager
 
 from ._client import Client
-from ._config import DEFAULT_TIMEOUT_CONFIG
+from ._config import (
+    DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS,
+    DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
+    DEFAULT_MAX_MESSAGE_SIZE_BYTES,
+    DEFAULT_QUEUE_SIZE,
+    DEFAULT_TIMEOUT_CONFIG,
+)
 from ._models import Response
 from ._types import (
     AuthTypes,
@@ -19,17 +25,11 @@ from ._types import (
     TimeoutTypes,
 )
 from ._urls import URL
-from ._websockets.defaults import (
-    DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS,
-    DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
-    DEFAULT_MAX_MESSAGE_SIZE_BYTES,
-    DEFAULT_QUEUE_SIZE,
-)
 
 if typing.TYPE_CHECKING:
     import ssl  # pragma: no cover
 
-    from ._websockets.api import WebSocketSession
+    from .websockets.api import WebSocketSession
 
 
 __all__ = [
