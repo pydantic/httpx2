@@ -12,7 +12,7 @@ from starlette.websockets import WebSocket
 
 import httpx2 as httpx
 from httpcore2 import AsyncNetworkStream
-from httpx2.websockets import AsyncWebSocketSession
+from httpx2.websockets import AsyncWebSocketSession, _api
 from tests.httpx2.websockets.conftest import ServerFactoryFixture
 
 
@@ -23,7 +23,7 @@ def test_importing_httpx2_does_not_import_wsproto() -> None:
 
 def test_top_level_websocket_uses_a_dedicated_client() -> None:
     mock_context = contextlib.ExitStack()
-    with patch("httpx2.websockets._api._connect_ws", return_value=mock_context) as mock_connect_ws:
+    with patch.object(_api, "_connect_ws", return_value=mock_context) as mock_connect_ws:
         with httpx.websocket("http://socket/ws"):
             pass
     mock_connect_ws.assert_called_once()

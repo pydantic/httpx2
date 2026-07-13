@@ -14,6 +14,7 @@ from starlette.websockets import WebSocket, WebSocketDisconnect as StarletteWebS
 import httpcore2 as httpcore
 import httpx2 as httpx
 from httpcore2 import AsyncNetworkStream, NetworkStream
+from httpx2.websockets import _api
 from httpx2.websockets._api import (
     AsyncWebSocketSession,
     JSONMode,
@@ -742,7 +743,7 @@ async def test_receive_close(server_factory: ServerFactoryFixture) -> None:
 @pytest.mark.anyio
 async def test_default_httpx_client() -> None:
     mock_context = contextlib.ExitStack()
-    with patch("httpx2.websockets._api._connect_ws", return_value=mock_context) as mock_connect_ws:
+    with patch.object(_api, "_connect_ws", return_value=mock_context) as mock_connect_ws:
         with connect_ws("http://socket/ws"):
             pass
     mock_connect_ws.assert_called_once()
@@ -751,7 +752,7 @@ async def test_default_httpx_client() -> None:
     assert httpx_client.is_closed
 
     mock_async_context = contextlib.AsyncExitStack()
-    with patch("httpx2.websockets._api._aconnect_ws", return_value=mock_async_context) as mock_aconnect_ws:
+    with patch.object(_api, "_aconnect_ws", return_value=mock_async_context) as mock_aconnect_ws:
         async with aconnect_ws("http://socket/ws"):
             pass
     mock_aconnect_ws.assert_called_once()
