@@ -33,6 +33,7 @@ async def test_http2_connection() -> None:
         assert conn.is_available()
         assert not conn.is_closed()
         assert not conn.has_expired()
+        assert conn.is_connected()
         assert conn.info() == "'https://example.com:443', HTTP/2, IDLE, Request Count: 1"
         assert repr(conn) == "<AsyncHTTP2Connection ['https://example.com:443', IDLE, Request Count: 1]>"
 

@@ -456,7 +456,7 @@ class Request:
 
         if not has_host and self.url.host:
             auto_headers.append((b"Host", self.url.netloc))
-        if not has_content_length and self.method in ("POST", "PUT", "PATCH"):
+        if not has_content_length and self.method in ("POST", "PUT", "PATCH", "QUERY"):
             auto_headers.append((b"Content-Length", b"0"))
 
         self.headers = Headers(auto_headers + self.headers.raw)

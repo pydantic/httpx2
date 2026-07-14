@@ -242,6 +242,9 @@ class HTTP11Connection(ConnectionInterface):
     def can_handle_request(self, origin: Origin) -> bool:
         return origin == self._origin
 
+    def is_connected(self) -> bool:
+        return not self.is_closed()
+
     def is_available(self) -> bool:
         # Note that HTTP/1.1 connections in the "NEW" state are not treated as
         # being "available". The control flow which created the connection will

@@ -95,6 +95,18 @@ class ConnectionInterface(RequestInterface):
     def can_handle_request(self, origin: Origin) -> bool:
         raise NotImplementedError()  # pragma: no cover
 
+    def is_connected(self) -> bool:
+        """
+        Return `True` if the connection is open (the underlying socket has been
+        established).  A connection in the NEW state (just created but not yet
+        connected) returns `False`.
+
+        Note: for some implementations `is_connected() != not is_closed()`.
+        The default implementation returns `not self.is_closed()`, which is
+        correct for connections that are never in the NEW (pre-TCP) state.
+        """
+        return not self.is_closed()  # pragma: no cover
+
     def is_available(self) -> bool:
         """
         Return `True` if the connection is currently able to accept an

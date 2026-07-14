@@ -288,6 +288,9 @@ class Socks5Connection(ConnectionInterface):
         if self._connection is not None:
             self._connection.close()
 
+    def is_connected(self) -> bool:
+        return self._connection is not None and self._connection.is_connected()
+
     def is_available(self) -> bool:
         if self._connection is None:  # pragma: no cover
             # If HTTP/2 support is enabled, and the resulting connection could

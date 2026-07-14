@@ -24,6 +24,8 @@
 
 ::: httpx2.delete
 
+::: httpx2.query
+
 ::: httpx2.stream
 
 ## `Client`
@@ -43,6 +45,7 @@
         - put
         - patch
         - delete
+        - query
         - stream
         - sse
         - build_request
@@ -66,6 +69,7 @@
         - put
         - patch
         - delete
+        - query
         - stream
         - sse
         - build_request

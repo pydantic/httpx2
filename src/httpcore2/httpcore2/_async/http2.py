@@ -474,6 +474,9 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
     def can_handle_request(self, origin: Origin) -> bool:
         return origin == self._origin
 
+    def is_connected(self) -> bool:
+        return not self.is_closed()
+
     def is_available(self) -> bool:
         return (
             self._state != HTTPConnectionState.CLOSED
