@@ -60,11 +60,13 @@ b'Hello!'
 
 JSON messages are sent as text frames by default. Pass `mode="binary"` to `send_json()` or `receive_json()` to use binary frames instead.
 
-The `receive` methods block until a message is available. Pass a `timeout` in seconds to bound the wait - if no message arrives in time, `queue.Empty` is raised:
+The `receive` methods block until a message is available. Pass a `timeout` in seconds to bound the wait:
 
 ```pycon
 >>> ws.receive_text(timeout=2.0)
 ```
+
+If no message arrives in time, the sync session raises `queue.Empty`, while the async session raises `TimeoutError`.
 
 If the received message doesn't match the expected type, `WebSocketInvalidTypeReceived` is raised.
 
@@ -95,7 +97,7 @@ You can also send a Ping manually. `ping()` returns an event that is set when th
 
 | Argument | Default | Description |
 | -------- | ------- | ----------- |
-| `max_message_size_bytes` | 65536 | The maximum size of incoming message frames. |
+| `max_message_size_bytes` | 65536 | The number of bytes read from the network at a time. Larger messages are received in multiple chunks and reassembled. |
 | `queue_size` | 512 | The size of the queue holding received messages until they are consumed. When full, the session stops reading from the server until room is available. |
 | `keepalive_ping_interval_seconds` | 20.0 | The interval between automatic keepalive pings. Use `None` to disable them. |
 | `keepalive_ping_timeout_seconds` | 20.0 | How long to wait for the server to answer a keepalive ping before considering the connection lost. |
