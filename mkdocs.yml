@@ -39,6 +39,7 @@ nav:
         - HTTP/2 Support: 'http2.md'
         - Logging: 'logging.md'
         - Server-Sent Events: 'sse.md'
+        - WebSockets: 'websockets.md'
         - Requests Compatibility: 'compatibility.md'
         - Troubleshooting: 'troubleshooting.md'
     - API Reference:

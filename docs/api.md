@@ -28,6 +28,8 @@
 
 ::: httpx2.stream
 
+::: httpx2.websocket
+
 ## `Client`
 
 ::: httpx2.Client
@@ -48,6 +50,7 @@
         - query
         - stream
         - sse
+        - websocket
         - build_request
         - send
         - close
@@ -72,6 +75,7 @@
         - query
         - stream
         - sse
+        - websocket
         - build_request
         - send
         - aclose
@@ -221,3 +225,35 @@ what gets sent over the wire.*
         - id
         - retry
         - json
+
+## `WebSocketSession`
+
+::: httpx2.websockets.WebSocketSession
+    options:
+      members:
+        - subprotocol
+        - response
+        - send_text
+        - send_bytes
+        - send_json
+        - receive_text
+        - receive_bytes
+        - receive_json
+        - ping
+        - close
+
+## `AsyncWebSocketSession`
+
+::: httpx2.websockets.AsyncWebSocketSession
+    options:
+      members:
+        - subprotocol
+        - response
+        - send_text
+        - send_bytes
+        - send_json
+        - receive_text
+        - receive_bytes
+        - receive_json
+        - ping
+        - close

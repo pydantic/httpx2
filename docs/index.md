@@ -115,6 +115,7 @@ As well as these optional installs:
 
 * `h2` - HTTP/2 support. *(Optional, with `httpx2[http2]`)*
 * `socksio` - SOCKS proxy support. *(Optional, with `httpx2[socks]`)*
+* `wsproto` - WebSocket support. *(Optional, with `httpx2[ws]`)*
 * `rich` - Rich terminal support. *(Optional, with `httpx2[cli]`)*
 * `click` - Command line client support. *(Optional, with `httpx2[cli]`)*
 * `brotli` or `brotlicffi` - Decoding for "brotli" compressed responses. *(Optional, with `httpx2[brotli]`)*
