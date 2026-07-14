@@ -66,7 +66,7 @@ The `receive` methods block until a message is available. Pass a `timeout` in se
 >>> ws.receive_text(timeout=2.0)
 ```
 
-If no message arrives in time, the sync session raises `queue.Empty`, while the async session raises `TimeoutError`.
+If no message arrives in time, `TimeoutError` is raised.
 
 If the received message doesn't match the expected type, `WebSocketInvalidTypeReceived` is raised.
 

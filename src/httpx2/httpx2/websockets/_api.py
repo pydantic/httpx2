@@ -6,12 +6,19 @@ import contextlib
 import json
 import queue
 import secrets
+import sys
 import threading
 import typing
 from types import TracebackType
 
+if sys.version_info >= (3, 13):
+    from typing import TypeVar  # pragma: no cover
+else:
+    from typing_extensions import TypeVar  # pragma: no cover
+
 import anyio
 import wsproto
+import wsproto.utilities
 from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
 from wsproto.frame_protocol import CloseReason
 
@@ -50,9 +57,15 @@ if typing.TYPE_CHECKING:
 JSONMode = typing.Literal["text", "binary"]
 TaskFunction = typing.TypeVar("TaskFunction")
 TaskResult = typing.TypeVar("TaskResult")
+SyncSession = TypeVar("SyncSession", bound="WebSocketSession", default="WebSocketSession")
+AsyncSession = TypeVar("AsyncSession", bound="AsyncWebSocketSession", default="AsyncWebSocketSession")
 
 
 class ShouldClose(Exception):
+    pass
+
+
+class EndOfStream(Exception):
     pass
 
 
@@ -92,6 +105,7 @@ class WebSocketSession:
 
         self._ping_manager = PingManager()
         self._should_close = threading.Event()
+        self._write_lock = threading.Lock()
         self._should_close_task: concurrent.futures.Future[bool] | None = None
         self._executor: concurrent.futures.ThreadPoolExecutor | None = None
 
@@ -190,7 +204,8 @@ class WebSocketSession:
 
         try:
             data = self.connection.send(event)
-            self.stream.write(data)
+            with self._write_lock:
+                self.stream.write(data)
         except httpcore2.WriteError as e:
             self.close(CloseReason.INTERNAL_ERROR, "Stream write error")
             raise WebSocketNetworkError() from e
@@ -275,7 +290,7 @@ class WebSocketSession:
             A raw [wsproto.events.Event][wsproto.events.Event].
 
         Raises:
-            queue.Empty: No event was received before the timeout delay.
+            TimeoutError: No event was received before the timeout delay.
             WebSocketDisconnect: The server closed the websocket.
             WebSocketNetworkError: A network error occured.
 
@@ -291,12 +306,15 @@ class WebSocketSession:
 
                 try:
                     event = ws.receive(timeout=2.)
-                except queue.Empty:
+                except TimeoutError:
                     print("No event received.")
                 except WebSocketDisconnect:
                     print("Connection closed")
         """
-        event = self._events.get(block=True, timeout=timeout)
+        try:
+            event = self._events.get(block=True, timeout=timeout)
+        except queue.Empty as e:
+            raise TimeoutError from e
         if isinstance(event, HTTPXWSException):
             raise event
         if isinstance(event, wsproto.events.CloseConnection):
@@ -316,7 +334,7 @@ class WebSocketSession:
             Text data.
 
         Raises:
-            queue.Empty: No event was received before the timeout delay.
+            TimeoutError: No event was received before the timeout delay.
             WebSocketDisconnect: The server closed the websocket.
             WebSocketNetworkError: A network error occured.
             WebSocketInvalidTypeReceived: The received event was not a text message.
@@ -333,7 +351,7 @@ class WebSocketSession:
 
                 try:
                     event = ws.receive_text(timeout=2.)
-                except queue.Empty:
+                except TimeoutError:
                     print("No text received.")
                 except WebSocketDisconnect:
                     print("Connection closed")
@@ -356,7 +374,7 @@ class WebSocketSession:
             Bytes data.
 
         Raises:
-            queue.Empty: No event was received before the timeout delay.
+            TimeoutError: No event was received before the timeout delay.
             WebSocketDisconnect: The server closed the websocket.
             WebSocketNetworkError: A network error occured.
             WebSocketInvalidTypeReceived: The received event was not a bytes message.
@@ -373,7 +391,7 @@ class WebSocketSession:
 
                 try:
                     data = ws.receive_bytes(timeout=2.)
-                except queue.Empty:
+                except TimeoutError:
                     print("No data received.")
                 except WebSocketDisconnect:
                     print("Connection closed")
@@ -400,7 +418,7 @@ class WebSocketSession:
             Parsed JSON data.
 
         Raises:
-            queue.Empty: No event was received before the timeout delay.
+            TimeoutError: No event was received before the timeout delay.
             WebSocketDisconnect: The server closed the websocket.
             WebSocketNetworkError: A network error occured.
             WebSocketInvalidTypeReceived: The received event
@@ -418,7 +436,7 @@ class WebSocketSession:
 
                 try:
                     data = ws.receive_json(timeout=2.)
-                except queue.Empty:
+                except TimeoutError:
                     print("No data received.")
                 except WebSocketDisconnect:
                     print("Connection closed")
@@ -463,7 +481,8 @@ class WebSocketSession:
             event = wsproto.events.CloseConnection(code, reason)
             data = self.connection.send(event)
             try:
-                self.stream.write(data)
+                with self._write_lock:
+                    self.stream.write(data)
             except httpcore2.WriteError:
                 pass
         self.stream.close()
@@ -487,12 +506,13 @@ class WebSocketSession:
         partial_message_buffer: str | bytes | None = None
         try:
             while not self._should_close.is_set():
-                data = self._wait_until_closed(self.stream.read, max_bytes)
+                data = self._wait_until_closed(self._read_stream, max_bytes)
                 self.connection.receive_data(data)
                 for event in self.connection.events():
                     if isinstance(event, wsproto.events.Ping):
                         data = self.connection.send(event.response())
-                        self.stream.write(data)
+                        with self._write_lock:
+                            self.stream.write(data)
                         continue
                     if isinstance(event, wsproto.events.Pong):
                         self._ping_manager.ack(event.payload)
@@ -517,7 +537,7 @@ class WebSocketSession:
                             self._events.put(full_message_event)
                         continue
                     self._events.put(event)
-        except (httpcore2.ReadError, httpcore2.WriteError):
+        except (httpcore2.ReadError, httpcore2.WriteError, EndOfStream):
             self.close(CloseReason.INTERNAL_ERROR, "Stream error")
             self._events.put(WebSocketNetworkError())
         except ShouldClose:
@@ -557,10 +577,38 @@ class WebSocketSession:
             result = todo_task.result()
         return result
 
+    def _read_stream(self, max_bytes: int) -> bytes:
+        data = self.stream.read(max_bytes)
+        if data == b"":
+            raise EndOfStream()
+        return data
 
-class AsyncWebSocketSession:
+
+class AsyncWebSocketSession(anyio.AsyncContextManagerMixin):
     """
     Async context manager representing an opened WebSocket session.
+
+    Internally, this session uses an anyio task group to manage background tasks.
+    As a result, exceptions that are not caught inside the context manager
+    and propagate out of the `async with` block will be wrapped
+    in an [ExceptionGroup][ExceptionGroup].
+
+    To handle them, use the `except*` syntax:
+
+        async with AsyncWebSocketSession(stream) as ws:
+            try:
+                data = await ws.receive_text()
+            except WebSocketDisconnect:
+                # Caught inside the context manager: plain exception.
+                print("Connection closed")
+
+        # If not caught inside:
+        try:
+            async with AsyncWebSocketSession(stream) as ws:
+                data = await ws.receive_text()
+        except* WebSocketDisconnect:
+            # Propagated out of the context manager: wrapped in ExceptionGroup.
+            print("Connection closed")
 
     Attributes:
         subprotocol (typing.Optional[str]):
@@ -594,6 +642,7 @@ class AsyncWebSocketSession:
 
         self._ping_manager = AsyncPingManager()
         self._should_close = anyio.Event()
+        self._write_lock = anyio.Lock()
 
         self._max_message_size_bytes = max_message_size_bytes
         self._queue_size = queue_size
@@ -606,17 +655,14 @@ class AsyncWebSocketSession:
             self._keepalive_ping_interval_seconds = keepalive_ping_interval_seconds
             self._keepalive_ping_timeout_seconds = keepalive_ping_timeout_seconds
 
-    async def __aenter__(self) -> AsyncWebSocketSession:
-        async with contextlib.AsyncExitStack() as exit_stack:
-            self._send_event, self._receive_event = anyio.create_memory_object_stream[
-                wsproto.events.Event | HTTPXWSException
-            ]()
-            exit_stack.enter_context(self._send_event)
-            exit_stack.enter_context(self._receive_event)
+    @contextlib.asynccontextmanager
+    async def __asynccontextmanager__(self) -> typing.AsyncGenerator[AsyncWebSocketSession, None]:
+        self._send_event, self._receive_event = anyio.create_memory_object_stream[
+            wsproto.events.Event | HTTPXWSException
+        ]()
+        self._background_task_group = anyio.create_task_group()
 
-            self._background_task_group = anyio.create_task_group()
-            await exit_stack.enter_async_context(self._background_task_group)
-
+        async with self._send_event, self._receive_event, self._background_task_group:
             self._background_task_group.start_soon(self._background_receive, self._max_message_size_bytes)
             if self._keepalive_ping_interval_seconds is not None:
                 self._background_task_group.start_soon(
@@ -625,19 +671,12 @@ class AsyncWebSocketSession:
                     self._keepalive_ping_timeout_seconds,
                 )
 
-            exit_stack.callback(self._background_task_group.cancel_scope.cancel)
-            exit_stack.push_async_callback(self.close)
-            self._exit_stack = exit_stack.pop_all()
-
-        return self
-
-    async def __aexit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc: BaseException | None,
-        tb: TracebackType | None,
-    ) -> None:
-        await self._exit_stack.aclose()
+            try:
+                yield self
+            finally:
+                self._background_task_group.cancel_scope.cancel()
+                with anyio.CancelScope(shield=True):
+                    await self.close()
 
     async def ping(self, payload: bytes = b"") -> anyio.Event:
         """
@@ -680,6 +719,11 @@ class AsyncWebSocketSession:
         Raises:
             WebSocketNetworkError: A network error occured.
 
+        Note:
+            Exceptions not caught inside the context manager will be
+            wrapped in an [ExceptionGroup][ExceptionGroup]. Use `except*` to catch them
+            outside the `async with` block.
+
         Examples:
             Send an event.
 
@@ -690,7 +734,8 @@ class AsyncWebSocketSession:
 
         try:
             data = self.connection.send(event)
-            await self.stream.write(data)
+            async with self._write_lock:
+                await self.stream.write(data)
         except httpcore2.WriteError as e:
             await self.close(CloseReason.INTERNAL_ERROR, "Stream write error")
             raise WebSocketNetworkError() from e
@@ -704,6 +749,11 @@ class AsyncWebSocketSession:
 
         Raises:
             WebSocketNetworkError: A network error occured.
+
+        Note:
+            Exceptions not caught inside the context manager will be
+            wrapped in an [ExceptionGroup][ExceptionGroup]. Use `except*` to catch them
+            outside the `async with` block.
 
         Examples:
             Send a text message.
@@ -722,6 +772,11 @@ class AsyncWebSocketSession:
 
         Raises:
             WebSocketNetworkError: A network error occured.
+
+        Note:
+            Exceptions not caught inside the context manager will be
+            wrapped in an [ExceptionGroup][ExceptionGroup]. Use `except*` to catch them
+            outside the `async with` block.
 
         Examples:
             Send a bytes message.
@@ -743,6 +798,11 @@ class AsyncWebSocketSession:
 
         Raises:
             WebSocketNetworkError: A network error occured.
+
+        Note:
+            Exceptions not caught inside the context manager will be
+            wrapped in an [ExceptionGroup][ExceptionGroup]. Use `except*` to catch them
+            outside the `async with` block.
 
         Examples:
             Send JSON data.
@@ -778,6 +838,11 @@ class AsyncWebSocketSession:
             TimeoutError: No event was received before the timeout delay.
             WebSocketDisconnect: The server closed the websocket.
             WebSocketNetworkError: A network error occured.
+
+        Note:
+            Exceptions not caught inside the context manager will be
+            wrapped in an [ExceptionGroup][ExceptionGroup]. Use `except*` to catch them
+            outside the `async with` block.
 
         Examples:
             Wait for an event until one is available.
@@ -822,6 +887,11 @@ class AsyncWebSocketSession:
             WebSocketNetworkError: A network error occured.
             WebSocketInvalidTypeReceived: The received event was not a text message.
 
+        Note:
+            Exceptions not caught inside the context manager will be
+            wrapped in an [ExceptionGroup][ExceptionGroup]. Use `except*` to catch them
+            outside the `async with` block.
+
         Examples:
             Wait for text until available.
 
@@ -861,6 +931,11 @@ class AsyncWebSocketSession:
             WebSocketDisconnect: The server closed the websocket.
             WebSocketNetworkError: A network error occured.
             WebSocketInvalidTypeReceived: The received event was not a bytes message.
+
+        Note:
+            Exceptions not caught inside the context manager will be
+            wrapped in an [ExceptionGroup][ExceptionGroup]. Use `except*` to catch them
+            outside the `async with` block.
 
         Examples:
             Wait for bytes until available.
@@ -906,6 +981,11 @@ class AsyncWebSocketSession:
             WebSocketNetworkError: A network error occured.
             WebSocketInvalidTypeReceived: The received event
                 didn't correspond to the specified mode.
+
+        Note:
+            Exceptions not caught inside the context manager will be
+            wrapped in an [ExceptionGroup][ExceptionGroup]. Use `except*` to catch them
+            outside the `async with` block.
 
         Examples:
             Wait for data until available.
@@ -962,7 +1042,8 @@ class AsyncWebSocketSession:
             event = wsproto.events.CloseConnection(code, reason)
             data = self.connection.send(event)
             try:
-                await self.stream.write(data)
+                async with self._write_lock:
+                    await self.stream.write(data)
             except httpcore2.WriteError:
                 pass
         await self.stream.aclose()
@@ -986,12 +1067,13 @@ class AsyncWebSocketSession:
         partial_message_buffer: str | bytes | None = None
         try:
             while not self._should_close.is_set():
-                data = await self.stream.read(max_bytes=max_bytes)
+                data = await self._read_stream(max_bytes)
                 self.connection.receive_data(data)
                 for event in self.connection.events():
                     if isinstance(event, wsproto.events.Ping):
                         data = self.connection.send(event.response())
-                        await self.stream.write(data)
+                        async with self._write_lock:
+                            await self.stream.write(data)
                         continue
                     if isinstance(event, wsproto.events.Pong):
                         self._ping_manager.ack(event.payload)
@@ -1016,16 +1098,20 @@ class AsyncWebSocketSession:
                             await self._send_event.send(full_message_event)
                         continue
                     await self._send_event.send(event)
-        except (httpcore2.ReadError, httpcore2.WriteError):
+        except (httpcore2.ReadError, httpcore2.WriteError, EndOfStream):
             await self.close(CloseReason.INTERNAL_ERROR, "Stream error")
             await self._send_event.send(WebSocketNetworkError())
 
     async def _background_keepalive_ping(self, interval_seconds: float, timeout_seconds: float | None = None) -> None:
         while not self._should_close.is_set():
             await anyio.sleep(interval_seconds)
-            if self._should_close.is_set():
+
+            try:
+                pong_callback = await self.ping()
+            # Connection is closing, exit the task
+            except wsproto.utilities.LocalProtocolError:
                 return
-            pong_callback = await self.ping()
+
             if timeout_seconds is not None:
                 try:
                     with anyio.fail_after(timeout_seconds):
@@ -1033,6 +1119,12 @@ class AsyncWebSocketSession:
                 except TimeoutError:
                     await self.close(CloseReason.INTERNAL_ERROR, "Keepalive ping timeout")
                     await self._send_event.send(WebSocketNetworkError())
+
+    async def _read_stream(self, max_bytes: int) -> bytes:
+        data = await self.stream.read(max_bytes)
+        if data == b"":
+            raise EndOfStream()
+        return data
 
 
 def _get_headers(
@@ -1049,47 +1141,133 @@ def _get_headers(
     return headers
 
 
-@contextlib.contextmanager
-def _connect_ws(
-    url: str,
-    client: Client,
-    *,
-    max_message_size_bytes: int = DEFAULT_MAX_MESSAGE_SIZE_BYTES,
-    queue_size: int = DEFAULT_QUEUE_SIZE,
-    keepalive_ping_interval_seconds: float | None = DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS,
-    keepalive_ping_timeout_seconds: float | None = DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
-    subprotocols: list[str] | None = None,
-    params: QueryParamTypes | None = None,
-    headers: HeaderTypes | None = None,
-    cookies: CookieTypes | None = None,
-    auth: AuthTypes | UseClientDefault | None = USE_CLIENT_DEFAULT,
-    follow_redirects: bool | UseClientDefault = USE_CLIENT_DEFAULT,
-    timeout: TimeoutTypes | UseClientDefault = USE_CLIENT_DEFAULT,
-    extensions: RequestExtensions | None = None,
-) -> typing.Generator[WebSocketSession, None, None]:
-    with client.stream(
-        "GET",
-        url,
-        params=params,
-        headers=Headers(headers) | _get_headers(subprotocols),
-        cookies=cookies,
-        auth=auth,
-        follow_redirects=follow_redirects,
-        timeout=timeout,
-        extensions=extensions,
-    ) as response:
-        if response.status_code != 101:
-            raise WebSocketUpgradeError(response)
+class WebSocketClient(typing.Generic[SyncSession]):
+    """
+    A sync WebSocket client.
 
-        with WebSocketSession(
-            response.extensions["network_stream"],
-            max_message_size_bytes=max_message_size_bytes,
-            queue_size=queue_size,
-            keepalive_ping_interval_seconds=keepalive_ping_interval_seconds,
-            keepalive_ping_timeout_seconds=keepalive_ping_timeout_seconds,
-            response=response,
-        ) as session:
-            yield session
+    This class provides an API for connecting to WebSocket.
+
+    Attributes:
+        client:
+            HTTPX client to use.
+        max_message_size_bytes:
+            Message size in bytes to receive from the server.
+            Defaults to 65 KiB.
+        queue_size:
+            Size of the queue where the received messages will be held
+            until they are consumed.
+            If the queue is full, the client will stop receive messages
+            from the server until the queue has room available.
+            Defaults to 512.
+        keepalive_ping_interval_seconds:
+            Interval at which the client will automatically send a Ping event
+            to keep the connection alive. Set it to `None` to disable this mechanism.
+            Defaults to 20 seconds.
+        keepalive_ping_timeout_seconds:
+            Maximum delay the client will wait for an answer to its Ping event.
+            If the delay is exceeded,
+            [WebSocketNetworkError][httpx_ws.WebSocketNetworkError]
+            will be raised and the connection closed.
+            Defaults to 20 seconds.
+        session_class:
+            The session class to use.
+            Defaults to [WebSocketSession][httpx_ws.WebSocketSession].
+    """
+
+    def __init__(
+        self,
+        client: Client,
+        *,
+        max_message_size_bytes: int = DEFAULT_MAX_MESSAGE_SIZE_BYTES,
+        queue_size: int = DEFAULT_QUEUE_SIZE,
+        keepalive_ping_interval_seconds: float | None = DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS,
+        keepalive_ping_timeout_seconds: float | None = DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
+        session_class: type[SyncSession] = WebSocketSession,  # type: ignore[assignment]
+    ) -> None:
+        self.client = client
+        self.max_message_size_bytes = max_message_size_bytes
+        self.queue_size = queue_size
+        self.keepalive_ping_interval_seconds = keepalive_ping_interval_seconds
+        self.keepalive_ping_timeout_seconds = keepalive_ping_timeout_seconds
+        self.session_class = session_class
+
+    @contextlib.contextmanager
+    def connect(
+        self,
+        url: str,
+        *,
+        subprotocols: list[str] | None = None,
+        params: QueryParamTypes | None = None,
+        headers: HeaderTypes | None = None,
+        cookies: CookieTypes | None = None,
+        auth: AuthTypes | UseClientDefault | None = USE_CLIENT_DEFAULT,
+        follow_redirects: bool | UseClientDefault = USE_CLIENT_DEFAULT,
+        timeout: TimeoutTypes | UseClientDefault = USE_CLIENT_DEFAULT,
+        extensions: RequestExtensions | None = None,
+    ) -> typing.Generator[SyncSession, None, None]:
+        """
+        Start a sync WebSocket session.
+
+        It returns a context manager that'll automatically
+        call [close()][httpx_ws.WebSocketSession.close] when exiting.
+
+        Args:
+            url: The WebSocket URL.
+            subprotocols:
+                Optional list of subprotocols to negotiate with the server.
+            params:
+                Query parameters to include in the handshake request.
+            headers:
+                Headers to include in the handshake request.
+            cookies:
+                Cookies to include in the handshake request.
+            auth:
+                Authentication to use for the handshake request.
+            follow_redirects:
+                Whether to follow redirects on the handshake request.
+            timeout:
+                Timeout configuration for the handshake request.
+            extensions:
+                Request extensions for the handshake request.
+
+        Returns:
+            A [context manager][contextlib.AbstractContextManager]
+                for [WebSocketSession][httpx_ws.WebSocketSession].
+
+        Examples:
+            Initialize the client and connect to a WebSocket.
+
+                with httpx2.Client() as client:
+                    ws_client = WebSocketClient(client)
+                    with ws_client.connect("http://localhost:8000/ws") as ws:
+                        message = ws.receive_text()
+                        print(message)
+                        ws.send_text("Hello!")
+        """
+        with self.client.stream(
+            "GET",
+            url,
+            params=params,
+            headers=Headers(headers) | _get_headers(subprotocols),
+            cookies=cookies,
+            auth=auth,
+            follow_redirects=follow_redirects,
+            timeout=timeout,
+            extensions=extensions,
+        ) as response:
+            if response.status_code != 101:
+                raise WebSocketUpgradeError(response)
+
+            session = self.session_class(
+                response.extensions["network_stream"],
+                max_message_size_bytes=self.max_message_size_bytes,
+                queue_size=self.queue_size,
+                keepalive_ping_interval_seconds=self.keepalive_ping_interval_seconds,
+                keepalive_ping_timeout_seconds=self.keepalive_ping_timeout_seconds,
+                response=response,
+            )
+            with session:
+                yield session
 
 
 @contextlib.contextmanager
@@ -1141,7 +1319,7 @@ def connect_ws(
             will be raised and the connection closed.
             Defaults to 20 seconds.
         subprotocols:
-            Optional list of suprotocols to negotiate with the server.
+            Optional list of subprotocols to negotiate with the server.
         params:
             Query parameters to include in the handshake request.
         headers:
@@ -1185,13 +1363,15 @@ def connect_ws(
         owned_client = contextlib.nullcontext(client)
 
     with owned_client as client:
-        with _connect_ws(
-            url,
+        ws_client = WebSocketClient(
             client=client,
             max_message_size_bytes=max_message_size_bytes,
             queue_size=queue_size,
             keepalive_ping_interval_seconds=keepalive_ping_interval_seconds,
             keepalive_ping_timeout_seconds=keepalive_ping_timeout_seconds,
+        )
+        with ws_client.connect(
+            url,
             subprotocols=subprotocols,
             params=params,
             headers=headers,
@@ -1204,47 +1384,133 @@ def connect_ws(
             yield websocket
 
 
-@contextlib.asynccontextmanager
-async def _aconnect_ws(
-    url: str,
-    client: AsyncClient,
-    *,
-    max_message_size_bytes: int = DEFAULT_MAX_MESSAGE_SIZE_BYTES,
-    queue_size: int = DEFAULT_QUEUE_SIZE,
-    keepalive_ping_interval_seconds: float | None = DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS,
-    keepalive_ping_timeout_seconds: float | None = DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
-    subprotocols: list[str] | None = None,
-    params: QueryParamTypes | None = None,
-    headers: HeaderTypes | None = None,
-    cookies: CookieTypes | None = None,
-    auth: AuthTypes | UseClientDefault | None = USE_CLIENT_DEFAULT,
-    follow_redirects: bool | UseClientDefault = USE_CLIENT_DEFAULT,
-    timeout: TimeoutTypes | UseClientDefault = USE_CLIENT_DEFAULT,
-    extensions: RequestExtensions | None = None,
-) -> typing.AsyncGenerator[AsyncWebSocketSession, None]:
-    async with client.stream(
-        "GET",
-        url,
-        params=params,
-        headers=Headers(headers) | _get_headers(subprotocols),
-        cookies=cookies,
-        auth=auth,
-        follow_redirects=follow_redirects,
-        timeout=timeout,
-        extensions=extensions,
-    ) as response:
-        if response.status_code != 101:
-            raise WebSocketUpgradeError(response)
+class AsyncWebSocketClient(typing.Generic[AsyncSession]):
+    """
+    An async WebSocket client.
 
-        async with AsyncWebSocketSession(
-            response.extensions["network_stream"],
-            max_message_size_bytes=max_message_size_bytes,
-            queue_size=queue_size,
-            keepalive_ping_interval_seconds=keepalive_ping_interval_seconds,
-            keepalive_ping_timeout_seconds=keepalive_ping_timeout_seconds,
-            response=response,
-        ) as session:
-            yield session
+    This class provides an API for connecting to WebSocket.
+
+    Attributes:
+        client:
+            HTTPX client to use.
+        max_message_size_bytes:
+            Message size in bytes to receive from the server.
+            Defaults to 65 KiB.
+        queue_size:
+            Size of the queue where the received messages will be held
+            until they are consumed.
+            If the queue is full, the client will stop receive messages
+            from the server until the queue has room available.
+            Defaults to 512.
+        keepalive_ping_interval_seconds:
+            Interval at which the client will automatically send a Ping event
+            to keep the connection alive. Set it to `None` to disable this mechanism.
+            Defaults to 20 seconds.
+        keepalive_ping_timeout_seconds:
+            Maximum delay the client will wait for an answer to its Ping event.
+            If the delay is exceeded,
+            [WebSocketNetworkError][httpx_ws.WebSocketNetworkError]
+            will be raised in an [ExceptionGroup][ExceptionGroup] and the connection closed.
+            Defaults to 20 seconds.
+        session_class:
+            The session class to use.
+            Defaults to [AsyncWebSocketSession][httpx_ws.AsyncWebSocketSession].
+    """
+
+    def __init__(
+        self,
+        client: AsyncClient,
+        *,
+        max_message_size_bytes: int = DEFAULT_MAX_MESSAGE_SIZE_BYTES,
+        queue_size: int = DEFAULT_QUEUE_SIZE,
+        keepalive_ping_interval_seconds: float | None = DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS,
+        keepalive_ping_timeout_seconds: float | None = DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
+        session_class: type[AsyncSession] = AsyncWebSocketSession,  # type: ignore[assignment]
+    ) -> None:
+        self.client = client
+        self.max_message_size_bytes = max_message_size_bytes
+        self.queue_size = queue_size
+        self.keepalive_ping_interval_seconds = keepalive_ping_interval_seconds
+        self.keepalive_ping_timeout_seconds = keepalive_ping_timeout_seconds
+        self.session_class = session_class
+
+    @contextlib.asynccontextmanager
+    async def connect(
+        self,
+        url: str,
+        *,
+        subprotocols: list[str] | None = None,
+        params: QueryParamTypes | None = None,
+        headers: HeaderTypes | None = None,
+        cookies: CookieTypes | None = None,
+        auth: AuthTypes | UseClientDefault | None = USE_CLIENT_DEFAULT,
+        follow_redirects: bool | UseClientDefault = USE_CLIENT_DEFAULT,
+        timeout: TimeoutTypes | UseClientDefault = USE_CLIENT_DEFAULT,
+        extensions: RequestExtensions | None = None,
+    ) -> typing.AsyncGenerator[AsyncSession, None]:
+        """
+        Start an async WebSocket session.
+
+        It returns an async context manager that'll automatically
+        call [close()][httpx_ws.AsyncWebSocketSession.close] when exiting.
+
+        Args:
+            url: The WebSocket URL.
+            subprotocols:
+                Optional list of subprotocols to negotiate with the server.
+            params:
+                Query parameters to include in the handshake request.
+            headers:
+                Headers to include in the handshake request.
+            cookies:
+                Cookies to include in the handshake request.
+            auth:
+                Authentication to use for the handshake request.
+            follow_redirects:
+                Whether to follow redirects on the handshake request.
+            timeout:
+                Timeout configuration for the handshake request.
+            extensions:
+                Request extensions for the handshake request.
+
+        Returns:
+            An [async context manager][contextlib.AbstractAsyncContextManager]
+                for [AsyncWebSocketSession][httpx_ws.AsyncWebSocketSession].
+
+        Examples:
+            Initialize the client and connect to a WebSocket.
+
+                async with httpx2.AsyncClient() as client:
+                    ws_client = AsyncWebSocketClient(client)
+                    async with ws_client.connect("http://localhost:8000/ws") as ws:
+                        message = await ws.receive_text()
+                        print(message)
+                        await ws.send_text("Hello!")
+        """
+        async with self.client.stream(
+            "GET",
+            url,
+            params=params,
+            headers=Headers(headers) | _get_headers(subprotocols),
+            cookies=cookies,
+            auth=auth,
+            follow_redirects=follow_redirects,
+            timeout=timeout,
+            extensions=extensions,
+        ) as response:
+            if response.status_code != 101:
+                raise WebSocketUpgradeError(response)
+
+            session = self.session_class(
+                response.extensions["network_stream"],
+                max_message_size_bytes=self.max_message_size_bytes,
+                queue_size=self.queue_size,
+                keepalive_ping_interval_seconds=self.keepalive_ping_interval_seconds,
+                keepalive_ping_timeout_seconds=self.keepalive_ping_timeout_seconds,
+                response=response,
+            )
+            async with session:
+                yield session
 
 
 @contextlib.asynccontextmanager
@@ -1293,10 +1559,10 @@ async def aconnect_ws(
             Maximum delay the client will wait for an answer to its Ping event.
             If the delay is exceeded,
             [WebSocketNetworkError][httpx_ws.WebSocketNetworkError]
-            will be raised and the connection closed.
+            will be raised in an [ExceptionGroup][ExceptionGroup] and the connection closed.
             Defaults to 20 seconds.
         subprotocols:
-            Optional list of suprotocols to negotiate with the server.
+            Optional list of subprotocols to negotiate with the server.
         params:
             Query parameters to include in the handshake request.
         headers:
@@ -1340,13 +1606,15 @@ async def aconnect_ws(
         owned_client = contextlib.nullcontext(client)
 
     async with owned_client as client:
-        async with _aconnect_ws(
-            url,
+        ws_client = AsyncWebSocketClient(
             client=client,
             max_message_size_bytes=max_message_size_bytes,
             queue_size=queue_size,
             keepalive_ping_interval_seconds=keepalive_ping_interval_seconds,
             keepalive_ping_timeout_seconds=keepalive_ping_timeout_seconds,
+        )
+        async with ws_client.connect(
+            url,
             subprotocols=subprotocols,
             params=params,
             headers=headers,

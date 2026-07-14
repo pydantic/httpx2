@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import contextlib
 import subprocess
 import sys
 from unittest.mock import patch
@@ -22,12 +21,11 @@ def test_importing_httpx2_does_not_import_wsproto() -> None:
 
 
 def test_top_level_websocket_uses_a_dedicated_client() -> None:
-    mock_context = contextlib.ExitStack()
-    with patch.object(_api, "_connect_ws", return_value=mock_context) as mock_connect_ws:
+    with patch.object(_api, "WebSocketClient") as mock_client:
         with httpx.websocket("http://socket/ws"):
             pass
-    mock_connect_ws.assert_called_once()
-    client = mock_connect_ws.call_args[1]["client"]
+    mock_client.return_value.connect.assert_called_once()
+    client = mock_client.call_args[1]["client"]
     assert isinstance(client, httpx.Client)
     assert client.is_closed
 

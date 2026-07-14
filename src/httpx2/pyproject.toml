@@ -46,7 +46,7 @@ dynamic = ["readme", "version", "dependencies"]
 dependencies = [
     "truststore>=0.10",
     "httpcore2=={{ version }}",
-    "anyio",
+    "anyio>=4.10",
     "idna>=3.18",
     "typing_extensions>=4.5.0; python_version < '3.13'",
 ]
