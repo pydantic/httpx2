@@ -1,0 +1,3 @@
+- Do not force push.
+- Do not use double tick (``), instead use single one (`).
+- Coding agents shouldn't co-author themselves. The authorship should be only for the engineer.
