@@ -277,6 +277,24 @@ class Headers(typing.MutableMapping[str, str]):
     def copy(self) -> Headers:
         return Headers(self, encoding=self.encoding)
 
+    def __or__(self, other: Mapping[str, str]) -> Headers:
+        if not isinstance(other, Mapping):
+            return NotImplemented
+        merged = self.copy()
+        merged.update(other)
+        return merged
+
+    def __ror__(self, other: Mapping[str, str]) -> Headers:
+        if not isinstance(other, Mapping):
+            return NotImplemented
+        merged = Headers(other)
+        merged.update(self)
+        return merged
+
+    def __ior__(self, other: HeaderTypes) -> Headers:
+        self.update(other)
+        return self
+
     def __getitem__(self, key: str) -> str:
         """
         Return a single header value.
@@ -438,7 +456,7 @@ class Request:
 
         if not has_host and self.url.host:
             auto_headers.append((b"Host", self.url.netloc))
-        if not has_content_length and self.method in ("POST", "PUT", "PATCH"):
+        if not has_content_length and self.method in ("POST", "PUT", "PATCH", "QUERY"):
             auto_headers.append((b"Content-Length", b"0"))
 
         self.headers = Headers(auto_headers + self.headers.raw)

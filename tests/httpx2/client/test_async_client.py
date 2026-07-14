@@ -167,6 +167,13 @@ async def test_delete(server: TestServer) -> None:
 
 
 @pytest.mark.anyio
+async def test_query(server: TestServer) -> None:
+    async with httpx2.AsyncClient() as client:
+        response = await client.query(server.url, content=b"Hello, world!")
+    assert response.status_code == 200
+
+
+@pytest.mark.anyio
 async def test_100_continue(server: TestServer) -> None:
     headers = {"Expect": "100-continue"}
     content = b"Echo request body"

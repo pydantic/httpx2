@@ -65,6 +65,46 @@ def test_copy_headers_init() -> None:
     assert headers == headers_copy
 
 
+def test_headers_or() -> None:
+    left = httpx2.Headers({"a": "1", "b": "2"})
+    merged = left | {"b": "3", "c": "4"}
+    assert isinstance(merged, httpx2.Headers)
+    assert dict(merged) == {"a": "1", "b": "3", "c": "4"}
+    assert dict(left) == {"a": "1", "b": "2"}
+
+
+def test_headers_or_with_headers() -> None:
+    merged = httpx2.Headers({"a": "1"}) | httpx2.Headers({"a": "2"})
+    assert dict(merged) == {"a": "2"}
+
+
+def test_headers_ror() -> None:
+    merged = {"a": "1", "b": "2"} | httpx2.Headers({"b": "3"})
+    assert isinstance(merged, httpx2.Headers)
+    assert dict(merged) == {"a": "1", "b": "3"}
+
+
+def test_headers_ior() -> None:
+    headers = httpx2.Headers({"a": "1"})
+    original = headers
+    headers |= {"a": "2", "b": "3"}
+    assert headers is original
+    assert dict(headers) == {"a": "2", "b": "3"}
+
+
+def test_headers_ior_accepts_update_inputs() -> None:
+    headers = httpx2.Headers({"a": "1"})
+    headers |= [("a", "2"), ("b", "3")]
+    assert dict(headers) == {"a": "2", "b": "3"}
+
+
+def test_headers_or_unsupported_type() -> None:
+    with pytest.raises(TypeError):
+        httpx2.Headers({"a": "1"}) | [("b", "2")]  # type: ignore[operator]
+    with pytest.raises(TypeError):
+        [("b", "2")] | httpx2.Headers({"a": "1"})  # type: ignore[operator]
+
+
 def test_headers_insert_retains_ordering() -> None:
     headers = httpx2.Headers({"a": "a", "b": "b", "c": "c"})
     headers["b"] = "123"

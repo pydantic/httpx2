@@ -88,6 +88,11 @@ def redirects(request: httpx2.Request) -> httpx2.Response:
         headers = {"location": "/redirect_body_target"}
         return httpx2.Response(status_code, headers=headers)
 
+    elif request.url.path == "/redirect_found_body":
+        status_code = httpx2.codes.FOUND
+        headers = {"location": "/redirect_body_target"}
+        return httpx2.Response(status_code, headers=headers)
+
     elif request.url.path == "/redirect_body_target":
         data = {
             "body": request.content.decode("ascii"),
@@ -318,6 +323,37 @@ def test_no_body_redirect() -> None:
     assert response.url == "https://example.org/redirect_body_target"
     assert response.json()["body"] == ""
     assert "content-length" not in response.json()["headers"]
+
+
+def test_query_body_redirect() -> None:
+    """
+    A 302 redirect should preserve the method and body of a `QUERY` request.
+
+    https://datatracker.ietf.org/doc/html/rfc10008#section-2.5
+    """
+    client = httpx2.Client(transport=httpx2.MockTransport(redirects))
+    url = "https://example.org/redirect_found_body"
+    content = b"Example request body"
+    response = client.query(url, content=content, follow_redirects=True)
+    assert response.url == "https://example.org/redirect_body_target"
+    assert response.request.method == "QUERY"
+    assert response.json()["body"] == "Example request body"
+    assert "content-length" in response.json()["headers"]
+
+
+def test_query_no_body_redirect() -> None:
+    """
+    A 303 redirect should convert a `QUERY` request to a `GET` request.
+
+    https://datatracker.ietf.org/doc/html/rfc10008#section-2.5
+    """
+    client = httpx2.Client(transport=httpx2.MockTransport(redirects))
+    url = "https://example.org/redirect_no_body"
+    content = b"Example request body"
+    response = client.query(url, content=content, follow_redirects=True)
+    assert response.url == "https://example.org/redirect_body_target"
+    assert response.request.method == "GET"
+    assert response.json()["body"] == ""
 
 
 def test_can_stream_if_no_redirect() -> None:

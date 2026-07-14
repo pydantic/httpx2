@@ -105,6 +105,20 @@ An asynchronous GitHub API library. Includes [HTTPX support](https://gidgethub.r
 
 A tool for python developers to easily debug the HTTP(S) client requests in a python program.
 
+### httpx2-negotiate-sspi
+
+[Github](https://github.com/achapkowski/httpx2_negotiate_sspi)
+[Documentation](https://achapkowski.github.io/httpx2_negotiate_sspi)
+
+HTTP Negotiate authentication for httpx2 using Windows SSPI.
+
+### httpx2_kerberos
+
+httpx2_kerberos is a Python library that adds Kerberos/GSSAPI authentication support to the HTTPX2 client for making secure, authenticated HTTP requests.
+
+[github](https://github.com/achapkowski/httpx2_kerberos)
+[Documentation](https://achapkowski.github.io/httpx2_kerberos)
+
 ### VCR.py
 
 [GitHub](https://github.com/kevin1024/vcrpy) - [Documentation](https://vcrpy.readthedocs.io/)

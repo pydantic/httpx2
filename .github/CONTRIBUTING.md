@@ -1,9 +1,9 @@
 # Contributing
 
-Thank you for being interested in contributing to httpx2.
+Thank you for being interested in contributing to HTTPX2.
 There are many ways you can contribute to the project:
 
-- Try httpx2 and [report bugs/issues you find](https://github.com/pydantic/httpx2/issues/new)
+- Try HTTPX2 and [report bugs/issues you find](https://github.com/pydantic/httpx2/issues/new)
 - [Implement new features](https://github.com/pydantic/httpx2/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
 - [Review Pull Requests of others](https://github.com/pydantic/httpx2/pulls)
 - Write documentation
@@ -11,7 +11,7 @@ There are many ways you can contribute to the project:
 
 ## Reporting Bugs or Other Issues
 
-Found something that httpx2 should support?
+Found something that HTTPX2 should support?
 Stumbled upon some unexpected behaviour?
 
 Contributions should generally start out with [a discussion](https://github.com/pydantic/httpx2/discussions).
@@ -39,8 +39,8 @@ Some possibly useful tips for narrowing down potential issues...
 
 ## Development
 
-To start developing httpx2 create a **fork** of the
-[httpx2 repository](https://github.com/pydantic/httpx2) on GitHub.
+To start developing HTTPX2 create a **fork** of the
+[HTTPX2 repository](https://github.com/pydantic/httpx2) on GitHub.
 
 Then clone your fork with the following command replacing `YOUR-USERNAME` with
 your GitHub username:
@@ -146,7 +146,7 @@ message under the coverage report:
 
 ## Releasing
 
-*This section is targeted at HTTPX maintainers.*
+*This section is targeted at HTTPX2 maintainers.*
 
 Before releasing a new version, create a pull request that includes:
 
@@ -197,7 +197,7 @@ certificate so we need to concatenate them:
 UI options.
 
 At this point the server is ready to start serving requests, you'll need to
-configure HTTPX as described in the
+configure HTTPX2 as described in the
 [proxy section](https://httpx2.pydantic.dev/advanced/#http-proxying) and
 the [SSL certificates section](https://httpx2.pydantic.dev/advanced/#ssl-certificates),
 this is where our previously generated `client.pem` comes in:
