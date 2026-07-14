@@ -1,4 +1,5 @@
 import typing
+from unittest.mock import patch
 
 import anyio
 import hpack
@@ -127,6 +128,29 @@ async def test_connection_pool_timeout_during_response() -> None:
         with anyio.move_on_after(0.01):
             await pool.request("GET", "http://example.com")
         assert not pool.connections
+
+
+@pytest.mark.anyio
+async def test_connection_pool_cancellation_during_waiting_for_connection() -> None:
+    """
+    A cancellation while a request is waiting for a connection should leave
+    the pool in a consistent state.
+
+    In this case, that means the new (not-yet-connected) connection is
+    discarded and no longer remains in the pool.
+    """
+
+    async def wait_for_connection(self: typing.Any, *args: typing.Any, **kwargs: typing.Any) -> None:
+        await anyio.sleep(999)
+
+    with patch(
+        "httpcore2._async.connection_pool.AsyncPoolRequest.wait_for_connection",
+        new=wait_for_connection,
+    ):
+        async with httpcore2.AsyncConnectionPool() as pool:
+            with anyio.move_on_after(0.01):
+                await pool.request("GET", "http://example.com")
+            assert not pool.connections
 
 
 @pytest.mark.anyio

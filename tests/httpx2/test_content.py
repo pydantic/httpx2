@@ -23,6 +23,11 @@ async def test_empty_content() -> None:
     assert async_content == b""
 
 
+def test_empty_query_content() -> None:
+    request = httpx2.Request("QUERY", url)
+    assert request.headers == {"Host": "www.example.com", "Content-Length": "0"}
+
+
 @pytest.mark.anyio
 async def test_bytes_content() -> None:
     request = httpx2.Request(method, url, content=b"Hello, world!")

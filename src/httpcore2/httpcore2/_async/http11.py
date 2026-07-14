@@ -242,6 +242,9 @@ class AsyncHTTP11Connection(AsyncConnectionInterface):
     def can_handle_request(self, origin: Origin) -> bool:
         return origin == self._origin
 
+    def is_connected(self) -> bool:
+        return not self.is_closed()
+
     def is_available(self) -> bool:
         # Note that HTTP/1.1 connections in the "NEW" state are not treated as
         # being "available". The control flow which created the connection will
@@ -251,7 +254,10 @@ class AsyncHTTP11Connection(AsyncConnectionInterface):
 
     def has_expired(self) -> bool:
         now = time.monotonic()
-        keepalive_expired = self._expire_at is not None and now > self._expire_at
+        # Read `_expire_at` once into a local: on free-threaded builds another
+        # thread may reset it to `None` between the check and the comparison.
+        expire_at = self._expire_at
+        keepalive_expired = expire_at is not None and now > expire_at
 
         # If the HTTP connection is idle but the socket is readable, then the
         # only valid state is that the socket is about to return b"", indicating

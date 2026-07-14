@@ -5,7 +5,13 @@ from collections.abc import Generator
 from contextlib import contextmanager
 
 from ._client import Client
-from ._config import DEFAULT_TIMEOUT_CONFIG
+from ._config import (
+    DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS,
+    DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
+    DEFAULT_MAX_MESSAGE_SIZE_BYTES,
+    DEFAULT_QUEUE_SIZE,
+    DEFAULT_TIMEOUT_CONFIG,
+)
 from ._models import Response
 from ._types import (
     AuthTypes,
@@ -23,6 +29,8 @@ from ._urls import URL
 if typing.TYPE_CHECKING:
     import ssl  # pragma: no cover
 
+    from .websockets._api import WebSocketSession
+
 
 __all__ = [
     "delete",
@@ -32,8 +40,10 @@ __all__ = [
     "patch",
     "post",
     "put",
+    "query",
     "request",
     "stream",
+    "websocket",
 ]
 
 
@@ -58,7 +68,8 @@ def request(
     """Sends an HTTP request.
 
     Parameters:
-        method: HTTP method for the new `Request` object: `GET`, `OPTIONS`, `HEAD`, `POST`, `PUT`, `PATCH`, or `DELETE`.
+        method: HTTP method for the new `Request` object: `GET`, `OPTIONS`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE`,
+            or `QUERY`.
         url: URL for the new `Request` object.
         params: *(optional)* Query parameters to include in the URL, as a string, dictionary, or sequence of two-tuples.
         content: *(optional)* Binary content to include in the body of the request, as bytes or a byte iterator.
@@ -424,3 +435,98 @@ def delete(
         timeout=timeout,
         trust_env=trust_env,
     )
+
+
+def query(
+    url: URL | str,
+    *,
+    content: RequestContent | None = None,
+    data: RequestData | None = None,
+    files: RequestFiles | None = None,
+    json: typing.Any | None = None,
+    params: QueryParamTypes | None = None,
+    headers: HeaderTypes | None = None,
+    cookies: CookieTypes | None = None,
+    auth: AuthTypes | None = None,
+    proxy: ProxyTypes | None = None,
+    follow_redirects: bool = False,
+    verify: ssl.SSLContext | str | bool = True,
+    timeout: TimeoutTypes = DEFAULT_TIMEOUT_CONFIG,
+    trust_env: bool = True,
+) -> Response:
+    """
+    Sends a `QUERY` request.
+
+    **Parameters**: See `httpx2.request`.
+    """
+    return request(
+        "QUERY",
+        url,
+        content=content,
+        data=data,
+        files=files,
+        json=json,
+        params=params,
+        headers=headers,
+        cookies=cookies,
+        auth=auth,
+        proxy=proxy,
+        follow_redirects=follow_redirects,
+        verify=verify,
+        timeout=timeout,
+        trust_env=trust_env,
+    )
+
+
+@contextmanager
+def websocket(
+    url: URL | str,
+    *,
+    params: QueryParamTypes | None = None,
+    headers: HeaderTypes | None = None,
+    cookies: CookieTypes | None = None,
+    auth: AuthTypes | None = None,
+    proxy: ProxyTypes | None = None,
+    follow_redirects: bool = False,
+    timeout: TimeoutTypes = DEFAULT_TIMEOUT_CONFIG,
+    verify: ssl.SSLContext | str | bool = True,
+    trust_env: bool = True,
+    subprotocols: list[str] | None = None,
+    max_message_size_bytes: int = DEFAULT_MAX_MESSAGE_SIZE_BYTES,
+    queue_size: int = DEFAULT_QUEUE_SIZE,
+    keepalive_ping_interval_seconds: float | None = DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS,
+    keepalive_ping_timeout_seconds: float | None = DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
+) -> Generator[WebSocketSession]:
+    """
+    Open a WebSocket session.
+
+    The session is closed automatically when exiting the context manager.
+
+    ```python
+    with httpx2.websocket("ws://localhost:8000/ws") as ws:
+        ws.send_text("Hello!")
+        message = ws.receive_text()
+    ```
+
+    **Parameters**: See `httpx2.request` and `httpx2.Client.websocket`.
+    """
+    with Client(
+        cookies=cookies,
+        proxy=proxy,
+        verify=verify,
+        timeout=timeout,
+        trust_env=trust_env,
+    ) as client:
+        with client.websocket(
+            url,
+            params=params,
+            headers=headers,
+            auth=auth,
+            follow_redirects=follow_redirects,
+            subprotocols=subprotocols,
+            max_message_size_bytes=max_message_size_bytes,
+            queue_size=queue_size,
+            keepalive_ping_interval_seconds=keepalive_ping_interval_seconds,
+            keepalive_ping_timeout_seconds=keepalive_ping_timeout_seconds,
+        ) as session:
+            yield session

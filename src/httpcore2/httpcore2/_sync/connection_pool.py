@@ -264,10 +264,19 @@ class ConnectionPool(RequestInterface):
         closing_connections: list[ConnectionInterface] = []
         retained_connections: list[ConnectionInterface] = []
 
+        # Connections currently referenced by an active request (including
+        # connections that are in the process of being established).
+        request_connections = {r.connection for r in self._requests}
+
         # First we handle cleaning up any connections that are closed
         # or have expired their keep-alive, in a single pass.
         for connection in self._connections:
             if connection.is_closed():
+                continue
+            elif not (connection.is_connected() or connection in request_connections):
+                # Garbage: a NEW-state connection whose request was cancelled
+                # before the TCP handshake completed.  Drop it without closing
+                # (there is no socket to close yet).
                 continue
             elif connection.has_expired():
                 closing_connections.append(connection)
