@@ -101,11 +101,11 @@ class ConnectionInterface(RequestInterface):
         established).  A connection in the NEW state (just created but not yet
         connected) returns `False`.
 
-        Note: for some implementations ``is_connected() != not is_closed()``.
-        The default implementation returns ``not self.is_closed()``, which is
+        Note: for some implementations `is_connected() != not is_closed()`.
+        The default implementation returns `not self.is_closed()`, which is
         correct for connections that are never in the NEW (pre-TCP) state.
         """
-        return not self.is_closed()  # pragma: nocover
+        return not self.is_closed()  # pragma: no cover
 
     def is_available(self) -> bool:
         """
