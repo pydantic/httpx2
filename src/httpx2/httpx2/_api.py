@@ -68,7 +68,8 @@ def request(
     """Sends an HTTP request.
 
     Parameters:
-        method: HTTP method for the new `Request` object: `GET`, `OPTIONS`, `HEAD`, `POST`, `PUT`, `PATCH`, or `DELETE`.
+        method: HTTP method for the new `Request` object: `GET`, `OPTIONS`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE`,
+            or `QUERY`.
         url: URL for the new `Request` object.
         params: *(optional)* Query parameters to include in the URL, as a string, dictionary, or sequence of two-tuples.
         content: *(optional)* Binary content to include in the body of the request, as bytes or a byte iterator.

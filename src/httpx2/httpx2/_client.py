@@ -488,7 +488,9 @@ class BaseClient:
 
         # Do what the browsers do, despite standards...
         # Turn 302s into GETs.
-        if response.status_code == codes.FOUND and method != "HEAD":
+        # QUERY is excluded, per RFC 10008 Section 2.5.
+        # https://datatracker.ietf.org/doc/html/rfc10008#section-2.5
+        if response.status_code == codes.FOUND and method not in ("HEAD", "QUERY"):
             method = "GET"
 
         # If a POST is responded to with a 301, turn it into a GET.

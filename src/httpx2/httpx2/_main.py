@@ -38,7 +38,7 @@ def print_help() -> None:
     table.add_column("Description")
     table.add_row(
         "-m, --method [cyan]METHOD",
-        "Request method, such as GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD.\n"
+        "Request method, such as GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD, QUERY.\n"
         "[Default: GET, or POST if a request body is included]",
     )
     table.add_row(
@@ -297,7 +297,7 @@ def handle_help(
     "method",
     type=str,
     help=(
-        "Request method, such as GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD. "
+        "Request method, such as GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD, QUERY. "
         "[Default: GET, or POST if a request body is included]"
     ),
 )
