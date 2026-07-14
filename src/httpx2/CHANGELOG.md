@@ -4,6 +4,33 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2.5.0 (June 25th, 2026)
+
+### Added
+
+* Add native server-sent events support via `client.sse()`. ([#1046](https://github.com/pydantic/httpx2/pull/1046))
+* Support `|` and `|=` operators for `Headers`. ([#1047](https://github.com/pydantic/httpx2/pull/1047))
+
+### Fixed
+
+* Allow IPv6 CIDR notation in `no_proxy`. ([#967](https://github.com/pydantic/httpx2/pull/967))
+
+## 2.4.0 (June 11th, 2026)
+
+### Added
+
+* Add `HTTPXDeprecationWarning`, a `UserWarning` subclass shown by default so deprecations are visible without enabling warnings. ([#1029](https://github.com/pydantic/httpx2/pull/1029))
+
+### Changed
+
+* Limit the number of chained `Content-Encoding` decoders to 5. ([#1027](https://github.com/pydantic/httpx2/pull/1027))
+* Allow version 15 of `rich` in the `cli` extra. ([#1015](https://github.com/pydantic/httpx2/pull/1015))
+
+### Fixed
+
+* Parse an empty `Digest` auth realm without crashing. ([#1023](https://github.com/pydantic/httpx2/pull/1023))
+* Decode IDNA labels in non-leading host positions. ([#1018](https://github.com/pydantic/httpx2/pull/1018))
+
 ## 2.3.0 (June 1st, 2026)
 
 ### Changed

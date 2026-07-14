@@ -2,14 +2,10 @@ from __future__ import annotations
 
 import inspect
 import warnings
+from collections.abc import AsyncIterable, AsyncIterator, Iterable, Iterator, Mapping
 from json import dumps as json_dumps
 from typing import (
     Any,
-    AsyncIterable,
-    AsyncIterator,
-    Iterable,
-    Iterator,
-    Mapping,
 )
 from urllib.parse import urlencode
 
@@ -60,8 +56,7 @@ class IteratorByteStream(SyncByteStream):
                 chunk = self._stream.read(self.CHUNK_SIZE)
         else:
             # Otherwise iterate.
-            for part in self._stream:
-                yield part
+            yield from self._stream
 
 
 class AsyncIteratorByteStream(AsyncByteStream):
@@ -133,10 +128,8 @@ def encode_content(
     raise TypeError(f"Unexpected type for 'content', {type(content)!r}")
 
 
-def encode_urlencoded_data(
-    data: RequestData,
-) -> tuple[dict[str, str], ByteStream]:
-    plain_data = []
+def encode_urlencoded_data(data: RequestData) -> tuple[dict[str, str], ByteStream]:
+    plain_data: list[tuple[str, str]] = []
     for key, value in data.items():
         if isinstance(value, (list, tuple)):
             plain_data.extend([(key, primitive_value_to_str(item)) for item in value])

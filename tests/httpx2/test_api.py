@@ -77,6 +77,12 @@ def test_delete(server: TestServer) -> None:
     assert response.reason_phrase == "OK"
 
 
+def test_query(server: TestServer) -> None:
+    response = httpx2.query(server.url, content=b"Hello, world!")
+    assert response.status_code == 200
+    assert response.reason_phrase == "OK"
+
+
 def test_stream(server: TestServer) -> None:
     with httpx2.stream("GET", server.url) as response:
         response.read()

@@ -28,11 +28,7 @@ logger = logging.getLogger("httpcore2.http11")
 
 
 # A subset of `h11.Event` types supported by `_send_event`
-H11SendEvent = typing.Union[
-    h11.Request,
-    h11.Data,
-    h11.EndOfMessage,
-]
+H11SendEvent = h11.Request | h11.Data | h11.EndOfMessage
 
 
 class HTTPConnectionState(enum.IntEnum):
@@ -258,7 +254,10 @@ class AsyncHTTP11Connection(AsyncConnectionInterface):
 
     def has_expired(self) -> bool:
         now = time.monotonic()
-        keepalive_expired = self._expire_at is not None and now > self._expire_at
+        # Read `_expire_at` once into a local: on free-threaded builds another
+        # thread may reset it to `None` between the check and the comparison.
+        expire_at = self._expire_at
+        keepalive_expired = expire_at is not None and now > expire_at
 
         # If the HTTP connection is idle but the socket is readable, then the
         # only valid state is that the socket is about to return b"", indicating

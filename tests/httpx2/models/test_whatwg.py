@@ -13,7 +13,7 @@ from httpx2._urlparse import urlparse
 
 # URL test cases from...
 # https://github.com/web-platform-tests/wpt/blob/master/url/resources/urltestdata.json
-with open("tests/httpx2/models/whatwg.json", "r", encoding="utf-8") as input:
+with open("tests/httpx2/models/whatwg.json", encoding="utf-8") as input:
     test_cases = json.load(input)
     test_cases = [item for item in test_cases if not isinstance(item, str) and not item.get("failure")]
 

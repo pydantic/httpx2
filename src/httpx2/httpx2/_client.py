@@ -6,14 +6,19 @@ import logging
 import time
 import typing
 import warnings
+from collections.abc import AsyncGenerator, Generator
 from contextlib import asynccontextmanager, contextmanager
 from types import TracebackType
 
 from .__version__ import __version__
 from ._auth import Auth, BasicAuth, FunctionAuth
 from ._config import (
+    DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS,
+    DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
     DEFAULT_LIMITS,
+    DEFAULT_MAX_MESSAGE_SIZE_BYTES,
     DEFAULT_MAX_REDIRECTS,
+    DEFAULT_QUEUE_SIZE,
     DEFAULT_TIMEOUT_CONFIG,
     Limits,
     Proxy,
@@ -27,6 +32,7 @@ from ._exceptions import (
     request_context,
 )
 from ._models import Cookies, Headers, Request, Response
+from ._sse import EventSource
 from ._status_codes import codes
 from ._transports.base import AsyncBaseTransport, BaseTransport
 from ._transports.default import AsyncHTTPTransport, HTTPTransport
@@ -50,6 +56,8 @@ from ._utils import URLPattern, get_environment_proxies
 
 if typing.TYPE_CHECKING:
     import ssl  # pragma: no cover
+
+    from .websockets._api import AsyncWebSocketSession, WebSocketSession
 
 __all__ = ["USE_CLIENT_DEFAULT", "AsyncClient", "Client"]
 
@@ -143,8 +151,7 @@ class BoundSyncStream(SyncByteStream):
         self.elapsed: datetime.timedelta | None = None
 
     def __iter__(self) -> typing.Iterator[bytes]:
-        for chunk in self._stream:
-            yield chunk
+        yield from self._stream
 
     def close(self) -> None:
         self.elapsed = datetime.timedelta(seconds=time.perf_counter() - self._start)
@@ -481,7 +488,9 @@ class BaseClient:
 
         # Do what the browsers do, despite standards...
         # Turn 302s into GETs.
-        if response.status_code == codes.FOUND and method != "HEAD":
+        # QUERY is excluded, per RFC 10008 Section 2.5.
+        # https://datatracker.ietf.org/doc/html/rfc10008#section-2.5
+        if response.status_code == codes.FOUND and method not in ("HEAD", "QUERY"):
             method = "GET"
 
         # If a POST is responded to with a 301, turn it into a GET.
@@ -810,7 +819,7 @@ class Client(BaseClient):
         follow_redirects: bool | UseClientDefault = USE_CLIENT_DEFAULT,
         timeout: TimeoutTypes | UseClientDefault = USE_CLIENT_DEFAULT,
         extensions: RequestExtensions | None = None,
-    ) -> typing.Iterator[Response]:
+    ) -> Generator[Response]:
         """
         Alternative to `httpx2.request()` that streams the response body
         instead of loading it into memory at once.
@@ -844,6 +853,103 @@ class Client(BaseClient):
             yield response
         finally:
             response.close()
+
+    @contextmanager
+    def sse(
+        self,
+        url: URL | str,
+        *,
+        method: str = "GET",
+        content: RequestContent | None = None,
+        data: RequestData | None = None,
+        files: RequestFiles | None = None,
+        json: typing.Any | None = None,
+        params: QueryParamTypes | None = None,
+        headers: HeaderTypes | None = None,
+        cookies: CookieTypes | None = None,
+        auth: AuthTypes | UseClientDefault | None = USE_CLIENT_DEFAULT,
+        follow_redirects: bool | UseClientDefault = USE_CLIENT_DEFAULT,
+        timeout: TimeoutTypes | UseClientDefault = USE_CLIENT_DEFAULT,
+        extensions: RequestExtensions | None = None,
+    ) -> Generator[EventSource]:
+        """
+        Connect to a server-sent events endpoint and yield an `EventSource`.
+
+        Iterating the `EventSource` yields `ServerSentEvent` instances.
+
+        **Parameters**: See `httpx2.request`.
+        """
+        with self.stream(
+            method,
+            url,
+            content=content,
+            data=data,
+            files=files,
+            json=json,
+            params=params,
+            headers={"Accept": "text/event-stream", "Cache-Control": "no-store"} | Headers(headers),
+            cookies=cookies,
+            auth=auth,
+            follow_redirects=follow_redirects,
+            timeout=timeout,
+            extensions=extensions,
+        ) as response:
+            yield EventSource(response)
+
+    @contextmanager
+    def websocket(
+        self,
+        url: URL | str,
+        *,
+        max_message_size_bytes: int = DEFAULT_MAX_MESSAGE_SIZE_BYTES,
+        queue_size: int = DEFAULT_QUEUE_SIZE,
+        keepalive_ping_interval_seconds: float | None = DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS,
+        keepalive_ping_timeout_seconds: float | None = DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
+        subprotocols: list[str] | None = None,
+        params: QueryParamTypes | None = None,
+        headers: HeaderTypes | None = None,
+        cookies: CookieTypes | None = None,
+        auth: AuthTypes | UseClientDefault | None = USE_CLIENT_DEFAULT,
+        follow_redirects: bool | UseClientDefault = USE_CLIENT_DEFAULT,
+        timeout: TimeoutTypes | UseClientDefault = USE_CLIENT_DEFAULT,
+        extensions: RequestExtensions | None = None,
+    ) -> Generator[WebSocketSession]:
+        """
+        Open a WebSocket session, using this client's configuration.
+
+        The session is closed automatically when exiting the context manager.
+
+        ```python
+        with httpx2.Client() as client:
+            with client.websocket("ws://localhost:8000/ws") as ws:
+                ws.send_text("Hello!")
+                message = ws.receive_text()
+        ```
+        """
+        try:
+            from .websockets._api import connect_ws
+        except ImportError:  # pragma: no cover
+            raise ImportError(
+                "WebSocket support requires the `wsproto` package. Install it with `pip install httpx2[ws]`."
+            )
+
+        with connect_ws(
+            str(url),
+            self,
+            max_message_size_bytes=max_message_size_bytes,
+            queue_size=queue_size,
+            keepalive_ping_interval_seconds=keepalive_ping_interval_seconds,
+            keepalive_ping_timeout_seconds=keepalive_ping_timeout_seconds,
+            subprotocols=subprotocols,
+            params=params,
+            headers=headers,
+            cookies=cookies,
+            auth=auth,
+            follow_redirects=follow_redirects,
+            timeout=timeout,
+            extensions=extensions,
+        ) as session:
+            yield session
 
     def send(
         self,
@@ -1219,6 +1325,43 @@ class Client(BaseClient):
             extensions=extensions,
         )
 
+    def query(
+        self,
+        url: URL | str,
+        *,
+        content: RequestContent | None = None,
+        data: RequestData | None = None,
+        files: RequestFiles | None = None,
+        json: typing.Any | None = None,
+        params: QueryParamTypes | None = None,
+        headers: HeaderTypes | None = None,
+        cookies: CookieTypes | None = None,
+        auth: AuthTypes | UseClientDefault = USE_CLIENT_DEFAULT,
+        follow_redirects: bool | UseClientDefault = USE_CLIENT_DEFAULT,
+        timeout: TimeoutTypes | UseClientDefault = USE_CLIENT_DEFAULT,
+        extensions: RequestExtensions | None = None,
+    ) -> Response:
+        """
+        Send a `QUERY` request.
+
+        **Parameters**: See `httpx2.request`.
+        """
+        return self.request(
+            "QUERY",
+            url,
+            content=content,
+            data=data,
+            files=files,
+            json=json,
+            params=params,
+            headers=headers,
+            cookies=cookies,
+            auth=auth,
+            follow_redirects=follow_redirects,
+            timeout=timeout,
+            extensions=extensions,
+        )
+
     def close(self) -> None:
         """
         Close transport and proxies.
@@ -1513,7 +1656,7 @@ class AsyncClient(BaseClient):
         follow_redirects: bool | UseClientDefault = USE_CLIENT_DEFAULT,
         timeout: TimeoutTypes | UseClientDefault = USE_CLIENT_DEFAULT,
         extensions: RequestExtensions | None = None,
-    ) -> typing.AsyncIterator[Response]:
+    ) -> AsyncGenerator[Response]:
         """
         Alternative to `httpx2.request()` that streams the response body
         instead of loading it into memory at once.
@@ -1547,6 +1690,103 @@ class AsyncClient(BaseClient):
             yield response
         finally:
             await response.aclose()
+
+    @asynccontextmanager
+    async def sse(
+        self,
+        url: URL | str,
+        *,
+        method: str = "GET",
+        content: RequestContent | None = None,
+        data: RequestData | None = None,
+        files: RequestFiles | None = None,
+        json: typing.Any | None = None,
+        params: QueryParamTypes | None = None,
+        headers: HeaderTypes | None = None,
+        cookies: CookieTypes | None = None,
+        auth: AuthTypes | UseClientDefault | None = USE_CLIENT_DEFAULT,
+        follow_redirects: bool | UseClientDefault = USE_CLIENT_DEFAULT,
+        timeout: TimeoutTypes | UseClientDefault = USE_CLIENT_DEFAULT,
+        extensions: RequestExtensions | None = None,
+    ) -> AsyncGenerator[EventSource]:
+        """
+        Connect to a server-sent events endpoint and yield an `EventSource`.
+
+        Iterating the `EventSource` yields `ServerSentEvent` instances.
+
+        **Parameters**: See `httpx2.request`.
+        """
+        async with self.stream(
+            method,
+            url,
+            content=content,
+            data=data,
+            files=files,
+            json=json,
+            params=params,
+            headers={"Accept": "text/event-stream", "Cache-Control": "no-store"} | Headers(headers),
+            cookies=cookies,
+            auth=auth,
+            follow_redirects=follow_redirects,
+            timeout=timeout,
+            extensions=extensions,
+        ) as response:
+            yield EventSource(response)
+
+    @asynccontextmanager
+    async def websocket(
+        self,
+        url: URL | str,
+        *,
+        max_message_size_bytes: int = DEFAULT_MAX_MESSAGE_SIZE_BYTES,
+        queue_size: int = DEFAULT_QUEUE_SIZE,
+        keepalive_ping_interval_seconds: float | None = DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS,
+        keepalive_ping_timeout_seconds: float | None = DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
+        subprotocols: list[str] | None = None,
+        params: QueryParamTypes | None = None,
+        headers: HeaderTypes | None = None,
+        cookies: CookieTypes | None = None,
+        auth: AuthTypes | UseClientDefault | None = USE_CLIENT_DEFAULT,
+        follow_redirects: bool | UseClientDefault = USE_CLIENT_DEFAULT,
+        timeout: TimeoutTypes | UseClientDefault = USE_CLIENT_DEFAULT,
+        extensions: RequestExtensions | None = None,
+    ) -> AsyncGenerator[AsyncWebSocketSession]:
+        """
+        Open a WebSocket session, using this client's configuration.
+
+        The session is closed automatically when exiting the context manager.
+
+        ```python
+        async with httpx2.AsyncClient() as client:
+            async with client.websocket("ws://localhost:8000/ws") as ws:
+                await ws.send_text("Hello!")
+                message = await ws.receive_text()
+        ```
+        """
+        try:
+            from .websockets._api import aconnect_ws
+        except ImportError:  # pragma: no cover
+            raise ImportError(
+                "WebSocket support requires the `wsproto` package. Install it with `pip install httpx2[ws]`."
+            )
+
+        async with aconnect_ws(
+            str(url),
+            self,
+            max_message_size_bytes=max_message_size_bytes,
+            queue_size=queue_size,
+            keepalive_ping_interval_seconds=keepalive_ping_interval_seconds,
+            keepalive_ping_timeout_seconds=keepalive_ping_timeout_seconds,
+            subprotocols=subprotocols,
+            params=params,
+            headers=headers,
+            cookies=cookies,
+            auth=auth,
+            follow_redirects=follow_redirects,
+            timeout=timeout,
+            extensions=extensions,
+        ) as session:
+            yield session
 
     async def send(
         self,
@@ -1913,6 +2153,43 @@ class AsyncClient(BaseClient):
         return await self.request(
             "DELETE",
             url,
+            params=params,
+            headers=headers,
+            cookies=cookies,
+            auth=auth,
+            follow_redirects=follow_redirects,
+            timeout=timeout,
+            extensions=extensions,
+        )
+
+    async def query(
+        self,
+        url: URL | str,
+        *,
+        content: RequestContent | None = None,
+        data: RequestData | None = None,
+        files: RequestFiles | None = None,
+        json: typing.Any | None = None,
+        params: QueryParamTypes | None = None,
+        headers: HeaderTypes | None = None,
+        cookies: CookieTypes | None = None,
+        auth: AuthTypes | UseClientDefault = USE_CLIENT_DEFAULT,
+        follow_redirects: bool | UseClientDefault = USE_CLIENT_DEFAULT,
+        timeout: TimeoutTypes | UseClientDefault = USE_CLIENT_DEFAULT,
+        extensions: RequestExtensions | None = None,
+    ) -> Response:
+        """
+        Send a `QUERY` request.
+
+        **Parameters**: See `httpx2.request`.
+        """
+        return await self.request(
+            "QUERY",
+            url,
+            content=content,
+            data=data,
+            files=files,
+            json=json,
             params=params,
             headers=headers,
             cookies=cookies,

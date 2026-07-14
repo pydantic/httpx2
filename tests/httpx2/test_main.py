@@ -180,7 +180,7 @@ def test_download(server: TestServer) -> None:
     with runner.isolated_filesystem():
         runner.invoke(main, [url, "--download", "index.txt"])
         assert os.path.exists("index.txt")
-        with open("index.txt", "r") as input_file:
+        with open("index.txt") as input_file:
             assert input_file.read() == "Hello, world!"
 
 

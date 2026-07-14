@@ -24,6 +24,8 @@
 
 ::: httpx2.delete
 
+::: httpx2.query
+
 ::: httpx2.stream
 
 ## `Client`
@@ -43,7 +45,9 @@
         - put
         - patch
         - delete
+        - query
         - stream
+        - sse
         - build_request
         - send
         - close
@@ -65,7 +69,9 @@
         - put
         - patch
         - delete
+        - query
         - stream
+        - sse
         - build_request
         - send
         - aclose
@@ -197,3 +203,21 @@ what gets sent over the wire.*
 * `.auth` - **tuple[str, str]**
 * `.headers` - **Headers**
 * `.ssl_context` - **SSLContext**
+
+## `EventSource`
+
+::: httpx2.EventSource
+    options:
+      members:
+        - response
+
+## `ServerSentEvent`
+
+::: httpx2.ServerSentEvent
+    options:
+      members:
+        - event
+        - data
+        - id
+        - retry
+        - json

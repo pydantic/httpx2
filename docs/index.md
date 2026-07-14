@@ -17,7 +17,7 @@ HTTPX2
 <em>A next-generation HTTP client for Python.</em>
 </div>
 
-HTTPX2 is a fully featured HTTP client for Python 3, which provides sync and async APIs, and support for both HTTP/1.1 and HTTP/2.
+HTTPX2 is a fully featured HTTP client for Python, which provides sync and async APIs, and support for both HTTP/1.1 and HTTP/2.
 
 !!! note
     HTTPX2 is a continuation of the wonderful work started by [@lovelydinosaur](https://github.com/lovelydinosaur) and the broader HTTPX community. We're enormously grateful for everything that has gone into HTTPX over the years - it has been a foundational piece of the modern Python ecosystem, and this project would not exist without it.

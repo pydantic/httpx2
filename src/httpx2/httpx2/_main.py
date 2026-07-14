@@ -38,7 +38,7 @@ def print_help() -> None:
     table.add_column("Description")
     table.add_row(
         "-m, --method [cyan]METHOD",
-        "Request method, such as GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD.\n"
+        "Request method, such as GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD, QUERY.\n"
         "[Default: GET, or POST if a request body is included]",
     )
     table.add_row(
@@ -168,13 +168,13 @@ def print_response(response: Response) -> None:
         console.print(f"<{len(response.content)} bytes of binary data>")
 
 
-_PCTRTT = typing.Tuple[typing.Tuple[str, str], ...]
-_PCTRTTT = typing.Tuple[_PCTRTT, ...]
-_PeerCertRetDictType = typing.Dict[str, typing.Union[str, _PCTRTTT, _PCTRTT]]
+_PCTRTT = tuple[tuple[str, str], ...]
+_PCTRTTT = tuple[_PCTRTT, ...]
+_PeerCertRetDictType = dict[str, str | _PCTRTTT | _PCTRTT]
 
 
 def format_certificate(cert: _PeerCertRetDictType) -> str:  # pragma: no cover
-    lines = []
+    lines: list[str] = []
     for key, value in cert.items():
         if isinstance(value, (list, tuple)):
             lines.append(f"*   {key}:")
@@ -297,7 +297,7 @@ def handle_help(
     "method",
     type=str,
     help=(
-        "Request method, such as GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD. "
+        "Request method, such as GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD, QUERY. "
         "[Default: GET, or POST if a request body is included]"
     ),
 )
@@ -462,7 +462,7 @@ def main(
                 params=list(params),
                 content=content,
                 data=dict(data),
-                files=files,  # type: ignore
+                files=files,  # type: ignore[arg-type]
                 json=json,
                 headers=headers,
                 cookies=dict(cookies),

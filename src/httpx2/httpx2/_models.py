@@ -12,7 +12,6 @@ from http.cookiejar import Cookie, CookieJar
 
 from ._content import ByteStream, UnattachedStream, encode_request, encode_response
 from ._decoders import (
-    SUPPORTED_DECODERS,
     ByteChunker,
     ContentDecoder,
     IdentityDecoder,
@@ -146,7 +145,7 @@ class Headers(typing.MutableMapping[str, str]):
         headers: HeaderTypes | None = None,
         encoding: str | None = None,
     ) -> None:
-        self._list = []  # type: typing.List[typing.Tuple[bytes, bytes, bytes]]
+        self._list: list[tuple[bytes, bytes, bytes]] = []
 
         if isinstance(headers, Headers):
             self._list = list(headers._list)
@@ -200,7 +199,7 @@ class Headers(typing.MutableMapping[str, str]):
         return [(raw_key, value) for raw_key, _, value in self._list]
 
     def keys(self) -> typing.KeysView[str]:
-        return {key.decode(self.encoding): None for _, key, value in self._list}.keys()
+        return {key.decode(self.encoding): None for _, key, _value in self._list}.keys()
 
     def values(self) -> typing.ValuesView[str]:
         values_dict: dict[str, str] = {}
@@ -263,7 +262,7 @@ class Headers(typing.MutableMapping[str, str]):
         if not split_commas:
             return values
 
-        split_values = []
+        split_values: list[str] = []
         for value in values:
             split_values.extend([item.strip() for item in value.split(",")])
         return split_values
@@ -277,6 +276,24 @@ class Headers(typing.MutableMapping[str, str]):
 
     def copy(self) -> Headers:
         return Headers(self, encoding=self.encoding)
+
+    def __or__(self, other: Mapping[str, str]) -> Headers:
+        if not isinstance(other, Mapping):
+            return NotImplemented
+        merged = self.copy()
+        merged.update(other)
+        return merged
+
+    def __ror__(self, other: Mapping[str, str]) -> Headers:
+        if not isinstance(other, Mapping):
+            return NotImplemented
+        merged = Headers(other)
+        merged.update(self)
+        return merged
+
+    def __ior__(self, other: HeaderTypes) -> Headers:
+        self.update(other)
+        return self
 
     def __getitem__(self, key: str) -> str:
         """
@@ -439,7 +456,7 @@ class Request:
 
         if not has_host and self.url.host:
             auto_headers.append((b"Host", self.url.netloc))
-        if not has_content_length and self.method in ("POST", "PUT", "PATCH"):
+        if not has_content_length and self.method in ("POST", "PUT", "PATCH", "QUERY"):
             auto_headers.append((b"Content-Length", b"0"))
 
         self.headers = Headers(auto_headers + self.headers.raw)
@@ -679,20 +696,13 @@ class Response:
         content, depending on the Content-Encoding used in the response.
         """
         if not hasattr(self, "_decoder"):
-            decoders: list[ContentDecoder] = []
             values = self.headers.get_list("content-encoding", split_commas=True)
-            for value in values:
-                value = value.strip().lower()
-                try:
-                    decoder_cls = SUPPORTED_DECODERS[value]
-                    decoders.append(decoder_cls())
-                except KeyError:
-                    continue
-
-            if len(decoders) == 1:
-                self._decoder = decoders[0]
-            elif len(decoders) > 1:
-                self._decoder = MultiDecoder(children=decoders)
+            encodings = [value.strip().lower() for value in values]
+            decoder = MultiDecoder([encoding for encoding in encodings if encoding != "identity"])
+            if len(decoder.children) == 1:
+                self._decoder = decoder.children[0]
+            elif decoder.children:
+                self._decoder = decoder
             else:
                 self._decoder = IdentityDecoder()
 
@@ -1161,7 +1171,7 @@ class Cookies(typing.MutableMapping[str, str]):
         Delete all cookies. Optionally include a domain and path in
         order to only delete a subset of all the cookies.
         """
-        args = []
+        args: list[str] = []
         if domain is not None:
             args.append(domain)
         if path is not None:
@@ -1218,9 +1228,9 @@ class Cookies(typing.MutableMapping[str, str]):
             )
             self.request = request
 
-        def add_unredirected_header(self, key: str, value: str) -> None:
-            super().add_unredirected_header(key, value)
-            self.request.headers[key] = value
+        def add_unredirected_header(self, key: str, val: str) -> None:
+            super().add_unredirected_header(key, val)
+            self.request.headers[key] = val
 
     class _CookieCompatResponse:
         """

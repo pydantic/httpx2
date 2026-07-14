@@ -62,7 +62,8 @@ def test_logging_request(server: TestServer, caplog: pytest.LogCaptureFixture) -
         response = client.get(server.url)
         assert response.status_code == 200
 
-    assert caplog.record_tuples == [
+    httpx2_records = [r for r in caplog.record_tuples if r[0] == "httpx2"]
+    assert httpx2_records == [
         (
             "httpx2",
             logging.INFO,
@@ -78,7 +79,8 @@ def test_logging_redirect_chain(server: TestServer, caplog: pytest.LogCaptureFix
         response = client.get(redirect_url)
         assert response.status_code == 200
 
-    assert caplog.record_tuples == [
+    httpx2_records = [r for r in caplog.record_tuples if r[0] == "httpx2"]
+    assert httpx2_records == [
         (
             "httpx2",
             logging.INFO,
@@ -106,6 +108,7 @@ def test_logging_redirect_chain(server: TestServer, caplog: pytest.LogCaptureFix
         ({"no_proxy": "127.0.0.1"}, {"all://127.0.0.1": None}),
         ({"no_proxy": "192.168.0.0/16"}, {"all://192.168.0.0/16": None}),
         ({"no_proxy": "::1"}, {"all://[::1]": None}),
+        ({"no_proxy": "fe11::/16"}, {"all://[fe11::]/16": None}),
         ({"no_proxy": "localhost"}, {"all://localhost": None}),
         ({"no_proxy": "github.com"}, {"all://*github.com": None}),
         ({"no_proxy": ".github.com"}, {"all://*.github.com": None}),

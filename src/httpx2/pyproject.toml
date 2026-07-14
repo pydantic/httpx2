@@ -23,8 +23,9 @@ maintainers = [
     { name = "Pydantic Services Inc.", email = "engineering@pydantic.dev" }
 ]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Environment :: Web Environment",
+    "Framework :: AnyIO",
     "Framework :: AsyncIO",
     "Framework :: Trio",
     "Intended Audience :: Developers",
@@ -46,7 +47,8 @@ dependencies = [
     "truststore>=0.10",
     "httpcore2=={{ version }}",
     "anyio",
-    "idna",
+    "idna>=3.18",
+    "typing_extensions>=4.5.0; python_version < '3.13'",
 ]
 
 [project.optional-dependencies]
@@ -57,13 +59,16 @@ brotli = [
 cli = [
     "click==8.*",
     "pygments==2.*",
-    "rich>=10,<15",
+    "rich>=10,<16",
 ]
 http2 = [
     "h2>=3,<5",
 ]
 socks = [
     "socksio==1.*",
+]
+ws = [
+    "wsproto>=1.2",
 ]
 # TODO(Marcelo): Remove when Python 3.13 reaches EOL.
 zstd = [

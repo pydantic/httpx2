@@ -65,7 +65,11 @@ def get_environment_proxies() -> dict[str, str | None]:
             elif is_ipv4_hostname(hostname):
                 mounts[f"all://{hostname}"] = None
             elif is_ipv6_hostname(hostname):
-                mounts[f"all://[{hostname}]"] = None
+                if "/" in hostname:
+                    addr, _, subnet = hostname.partition("/")
+                    mounts[f"all://[{addr}]/{subnet}"] = None
+                else:
+                    mounts[f"all://[{hostname}]"] = None
             elif hostname.lower() == "localhost":
                 mounts[f"all://{hostname}"] = None
             else:
@@ -84,10 +88,6 @@ def to_str(value: str | bytes, encoding: str = "utf-8") -> str:
 
 def to_bytes_or_str(value: str, match_type_of: typing.AnyStr) -> typing.AnyStr:
     return value if isinstance(match_type_of, str) else value.encode()
-
-
-def unquote(value: str) -> str:
-    return value[1:-1] if value[0] == value[-1] == '"' else value
 
 
 def peek_filelike_length(stream: typing.Any) -> int | None:

@@ -14,11 +14,7 @@ import h2.exceptions
 import h2.settings
 
 from .._backends.base import NetworkStream
-from .._exceptions import (
-    ConnectionNotAvailable,
-    LocalProtocolError,
-    RemoteProtocolError,
-)
+from .._exceptions import ConnectionNotAvailable, LocalProtocolError, RemoteProtocolError
 from .._models import Origin, Request, Response
 from .._synchronization import Lock, Semaphore, ShieldCancellation
 from .._trace import Trace
@@ -29,7 +25,7 @@ logger = logging.getLogger("httpcore2.http2")
 
 
 def has_body_headers(request: Request) -> bool:
-    return any(k.lower() == b"content-length" or k.lower() == b"transfer-encoding" for k, v in request.headers)
+    return any(k.lower() == b"content-length" or k.lower() == b"transfer-encoding" for k, _v in request.headers)
 
 
 class HTTPConnectionState(enum.IntEnum):
@@ -123,6 +119,7 @@ class HTTP2Connection(ConnectionInterface):
         except h2.exceptions.NoAvailableStreamIDError:  # pragma: no cover
             self._used_all_stream_ids = True
             self._request_count -= 1
+            self._max_streams_semaphore.release()
             raise ConnectionNotAvailable()
 
         try:
@@ -275,7 +272,7 @@ class HTTP2Connection(ConnectionInterface):
                 break
 
         status_code = 200
-        headers = []
+        headers: list[tuple[bytes, bytes]] = []
         assert event.headers is not None
         for k, v in event.headers:
             if k == b":status":
@@ -377,8 +374,8 @@ class HTTP2Connection(ConnectionInterface):
 
     def _response_closed(self, stream_id: int) -> None:
         self._max_streams_semaphore.release()
-        del self._events[stream_id]
         with self._state_lock:
+            del self._events[stream_id]
             if self._connection_terminated and not self._events:
                 self.close()
 
@@ -490,7 +487,10 @@ class HTTP2Connection(ConnectionInterface):
 
     def has_expired(self) -> bool:
         now = time.monotonic()
-        return self._expire_at is not None and now > self._expire_at
+        # Read `_expire_at` once into a local: on free-threaded builds another
+        # thread may reset it to `None` between the check and the comparison.
+        expire_at = self._expire_at
+        return expire_at is not None and now > expire_at
 
     def is_idle(self) -> bool:
         return self._state == HTTPConnectionState.IDLE

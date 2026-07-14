@@ -169,7 +169,7 @@ def test_digest_auth_rfc_7616_md5(monkeypatch: pytest.MonkeyPatch) -> None:
     # Example from https://datatracker.ietf.org/doc/html/rfc7616#section-3.9.1
 
     def mock_get_client_nonce(nonce_count: int, nonce: bytes) -> bytes:
-        return "f2/wE4q74E6zIJEtWaHKaf5wv/H5QzzpXusqGemxURZJ".encode()
+        return b"f2/wE4q74E6zIJEtWaHKaf5wv/H5QzzpXusqGemxURZJ"
 
     auth = httpx2.DigestAuth(username="Mufasa", password="Circle of Life")
     monkeypatch.setattr(auth, "_get_client_nonce", mock_get_client_nonce)
@@ -215,7 +215,7 @@ def test_digest_auth_rfc_7616_sha_256(monkeypatch: pytest.MonkeyPatch) -> None:
     # Example from https://datatracker.ietf.org/doc/html/rfc7616#section-3.9.1
 
     def mock_get_client_nonce(nonce_count: int, nonce: bytes) -> bytes:
-        return "f2/wE4q74E6zIJEtWaHKaf5wv/H5QzzpXusqGemxURZJ".encode()
+        return b"f2/wE4q74E6zIJEtWaHKaf5wv/H5QzzpXusqGemxURZJ"
 
     auth = httpx2.DigestAuth(username="Mufasa", password="Circle of Life")
     monkeypatch.setattr(auth, "_get_client_nonce", mock_get_client_nonce)
@@ -258,3 +258,18 @@ def test_digest_auth_rfc_7616_sha_256(monkeypatch: pytest.MonkeyPatch) -> None:
     response = httpx2.Response(content=b"Hello, world!", status_code=200)
     with pytest.raises(StopIteration):
         flow.send(response)
+
+
+def test_digest_auth_empty_realm() -> None:
+    auth = httpx2.DigestAuth(username="user", password="pass")
+    request = httpx2.Request("GET", "https://www.example.com")
+
+    flow = auth.sync_auth_flow(request)
+    request = next(flow)
+
+    # Digest realm has been left empty.
+    headers = {"WWW-Authenticate": 'Digest realm=, qop="auth", nonce="...", opaque="..."'}
+    response = httpx2.Response(content=b"Auth required", status_code=401, headers=headers, request=request)
+    request = flow.send(response)
+
+    assert request.headers["Authorization"].startswith('Digest username="user", realm="", nonce="..."')

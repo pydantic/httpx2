@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import contextlib
 import typing
+from collections.abc import Generator
 
 if typing.TYPE_CHECKING:
     from ._models import Request, Response  # pragma: no cover
@@ -69,6 +70,16 @@ __all__ = [
     "WriteError",
     "WriteTimeout",
 ]
+
+
+class HTTPXDeprecationWarning(UserWarning):
+    """A custom deprecation warning for HTTPX.
+
+    Unlike the built-in `DeprecationWarning`, this inherits from `UserWarning` to ensure it is visible by default,
+    helping users discover deprecated features without needing to enable warnings explicitly.
+
+    Reference: https://sethmlarson.dev/deprecations-via-warnings-dont-work-for-python-libraries
+    """
 
 
 class HTTPError(Exception):
@@ -356,9 +367,7 @@ class RequestNotRead(StreamError):
 
 
 @contextlib.contextmanager
-def request_context(
-    request: Request | None = None,
-) -> typing.Iterator[None]:
+def request_context(request: Request | None = None) -> Generator[None]:
     """
     A context manager that can be used to attach the given request context
     to any `RequestError` exceptions that are raised within the block.

@@ -106,9 +106,9 @@ def test_transport_for_request(url: str, proxies: dict[str, str], expected: str 
 @pytest.mark.anyio
 @pytest.mark.network
 async def test_async_proxy_close() -> None:
+    transport = httpx2.AsyncHTTPTransport(proxy=PROXY_URL)
+    client = httpx2.AsyncClient(mounts={"https://": transport})
     try:
-        transport = httpx2.AsyncHTTPTransport(proxy=PROXY_URL)
-        client = httpx2.AsyncClient(mounts={"https://": transport})
         await client.get("http://example.com")
     finally:
         await client.aclose()
@@ -116,9 +116,9 @@ async def test_async_proxy_close() -> None:
 
 @pytest.mark.network
 def test_sync_proxy_close() -> None:
+    transport = httpx2.HTTPTransport(proxy=PROXY_URL)
+    client = httpx2.Client(mounts={"https://": transport})
     try:
-        transport = httpx2.HTTPTransport(proxy=PROXY_URL)
-        client = httpx2.Client(mounts={"https://": transport})
         client.get("http://example.com")
     finally:
         client.close()

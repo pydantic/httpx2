@@ -176,7 +176,7 @@ def test_response_default_to_utf8_encoding() -> None:
     """
     Default to utf-8 encoding if there is no Content-Type header.
     """
-    content = "おはようございます。".encode("utf-8")
+    content = "おはようございます。".encode()
     response = httpx2.Response(
         200,
         content=content,
@@ -190,7 +190,7 @@ def test_response_fallback_to_utf8_encoding() -> None:
     Fallback to utf-8 if we get an invalid charset in the Content-Type header.
     """
     headers = {"Content-Type": "text-plain; charset=invalid-codec-name"}
-    content = "おはようございます。".encode("utf-8")
+    content = "おはようございます。".encode()
     response = httpx2.Response(
         200,
         content=content,
@@ -222,7 +222,7 @@ def test_response_no_charset_with_utf8_content() -> None:
     A response with UTF-8 encoded content should decode correctly,
     even with no charset specified.
     """
-    content = "Unicode Snowman: ☃".encode("utf-8")
+    content = "Unicode Snowman: ☃".encode()
     headers = {"Content-Type": "text/plain"}
     response = httpx2.Response(
         200,
@@ -286,7 +286,7 @@ def test_response_set_explicit_encoding() -> None:
 def test_response_force_encoding() -> None:
     response = httpx2.Response(
         200,
-        content="Snowman: ☃".encode("utf-8"),
+        content="Snowman: ☃".encode(),
     )
     response.encoding = "iso-8859-1"
     assert response.status_code == 200
@@ -999,23 +999,22 @@ def test_response_decode_text_using_autodetect() -> None:
     # encoding autodetection to be used when no "Content-Type: text/plain; charset=..."
     # info is present.
     #
-    # Here we have some french text encoded with ISO-8859-1, rather than UTF-8.
+    # Here we have some french text encoded with WINDOWS-1252, rather than UTF-8.
+    # The curly quotes and em dash occupy bytes 0x80-0x9F, which are control
+    # characters in ISO-8859-1, so the encoding is unambiguously WINDOWS-1252.
     text = (
-        "Non-seulement Despréaux ne se trompait pas, mais de tous les écrivains "
+        "Non-seulement Despréaux ne se trompait pas — mais de tous les écrivains "
         "que la France a produits, sans excepter Voltaire lui-même, imprégné de "
-        "l'esprit anglais par son séjour à Londres, c'est incontestablement "
-        "Molière ou Poquelin qui reproduit avec l'exactitude la plus vive et la "
+        "l’esprit anglais par son séjour à Londres, c’est incontestablement "
+        "“Molière” ou Poquelin qui reproduit avec l’exactitude la plus vive et la "
         "plus complète le fond du génie français."
     )
-    content = text.encode("ISO-8859-1")
+    content = text.encode("WINDOWS-1252")
     response = httpx2.Response(200, content=content, default_encoding=autodetect)
 
     assert response.status_code == 200
     assert response.reason_phrase == "OK"
-    # The encoded byte string is consistent with either ISO-8859-1 or
-    # WINDOWS-1252. Versions <6.0 of chardet claim the former, while chardet
-    # 6.0 detects the latter.
-    assert response.encoding in ("ISO-8859-1", "WINDOWS-1252")
+    assert response.encoding == "WINDOWS-1252"
     assert response.text == text
 
 

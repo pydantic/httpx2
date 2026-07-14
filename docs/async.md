@@ -41,6 +41,7 @@ The request methods are all async, so you should use `response = await client.ge
 * `AsyncClient.put(url, ...)`
 * `AsyncClient.patch(url, ...)`
 * `AsyncClient.delete(url, ...)`
+* `AsyncClient.query(url, ...)`
 * `AsyncClient.request(method, url, ...)`
 * `AsyncClient.send(request, ...)`
 
