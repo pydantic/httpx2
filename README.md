@@ -7,7 +7,7 @@
 <a href="https://pypi.org/project/httpx2/"><img src="https://badge.fury.io/py/httpx2.svg" alt="Package version"></a>
 </p>
 
-HTTPX2 is a fully featured HTTP client library for Python. It includes **an integrated command line client**, has support for both **HTTP/1.1 and HTTP/2**, and provides both **sync and async APIs**.
+HTTPX2 is a fully featured HTTP client library for Python. It includes **an integrated command line client**, has support for both **HTTP/1.1 and HTTP/2**, supports **WebSockets**, and provides both **sync and async APIs**.
 
 > [!NOTE]
 > HTTPX2 is a continuation of the wonderful work started by [@lovelydinosaur](https://github.com/lovelydinosaur) and the broader HTTPX community. We're enormously grateful for everything that has gone into HTTPX over the years - it has been a foundational piece of the modern Python ecosystem, and this project would not exist without it.
@@ -57,6 +57,7 @@ HTTPX2 builds on the well-established usability of `requests`, and gives you:
 * An integrated command-line client.
 * HTTP/1.1 [and HTTP/2 support](https://httpx2.pydantic.dev/http2/).
 * Standard synchronous interface, but with [async support if you need it](https://httpx2.pydantic.dev/async/).
+* [WebSocket support](https://httpx2.pydantic.dev/websockets/).
 * Ability to make requests directly to [WSGI applications](https://httpx2.pydantic.dev/advanced/transports/#wsgi-transport) or [ASGI applications](https://httpx2.pydantic.dev/advanced/transports/#asgi-transport).
 * Strict timeouts everywhere.
 * Fully type annotated.
@@ -94,13 +95,19 @@ Or, to include the optional HTTP/2 support, use:
 pip install httpx2[http2]
 ```
 
+Or, to include the optional WebSocket support, use:
+
+```shell
+pip install 'httpx2[ws]'
+```
+
 ## Documentation
 
 Project documentation is available at [https://httpx2.pydantic.dev/](https://httpx2.pydantic.dev/).
 
 For a run-through of all the basics, head over to the [QuickStart](https://httpx2.pydantic.dev/quickstart/).
 
-For more advanced topics, see the [Advanced Usage](https://httpx2.pydantic.dev/advanced/) section, the [async support](https://httpx2.pydantic.dev/async/) section, or the [HTTP/2](https://httpx2.pydantic.dev/http2/) section.
+For more advanced topics, see the [Advanced Usage](https://httpx2.pydantic.dev/advanced/) section, the [async support](https://httpx2.pydantic.dev/async/) section, the [HTTP/2](https://httpx2.pydantic.dev/http2/) section, or the [WebSockets](https://httpx2.pydantic.dev/websockets/) section.
 
 The [Developer Interface](https://httpx2.pydantic.dev/api/) provides a comprehensive API reference.
 
@@ -124,6 +131,7 @@ As well as these optional installs:
 
 * `h2` - HTTP/2 support. *(Optional, with `httpx2[http2]`)*
 * `socksio` - SOCKS proxy support. *(Optional, with `httpx2[socks]`)*
+* `wsproto` - WebSocket support. *(Optional, with `httpx2[ws]`)*
 * `rich` - Rich terminal support. *(Optional, with `httpx2[cli]`)*
 * `click` - Command line client support. *(Optional, with `httpx2[cli]`)*
 * `brotli` or `brotlicffi` - Decoding for "brotli" compressed responses. *(Optional, with `httpx2[brotli]`)*
@@ -132,6 +140,8 @@ As well as these optional installs:
 A huge amount of credit is due to `requests` for the API layout that
 much of this work follows, as well as to `urllib3` for plenty of design
 inspiration around the lower-level networking details.
+
+We also want to acknowledge the excellent [httpx-ws](https://github.com/frankie567/httpx-ws) package by [François Voron](https://github.com/frankie567), which served as the foundation for HTTPX2's native WebSocket support.
 
 ---
 
