@@ -173,9 +173,7 @@ async def test_content_type_mismatch_raises_async() -> None:
 
 
 def test_event_source_without_request() -> None:
-    response = httpx2.Response(
-        200, content=b"data: hi\n\n", headers={"Content-Type": "text/event-stream"}
-    )
+    response = httpx2.Response(200, content=b"data: hi\n\n", headers={"Content-Type": "text/event-stream"})
 
     (event,) = list(httpx2.EventSource(response))
 
