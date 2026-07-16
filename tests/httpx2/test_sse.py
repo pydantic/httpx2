@@ -341,6 +341,18 @@ def test_max_event_size_rejects_single_large_data_line() -> None:
                 list(source)
 
 
+def test_max_event_size_ignores_keepalive_comments() -> None:
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        body = b": keepalive\n\n" * 1000 + b"data: hi\n\n"
+        return httpx2.Response(200, content=body, headers={"Content-Type": "text/event-stream"})
+
+    with httpx2.Client(transport=httpx2.MockTransport(handler)) as client:
+        with client.sse("http://testserver/sse", max_event_size=100) as source:
+            (event,) = list(source)
+
+    assert event.data == "hi"
+
+
 def test_max_event_size_allows_event_under_limit() -> None:
     def handler(request: httpx2.Request) -> httpx2.Response:
         return httpx2.Response(200, content=b"data: hi\n\n", headers={"Content-Type": "text/event-stream"})

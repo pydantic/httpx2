@@ -46,6 +46,7 @@ class _SSEDecoder:
 
     def decode(self, line: str) -> ServerSentEvent | None:
         if not line:
+            self._event_size = 0
             if not self._pending:
                 return None
 
@@ -57,17 +58,16 @@ class _SSEDecoder:
             )
             self._event = ""
             self._data = []
-            self._event_size = 0
             self._retry = None
             self._pending = False
             return sse
 
+        if line.startswith(":"):
+            return None
+
         self._event_size += len(line.encode("utf-8"))
         if self._max_event_size is not None and self._event_size > self._max_event_size:
             raise SSEError(f"Server-sent event exceeded the {self._max_event_size} byte limit.")
-
-        if line.startswith(":"):
-            return None
 
         fieldname, _, value = line.partition(":")
         value = value[1:] if value.startswith(" ") else value
