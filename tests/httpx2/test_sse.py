@@ -153,8 +153,10 @@ def test_content_type_mismatch_raises() -> None:
 
     with httpx2.Client(transport=httpx2.MockTransport(handler)) as client:
         with client.sse("http://testserver/sse") as source:
-            with pytest.raises(httpx2.SSEError, match="text/event-stream"):
+            with pytest.raises(httpx2.SSEError, match="text/event-stream") as exc_info:
                 list(source)
+
+    assert exc_info.value.request.url == "http://testserver/sse"
 
 
 @pytest.mark.anyio
