@@ -879,10 +879,6 @@ class Client(BaseClient):
 
         Iterating the `EventSource` yields `ServerSentEvent` instances.
 
-        `max_event_size` caps the number of bytes buffered for a single event;
-        iterating raises `SSEError` if an event exceeds it. Set it to `None` to
-        buffer events without a size limit.
-
         **Parameters**: See `httpx2.request`.
         """
         with self.stream(
@@ -1720,10 +1716,6 @@ class AsyncClient(BaseClient):
         Connect to a server-sent events endpoint and yield an `EventSource`.
 
         Iterating the `EventSource` yields `ServerSentEvent` instances.
-
-        `max_event_size` caps the number of bytes buffered for a single event;
-        iterating raises `SSEError` if an event exceeds it. Set it to `None` to
-        buffer events without a size limit.
 
         **Parameters**: See `httpx2.request`.
         """
