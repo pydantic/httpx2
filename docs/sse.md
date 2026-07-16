@@ -76,7 +76,7 @@ If the response does not have a `text/event-stream` content type, iterating the 
 
 ## Limiting event size
 
-An event is buffered until its terminating blank line arrives, so a stream that keeps sending data without ever completing an event would otherwise grow the buffer without bound. `client.sse()` caps the bytes buffered for a single event at 1 MiB by default and raises `SSEError` once an event exceeds the limit. Pass `max_event_size` to change the cap:
+An event is buffered until its terminating blank line arrives. To stop a stream that keeps sending data without ever completing an event from growing the buffer indefinitely, `client.sse()` caps the bytes buffered for a single event at 1 MiB by default and raises `SSEError` once an event exceeds the limit. Pass `max_event_size` to change the cap:
 
 ```pycon
 >>> with client.sse("https://example.com/sse", max_event_size=8 * 1024 * 1024) as source:
