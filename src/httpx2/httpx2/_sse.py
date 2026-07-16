@@ -127,7 +127,7 @@ class EventSource:
             raise SSEError(f"Expected response with content type 'text/event-stream', got {content_type.strip()!r}.")
 
     def __iter__(self) -> Iterator[ServerSentEvent]:
-        with request_context(request=self._response.request):
+        with request_context(request=self._response._request):
             self._check_content_type()
             decoder = _SSEDecoder()
             lines = _SSELineDecoder()
@@ -142,7 +142,7 @@ class EventSource:
                     yield sse
 
     async def __aiter__(self) -> AsyncIterator[ServerSentEvent]:
-        with request_context(request=self._response.request):
+        with request_context(request=self._response._request):
             self._check_content_type()
             decoder = _SSEDecoder()
             lines = _SSELineDecoder()
