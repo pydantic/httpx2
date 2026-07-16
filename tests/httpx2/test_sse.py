@@ -399,6 +399,48 @@ def test_max_event_size_none_disables_limit() -> None:
     assert len(event.data) == 2 * 1024 * 1024
 
 
+def test_max_event_size_spans_completed_and_pending_lines() -> None:
+    def chunks() -> Iterator[bytes]:
+        yield b"data: " + b"A" * 60 + b"\n"
+        yield b"data: " + b"B" * 60
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(200, content=chunks(), headers={"Content-Type": "text/event-stream"})
+
+    with httpx2.Client(transport=httpx2.MockTransport(handler)) as client:
+        with client.sse("http://testserver/sse", max_event_size=100) as source:
+            with pytest.raises(httpx2.SSEError, match="100 byte limit"):
+                list(source)
+
+
+def test_max_event_size_error_has_request() -> None:
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        body = b"data: " + b"A" * 8192 + b"\n\n"
+        return httpx2.Response(200, content=body, headers={"Content-Type": "text/event-stream"})
+
+    with httpx2.Client(transport=httpx2.MockTransport(handler)) as client:
+        with client.sse("http://testserver/sse", max_event_size=4096) as source:
+            with pytest.raises(httpx2.SSEError) as exc_info:
+                list(source)
+
+    assert exc_info.value.request.url == "http://testserver/sse"
+
+
+@pytest.mark.anyio
+async def test_max_event_size_applies_by_default_async() -> None:
+    captured: list[int | None] = []
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(200, content=b"data: hi\n\n", headers={"Content-Type": "text/event-stream"})
+
+    async with httpx2.AsyncClient(transport=httpx2.MockTransport(handler)) as client:
+        async with client.sse("http://testserver/sse") as source:
+            captured.append(source._max_event_size)
+            [event async for event in source]
+
+    assert captured == [1024 * 1024]
+
+
 @pytest.mark.anyio
 async def test_max_event_size_allows_event_under_limit_async() -> None:
     def handler(request: httpx2.Request) -> httpx2.Response:
