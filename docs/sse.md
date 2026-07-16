@@ -80,7 +80,7 @@ An event is buffered until its terminating blank line arrives. To stop a stream 
 
 ```pycon
 >>> with client.sse("https://example.com/sse", max_event_size=8 * 1024 * 1024) as source:
-...     for event in source:  # raises httpx2.SSEError past 8 MiB
+...     for event in source:  # raise the 1 MiB default to 8 MiB
 ...         print(event.data)
 ```
 

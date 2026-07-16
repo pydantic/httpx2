@@ -413,6 +413,21 @@ def test_max_event_size_spans_completed_and_pending_lines() -> None:
                 list(source)
 
 
+def test_max_event_size_does_not_conflate_adjacent_events() -> None:
+    def chunks() -> Iterator[bytes]:
+        yield b"data: " + b"A" * 60 + b"\n\ndata: " + b"B" * 60
+        yield b"\n\n"
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(200, content=chunks(), headers={"Content-Type": "text/event-stream"})
+
+    with httpx2.Client(transport=httpx2.MockTransport(handler)) as client:
+        with client.sse("http://testserver/sse", max_event_size=100) as source:
+            events = list(source)
+
+    assert [len(event.data) for event in events] == [60, 60]
+
+
 def test_max_event_size_error_has_request() -> None:
     def handler(request: httpx2.Request) -> httpx2.Response:
         body = b"data: " + b"A" * 8192 + b"\n\n"

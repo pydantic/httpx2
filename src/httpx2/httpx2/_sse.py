@@ -135,11 +135,8 @@ class EventSource:
                 request=self._response.request,
             )
 
-    def _check_event_size(self, decoder: _SSEDecoder, lines: _SSELineDecoder) -> None:
-        if self._max_event_size is None:
-            return
-        buffered = decoder._event_size + len(lines._buffer.encode("utf-8"))
-        if buffered > self._max_event_size:
+    def _check_size(self, size: int) -> None:
+        if self._max_event_size is not None and size > self._max_event_size:
             raise SSEError(
                 f"Server-sent event exceeded the {self._max_event_size} byte limit.",
                 request=self._response.request,
@@ -152,13 +149,13 @@ class EventSource:
         for chunk in self._response.iter_text():
             for line in lines.decode(chunk):
                 sse = decoder.decode(line)
-                self._check_event_size(decoder, lines)
+                self._check_size(decoder._event_size)
                 if sse is not None:
                     yield sse
-            self._check_event_size(decoder, lines)
+            self._check_size(len(lines._buffer.encode("utf-8")))
         for line in lines.flush():
             sse = decoder.decode(line)
-            self._check_event_size(decoder, lines)
+            self._check_size(decoder._event_size)
             if sse is not None:
                 yield sse
 
@@ -169,12 +166,12 @@ class EventSource:
         async for chunk in self._response.aiter_text():
             for line in lines.decode(chunk):
                 sse = decoder.decode(line)
-                self._check_event_size(decoder, lines)
+                self._check_size(decoder._event_size)
                 if sse is not None:
                     yield sse
-            self._check_event_size(decoder, lines)
+            self._check_size(len(lines._buffer.encode("utf-8")))
         for line in lines.flush():
             sse = decoder.decode(line)
-            self._check_event_size(decoder, lines)
+            self._check_size(decoder._event_size)
             if sse is not None:
                 yield sse
