@@ -297,6 +297,39 @@ def test_max_event_size_rejects_many_data_lines() -> None:
                 list(source)
 
 
+def test_max_event_size_counts_empty_data_lines() -> None:
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        body = b"data\n" * 1000
+        return httpx2.Response(200, content=body, headers={"Content-Type": "text/event-stream"})
+
+    with httpx2.Client(transport=httpx2.MockTransport(handler)) as client:
+        with client.sse("http://testserver/sse", max_event_size=100) as source:
+            with pytest.raises(httpx2.SSEError, match="100 byte limit"):
+                list(source)
+
+
+def test_max_event_size_counts_non_data_fields() -> None:
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        body = b"id: " + b"A" * 8192 + b"\n\n"
+        return httpx2.Response(200, content=body, headers={"Content-Type": "text/event-stream"})
+
+    with httpx2.Client(transport=httpx2.MockTransport(handler)) as client:
+        with client.sse("http://testserver/sse", max_event_size=4096) as source:
+            with pytest.raises(httpx2.SSEError, match="4096 byte limit"):
+                list(source)
+
+
+def test_max_event_size_measures_utf8_bytes() -> None:
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        body = "data: ".encode() + "😀".encode() * 50 + b"\n\n"
+        return httpx2.Response(200, content=body, headers={"Content-Type": "text/event-stream"})
+
+    with httpx2.Client(transport=httpx2.MockTransport(handler)) as client:
+        with client.sse("http://testserver/sse", max_event_size=100) as source:
+            with pytest.raises(httpx2.SSEError, match="100 byte limit"):
+                list(source)
+
+
 def test_max_event_size_rejects_single_large_data_line() -> None:
     def handler(request: httpx2.Request) -> httpx2.Response:
         body = b"data: " + b"A" * 8192 + b"\n\n"

@@ -38,7 +38,7 @@ class _SSEDecoder:
         self._max_event_size = max_event_size
         self._event = ""
         self._data: list[str] = []
-        self._data_size = 0
+        self._event_size = 0
         self._last_event_id = ""
         self._retry: int | None = None
         self._pending = False
@@ -56,10 +56,14 @@ class _SSEDecoder:
             )
             self._event = ""
             self._data = []
-            self._data_size = 0
+            self._event_size = 0
             self._retry = None
             self._pending = False
             return sse
+
+        self._event_size += len(line.encode("utf-8"))
+        if self._max_event_size is not None and self._event_size > self._max_event_size:
+            raise SSEError(f"Server-sent event exceeded the {self._max_event_size} byte limit.")
 
         if line.startswith(":"):
             return None
@@ -72,8 +76,6 @@ class _SSEDecoder:
             self._pending = True
         elif fieldname == "data":
             self._data.append(value)
-            self._data_size += len(value)
-            self._check_event_size()
             self._pending = True
         elif fieldname == "id":
             if "\0" not in value:
@@ -87,10 +89,6 @@ class _SSEDecoder:
                 pass
 
         return None
-
-    def _check_event_size(self) -> None:
-        if self._max_event_size is not None and self._data_size > self._max_event_size:
-            raise SSEError(f"Server-sent event exceeded the {self._max_event_size} byte limit.")
 
 
 class _SSELineDecoder:
@@ -110,7 +108,8 @@ class _SSELineDecoder:
         text = self._buffer + text.replace("\r\n", "\n").replace("\r", "\n")
         lines = text.split("\n")
         self._buffer = lines.pop()
-        self._check_line_size()
+        if self._max_event_size is not None and len(self._buffer.encode("utf-8")) > self._max_event_size:
+            raise SSEError(f"Server-sent event exceeded the {self._max_event_size} byte limit.")
         return lines
 
     def flush(self) -> list[str]:
@@ -122,10 +121,6 @@ class _SSELineDecoder:
         lines = self._buffer.split("\n")
         self._buffer = ""
         return lines
-
-    def _check_line_size(self) -> None:
-        if self._max_event_size is not None and len(self._buffer) > self._max_event_size:
-            raise SSEError(f"Server-sent event exceeded the {self._max_event_size} byte limit.")
 
 
 class EventSource:
