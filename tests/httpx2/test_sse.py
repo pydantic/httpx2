@@ -321,7 +321,7 @@ def test_max_event_size_counts_non_data_fields() -> None:
 
 def test_max_event_size_measures_utf8_bytes() -> None:
     def handler(request: httpx2.Request) -> httpx2.Response:
-        body = "data: ".encode() + "😀".encode() * 50 + b"\n\n"
+        body = b"data: " + "😀".encode() * 50 + b"\n\n"
         return httpx2.Response(200, content=body, headers={"Content-Type": "text/event-stream"})
 
     with httpx2.Client(transport=httpx2.MockTransport(handler)) as client:
