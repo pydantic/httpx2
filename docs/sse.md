@@ -76,14 +76,14 @@ If the response does not have a `text/event-stream` content type, iterating the 
 
 ## Limiting event size
 
-By default an event is buffered until its terminating blank line arrives, so a stream that keeps sending data without ever completing an event grows the buffer without bound. Pass `max_event_size` to cap the bytes buffered for a single event; iterating raises `SSEError` once an event exceeds the limit:
+An event is buffered until its terminating blank line arrives, so a stream that keeps sending data without ever completing an event would otherwise grow the buffer without bound. `client.sse()` caps the bytes buffered for a single event at 1 MiB by default and raises `SSEError` once an event exceeds the limit. Pass `max_event_size` to change the cap:
 
 ```pycon
->>> with client.sse("https://example.com/sse", max_event_size=1024 * 1024) as source:
-...     for event in source:  # raises httpx2.SSEError past 1 MiB
+>>> with client.sse("https://example.com/sse", max_event_size=8 * 1024 * 1024) as source:
+...     for event in source:  # raises httpx2.SSEError past 8 MiB
 ...         print(event.data)
 ```
 
-The counter resets after each event, so the limit applies per event rather than to the stream as a whole.
+The counter resets after each event, so the limit applies per event rather than to the stream as a whole. Set `max_event_size=None` to buffer events without any limit.
 
 [mdn]: https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events

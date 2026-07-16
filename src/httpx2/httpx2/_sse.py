@@ -10,6 +10,7 @@ import json as jsonlib
 from collections.abc import AsyncIterator, Iterator
 from dataclasses import dataclass
 
+from ._config import DEFAULT_MAX_EVENT_SIZE_BYTES
 from ._exceptions import TransportError
 from ._models import Response
 
@@ -124,7 +125,7 @@ class _SSELineDecoder:
 
 
 class EventSource:
-    def __init__(self, response: Response, max_event_size: int | None = None) -> None:
+    def __init__(self, response: Response, max_event_size: int | None = DEFAULT_MAX_EVENT_SIZE_BYTES) -> None:
         self._response = response
         self._max_event_size = max_event_size
 

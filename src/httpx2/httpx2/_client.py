@@ -16,6 +16,7 @@ from ._config import (
     DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS,
     DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
     DEFAULT_LIMITS,
+    DEFAULT_MAX_EVENT_SIZE_BYTES,
     DEFAULT_MAX_MESSAGE_SIZE_BYTES,
     DEFAULT_MAX_REDIRECTS,
     DEFAULT_QUEUE_SIZE,
@@ -871,15 +872,16 @@ class Client(BaseClient):
         follow_redirects: bool | UseClientDefault = USE_CLIENT_DEFAULT,
         timeout: TimeoutTypes | UseClientDefault = USE_CLIENT_DEFAULT,
         extensions: RequestExtensions | None = None,
-        max_event_size: int | None = None,
+        max_event_size: int | None = DEFAULT_MAX_EVENT_SIZE_BYTES,
     ) -> Generator[EventSource]:
         """
         Connect to a server-sent events endpoint and yield an `EventSource`.
 
         Iterating the `EventSource` yields `ServerSentEvent` instances.
 
-        Pass `max_event_size` to cap the number of bytes buffered for a single
-        event; iterating raises `SSEError` if an event exceeds it.
+        `max_event_size` caps the number of bytes buffered for a single event;
+        iterating raises `SSEError` if an event exceeds it. Set it to `None` to
+        buffer events without a size limit.
 
         **Parameters**: See `httpx2.request`.
         """

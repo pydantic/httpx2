@@ -364,6 +364,29 @@ def test_max_event_size_resets_between_events() -> None:
     assert [len(event.data) for event in events] == [80, 80]
 
 
+def test_max_event_size_applies_by_default() -> None:
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        body = b"data: " + b"A" * (2 * 1024 * 1024) + b"\n\n"
+        return httpx2.Response(200, content=body, headers={"Content-Type": "text/event-stream"})
+
+    with httpx2.Client(transport=httpx2.MockTransport(handler)) as client:
+        with client.sse("http://testserver/sse") as source:
+            with pytest.raises(httpx2.SSEError, match="byte limit"):
+                list(source)
+
+
+def test_max_event_size_none_disables_limit() -> None:
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        body = b"data: " + b"A" * (2 * 1024 * 1024) + b"\n\n"
+        return httpx2.Response(200, content=body, headers={"Content-Type": "text/event-stream"})
+
+    with httpx2.Client(transport=httpx2.MockTransport(handler)) as client:
+        with client.sse("http://testserver/sse", max_event_size=None) as source:
+            (event,) = list(source)
+
+    assert len(event.data) == 2 * 1024 * 1024
+
+
 @pytest.mark.anyio
 async def test_max_event_size_allows_event_under_limit_async() -> None:
     def handler(request: httpx2.Request) -> httpx2.Response:
