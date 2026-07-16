@@ -11,7 +11,7 @@ from collections.abc import AsyncIterator, Iterator
 from dataclasses import dataclass
 
 from ._config import DEFAULT_MAX_EVENT_SIZE_BYTES
-from ._exceptions import TransportError
+from ._exceptions import TransportError, request_context
 from ._models import Response
 
 __all__ = ["EventSource", "SSEError", "ServerSentEvent"]
@@ -35,7 +35,8 @@ class ServerSentEvent:
 
 
 class _SSEDecoder:
-    def __init__(self) -> None:
+    def __init__(self, max_event_size: int | None = None) -> None:
+        self._max_event_size = max_event_size
         self._event = ""
         self._data: list[str] = []
         self._event_size = 0
@@ -65,6 +66,8 @@ class _SSEDecoder:
             return None
 
         self._event_size += len(line.encode("utf-8"))
+        if self._max_event_size is not None and self._event_size > self._max_event_size:
+            raise SSEError(f"Server-sent event exceeded the {self._max_event_size} byte limit.")
 
         fieldname, _, value = line.partition(":")
         value = value[1:] if value.startswith(" ") else value
@@ -90,7 +93,8 @@ class _SSEDecoder:
 
 
 class _SSELineDecoder:
-    def __init__(self) -> None:
+    def __init__(self, max_event_size: int | None = None) -> None:
+        self._max_event_size = max_event_size
         self._buffer = ""
         self._trailing_cr = False
 
@@ -105,6 +109,8 @@ class _SSELineDecoder:
         text = self._buffer + text.replace("\r\n", "\n").replace("\r", "\n")
         lines = text.split("\n")
         self._buffer = lines.pop()
+        if self._max_event_size is not None and len(self._buffer.encode("utf-8")) > self._max_event_size:
+            raise SSEError(f"Server-sent event exceeded the {self._max_event_size} byte limit.")
         return lines
 
     def flush(self) -> list[str]:
@@ -130,48 +136,34 @@ class EventSource:
     def _check_content_type(self) -> None:
         content_type, _, _ = self._response.headers.get("content-type", "").partition(";")
         if content_type.strip().lower() != "text/event-stream":
-            raise SSEError(
-                f"Expected response with content type 'text/event-stream', got {content_type.strip()!r}.",
-                request=self._response.request,
-            )
-
-    def _check_size(self, size: int) -> None:
-        if self._max_event_size is not None and size > self._max_event_size:
-            raise SSEError(
-                f"Server-sent event exceeded the {self._max_event_size} byte limit.",
-                request=self._response.request,
-            )
+            raise SSEError(f"Expected response with content type 'text/event-stream', got {content_type.strip()!r}.")
 
     def __iter__(self) -> Iterator[ServerSentEvent]:
-        self._check_content_type()
-        decoder = _SSEDecoder()
-        lines = _SSELineDecoder()
-        for chunk in self._response.iter_text():
-            for line in lines.decode(chunk):
+        with request_context(request=self._response.request):
+            self._check_content_type()
+            decoder = _SSEDecoder(self._max_event_size)
+            lines = _SSELineDecoder(self._max_event_size)
+            for chunk in self._response.iter_text():
+                for line in lines.decode(chunk):
+                    sse = decoder.decode(line)
+                    if sse is not None:
+                        yield sse
+            for line in lines.flush():
                 sse = decoder.decode(line)
-                self._check_size(decoder._event_size)
                 if sse is not None:
                     yield sse
-            self._check_size(len(lines._buffer.encode("utf-8")))
-        for line in lines.flush():
-            sse = decoder.decode(line)
-            self._check_size(decoder._event_size)
-            if sse is not None:
-                yield sse
 
     async def __aiter__(self) -> AsyncIterator[ServerSentEvent]:
-        self._check_content_type()
-        decoder = _SSEDecoder()
-        lines = _SSELineDecoder()
-        async for chunk in self._response.aiter_text():
-            for line in lines.decode(chunk):
+        with request_context(request=self._response.request):
+            self._check_content_type()
+            decoder = _SSEDecoder(self._max_event_size)
+            lines = _SSELineDecoder(self._max_event_size)
+            async for chunk in self._response.aiter_text():
+                for line in lines.decode(chunk):
+                    sse = decoder.decode(line)
+                    if sse is not None:
+                        yield sse
+            for line in lines.flush():
                 sse = decoder.decode(line)
-                self._check_size(decoder._event_size)
                 if sse is not None:
                     yield sse
-            self._check_size(len(lines._buffer.encode("utf-8")))
-        for line in lines.flush():
-            sse = decoder.decode(line)
-            self._check_size(decoder._event_size)
-            if sse is not None:
-                yield sse
