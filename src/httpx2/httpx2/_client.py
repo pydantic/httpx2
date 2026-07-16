@@ -871,11 +871,15 @@ class Client(BaseClient):
         follow_redirects: bool | UseClientDefault = USE_CLIENT_DEFAULT,
         timeout: TimeoutTypes | UseClientDefault = USE_CLIENT_DEFAULT,
         extensions: RequestExtensions | None = None,
+        max_event_size: int | None = None,
     ) -> Generator[EventSource]:
         """
         Connect to a server-sent events endpoint and yield an `EventSource`.
 
         Iterating the `EventSource` yields `ServerSentEvent` instances.
+
+        Pass `max_event_size` to cap the number of bytes buffered for a single
+        event; iterating raises `SSEError` if an event exceeds it.
 
         **Parameters**: See `httpx2.request`.
         """
@@ -894,7 +898,7 @@ class Client(BaseClient):
             timeout=timeout,
             extensions=extensions,
         ) as response:
-            yield EventSource(response)
+            yield EventSource(response, max_event_size=max_event_size)
 
     @contextmanager
     def websocket(
@@ -1708,11 +1712,15 @@ class AsyncClient(BaseClient):
         follow_redirects: bool | UseClientDefault = USE_CLIENT_DEFAULT,
         timeout: TimeoutTypes | UseClientDefault = USE_CLIENT_DEFAULT,
         extensions: RequestExtensions | None = None,
+        max_event_size: int | None = None,
     ) -> AsyncGenerator[EventSource]:
         """
         Connect to a server-sent events endpoint and yield an `EventSource`.
 
         Iterating the `EventSource` yields `ServerSentEvent` instances.
+
+        Pass `max_event_size` to cap the number of bytes buffered for a single
+        event; iterating raises `SSEError` if an event exceeds it.
 
         **Parameters**: See `httpx2.request`.
         """
@@ -1731,7 +1739,7 @@ class AsyncClient(BaseClient):
             timeout=timeout,
             extensions=extensions,
         ) as response:
-            yield EventSource(response)
+            yield EventSource(response, max_event_size=max_event_size)
 
     @asynccontextmanager
     async def websocket(

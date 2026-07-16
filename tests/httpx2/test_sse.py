@@ -275,6 +275,74 @@ def test_leading_blank_line_is_ignored() -> None:
     assert event.data == "hi"
 
 
+def test_max_event_size_rejects_unterminated_line() -> None:
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        body = b"data: " + b"A" * 8192
+        return httpx2.Response(200, content=body, headers={"Content-Type": "text/event-stream"})
+
+    with httpx2.Client(transport=httpx2.MockTransport(handler)) as client:
+        with client.sse("http://testserver/sse", max_event_size=4096) as source:
+            with pytest.raises(httpx2.SSEError, match="4096 byte limit"):
+                list(source)
+
+
+def test_max_event_size_rejects_many_data_lines() -> None:
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        body = b"data: chunk\n" * 1000
+        return httpx2.Response(200, content=body, headers={"Content-Type": "text/event-stream"})
+
+    with httpx2.Client(transport=httpx2.MockTransport(handler)) as client:
+        with client.sse("http://testserver/sse", max_event_size=100) as source:
+            with pytest.raises(httpx2.SSEError, match="100 byte limit"):
+                list(source)
+
+
+def test_max_event_size_rejects_single_large_data_line() -> None:
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        body = b"data: " + b"A" * 8192 + b"\n\n"
+        return httpx2.Response(200, content=body, headers={"Content-Type": "text/event-stream"})
+
+    with httpx2.Client(transport=httpx2.MockTransport(handler)) as client:
+        with client.sse("http://testserver/sse", max_event_size=4096) as source:
+            with pytest.raises(httpx2.SSEError, match="4096 byte limit"):
+                list(source)
+
+
+def test_max_event_size_allows_event_under_limit() -> None:
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(200, content=b"data: hi\n\n", headers={"Content-Type": "text/event-stream"})
+
+    with httpx2.Client(transport=httpx2.MockTransport(handler)) as client:
+        with client.sse("http://testserver/sse", max_event_size=4096) as source:
+            (event,) = list(source)
+
+    assert event.data == "hi"
+
+
+def test_max_event_size_resets_between_events() -> None:
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        body = b"data: " + b"A" * 80 + b"\n\ndata: " + b"B" * 80 + b"\n\n"
+        return httpx2.Response(200, content=body, headers={"Content-Type": "text/event-stream"})
+
+    with httpx2.Client(transport=httpx2.MockTransport(handler)) as client:
+        with client.sse("http://testserver/sse", max_event_size=100) as source:
+            events = list(source)
+
+    assert [len(event.data) for event in events] == [80, 80]
+
+
+@pytest.mark.anyio
+async def test_max_event_size_allows_event_under_limit_async() -> None:
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(200, content=b"data: hi\n\n", headers={"Content-Type": "text/event-stream"})
+
+    async with httpx2.AsyncClient(transport=httpx2.MockTransport(handler)) as client:
+        async with client.sse("http://testserver/sse", max_event_size=4096) as source:
+            events = [event async for event in source]
+
+    assert [event.data for event in events] == ["hi"]
+
+
 def test_event_dispatched_at_eof_on_trailing_cr_sync() -> None:
     def chunks() -> Iterator[bytes]:
         yield b"data: hi\n"

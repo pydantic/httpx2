@@ -34,9 +34,11 @@ class ServerSentEvent:
 
 
 class _SSEDecoder:
-    def __init__(self) -> None:
+    def __init__(self, max_event_size: int | None = None) -> None:
+        self._max_event_size = max_event_size
         self._event = ""
         self._data: list[str] = []
+        self._data_size = 0
         self._last_event_id = ""
         self._retry: int | None = None
         self._pending = False
@@ -54,6 +56,7 @@ class _SSEDecoder:
             )
             self._event = ""
             self._data = []
+            self._data_size = 0
             self._retry = None
             self._pending = False
             return sse
@@ -69,6 +72,8 @@ class _SSEDecoder:
             self._pending = True
         elif fieldname == "data":
             self._data.append(value)
+            self._data_size += len(value)
+            self._check_event_size()
             self._pending = True
         elif fieldname == "id":
             if "\0" not in value:
@@ -83,9 +88,14 @@ class _SSEDecoder:
 
         return None
 
+    def _check_event_size(self) -> None:
+        if self._max_event_size is not None and self._data_size > self._max_event_size:
+            raise SSEError(f"Server-sent event exceeded the {self._max_event_size} byte limit.")
+
 
 class _SSELineDecoder:
-    def __init__(self) -> None:
+    def __init__(self, max_event_size: int | None = None) -> None:
+        self._max_event_size = max_event_size
         self._buffer = ""
         self._trailing_cr = False
 
@@ -100,6 +110,7 @@ class _SSELineDecoder:
         text = self._buffer + text.replace("\r\n", "\n").replace("\r", "\n")
         lines = text.split("\n")
         self._buffer = lines.pop()
+        self._check_line_size()
         return lines
 
     def flush(self) -> list[str]:
@@ -112,10 +123,15 @@ class _SSELineDecoder:
         self._buffer = ""
         return lines
 
+    def _check_line_size(self) -> None:
+        if self._max_event_size is not None and len(self._buffer) > self._max_event_size:
+            raise SSEError(f"Server-sent event exceeded the {self._max_event_size} byte limit.")
+
 
 class EventSource:
-    def __init__(self, response: Response) -> None:
+    def __init__(self, response: Response, max_event_size: int | None = None) -> None:
         self._response = response
+        self._max_event_size = max_event_size
 
     @property
     def response(self) -> Response:
@@ -131,8 +147,8 @@ class EventSource:
 
     def __iter__(self) -> Iterator[ServerSentEvent]:
         self._check_content_type()
-        decoder = _SSEDecoder()
-        lines = _SSELineDecoder()
+        decoder = _SSEDecoder(self._max_event_size)
+        lines = _SSELineDecoder(self._max_event_size)
         for chunk in self._response.iter_text():
             for line in lines.decode(chunk):
                 sse = decoder.decode(line)
@@ -145,8 +161,8 @@ class EventSource:
 
     async def __aiter__(self) -> AsyncIterator[ServerSentEvent]:
         self._check_content_type()
-        decoder = _SSEDecoder()
-        lines = _SSELineDecoder()
+        decoder = _SSEDecoder(self._max_event_size)
+        lines = _SSELineDecoder(self._max_event_size)
         async for chunk in self._response.aiter_text():
             for line in lines.decode(chunk):
                 sse = decoder.decode(line)
