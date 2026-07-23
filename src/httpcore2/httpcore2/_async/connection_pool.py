@@ -303,7 +303,16 @@ class AsyncConnectionPool(AsyncRequestInterface):
         # Snapshot the set of reusable connections once, rather than rebuilding
         # it per queued request — this is what brings the loop from O(N*M) to
         # O(N+M) in the common case.
-        available_connections = [connection for connection in self._connections if connection.is_available()]
+        #
+        # An idle connection already assigned to an in-flight request is
+        # reserved: it stays IDLE until the winning task sends on it, so
+        # without this exclusion the next pass would assign it again and the
+        # loser would churn through `ConnectionNotAvailable`.
+        available_connections = [
+            connection
+            for connection in self._connections
+            if connection.is_available() and not (connection.is_idle() and connection in request_connections)
+        ]
         new_connection_budget = self._max_connections - len(self._connections)
 
         # Assign queued requests to connections.
@@ -318,9 +327,13 @@ class AsyncConnectionPool(AsyncRequestInterface):
             # 2. We can create a new connection to handle the request.
             # 3. We can close an idle connection and then create a new connection
             #    to handle the request.
-            for connection in available_connections:
+            for idx, connection in enumerate(available_connections):
                 if connection.can_handle_request(origin):
                     pool_request.assign_to_connection(connection)
+                    if connection.is_idle():
+                        # An HTTP/1.1 connection (or an idle HTTP/2 one) can
+                        # only take this single request until it is released.
+                        del available_connections[idx]
                     break
             else:
                 if new_connection_budget > 0:
