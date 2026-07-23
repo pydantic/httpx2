@@ -83,7 +83,9 @@ some_library_still_on_httpx.configure(http_client=httpx.AsyncClient())
 
 This is exactly why incremental migration works: your code moves to `httpx2`, while each dependency keeps receiving the types it expects, until it migrates too.
 
-And if you want to remove the boundary entirely - your application is on `httpx2`, but some dependencies still `import httpx`, and you want everyone to share the same classes - there is an escape hatch, `alias_httpx()`:
+And to be clear: this boundary is not a permanent feature of your life. It only exists while both packages are in your environment. Every dependency that moves to `httpx2` removes a piece of it - the [For Package Maintainers](#for-package-maintainers) section below gives maintainers two proven, low-effort paths to do it, so point them there (or send them the pull request yourself, it is usually a small one). The day your last dependency migrates, you uninstall `httpx`, and this whole section stops applying to you.
+
+If you don't want to wait for that day - your application is on `httpx2`, but some dependencies still `import httpx`, and you want everyone to share the same classes now - there is an escape hatch, `alias_httpx()`:
 
 ```python
 import httpx2
@@ -107,7 +109,7 @@ And a few things no aliasing can fix, so you know where the edges are:
 * A library configuring `logging.getLogger("httpx")` won't see `httpx2`'s logs (the loggers are `httpx2` and `httpcore2.*`).
 * Subprocesses and spawn-based workers re-import from scratch: each new process needs to call `alias_httpx()` too, before importing `httpx`.
 
-Think of it as a bridge, not a destination: it buys you time while your dependencies migrate, and you remove the call once they have.
+Think of it as a bridge, not a destination: it gives you the end state today - one set of classes, no `httpx` install - while your dependencies catch up. Once the last one migrates, you delete the call and the bridge was never there.
 
 ## What Changed
 
