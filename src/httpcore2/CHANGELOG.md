@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2.9.0 (July 23rd, 2026)
+
+No changes since `2.8.0`. Version bumped to stay in lockstep with `httpx2`.
+
+## 2.8.0 (July 23rd, 2026)
+
+### Changed
+
+* Assign each released connection to a single queued request, eliminating multi-assignment churn in the connection pool. ([#1075](https://github.com/pydantic/httpx2/pull/1075))
+
+## 2.7.0 (July 14th, 2026)
+
+No changes since `2.6.0`. Version bumped to stay in lockstep with `httpx2`.
+
+## 2.6.0 (July 14th, 2026)
+
+### Fixed
+
+* Clean up garbage connections on cancellation in `AsyncConnectionPool`. ([#983](https://github.com/pydantic/httpx2/pull/983))
+* Read `_expire_at` only once in `has_expired()`. ([#1045](https://github.com/pydantic/httpx2/pull/1045))
+
 ## 2.5.0 (June 25th, 2026)
 
 ### Fixed

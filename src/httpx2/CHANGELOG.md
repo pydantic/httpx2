@@ -4,11 +4,32 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## Unreleased
+## 2.9.0 (July 23rd, 2026)
 
 ### Added
 
-* Add `alias_httpx()`, letting applications make `import httpx` resolve to `httpx2` process-wide.
+* Add `alias_httpx()`, letting applications make `import httpx` resolve to `httpx2` process-wide. ([#1077](https://github.com/pydantic/httpx2/pull/1077))
+
+## 2.8.0 (July 23rd, 2026)
+
+No changes since `2.7.0`. Version bumped to stay in lockstep with `httpcore2`.
+
+## 2.7.0 (July 14th, 2026)
+
+### Changed
+
+* Update the vendored `httpx-ws` to upstream v0.9.0. ([#1067](https://github.com/pydantic/httpx2/pull/1067))
+
+## 2.6.0 (July 14th, 2026)
+
+### Added
+
+* Add native WebSocket support by vendoring `httpx-ws`, installable with `httpx2[ws]`. ([#1042](https://github.com/pydantic/httpx2/pull/1042))
+* Add support for the `QUERY` HTTP method via `httpx2.query()` and `client.query()`. ([#1055](https://github.com/pydantic/httpx2/pull/1055))
+
+### Changed
+
+* Allow `click` 8.4+ in the `cli` extra, dropping the upper bound. ([#1040](https://github.com/pydantic/httpx2/pull/1040))
 
 ## 2.5.0 (June 25th, 2026)
 
