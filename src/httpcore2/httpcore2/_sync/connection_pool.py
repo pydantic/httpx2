@@ -112,6 +112,11 @@ class ConnectionPool(RequestInterface):
         self._connections: list[ConnectionInterface] = []
         self._requests: list[PoolRequest] = []
 
+        # Reference counts of connections held by in-flight requests,
+        # maintained incrementally so assignment passes never rebuild them
+        # by scanning the full request list.
+        self._request_connections: dict[ConnectionInterface, int] = {}
+
         # We only mutate the state of the connection pool within an 'optional_thread_lock'
         # context. This holds a threading lock unless we're running in async mode,
         # in which case it is a no-op.
@@ -227,7 +232,9 @@ class ConnectionPool(RequestInterface):
                     # handle a request, but then become unavailable.
                     #
                     # In this case we clear the connection and try again.
-                    pool_request.clear_connection()
+                    with self._optional_thread_lock:
+                        self._release_request_connection(pool_request)
+                        pool_request.clear_connection()
                 else:
                     break  # pragma: no cover
 
@@ -235,6 +242,7 @@ class ConnectionPool(RequestInterface):
             with self._optional_thread_lock:
                 # For any exception or cancellation we remove the request from
                 # the queue, and then re-assign requests to connections.
+                self._release_request_connection(pool_request)
                 self._requests.remove(pool_request)
                 closing = self._assign_requests_to_connections()
 
@@ -250,6 +258,19 @@ class ConnectionPool(RequestInterface):
             content=PoolByteStream(stream=response.stream, pool_request=pool_request, pool=self),
             extensions=response.extensions,
         )
+
+    def _reserve_connection(self, pool_request: PoolRequest, connection: ConnectionInterface) -> None:
+        pool_request.assign_to_connection(connection)
+        self._request_connections[connection] = self._request_connections.get(connection, 0) + 1
+
+    def _release_request_connection(self, pool_request: PoolRequest) -> None:
+        connection = pool_request.connection
+        if connection is not None:
+            count = self._request_connections[connection] - 1
+            if count:
+                self._request_connections[connection] = count
+            else:
+                del self._request_connections[connection]
 
     def _assign_requests_to_connections(self) -> list[ConnectionInterface]:
         """
@@ -267,7 +288,7 @@ class ConnectionPool(RequestInterface):
         # Connections currently referenced by an in-flight request, including
         # connections that are in the process of being established and idle
         # connections reserved by an assigned-but-not-yet-sent request.
-        request_connections = {r.connection for r in self._requests}
+        request_connections = self._request_connections
 
         # First we handle cleaning up any connections that are closed
         # or have expired their keep-alive, in a single pass. Reserved
@@ -342,7 +363,7 @@ class ConnectionPool(RequestInterface):
             #    to handle the request.
             for idx, connection in enumerate(available_connections):
                 if connection.can_handle_request(origin):
-                    pool_request.assign_to_connection(connection)
+                    self._reserve_connection(pool_request, connection)
                     if connection.is_idle() and not connection.can_multiplex():
                         # An idle HTTP/1.1 connection can only take this
                         # single request until it is released.
@@ -352,7 +373,7 @@ class ConnectionPool(RequestInterface):
                 if new_connection_budget > 0:
                     connection = self.create_connection(origin)
                     self._connections.append(connection)
-                    pool_request.assign_to_connection(connection)
+                    self._reserve_connection(pool_request, connection)
                     new_connection_budget -= 1
                     continue
                 for idx, connection in enumerate(available_connections):
@@ -362,7 +383,7 @@ class ConnectionPool(RequestInterface):
                         closing_connections.append(connection)
                         connection = self.create_connection(origin)
                         self._connections.append(connection)
-                        pool_request.assign_to_connection(connection)
+                        self._reserve_connection(pool_request, connection)
                         break
 
         return closing_connections
@@ -434,6 +455,7 @@ class PoolByteStream:
                     self._stream.close()
 
             with self._pool._optional_thread_lock:
+                self._pool._release_request_connection(self._pool_request)
                 self._pool._requests.remove(self._pool_request)
                 closing = self._pool._assign_requests_to_connections()
 
