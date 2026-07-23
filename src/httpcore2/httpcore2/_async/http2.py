@@ -495,6 +495,9 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
     def is_idle(self) -> bool:
         return self._state == HTTPConnectionState.IDLE
 
+    def can_multiplex(self) -> bool:
+        return True
+
     def is_closed(self) -> bool:
         return self._state == HTTPConnectionState.CLOSED
 

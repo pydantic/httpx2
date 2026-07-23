@@ -307,11 +307,13 @@ class ConnectionPool(RequestInterface):
         # An idle connection already assigned to an in-flight request is
         # reserved: it stays IDLE until the winning task sends on it, so
         # without this exclusion the next pass would assign it again and the
-        # loser would churn through `ConnectionNotAvailable`.
+        # loser would churn through `ConnectionNotAvailable`. Multiplexing
+        # connections are exempt: they can take further requests while idle.
         available_connections = [
             connection
             for connection in self._connections
-            if connection.is_available() and not (connection.is_idle() and connection in request_connections)
+            if connection.is_available()
+            and not (connection.is_idle() and connection in request_connections and not connection.can_multiplex())
         ]
         new_connection_budget = self._max_connections - len(self._connections)
 
@@ -330,9 +332,9 @@ class ConnectionPool(RequestInterface):
             for idx, connection in enumerate(available_connections):
                 if connection.can_handle_request(origin):
                     pool_request.assign_to_connection(connection)
-                    if connection.is_idle():
-                        # An HTTP/1.1 connection (or an idle HTTP/2 one) can
-                        # only take this single request until it is released.
+                    if connection.is_idle() and not connection.can_multiplex():
+                        # An idle HTTP/1.1 connection can only take this
+                        # single request until it is released.
                         del available_connections[idx]
                     break
             else:

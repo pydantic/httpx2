@@ -177,6 +177,9 @@ class HTTPConnection(ConnectionInterface):
             return self._connect_failed
         return self._connection.is_idle()
 
+    def can_multiplex(self) -> bool:
+        return self._connection is not None and self._connection.can_multiplex()
+
     def is_closed(self) -> bool:
         if self._connection is None:
             return self._connect_failed

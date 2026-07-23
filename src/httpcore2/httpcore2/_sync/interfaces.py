@@ -140,6 +140,16 @@ class ConnectionInterface(RequestInterface):
         """
         raise NotImplementedError()  # pragma: no cover
 
+    def can_multiplex(self) -> bool:
+        """
+        Return `True` if the connection can serve multiple requests
+        concurrently, such as an established HTTP/2 connection.
+
+        The default covers HTTP/1.1-style implementations, which serve a
+        single request at a time.
+        """
+        return False
+
     def is_closed(self) -> bool:
         """
         Return `True` if the connection has been closed.

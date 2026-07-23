@@ -832,3 +832,55 @@ async def test_connection_pool_assigns_released_connection_to_one_queued_request
     # Exactly two passes per request: one when it is queued, one when it
     # releases its connection.
     assert CountingPool.assign_passes == 2 * 10
+
+
+@pytest.mark.trio
+async def test_connection_pool_multiplexes_idle_http2_connection_within_a_pass() -> None:
+    """
+    A burst of requests arriving while a warmed HTTP/2 connection is idle
+    must be assigned to it immediately, not serialized behind the first
+    request's reservation.
+    """
+
+    class QueueObservingPool(httpcore2.AsyncConnectionPool):
+        max_queued_after_pass = 0
+
+        def _assign_requests_to_connections(self) -> list[httpcore2.AsyncConnectionInterface]:
+            closing = super()._assign_requests_to_connections()
+            queued = sum(request.is_queued() for request in self._requests)
+            QueueObservingPool.max_queued_after_pass = max(QueueObservingPool.max_queued_after_pass, queued)
+            return closing
+
+    def response_frames(stream_id: int) -> list[bytes]:
+        return [
+            hyperframe.frame.HeadersFrame(
+                stream_id=stream_id,
+                data=hpack.Encoder().encode([(b":status", b"200")]),
+                flags=["END_HEADERS"],
+            ).serialize(),
+            hyperframe.frame.DataFrame(stream_id=stream_id, data=b"Hello, world!", flags=["END_STREAM"]).serialize(),
+        ]
+
+    network_backend = httpcore2.AsyncMockBackend(
+        buffer=[
+            hyperframe.frame.SettingsFrame().serialize(),
+            *response_frames(1),
+            *response_frames(3),
+            *response_frames(5),
+            *response_frames(7),
+        ],
+        http2=True,
+    )
+
+    async def fetch(pool: httpcore2.AsyncConnectionPool) -> None:
+        response = await pool.request("GET", "https://example.com/")
+        assert response.status == 200
+
+    async with QueueObservingPool(network_backend=network_backend, max_connections=1, http2=True) as pool:
+        # Warm the connection; it returns to the pool IDLE.
+        await fetch(pool)
+        async with concurrency.open_nursery() as nursery:
+            for _ in range(3):
+                nursery.start_soon(fetch, pool)
+
+    assert QueueObservingPool.max_queued_after_pass == 0
