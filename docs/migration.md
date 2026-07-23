@@ -61,6 +61,33 @@ pip install pipdeptree
 pipdeptree --reverse --packages httpx
 ```
 
+### But objects don't cross the boundary
+
+There is one rule to keep in mind: the two packages can live side by side, but their objects can't stand in for each other.
+
+`httpx2.Client` and `httpx.Client` are **distinct classes**. Same for `Response`, `Request`, `Timeout`, all of it. If a library that is still on `httpx` accepts a client and checks `isinstance(client, httpx.Client)` internally - or is simply written against `httpx` types - passing it an `httpx2.Client` will fail.
+
+So, the rule of thumb: **the package that receives the object decides which module you create it from.**
+
+```python
+import httpx
+import httpx2
+import some_library_still_on_httpx
+
+# Your own code: httpx2.
+client = httpx2.AsyncClient()
+
+# A dependency that expects httpx: give it httpx.
+some_library_still_on_httpx.configure(http_client=httpx.AsyncClient())
+```
+
+The same applies to exceptions: an `httpx.HTTPError` raised inside a still-on-`httpx` dependency will not be caught by `except httpx2.HTTPError`. Catch exceptions from the module used by the code that raises them.
+
+This is exactly why incremental migration works: your code moves to `httpx2`, while each dependency keeps receiving the types it expects, until it migrates too. What you can't do is fully drop `httpx` while a dependency still needs to be handed `httpx` objects.
+
+!!! note
+    There is intentionally no automatic aliasing that makes `import httpx` silently resolve to `httpx2`. It has been discussed in [#963](https://github.com/pydantic/httpx2/issues/963), but it would change the behavior of every installed library that imports `httpx`, without those libraries opting in.
+
 ## What Changed
 
 The public API did not change. But a rename touches a few visible things, and there are a couple of behavior differences worth knowing about.
