@@ -93,11 +93,11 @@ import httpx2
 httpx2.alias_httpx()
 ```
 
-After this call, `import httpx` resolves to `httpx2`, process-wide. Submodule imports included. Dependencies importing `httpx` get the `httpx2` classes, so `isinstance()` checks pass and `except` clauses catch across the boundary. You can pass your `httpx2.Client` anywhere and drop the `httpx` install entirely.
+After this call, `import httpx` resolves to `httpx2` and `import httpcore` resolves to `httpcore2`, process-wide. Submodule imports included. Dependencies importing `httpx` get the `httpx2` classes, so `isinstance()` checks pass and `except` clauses catch across the boundary - and the same holds for dependencies importing `httpcore` directly, such as custom transports catching low-level exceptions. You can pass your `httpx2.Client` anywhere and drop the `httpx` and `httpcore` installs entirely.
 
 There are exactly two rules:
 
-* **Call it first.** It must run at the very top of your entrypoint, before anything imports `httpx`. Modules that already imported `httpx` hold references the alias can't rewrite, so `alias_httpx()` raises a `RuntimeError` instead of half-working.
+* **Call it first.** It must run at the very top of your entrypoint, before anything imports `httpx` or `httpcore`. Modules that already imported them hold references the alias can't rewrite, so `alias_httpx()` raises a `RuntimeError` instead of half-working.
 * **Applications only, never libraries.** It changes the meaning of `import httpx` for the whole process. That is an application's decision to make, not something a library should impose on its users.
 
 !!! warning
