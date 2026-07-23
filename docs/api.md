@@ -257,3 +257,7 @@ what gets sent over the wire.*
         - receive_json
         - ping
         - close
+
+## `alias_httpx`
+
+::: httpx2.alias_httpx

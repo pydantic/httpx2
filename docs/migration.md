@@ -83,10 +83,35 @@ some_library_still_on_httpx.configure(http_client=httpx.AsyncClient())
 
 The same applies to exceptions: an `httpx.HTTPError` raised inside a still-on-`httpx` dependency will not be caught by `except httpx2.HTTPError`. Catch exceptions from the module used by the code that raises them.
 
-This is exactly why incremental migration works: your code moves to `httpx2`, while each dependency keeps receiving the types it expects, until it migrates too. What you can't do is fully drop `httpx` while a dependency still needs to be handed `httpx` objects.
+This is exactly why incremental migration works: your code moves to `httpx2`, while each dependency keeps receiving the types it expects, until it migrates too. What you can't do is fully drop `httpx` while a dependency still needs to be handed `httpx` objects... unless you use the escape hatch below.
 
-!!! note
-    There is intentionally no automatic aliasing that makes `import httpx` silently resolve to `httpx2`. It has been discussed in [#963](https://github.com/pydantic/httpx2/issues/963), but it would change the behavior of every installed library that imports `httpx`, without those libraries opting in.
+### The escape hatch: `alias_httpx()`
+
+If you want to cross that boundary today - your application is on `httpx2`, but some dependencies still `import httpx`, and you want everyone to share the same classes - there is `alias_httpx()`:
+
+```python
+import httpx2
+
+httpx2.alias_httpx()
+```
+
+After this call, `import httpx` resolves to `httpx2`, process-wide. Submodule imports included. Dependencies importing `httpx` get the `httpx2` classes, so `isinstance()` checks pass and `except` clauses catch across the boundary. You can pass your `httpx2.Client` anywhere and drop the `httpx` install entirely.
+
+There are exactly two rules:
+
+* **Call it first.** It must run at the very top of your entrypoint, before anything imports `httpx`. Modules that already imported `httpx` hold references the alias can't rewrite, so `alias_httpx()` raises a `RuntimeError` instead of half-working.
+* **Applications only, never libraries.** It changes the meaning of `import httpx` for the whole process. That is an application's decision to make, not something a library should impose on its users.
+
+!!! warning
+    Don't do `sys.modules["httpx"] = httpx2` by hand instead. It looks equivalent, but any `from httpx.something import ...` in a dependency loads the module a second time under the `httpx` name, quietly recreating the two-class-hierarchies problem. `alias_httpx()` handles submodules correctly.
+
+And a few things no aliasing can fix, so you know where the edges are:
+
+* `importlib.metadata.version("httpx")` reads installed package metadata, not imports - it will raise or report the old `httpx` version.
+* A library configuring `logging.getLogger("httpx")` won't see `httpx2`'s logs (the loggers are `httpx2` and `httpcore2.*`).
+* Subprocesses and spawn-based workers re-import from scratch: each new process needs to call `alias_httpx()` too, before importing `httpx`.
+
+Think of it as a bridge, not a destination: it buys you time while your dependencies migrate, and you remove the call once they have.
 
 ## What Changed
 
@@ -202,5 +227,6 @@ A quick summary to review before you ship:
 * Anything matching on the `python-httpx/...` User-Agent updated.
 * Custom CA setups verified against the trust store behavior (or `verify=` passed explicitly).
 * `httpx-sse` and `httpx-ws` dependencies dropped if you migrate to the built-in [SSE](sse.md) and [WebSockets](websockets.md) support.
+* Dependencies still importing `httpx`: either keep `httpx` installed for them, or call `alias_httpx()` at the top of your entrypoint.
 
 If you get stuck on something not covered here, open a [discussion](https://github.com/pydantic/httpx2/discussions) and we will help you out - and probably update this page too.
