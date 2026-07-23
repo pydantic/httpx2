@@ -83,7 +83,7 @@ some_library_still_on_httpx.configure(http_client=httpx.AsyncClient())
 
 This is exactly why incremental migration works: your code moves to `httpx2`, while each dependency keeps receiving the types it expects, until it migrates too.
 
-And to be clear: this boundary is not a permanent feature of your life. It only exists while both packages are in your environment. Every dependency that moves to `httpx2` removes a piece of it - the [For Package Maintainers](#for-package-maintainers) section below gives maintainers two proven, low-effort paths to do it, so point them there (or send them the pull request yourself, it is usually a small one). The day your last dependency migrates, you uninstall `httpx`, and this whole section stops applying to you.
+And to be clear: this boundary is not a permanent feature of your life. It only exists while both packages are in your environment. Every dependency that moves to `httpx2` removes a piece of it - the [For Package Maintainers](#for-package-maintainers) section below gives maintainers two proven, low-effort paths to do it, so point them there. The day your last dependency migrates, you uninstall `httpx`, and this whole section stops applying to you.
 
 If you don't want to wait for that day - your application is on `httpx2`, but some dependencies still `import httpx`, and you want everyone to share the same classes now - there is an escape hatch, `alias_httpx()`:
 
