@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib
 import importlib.abc
 import importlib.machinery
+import importlib.util
 import sys
 from collections.abc import Sequence
 from types import ModuleType
@@ -25,9 +26,12 @@ class _AliasFinder(importlib.abc.MetaPathFinder):
         path: Sequence[str] | None = None,
         target: ModuleType | None = None,
     ) -> importlib.machinery.ModuleSpec | None:
-        if fullname == "httpx" or fullname.startswith("httpx."):
-            return importlib.machinery.ModuleSpec(fullname, _AliasLoader())
-        return None
+        if fullname != "httpx" and not fullname.startswith("httpx."):
+            return None
+        real_name = "httpx2" + fullname.removeprefix("httpx")
+        if real_name not in sys.modules and importlib.util.find_spec(real_name) is None:
+            return None
+        return importlib.machinery.ModuleSpec(fullname, _AliasLoader())
 
 
 def alias_httpx() -> None:

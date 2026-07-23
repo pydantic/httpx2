@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import importlib
+import importlib.util
 import sys
 import types
 from collections.abc import Iterator
@@ -64,3 +66,19 @@ def test_alias_raises_if_httpx_already_imported() -> None:
 
 def test_finder_ignores_other_modules() -> None:
     assert _AliasFinder().find_spec("json") is None
+
+
+def test_finder_returns_none_for_missing_submodules() -> None:
+    httpx2.alias_httpx()
+
+    assert importlib.util.find_spec("httpx._does_not_exist") is None
+
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module("httpx._does_not_exist")
+
+
+def test_finder_locates_unloaded_submodules(monkeypatch: pytest.MonkeyPatch) -> None:
+    httpx2.alias_httpx()
+    monkeypatch.delitem(sys.modules, "httpx2._main", raising=False)
+
+    assert importlib.util.find_spec("httpx._main") is not None
