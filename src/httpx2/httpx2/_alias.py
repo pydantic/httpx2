@@ -12,11 +12,15 @@ __all__ = ["alias_httpx"]
 
 
 class _AliasLoader(importlib.abc.Loader):
+    _original_spec: importlib.machinery.ModuleSpec | None
+
     def create_module(self, spec: importlib.machinery.ModuleSpec) -> ModuleType:
-        return importlib.import_module("httpx2" + spec.name.removeprefix("httpx"))
+        module = importlib.import_module("httpx2" + spec.name.removeprefix("httpx"))
+        self._original_spec = module.__spec__
+        return module
 
     def exec_module(self, module: ModuleType) -> None:
-        pass
+        module.__spec__ = self._original_spec
 
 
 class _AliasFinder(importlib.abc.MetaPathFinder):
@@ -49,6 +53,6 @@ def alias_httpx() -> None:
     if existing is not None and existing is not httpx2:
         raise RuntimeError("httpx was already imported; call `alias_httpx()` before any `import httpx`.")
 
-    sys.modules["httpx"] = httpx2
     if not any(isinstance(finder, _AliasFinder) for finder in sys.meta_path):
         sys.meta_path.insert(0, _AliasFinder())
+    sys.modules["httpx"] = httpx2

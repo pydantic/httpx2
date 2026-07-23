@@ -14,10 +14,15 @@ from httpx2._alias import _AliasFinder
 
 @pytest.fixture(autouse=True)
 def restore_import_state() -> Iterator[None]:
+    saved_meta_path = list(sys.meta_path)
+    saved_modules = {
+        name: module for name, module in sys.modules.items() if name == "httpx" or name.startswith("httpx.")
+    }
     yield
-    sys.meta_path[:] = [finder for finder in sys.meta_path if not isinstance(finder, _AliasFinder)]
+    sys.meta_path[:] = saved_meta_path
     for name in [name for name in sys.modules if name == "httpx" or name.startswith("httpx.")]:
         del sys.modules[name]
+    sys.modules.update(saved_modules)
 
 
 def test_alias_top_level_import() -> None:
@@ -48,6 +53,16 @@ def test_alias_finder_handles_top_level_import() -> None:
     import httpx
 
     assert httpx is httpx2
+
+
+def test_alias_preserves_canonical_spec() -> None:
+    httpx2.alias_httpx()
+
+    importlib.import_module("httpx._exceptions")
+
+    spec = sys.modules["httpx2._exceptions"].__spec__
+    assert spec is not None
+    assert spec.name == "httpx2._exceptions"
 
 
 def test_alias_is_idempotent() -> None:
