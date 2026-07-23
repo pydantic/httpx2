@@ -65,7 +65,7 @@ pipdeptree --reverse --packages httpx
 
 There is one rule to keep in mind: the two packages can live side by side, but their objects can't stand in for each other.
 
-`httpx2.Client` and `httpx.Client` are **distinct classes**. Same for `Response`, `Request`, `Timeout`, all of it. If a library that is still on `httpx` accepts a client and checks `isinstance(client, httpx.Client)` internally - or is simply written against `httpx` types - passing it an `httpx2.Client` will fail.
+`httpx2.Client` and `httpx.Client` are **distinct classes**. Same for `Response`, `Request`, `Timeout`, all of it. If a library that is still on `httpx` accepts a client and checks `isinstance(client, httpx.Client)` internally - or is simply written against `httpx` types - passing it an `httpx2.Client` will fail. The same goes for exceptions: an `httpx.HTTPError` raised inside a still-on-`httpx` dependency will not be caught by `except httpx2.HTTPError`.
 
 So, the rule of thumb: **the package that receives the object decides which module you create it from.**
 
@@ -81,13 +81,9 @@ client = httpx2.AsyncClient()
 some_library_still_on_httpx.configure(http_client=httpx.AsyncClient())
 ```
 
-The same applies to exceptions: an `httpx.HTTPError` raised inside a still-on-`httpx` dependency will not be caught by `except httpx2.HTTPError`. Catch exceptions from the module used by the code that raises them.
+This is exactly why incremental migration works: your code moves to `httpx2`, while each dependency keeps receiving the types it expects, until it migrates too.
 
-This is exactly why incremental migration works: your code moves to `httpx2`, while each dependency keeps receiving the types it expects, until it migrates too. What you can't do is fully drop `httpx` while a dependency still needs to be handed `httpx` objects... unless you use the escape hatch below.
-
-### The escape hatch: `alias_httpx()`
-
-If you want to cross that boundary today - your application is on `httpx2`, but some dependencies still `import httpx`, and you want everyone to share the same classes - there is `alias_httpx()`:
+And if you want to remove the boundary entirely - your application is on `httpx2`, but some dependencies still `import httpx`, and you want everyone to share the same classes - there is an escape hatch, `alias_httpx()`:
 
 ```python
 import httpx2
