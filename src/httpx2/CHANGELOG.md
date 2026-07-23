@@ -16,16 +16,20 @@ No changes since `2.7.0`. Version bumped to stay in lockstep with `httpcore2`.
 
 ## 2.7.0 (July 14th, 2026)
 
+### Added
+
+* Add `WebSocketClient` and `AsyncWebSocketClient` to `httpx2.websockets`, wrapping a client with reusable WebSocket connection settings. ([#1067](https://github.com/pydantic/httpx2/pull/1067))
+
 ### Changed
 
-* Update the vendored `httpx-ws` to upstream v0.9.0. ([#1067](https://github.com/pydantic/httpx2/pull/1067))
+* Update the vendored `httpx-ws` to upstream v0.9.0, which was previously pinned to an outdated snapshot. ([#1067](https://github.com/pydantic/httpx2/pull/1067))
 
 ## 2.6.0 (July 14th, 2026)
 
 ### Added
 
-* Add native WebSocket support by vendoring `httpx-ws`, installable with `httpx2[ws]`. ([#1042](https://github.com/pydantic/httpx2/pull/1042))
-* Add support for the `QUERY` HTTP method via `httpx2.query()` and `client.query()`. ([#1055](https://github.com/pydantic/httpx2/pull/1055))
+* Add native WebSocket support by vendoring `httpx-ws`, installable with `httpx2[ws]`: `client.websocket()`, `httpx2.websocket()`, and the `httpx2.websockets` module with sync/async sessions, exceptions, and `ASGIWebSocketTransport`. ([#1042](https://github.com/pydantic/httpx2/pull/1042))
+* Add support for the `QUERY` HTTP method via `httpx2.query()`, `client.query()`, and the CLI. ([#1055](https://github.com/pydantic/httpx2/pull/1055))
 
 ### Changed
 
