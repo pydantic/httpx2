@@ -90,7 +90,7 @@ def test_alias_is_idempotent() -> None:
     httpx2.alias_httpx()
     httpx2.alias_httpx()
 
-    assert sum(isinstance(finder, _AliasFinder) for finder in sys.meta_path) == 1
+    assert sum(isinstance(finder, _AliasFinder) for finder in sys.meta_path) == 2
 
 
 def test_alias_raises_if_httpx_already_imported() -> None:
@@ -108,7 +108,7 @@ def test_alias_raises_if_httpcore_already_imported() -> None:
 
 
 def test_finder_ignores_other_modules() -> None:
-    assert _AliasFinder().find_spec("json") is None
+    assert _AliasFinder("httpx", "httpx2").find_spec("json") is None
 
 
 def test_finder_returns_none_for_missing_submodules() -> None:

@@ -10,8 +10,6 @@ from types import ModuleType
 
 __all__ = ["alias_httpx"]
 
-_ALIASES = {"httpx": "httpx2", "httpcore": "httpcore2"}
-
 
 class _AliasLoader(importlib.abc.Loader):
     _original_spec: importlib.machinery.ModuleSpec | None
@@ -29,20 +27,32 @@ class _AliasLoader(importlib.abc.Loader):
 
 
 class _AliasFinder(importlib.abc.MetaPathFinder):
+    def __init__(self, alias: str, real: str) -> None:
+        self._alias = alias
+        self._real = real
+
     def find_spec(
         self,
         fullname: str,
         path: Sequence[str] | None = None,
         target: ModuleType | None = None,
     ) -> importlib.machinery.ModuleSpec | None:
-        top = fullname.partition(".")[0]
-        real_top = _ALIASES.get(top)
-        if real_top is None:
+        if fullname != self._alias and not fullname.startswith(self._alias + "."):
             return None
-        real_name = real_top + fullname.removeprefix(top)
+        real_name = self._real + fullname.removeprefix(self._alias)
         if real_name not in sys.modules and importlib.util.find_spec(real_name) is None:
             return None
         return importlib.machinery.ModuleSpec(fullname, _AliasLoader(real_name))
+
+
+def _alias(alias: str, module: ModuleType) -> None:
+    existing = sys.modules.get(alias)
+    if existing is not None and existing is not module:
+        raise RuntimeError(f"{alias} was already imported; call `alias_httpx()` before any `import {alias}`.")
+
+    if not any(isinstance(finder, _AliasFinder) and finder._alias == alias for finder in sys.meta_path):
+        sys.meta_path.insert(0, _AliasFinder(alias, module.__name__))
+    sys.modules[alias] = module
 
 
 def alias_httpx() -> None:
@@ -57,12 +67,5 @@ def alias_httpx() -> None:
     import httpcore2
     import httpx2
 
-    real_modules = {"httpx": httpx2, "httpcore": httpcore2}
-    for alias, real in real_modules.items():
-        existing = sys.modules.get(alias)
-        if existing is not None and existing is not real:
-            raise RuntimeError(f"{alias} was already imported; call `alias_httpx()` before any `import {alias}`.")
-
-    if not any(isinstance(finder, _AliasFinder) for finder in sys.meta_path):
-        sys.meta_path.insert(0, _AliasFinder())
-    sys.modules.update(real_modules)
+    _alias("httpx", httpx2)
+    _alias("httpcore", httpcore2)
