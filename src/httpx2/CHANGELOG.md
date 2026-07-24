@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2.9.1 (July 24th, 2026)
+
+### Fixed
+
+* Alias `httpcore` imports to `httpcore2` in `alias_httpx()`. ([#1082](https://github.com/pydantic/httpx2/pull/1082))
+
 ## 2.9.0 (July 23rd, 2026)
 
 ### Added
