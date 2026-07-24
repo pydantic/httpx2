@@ -88,8 +88,9 @@ def test_alias_preserves_canonical_spec() -> None:
 
 def test_alias_is_idempotent() -> None:
     httpx2.alias_httpx()
-    httpx2.alias_httpx()
+    assert sum(isinstance(finder, _AliasFinder) for finder in sys.meta_path) == 2
 
+    httpx2.alias_httpx()
     assert sum(isinstance(finder, _AliasFinder) for finder in sys.meta_path) == 2
 
 
