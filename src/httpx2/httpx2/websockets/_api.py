@@ -55,6 +55,7 @@ if typing.TYPE_CHECKING:
     )
 
 JSONMode = typing.Literal["text", "binary"]
+
 TaskFunction = typing.TypeVar("TaskFunction")
 TaskResult = typing.TypeVar("TaskResult")
 SyncSession = TypeVar("SyncSession", bound="WebSocketSession", default="WebSocketSession")
@@ -504,6 +505,7 @@ class WebSocketSession:
         import httpcore2
 
         partial_message_buffer: str | bytes | None = None
+        partial_message_size = 0
         try:
             while not self._should_close.is_set():
                 data = self._wait_until_closed(self._read_stream, max_bytes)
@@ -520,6 +522,11 @@ class WebSocketSession:
                     if isinstance(event, wsproto.events.CloseConnection):
                         self._should_close.set()
                     if isinstance(event, wsproto.events.Message):
+                        partial_message_size += len(event.data.encode() if isinstance(event.data, str) else event.data)
+                        if partial_message_size > max_bytes:
+                            self.close(CloseReason.MESSAGE_TOO_BIG, "Message too big")
+                            self._events.put(WebSocketDisconnect(CloseReason.MESSAGE_TOO_BIG, "Message too big"))
+                            break
                         # Unfinished message: bufferize
                         if not event.message_finished:
                             if partial_message_buffer is None:
@@ -528,12 +535,14 @@ class WebSocketSession:
                                 partial_message_buffer += event.data
                         # Finished message but no buffer: just emit the event
                         elif partial_message_buffer is None:
+                            partial_message_size = 0
                             self._events.put(event)
                         # Finished message with buffer: emit the full event
                         else:
                             event_type = type(event)
                             full_message_event = event_type(partial_message_buffer + event.data)
                             partial_message_buffer = None
+                            partial_message_size = 0
                             self._events.put(full_message_event)
                         continue
                     self._events.put(event)
@@ -1065,6 +1074,7 @@ class AsyncWebSocketSession(anyio.AsyncContextManagerMixin):
         import httpcore2
 
         partial_message_buffer: str | bytes | None = None
+        partial_message_size = 0
         try:
             while not self._should_close.is_set():
                 data = await self._read_stream(max_bytes)
@@ -1081,6 +1091,13 @@ class AsyncWebSocketSession(anyio.AsyncContextManagerMixin):
                     if isinstance(event, wsproto.events.CloseConnection):
                         self._should_close.set()
                     if isinstance(event, wsproto.events.Message):
+                        partial_message_size += len(event.data.encode() if isinstance(event.data, str) else event.data)
+                        if partial_message_size > max_bytes:
+                            await self.close(CloseReason.MESSAGE_TOO_BIG, "Message too big")
+                            await self._send_event.send(
+                                WebSocketDisconnect(CloseReason.MESSAGE_TOO_BIG, "Message too big")
+                            )
+                            break
                         # Unfinished message: bufferize
                         if not event.message_finished:
                             if partial_message_buffer is None:
@@ -1089,12 +1106,14 @@ class AsyncWebSocketSession(anyio.AsyncContextManagerMixin):
                                 partial_message_buffer += event.data
                         # Finished message but no buffer: just emit the event
                         elif partial_message_buffer is None:
+                            partial_message_size = 0
                             await self._send_event.send(event)
                         # Finished message with buffer: emit the full event
                         else:
                             event_type = type(event)
                             full_message_event = event_type(partial_message_buffer + event.data)
                             partial_message_buffer = None
+                            partial_message_size = 0
                             await self._send_event.send(full_message_event)
                         continue
                     await self._send_event.send(event)
