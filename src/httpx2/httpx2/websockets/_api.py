@@ -55,7 +55,6 @@ if typing.TYPE_CHECKING:
     )
 
 JSONMode = typing.Literal["text", "binary"]
-
 TaskFunction = typing.TypeVar("TaskFunction")
 TaskResult = typing.TypeVar("TaskResult")
 SyncSession = TypeVar("SyncSession", bound="WebSocketSession", default="WebSocketSession")
