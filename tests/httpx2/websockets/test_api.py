@@ -347,11 +347,20 @@ class TestReceive:
                         await aws.receive()
                     assert aexcinfo.value.code == wsproto.frame_protocol.CloseReason.MESSAGE_TOO_BIG
 
-    async def test_receive_oversized_fragmented_message(self) -> None:
+    @pytest.mark.parametrize(
+        "event_type,fragment_data",
+        [
+            pytest.param(wsproto.events.BytesMessage, b"A" * 8, id="binary"),
+            pytest.param(wsproto.events.TextMessage, "é" * 4, id="multibyte-text"),
+        ],
+    )
+    async def test_receive_oversized_fragmented_message(
+        self,
+        event_type: type[wsproto.events.BytesMessage] | type[wsproto.events.TextMessage],
+        fragment_data: str | bytes,
+    ) -> None:
         server_connection = wsproto.connection.Connection(wsproto.connection.ConnectionType.SERVER)
-        fragments = [
-            server_connection.send(wsproto.events.TextMessage(data="A" * 8, message_finished=False)) for _ in range(4)
-        ]
+        fragments = [server_connection.send(event_type(data=fragment_data, message_finished=False)) for _ in range(3)]
 
         class MockNetworkStream(NetworkStream):
             def __init__(self) -> None:
@@ -374,11 +383,20 @@ class TestReceive:
                 websocket_session.receive()
             assert excinfo.value.code == wsproto.frame_protocol.CloseReason.MESSAGE_TOO_BIG
 
-    async def test_async_receive_oversized_fragmented_message(self) -> None:
+    @pytest.mark.parametrize(
+        "event_type,fragment_data",
+        [
+            pytest.param(wsproto.events.BytesMessage, b"A" * 8, id="binary"),
+            pytest.param(wsproto.events.TextMessage, "é" * 4, id="multibyte-text"),
+        ],
+    )
+    async def test_async_receive_oversized_fragmented_message(
+        self,
+        event_type: type[wsproto.events.BytesMessage] | type[wsproto.events.TextMessage],
+        fragment_data: str | bytes,
+    ) -> None:
         server_connection = wsproto.connection.Connection(wsproto.connection.ConnectionType.SERVER)
-        fragments = [
-            server_connection.send(wsproto.events.TextMessage(data="A" * 8, message_finished=False)) for _ in range(4)
-        ]
+        fragments = [server_connection.send(event_type(data=fragment_data, message_finished=False)) for _ in range(3)]
 
         class AsyncMockNetworkStream(AsyncNetworkStream):
             def __init__(self) -> None:
