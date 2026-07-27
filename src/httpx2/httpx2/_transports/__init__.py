@@ -2,6 +2,7 @@ from .asgi import ASGITransport
 from .base import AsyncBaseTransport, BaseTransport
 from .default import AsyncHTTPTransport, HTTPTransport
 from .mock import MockTransport
+from .pyreqwest import AsyncPyreqwestTransport, PyreqwestTransport
 from .wsgi import WSGITransport
 
 __all__ = [
@@ -11,5 +12,7 @@ __all__ = [
     "AsyncHTTPTransport",
     "HTTPTransport",
     "MockTransport",
+    "AsyncPyreqwestTransport",
+    "PyreqwestTransport",
     "WSGITransport",
 ]

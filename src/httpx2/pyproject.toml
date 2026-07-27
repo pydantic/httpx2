@@ -64,6 +64,9 @@ cli = [
 http2 = [
     "h2>=3,<5",
 ]
+pyreqwest = [
+    "pyreqwest>=0.12; python_version >= '3.11'",
+]
 socks = [
     "socksio==1.*",
 ]
