@@ -23,6 +23,7 @@ __all__ = [
     "AsyncByteStream",
     "AsyncClient",
     "AsyncHTTPTransport",
+    "AsyncHTTPunkTransport",
     "Auth",
     "BaseTransport",
     "BasicAuth",

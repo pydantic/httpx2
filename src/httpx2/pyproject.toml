@@ -64,6 +64,9 @@ cli = [
 http2 = [
     "h2>=3,<5",
 ]
+httpunk = [
+    "httpunk>=0.1.2",
+]
 socks = [
     "socksio==1.*",
 ]

@@ -1,6 +1,7 @@
 from .asgi import ASGITransport
 from .base import AsyncBaseTransport, BaseTransport
 from .default import AsyncHTTPTransport, HTTPTransport
+from .httpunk import AsyncHTTPunkTransport
 from .mock import MockTransport
 from .wsgi import WSGITransport
 
@@ -11,5 +12,6 @@ __all__ = [
     "AsyncHTTPTransport",
     "HTTPTransport",
     "MockTransport",
+    "AsyncHTTPunkTransport",
     "WSGITransport",
 ]
