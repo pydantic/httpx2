@@ -19,6 +19,29 @@ def test_url_with_port() -> None:
     assert bytes(url) == b"https://www.example.com:443/"
 
 
+def test_url_with_ipv6_host() -> None:
+    """
+    `URL.host` holds the bare address, as needed to establish a connection, but
+    rendering the URL brackets it.
+    """
+    url = httpcore2.URL("https://[::1]/")
+    assert url == httpcore2.URL(scheme="https", host="::1", port=None, target="/")
+    assert url.host == b"::1"
+    assert bytes(url) == b"https://[::1]/"
+
+    url = httpcore2.URL("https://[::1]:8443/")
+    assert url.host == b"::1"
+    assert bytes(url) == b"https://[::1]:8443/"
+
+
+def test_url_origin_ipv6() -> None:
+    url = httpcore2.URL("https://[::1]:8443/")
+    origin = url.origin
+    assert origin == httpcore2.Origin(scheme=b"https", host=b"::1", port=8443)
+    assert origin.host == b"::1"
+    assert str(origin) == "https://[::1]:8443"
+
+
 def test_url_with_invalid_argument() -> None:
     with pytest.raises(TypeError) as exc_info:
         httpcore2.URL(123)  # type: ignore
