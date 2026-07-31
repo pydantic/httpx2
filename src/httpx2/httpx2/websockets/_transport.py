@@ -207,7 +207,7 @@ class ASGIWebSocketTransport(ASGITransport):
             self._task_group = await stack.enter_async_context(anyio.create_task_group())
             self._exit_stack = stack.pop_all()
 
-        return self
+        return await super().__aenter__()
 
     async def __aexit__(
         self,

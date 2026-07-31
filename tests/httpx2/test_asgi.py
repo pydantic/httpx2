@@ -1,6 +1,7 @@
 import json
 import typing
 
+import anyio
 import pytest
 
 import httpx2
@@ -58,6 +59,18 @@ async def echo_headers(scope: Scope, receive: Receive, send: Send) -> None:
 
     await send({"type": "http.response.start", "status": status, "headers": headers})
     await send({"type": "http.response.body", "body": output})
+
+
+async def streaming_hello_world(scope: Scope, receive: Receive, send: Send) -> None:
+    status = 200
+    output = b"Hello, World!\r\n"
+    headers = [(b"content-type", "text/plain"), (b"content-length", str(len(output)))]
+
+    await send({"type": "http.response.start", "status": status, "headers": headers})
+    while True:
+        await send({"type": "http.response.body", "body": output, "more_body": True})
+        await anyio.sleep(1.0)
+
 
 
 async def raise_exc(scope: Scope, receive: Receive, send: Send) -> None:
@@ -224,3 +237,17 @@ async def test_asgi_exc_no_raise() -> None:
         response = await client.get("http://www.example.org/")
 
         assert response.status_code == 500
+
+
+@pytest.mark.anyio
+@pytest.mark.filterwarnings('ignore::ResourceWarning')
+async def test_asgi_streaming() -> None:
+    async with httpx2.ASGITransport(app=streaming_hello_world) as transport:
+        request = httpx2.Request("GET", "http://www.example.com/")
+
+        with anyio.fail_after(0.5):
+            response = await transport.handle_async_request(request)
+            lines = response.aiter_lines()
+            assert response.status_code == 200
+            first_line = await anext(lines)
+            assert first_line == "Hello, World!"

@@ -1,18 +1,14 @@
 from __future__ import annotations
 
 import typing
+from types import TracebackType
+
+import anyio
+import anyio.streams.memory
 
 from .._models import Request, Response
 from .._types import AsyncByteStream
 from .base import AsyncBaseTransport
-
-if typing.TYPE_CHECKING:
-    import asyncio
-
-    import trio
-
-    Event = asyncio.Event | trio.Event
-
 
 _Message = typing.MutableMapping[str, typing.Any]
 _Receive = typing.Callable[[], typing.Awaitable[_Message]]
@@ -22,38 +18,25 @@ _ASGIApp = typing.Callable[[typing.MutableMapping[str, typing.Any], _Receive, _S
 __all__ = ["ASGITransport"]
 
 
-def is_running_trio() -> bool:
-    try:
-        # sniffio is a dependency of trio.
-
-        # See https://github.com/python-trio/trio/issues/2802
-        import sniffio
-
-        if sniffio.current_async_library() == "trio":
-            return True
-    except ImportError:  # pragma: no cover
-        pass
-
-    return False
-
-
-def create_event() -> Event:
-    if is_running_trio():
-        import trio
-
-        return trio.Event()
-
-    import asyncio
-
-    return asyncio.Event()
-
-
 class ASGIResponseStream(AsyncByteStream):
-    def __init__(self, body: list[bytes]) -> None:
-        self._body = body
+    def __init__(self, body_parts_stream: anyio.streams.memory.MemoryObjectReceiveStream) -> None:
+        self._body_parts = body_parts_stream
 
     async def __aiter__(self) -> typing.AsyncIterator[bytes]:
-        yield b"".join(self._body)
+        async for part in self._body_parts:
+            if isinstance(part, bytes):
+                yield part
+            elif isinstance(part, Exception):
+                raise part
+            else:
+                raise TypeError(part)
+        self._body_parts.close()
+
+    async def aclose(self):
+        self._body_parts.close()
+
+    def __del__(self):
+        self._body_parts.close()
 
 
 class ASGITransport(AsyncBaseTransport):
@@ -89,6 +72,30 @@ class ASGITransport(AsyncBaseTransport):
         self.raise_app_exceptions = raise_app_exceptions
         self.root_path = root_path
         self.client = client
+        self.__task_group = None
+
+    async def __aenter__(self):
+        self.__task_group = anyio.create_task_group()
+        await self.__task_group.__aenter__()
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None = None,
+        exc_value: BaseException | None = None,
+        traceback: TracebackType | None = None,
+    ) -> None:
+        if self.__task_group is not None:
+            self.__task_group.cancel_scope.cancel()
+            await self.__task_group.__aexit__(exc_type, exc_value, traceback)
+            self.__task_group = None
+        return await super().__aexit__(exc_type, exc_value, traceback)
+
+    async def aclose(self):
+        if self.__task_group is not None:
+            self.__task_group.cancel_scope.cancel()
+            await self.__task_group.__aexit__(None, None, None)
+            self.__task_group = None
 
     async def handle_async_request(self, request: Request) -> Response:
         assert isinstance(request.stream, AsyncByteStream)
@@ -116,9 +123,10 @@ class ASGITransport(AsyncBaseTransport):
         # Response.
         status_code = None
         response_headers = None
-        body_parts: list[bytes] = []
-        response_started = False
-        response_complete = create_event()
+        body_send, body_receive = anyio.create_memory_object_stream[bytes|Exception](16)
+        response_started = anyio.Event()
+        response_complete = anyio.Event()
+        app_exception = None
 
         # ASGI callables.
 
@@ -137,14 +145,14 @@ class ASGITransport(AsyncBaseTransport):
             return {"type": "http.request", "body": body, "more_body": True}
 
         async def send(message: typing.MutableMapping[str, typing.Any]) -> None:
-            nonlocal status_code, response_headers, response_started
+            nonlocal status_code, response_headers
 
             if message["type"] == "http.response.start":
-                assert not response_started
+                assert not response_started.is_set()
 
                 status_code = message["status"]
                 response_headers = message.get("headers", [])
-                response_started = True
+                response_started.set()
 
             elif message["type"] == "http.response.body":
                 assert not response_complete.is_set()
@@ -152,27 +160,40 @@ class ASGITransport(AsyncBaseTransport):
                 more_body = message.get("more_body", False)
 
                 if body and request.method != "HEAD":
-                    body_parts.append(body)
+                    await body_send.send(body)
 
                 if not more_body:
                     response_complete.set()
 
-        try:
-            await self.app(scope, receive, send)
-        except Exception:
-            if self.raise_app_exceptions:
-                raise
+        async def app_wrapper():
+            nonlocal app_exception, status_code, response_headers
+            try:
+                await self.app(scope, receive, send)
+            except Exception as exc:
+                if status_code is None:
+                    status_code = 500
+                if response_headers is None:
+                    response_headers = {}
+                if self.raise_app_exceptions:
+                    await body_send.send(exc)
+                    app_exception = exc
+                response_started.set()
+                response_complete.set()
+            finally:
+                body_send.close()
 
-            response_complete.set()
-            if status_code is None:
-                status_code = 500
-            if response_headers is None:
-                response_headers = {}
+        if self.__task_group is None:
+            raise RuntimeError("ASGITransport.__aenter__ not called")
+        self.__task_group.start_soon(app_wrapper)
+        await response_started.wait()
 
-        assert response_complete.is_set()
         assert status_code is not None
         assert response_headers is not None
 
-        stream = ASGIResponseStream(body_parts)
+        if app_exception is not None:
+            body_receive.close()
+            raise app_exception
+
+        stream = ASGIResponseStream(body_receive)
 
         return Response(status_code, headers=response_headers, stream=stream)
