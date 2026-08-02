@@ -369,8 +369,8 @@ class TestReceive:
             def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
                 if self._fragments:
                     return self._fragments.pop(0)
-                time.sleep(0.1)
-                return b""
+                time.sleep(0.1)  # pragma: no cover
+                return b""  # pragma: no cover
 
             def write(self, buffer: bytes, timeout: float | None = None) -> None:
                 pass
@@ -404,8 +404,8 @@ class TestReceive:
             async def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
                 if self._fragments:
                     return self._fragments.pop(0)
-                await anyio.sleep(0.1)
-                return b""
+                await anyio.sleep(0.1)  # pragma: no cover
+                return b""  # pragma: no cover
 
             async def write(self, buffer: bytes, timeout: float | None = None) -> None:
                 pass
