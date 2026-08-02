@@ -1169,7 +1169,10 @@ class WebSocketClient(typing.Generic[SyncSession]):
         client:
             HTTPX client to use.
         max_message_size_bytes:
-            Message size in bytes to receive from the server.
+            Maximum incoming message size in bytes.
+            Larger messages, including fragmented messages whose
+            cumulative size exceeds the limit, close the connection
+            with `MESSAGE_TOO_BIG`.
             Defaults to 65 KiB.
         queue_size:
             Size of the queue where the received messages will be held
@@ -1318,7 +1321,10 @@ def connect_ws(
             HTTPX client to use.
             If not provided, a default one will be initialized.
         max_message_size_bytes:
-            Message size in bytes to receive from the server.
+            Maximum incoming message size in bytes.
+            Larger messages, including fragmented messages whose
+            cumulative size exceeds the limit, close the connection
+            with `MESSAGE_TOO_BIG`.
             Defaults to 65 KiB.
         queue_size:
             Size of the queue where the received messages will be held
@@ -1412,7 +1418,10 @@ class AsyncWebSocketClient(typing.Generic[AsyncSession]):
         client:
             HTTPX client to use.
         max_message_size_bytes:
-            Message size in bytes to receive from the server.
+            Maximum incoming message size in bytes.
+            Larger messages, including fragmented messages whose
+            cumulative size exceeds the limit, close the connection
+            with `MESSAGE_TOO_BIG`.
             Defaults to 65 KiB.
         queue_size:
             Size of the queue where the received messages will be held
@@ -1561,7 +1570,10 @@ async def aconnect_ws(
             HTTPX client to use.
             If not provided, a default one will be initialized.
         max_message_size_bytes:
-            Message size in bytes to receive from the server.
+            Maximum incoming message size in bytes.
+            Larger messages, including fragmented messages whose
+            cumulative size exceeds the limit, close the connection
+            with `MESSAGE_TOO_BIG`.
             Defaults to 65 KiB.
         queue_size:
             Size of the queue where the received messages will be held
