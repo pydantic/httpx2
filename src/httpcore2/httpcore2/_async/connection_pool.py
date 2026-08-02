@@ -331,16 +331,16 @@ class AsyncConnectionPool(AsyncRequestInterface):
         # it per queued request — this is what brings the loop from O(N*M) to
         # O(N+M) in the common case.
         #
-        # An idle connection already assigned to an in-flight request is
-        # reserved: it stays IDLE until the winning task sends on it, so
-        # without this exclusion the next pass would assign it again and the
-        # loser would churn through `ConnectionNotAvailable`. Multiplexing
-        # connections are exempt: they can take further requests while idle.
+        # An established non-multiplexing connection already assigned to an
+        # in-flight request is reserved. Its state may transition from IDLE to
+        # ACTIVE after `is_available()` returns, so use `is_connected()` here
+        # rather than checking its mutable idle state. Multiplexing connections
+        # and not-yet-connected HTTP/2 candidates remain available.
         available_connections = [
             connection
             for connection in self._connections
             if connection.is_available()
-            and not (connection.is_idle() and connection in request_connections and not connection.can_multiplex())
+            and not (connection.is_connected() and connection in request_connections and not connection.can_multiplex())
         ]
         new_connection_budget = self._max_connections - len(self._connections)
 
@@ -363,11 +363,11 @@ class AsyncConnectionPool(AsyncRequestInterface):
             #    to handle the request.
             for idx, connection in enumerate(available_connections):
                 if connection.can_handle_request(origin):
-                    self._reserve_connection(pool_request, connection)
-                    if connection.is_idle() and not connection.can_multiplex():
-                        # An idle HTTP/1.1 connection can only take this
-                        # single request until it is released.
+                    if connection.is_connected() and not connection.can_multiplex():
+                        # Remove an established HTTP/1.1 connection before
+                        # waking the request, which may transition it to ACTIVE.
                         del available_connections[idx]
+                    self._reserve_connection(pool_request, connection)
                     break
             else:
                 if new_connection_budget > 0:
