@@ -58,7 +58,7 @@ brotli = [
     "brotlicffi; platform_python_implementation != 'CPython'",
 ]
 cli = [
-    "click>=8.4",
+    "click>=8.4.2",
     "pygments==2.*",
     "rich>=10,<16",
 ]
