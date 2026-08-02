@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
-import time
+import threading
 from unittest.mock import patch
 
 import anyio
@@ -74,17 +74,19 @@ def test_receive_reassembles_fragmented_message() -> None:
     class MockNetworkStream(NetworkStream):
         def __init__(self) -> None:
             self._sent = False
+            self._closed = threading.Event()
 
         def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
             if self._sent:
-                time.sleep(0.1)  # pragma: no cover
-                return b""  # pragma: no cover
+                self._closed.wait()
+                return b""
             self._sent = True
             return fragments
 
         def write(self, buffer: bytes, timeout: float | None = None) -> None: ...
 
-        def close(self) -> None: ...
+        def close(self) -> None:
+            self._closed.set()
 
     with WebSocketSession(MockNetworkStream()) as ws:
         assert ws.receive_text() == "FRAGMENTED"
