@@ -32,7 +32,7 @@ import json as jsonlib
 from collections.abc import AsyncIterator, Iterator
 from dataclasses import dataclass
 
-from ._exceptions import TransportError
+from ._exceptions import TransportError, request_context
 from ._models import Response
 
 __all__ = ["EventSource", "SSEError", "ServerSentEvent"]
@@ -146,35 +146,34 @@ class EventSource:
     def _check_content_type(self) -> None:
         content_type, _, _ = self._response.headers.get("content-type", "").partition(";")
         if content_type.strip().lower() != "text/event-stream":
-            raise SSEError(
-                f"Expected response with content type 'text/event-stream', got {content_type.strip()!r}.",
-                request=self._response.request,
-            )
+            raise SSEError(f"Expected response with content type 'text/event-stream', got {content_type.strip()!r}.")
 
     def __iter__(self) -> Iterator[ServerSentEvent]:
-        self._check_content_type()
-        decoder = _SSEDecoder()
-        lines = _SSELineDecoder()
-        for chunk in self._response.iter_text():
-            for line in lines.decode(chunk):
+        with request_context(request=self._response._request):
+            self._check_content_type()
+            decoder = _SSEDecoder()
+            lines = _SSELineDecoder()
+            for chunk in self._response.iter_text():
+                for line in lines.decode(chunk):
+                    sse = decoder.decode(line)
+                    if sse is not None:
+                        yield sse
+            for line in lines.flush():
                 sse = decoder.decode(line)
                 if sse is not None:
                     yield sse
-        for line in lines.flush():
-            sse = decoder.decode(line)
-            if sse is not None:
-                yield sse
 
     async def __aiter__(self) -> AsyncIterator[ServerSentEvent]:
-        self._check_content_type()
-        decoder = _SSEDecoder()
-        lines = _SSELineDecoder()
-        async for chunk in self._response.aiter_text():
-            for line in lines.decode(chunk):
+        with request_context(request=self._response._request):
+            self._check_content_type()
+            decoder = _SSEDecoder()
+            lines = _SSELineDecoder()
+            async for chunk in self._response.aiter_text():
+                for line in lines.decode(chunk):
+                    sse = decoder.decode(line)
+                    if sse is not None:
+                        yield sse
+            for line in lines.flush():
                 sse = decoder.decode(line)
                 if sse is not None:
                     yield sse
-        for line in lines.flush():
-            sse = decoder.decode(line)
-            if sse is not None:
-                yield sse

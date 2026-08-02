@@ -153,8 +153,10 @@ def test_content_type_mismatch_raises() -> None:
 
     with httpx2.Client(transport=httpx2.MockTransport(handler)) as client:
         with client.sse("http://testserver/sse") as source:
-            with pytest.raises(httpx2.SSEError, match="text/event-stream"):
+            with pytest.raises(httpx2.SSEError, match="text/event-stream") as exc_info:
                 list(source)
+
+    assert exc_info.value.request.url == "http://testserver/sse"
 
 
 @pytest.mark.anyio
@@ -164,8 +166,18 @@ async def test_content_type_mismatch_raises_async() -> None:
 
     async with httpx2.AsyncClient(transport=httpx2.MockTransport(handler)) as client:
         async with client.sse("http://testserver/sse") as source:
-            with pytest.raises(httpx2.SSEError, match="text/event-stream"):
+            with pytest.raises(httpx2.SSEError, match="text/event-stream") as exc_info:
                 [event async for event in source]
+
+    assert exc_info.value.request.url == "http://testserver/sse"
+
+
+def test_event_source_without_request() -> None:
+    response = httpx2.Response(200, content=b"data: hi\n\n", headers={"Content-Type": "text/event-stream"})
+
+    (event,) = list(httpx2.EventSource(response))
+
+    assert event.data == "hi"
 
 
 def test_sets_sse_headers() -> None:
