@@ -52,6 +52,17 @@ def test_cookies_with_domain_and_path() -> None:
     assert len(cookies) == 0
 
 
+def test_extract_cookies_skips_cookie_jar_without_set_cookie() -> None:
+    class FailingCookieJar(http.cookiejar.CookieJar):
+        def extract_cookies(self, response: object, request: object) -> None:
+            raise AssertionError("CookieJar should not be called without a Set-Cookie header")
+
+    request = httpx2.Request("GET", "https://www.example.org")
+    response = httpx2.Response(200, request=request)
+
+    httpx2.Cookies(FailingCookieJar()).extract_cookies(response)
+
+
 def test_multiple_set_cookie() -> None:
     jar = http.cookiejar.CookieJar()
     headers = [
