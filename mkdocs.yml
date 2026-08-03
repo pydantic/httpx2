@@ -23,6 +23,7 @@ edit_uri: ""
 nav:
     - Introduction: 'index.md'
     - QuickStart: 'quickstart.md'
+    - Migrating from HTTPX: 'migration.md'
     - Advanced:
         - Clients: 'advanced/clients.md'
         - Authentication: 'advanced/authentication.md'

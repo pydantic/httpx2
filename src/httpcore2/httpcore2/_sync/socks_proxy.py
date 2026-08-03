@@ -240,7 +240,7 @@ class Socks5Connection(ConnectionInterface):
                         trace.return_value = stream
 
                     # Upgrade the stream to SSL
-                    if self._remote_origin.scheme == b"https":
+                    if self._remote_origin.scheme in (b"https", b"wss"):
                         ssl_context = default_ssl_context() if self._ssl_context is None else self._ssl_context
                         alpn_protocols = ["http/1.1", "h2"] if self._http2 else ["http/1.1"]
                         ssl_context.set_alpn_protocols(alpn_protocols)

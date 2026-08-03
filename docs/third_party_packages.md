@@ -24,6 +24,12 @@ Provides authentication classes to be used with HTTPX's [authentication paramete
 
 This package adds caching functionality to HTTPX
 
+### httpx-pki
+
+[GitHub](https://github.com/ccbest/httpx-pki)
+
+PKCS#12 / PEM client-certificate (mTLS) sessions, with OS cert-store loading, identity selection, and certificate rotation.
+
 ### httpx-secure
 
 [GitHub](https://github.com/Zaczero/httpx-secure)

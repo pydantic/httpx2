@@ -1,5 +1,6 @@
 name = "httpx2-docs"
 compatibility_date = "2026-05-22"
+preview_urls = true
 
 [[routes]]
 pattern = "httpx2.pydantic.dev"
