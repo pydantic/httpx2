@@ -1079,7 +1079,7 @@ class Cookies(typing.MutableMapping[str, str]):
         """
         Loads any cookies based on the response `Set-Cookie` headers.
         """
-        if "set-cookie" not in response.headers:
+        if "set-cookie" not in response.headers and "set-cookie2" not in response.headers:
             return
 
         urllib_response = self._CookieCompatResponse(response)

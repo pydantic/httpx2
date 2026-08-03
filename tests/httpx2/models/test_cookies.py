@@ -63,6 +63,19 @@ def test_extract_cookies_skips_cookie_jar_without_set_cookie() -> None:
     httpx2.Cookies(FailingCookieJar()).extract_cookies(response)
 
 
+def test_set_cookie2() -> None:
+    policy = http.cookiejar.DefaultCookiePolicy(rfc2965=True)
+    jar = http.cookiejar.CookieJar(policy=policy)
+    headers = [(b"Set-Cookie2", b'customer="WILE_E_COYOTE"; Version="1"; Path="/"')]
+    request = httpx2.Request("GET", "https://www.example.org")
+    response = httpx2.Response(200, request=request, headers=headers)
+
+    cookies = httpx2.Cookies(jar)
+    cookies.extract_cookies(response)
+
+    assert cookies["customer"] == "WILE_E_COYOTE"
+
+
 def test_multiple_set_cookie() -> None:
     jar = http.cookiejar.CookieJar()
     headers = [
