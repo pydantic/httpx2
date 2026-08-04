@@ -25,7 +25,7 @@ plugins:
     - mkdocstrings:
         default_handler: python
         watch:
-            - httpcore
+            - httpcore2
         handlers:
             python:
                 members_order:
