@@ -17,7 +17,7 @@ httpcore2.URL(scheme=b"https", host=b"www.example.com", port=None, target=b"/")
 >>> request.headers
 [(b'Host', b'www.example.com')]
 >>> request.stream
-<httpcore2.ByteStream [0 bytes]>
+<ByteStream [0 bytes]>
 ```
 
 The interface is liberal in the types that it accepts, but specific in the properties that it uses to represent them. For example, headers may be specified as a dictionary of strings, but internally are represented as a list of `(byte, byte)` tuples.

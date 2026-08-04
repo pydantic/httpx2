@@ -22,16 +22,16 @@
     * `httpcore2.AsyncHTTP2Connection`
 * Network Backends
     * Sync
-        * `httpcore2.backends.sync.SyncBackend`
-        * `httpcore2.backends.mock.MockBackend`
+        * `httpcore2._backends.sync.SyncBackend`
+        * `httpcore2._backends.mock.MockBackend`
     * Async
-        * `httpcore2.backends.auto.AutoBackend`
-        * `httpcore2.backends.asyncio.AsyncioBackend`
-        * `httpcore2.backends.trio.TrioBackend`
-        * `httpcore2.backends.mock.AsyncMockBackend`
+        * `httpcore2._backends.auto.AutoBackend`
+        * `httpcore2._backends.anyio.AnyIOBackend`
+        * `httpcore2._backends.trio.TrioBackend`
+        * `httpcore2._backends.mock.AsyncMockBackend`
     * Base interfaces
-        * `httpcore2.backends.base.NetworkBackend`
-        * `httpcore2.backends.base.AsyncNetworkBackend`
+        * `httpcore2._backends.base.NetworkBackend`
+        * `httpcore2._backends.base.AsyncNetworkBackend`
 * Exceptions
     * `httpcore2.TimeoutException`
         * `httpcore2.PoolTimeout`
