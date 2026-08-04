@@ -174,9 +174,9 @@ If something goes wrong with the PyPI job the release can be re-published using 
 ## Development proxy setup
 
 To test and debug requests via a proxy it's best to run a proxy server locally.
-Any server should do but HTTPCore's test suite uses
-[`mitmproxy`](https://mitmproxy.org/) which is written in Python, it's fully
-featured and has excellent UI and tools for introspection of requests.
+Any server should do but [`mitmproxy`](https://mitmproxy.org/) is a good
+choice - it's written in Python, fully featured and has excellent UI and
+tools for introspection of requests.
 
 You can install `mitmproxy` using `pip install mitmproxy` or [several
 other ways](https://docs.mitmproxy.org/stable/overview-installation/).
@@ -198,17 +198,16 @@ UI options.
 
 At this point the server is ready to start serving requests, you'll need to
 configure HTTPX2 as described in the
-[proxy section](https://httpx2.pydantic.dev/advanced/#http-proxying) and
-the [SSL certificates section](https://httpx2.pydantic.dev/advanced/#ssl-certificates),
+[proxy section](https://httpx2.pydantic.dev/advanced/proxies/#http-proxies) and
+the [SSL certificates section](https://httpx2.pydantic.dev/advanced/ssl/),
 this is where our previously generated `client.pem` comes in:
 
-```
-import httpx
+```python
+import ssl
+import httpx2
 
-ssl_context = httpx.SSLContext()
-ssl_context.load_verify_locations("/path/to/client.pem")
-
-with httpx.Client(proxy="http://127.0.0.1:8080/", ssl_context=ssl_context) as client:
+ctx = ssl.create_default_context(cafile="/path/to/client.pem")
+with httpx2.Client(proxy="http://127.0.0.1:8080/", verify=ctx) as client:
     response = client.get("https://example.org")
     print(response.status_code)  # should print 200
 ```

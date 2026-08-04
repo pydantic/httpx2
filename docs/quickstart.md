@@ -287,9 +287,10 @@ We can raise an exception for any responses which are not a 2xx success code:
 404
 >>> not_found.raise_for_status()
 Traceback (most recent call last):
-  File "/Users/tomchristie/GitHub/encode/httpcore/httpx2/models.py", line 837, in raise_for_status
-    raise HTTPStatusError(message, response=self)
-httpx2._exceptions.HTTPStatusError: 404 Client Error: Not Found for url: https://httpbin.org/status/404
+  File "<stdin>", line 1, in <module>
+  File "/path/to/site-packages/httpx2/_models.py", line 815, in raise_for_status
+    raise HTTPStatusError(message, request=request, response=self)
+httpx2.HTTPStatusError: Client error '404 Not Found' for url 'https://httpbin.org/status/404'
 For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404
 ```
 
