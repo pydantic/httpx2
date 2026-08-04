@@ -67,6 +67,12 @@ WebSocket support for HTTPX.
 Provides a [pytest](https://docs.pytest.org/en/latest/) fixture to mock HTTPX within test cases.
 This package is fork of the [pytest-httpx](https://github.com/Colin-b/pytest_httpx) package that compatible with httpx2
 
+### interlock-cb
+
+[GitHub](https://github.com/bagowix/interlock) - [Documentation](https://bagowix.github.io/interlock/integrations/httpx2/)
+
+A circuit breaker transport: keeps one breaker per host, so calls to a failing host fail fast instead of waiting out every timeout. Trips on failure rate over a sliding window and on slow responses.
+
 ### pytest-HTTPX
 
 [GitHub](https://github.com/Colin-b/pytest_httpx) - [Documentation](https://colin-b.github.io/pytest_httpx/)
