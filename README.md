@@ -108,6 +108,12 @@ To find out about tools that integrate with HTTPX, see [Third Party Packages](ht
 
 ## Observability with Pydantic Logfire
 
+Install Logfire with HTTPX instrumentation support:
+
+```shell
+pip install 'logfire[httpx]'
+```
+
 HTTPX2 works out of the box with [Pydantic Logfire](https://pydantic.dev/logfire), our observability platform built on OpenTelemetry. One line instruments every request, giving you traces, timings, and status codes with no other changes:
 
 ```python
