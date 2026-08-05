@@ -65,9 +65,8 @@ class _SSEDecoder:
         if line.startswith(":"):
             return None
 
-        if self._max_event_size is not None:
-            self._event_size += len(line.encode("utf-8"))
-            self._check_size()
+        self._event_size += len(line.encode("utf-8"))
+        self._check_size()
 
         fieldname, _, value = line.partition(":")
         value = value[1:] if value.startswith(" ") else value
@@ -96,8 +95,7 @@ class _SSEDecoder:
         Bound the total bytes buffered for the in-progress event, including
         a trailing line that has not been terminated by a newline yet.
         """
-        if self._max_event_size is not None:
-            self._check_size(len(pending.encode("utf-8")))
+        self._check_size(len(pending.encode("utf-8")))
 
     def _check_size(self, pending_size: int = 0) -> None:
         if self._max_event_size is not None and self._event_size + pending_size > self._max_event_size:
