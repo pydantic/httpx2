@@ -15,12 +15,26 @@ HTTPX2 is a fully featured HTTP client library for Python. It includes **an inte
 > With HTTPX itself seeing limited activity recently, Pydantic is picking up stewardship under the HTTPX2 name so that users have a reliably maintained path forward - including timely security updates for a library that sits in the critical path of so many production systems. Our aim is to honour the original project's design, keep it stable for everyone relying on it, and continue evolving it carefully. Thank you to [@lovelydinosaur](https://github.com/lovelydinosaur) and every past contributor for laying such a strong foundation. 💙
 
 ---
-## Installation
 
 Install HTTPX2 using pip:
 
 ```shell
 pip install httpx2
+```
+
+Now, let's get started:
+
+```pycon
+>>> import httpx2
+>>> r = httpx2.get('https://www.example.org/')
+>>> r
+<Response [200 OK]>
+>>> r.status_code
+200
+>>> r.headers['content-type']
+'text/html; charset=UTF-8'
+>>> r.text
+'<!doctype html>\n<html>\n<head>\n<title>Example Domain</title>...'
 ```
 
 Or, using the command-line client.
@@ -33,27 +47,6 @@ Which now allows us to use HTTPX2 directly from the command-line:
 
 ```shell
 httpx2 --help
-```
-
-Or, to include the optional HTTP/2 support, use:
-
-```shell
-pip install httpx2[http2]
-```
-
-Now, let's get started:
-
-```shell
->>> import httpx2
->>> r = httpx2.get('https://www.example.org/')
->>> r
-<Response [200 OK]>
->>> r.status_code
-200
->>> r.headers['content-type']
-'text/html; charset=UTF-8'
->>> r.text
-'<!doctype html>\n<html>\n<head>\n<title>Example Domain</title>...'
 ```
 
 ## Features
@@ -87,22 +80,19 @@ Plus all the standard features of `requests`...
 * .netrc Support
 * Chunked Requests
 
-## Observability with Pydantic Logfire
+## Installation
 
-HTTPX2 works out of the box with [Pydantic Logfire](https://pydantic.dev/logfire), our observability platform built on OpenTelemetry. One line instruments every request, giving you traces, timings, and status codes with no other changes:
+Install with pip:
 
-```python
-import logfire
-import httpx2
-
-logfire.configure()
-logfire.instrument_httpx()
-
-httpx2.get('https://pydantic.dev/')
+```shell
+pip install httpx2
 ```
 
-This works the same way for explicit `httpx2.Client()` and `httpx2.AsyncClient()` instances, and you can scope instrumentation to a single client by passing it in: `logfire.instrument_httpx(client)`. Pass `capture_all=True` to also record headers and bodies. See the [Logfire HTTPX docs](https://logfire.pydantic.dev/docs/integrations/http-clients/httpx/) for the full set of options.
+Or, to include the optional HTTP/2 support, use:
 
+```shell
+pip install httpx2[http2]
+```
 
 ## Documentation
 
@@ -116,6 +106,21 @@ The [Developer Interface](https://httpx2.pydantic.dev/api/) provides a comprehen
 
 To find out about tools that integrate with HTTPX, see [Third Party Packages](https://httpx2.pydantic.dev/third_party_packages/).
 
+## Observability with Pydantic Logfire
+
+HTTPX2 works out of the box with [Pydantic Logfire](https://pydantic.dev/logfire), our observability platform built on OpenTelemetry. One line instruments every request, giving you traces, timings, and status codes with no other changes:
+
+```python
+import logfire
+import httpx2
+
+logfire.configure()
+logfire.instrument_httpx()
+
+httpx2.get("https://pydantic.dev/")
+```
+
+This works the same way for explicit `httpx2.Client()` and `httpx2.AsyncClient()` instances, and you can scope instrumentation to a single client by passing it in: `logfire.instrument_httpx(client)`. Pass `capture_all=True` to also record headers and bodies. See the [Logfire HTTPX docs](https://logfire.pydantic.dev/docs/integrations/http-clients/httpx/) for the full set of options.
 
 ## Contribute
 
