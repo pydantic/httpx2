@@ -1,21 +1,43 @@
 from __future__ import annotations
 
-from enum import IntEnum
+import warnings
+from enum import EnumMeta, IntEnum
 
 __all__ = ["codes"]
 
+# Constant names that were renamed by RFC 9110, kept as deprecated aliases
+# mapping each old name to its canonical replacement.
+_DEPRECATED_CODES = {
+    "REQUEST_ENTITY_TOO_LARGE": "CONTENT_TOO_LARGE",
+    "REQUEST_URI_TOO_LONG": "URI_TOO_LONG",
+    "REQUESTED_RANGE_NOT_SATISFIABLE": "RANGE_NOT_SATISFIABLE",
+    "UNPROCESSABLE_ENTITY": "UNPROCESSABLE_CONTENT",
+}
 
-class codes(IntEnum):
+
+class _CodesMeta(EnumMeta):
+    def __getattr__(cls, name: str) -> codes:
+        if name in _DEPRECATED_CODES:
+            new_name = _DEPRECATED_CODES[name]
+            warnings.warn(
+                f"'{name}' is deprecated. Use '{new_name}' instead.",
+                category=DeprecationWarning,
+                stacklevel=2,
+            )
+            return cls[new_name]
+        raise AttributeError(name)
+
+
+class codes(IntEnum, metaclass=_CodesMeta):
     """HTTP status codes and reason phrases
 
     Status codes from the following RFCs are all observed:
 
-        * RFC 7231: Hypertext Transfer Protocol (HTTP/1.1), obsoletes 2616
+        * RFC 9110: HTTP Semantics, obsoletes 7231 & 7238
         * RFC 6585: Additional HTTP Status Codes
         * RFC 3229: Delta encoding in HTTP
         * RFC 4918: HTTP Extensions for WebDAV, obsoletes 2518
         * RFC 5842: Binding Extensions to WebDAV
-        * RFC 7238: Permanent Redirect
         * RFC 2295: Transparent Content Negotiation in HTTP
         * RFC 2774: An HTTP Extension Framework
         * RFC 7540: Hypertext Transfer Protocol Version 2 (HTTP/2)
@@ -126,14 +148,14 @@ class codes(IntEnum):
     GONE = 410, "Gone"
     LENGTH_REQUIRED = 411, "Length Required"
     PRECONDITION_FAILED = 412, "Precondition Failed"
-    REQUEST_ENTITY_TOO_LARGE = 413, "Request Entity Too Large"
-    REQUEST_URI_TOO_LONG = 414, "Request-URI Too Long"
+    CONTENT_TOO_LARGE = 413, "Content Too Large"
+    URI_TOO_LONG = 414, "URI Too Long"
     UNSUPPORTED_MEDIA_TYPE = 415, "Unsupported Media Type"
-    REQUESTED_RANGE_NOT_SATISFIABLE = 416, "Requested Range Not Satisfiable"
+    RANGE_NOT_SATISFIABLE = 416, "Range Not Satisfiable"
     EXPECTATION_FAILED = 417, "Expectation Failed"
     IM_A_TEAPOT = 418, "I'm a teapot"
     MISDIRECTED_REQUEST = 421, "Misdirected Request"
-    UNPROCESSABLE_ENTITY = 422, "Unprocessable Entity"
+    UNPROCESSABLE_CONTENT = 422, "Unprocessable Content"
     LOCKED = 423, "Locked"
     FAILED_DEPENDENCY = 424, "Failed Dependency"
     TOO_EARLY = 425, "Too Early"

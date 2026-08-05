@@ -4,6 +4,7 @@ import concurrent.futures
 import queue
 import threading
 import time
+import typing
 from unittest.mock import MagicMock, call, patch
 
 import anyio
@@ -337,15 +338,85 @@ class TestReceive:
         with server_factory(websocket_endpoint) as socket:
             with httpx.Client(transport=httpx.HTTPTransport(uds=socket)) as client:
                 with connect_ws("http://socket/ws", client, max_message_size_bytes=1024) as ws:
-                    event = ws.receive()
-                    assert isinstance(event, wsproto.events.Message)
-                    assert event.data == full_message
+                    with pytest.raises(WebSocketDisconnect) as excinfo:
+                        ws.receive()
+                    assert excinfo.value.code == wsproto.frame_protocol.CloseReason.MESSAGE_TOO_BIG
 
             async with httpx.AsyncClient(transport=httpx.AsyncHTTPTransport(uds=socket)) as aclient:
                 async with aconnect_ws("http://socket/ws", aclient, max_message_size_bytes=1024) as aws:
-                    event = await aws.receive()
-                    assert isinstance(event, wsproto.events.Message)
-                    assert event.data == full_message
+                    with pytest.raises(WebSocketDisconnect) as aexcinfo:
+                        await aws.receive()
+                    assert aexcinfo.value.code == wsproto.frame_protocol.CloseReason.MESSAGE_TOO_BIG
+
+    @pytest.mark.parametrize(
+        "fragment_event",
+        [
+            pytest.param(wsproto.events.BytesMessage(data=b"A" * 8, message_finished=False), id="binary"),
+            pytest.param(wsproto.events.TextMessage(data="é" * 4, message_finished=False), id="multibyte-text"),
+        ],
+    )
+    async def test_receive_oversized_fragmented_message(
+        self,
+        fragment_event: wsproto.events.Message[typing.Any],
+    ) -> None:
+        server_connection = wsproto.connection.Connection(wsproto.connection.ConnectionType.SERVER)
+        fragments = [server_connection.send(fragment_event) for _ in range(3)]
+
+        class MockNetworkStream(NetworkStream):
+            def __init__(self) -> None:
+                self._fragments = list(fragments)
+
+            def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
+                if self._fragments:
+                    return self._fragments.pop(0)
+                time.sleep(0.1)  # pragma: no cover
+                return b""  # pragma: no cover
+
+            def write(self, buffer: bytes, timeout: float | None = None) -> None:
+                pass
+
+            def close(self) -> None:
+                pass
+
+        with WebSocketSession(MockNetworkStream(), max_message_size_bytes=16) as websocket_session:
+            with pytest.raises(WebSocketDisconnect) as excinfo:
+                websocket_session.receive()
+            assert excinfo.value.code == wsproto.frame_protocol.CloseReason.MESSAGE_TOO_BIG
+
+    @pytest.mark.parametrize(
+        "fragment_event",
+        [
+            pytest.param(wsproto.events.BytesMessage(data=b"A" * 8, message_finished=False), id="binary"),
+            pytest.param(wsproto.events.TextMessage(data="é" * 4, message_finished=False), id="multibyte-text"),
+        ],
+    )
+    async def test_async_receive_oversized_fragmented_message(
+        self,
+        fragment_event: wsproto.events.Message[typing.Any],
+    ) -> None:
+        server_connection = wsproto.connection.Connection(wsproto.connection.ConnectionType.SERVER)
+        fragments = [server_connection.send(fragment_event) for _ in range(3)]
+
+        class AsyncMockNetworkStream(AsyncNetworkStream):
+            def __init__(self) -> None:
+                self._fragments = list(fragments)
+
+            async def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
+                if self._fragments:
+                    return self._fragments.pop(0)
+                await anyio.sleep(0.1)  # pragma: no cover
+                return b""  # pragma: no cover
+
+            async def write(self, buffer: bytes, timeout: float | None = None) -> None:
+                pass
+
+            async def aclose(self) -> None:
+                pass
+
+        async with AsyncWebSocketSession(AsyncMockNetworkStream(), max_message_size_bytes=16) as websocket_session:
+            with pytest.raises(WebSocketDisconnect) as excinfo:
+                await websocket_session.receive()
+            assert excinfo.value.code == wsproto.frame_protocol.CloseReason.MESSAGE_TOO_BIG
 
     async def test_receive_text(self, server_factory: ServerFactoryFixture) -> None:
         async def websocket_endpoint(websocket: WebSocket) -> None:
