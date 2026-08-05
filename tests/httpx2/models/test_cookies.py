@@ -1,5 +1,6 @@
 import http.cookiejar
-from unittest.mock import Mock
+from http.client import HTTPResponse
+from urllib.request import Request as UrllibRequest
 
 import pytest
 
@@ -53,16 +54,24 @@ def test_cookies_with_domain_and_path() -> None:
     assert len(cookies) == 0
 
 
-def test_extract_cookies_skips_cookie_jar_without_set_cookie(monkeypatch: pytest.MonkeyPatch) -> None:
-    jar = http.cookiejar.CookieJar()
-    extract_cookies = Mock()
-    monkeypatch.setattr(jar, "extract_cookies", extract_cookies)
+def test_extract_cookies_skips_cookie_jar_without_set_cookie() -> None:
+    class TrackingCookieJar(http.cookiejar.CookieJar):
+        def __init__(self) -> None:
+            super().__init__()
+            self.extract_count = 0
+
+        def extract_cookies(self, response: HTTPResponse, request: UrllibRequest) -> None:
+            self.extract_count += 1
+
+    jar = TrackingCookieJar()
     request = httpx2.Request("GET", "https://www.example.org")
-    response = httpx2.Response(200, request=request)
+    cookies = httpx2.Cookies(jar)
 
-    httpx2.Cookies(jar).extract_cookies(response)
+    cookies.extract_cookies(httpx2.Response(200, request=request))
+    assert jar.extract_count == 0
 
-    extract_cookies.assert_not_called()
+    cookies.extract_cookies(httpx2.Response(200, request=request, headers={"Set-Cookie": "name=value"}))
+    assert jar.extract_count == 1
 
 
 def test_set_cookie2() -> None:
