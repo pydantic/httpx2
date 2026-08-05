@@ -1,11 +1,11 @@
-# HTTPCore
+# HTTPCore 2
 
-[![Test Suite](https://github.com/encode/httpcore/workflows/Test%20Suite/badge.svg)](https://github.com/encode/httpcore/actions)
-[![Package version](https://badge.fury.io/py/httpcore.svg)](https://pypi.org/project/httpcore/)
+[![Test Suite](https://github.com/pydantic/httpx2/workflows/Test%20Suite/badge.svg)](https://github.com/pydantic/httpx2/actions)
+[![Package version](https://badge.fury.io/py/httpcore2.svg)](https://pypi.org/project/httpcore2/)
 
 > *Do one thing, and do it well.*
 
-The HTTP Core package provides a minimal low-level HTTP client, which does
+The HTTPCore 2 package provides a minimal low-level HTTP client, which does
 one thing only. Sending HTTP requests.
 
 It does not provide any high level model abstractions over the API,
@@ -14,7 +14,7 @@ transparent HTTP caching, URL parsing, session cookie handling,
 content or charset decoding, handling JSON, environment based configuration
 defaults, or any of that Jazz.
 
-Some things HTTP Core does do:
+Some things HTTPCore 2 does do:
 
 * Sending HTTP requests.
 * Thread-safe / task-safe connection pooling.
@@ -28,19 +28,19 @@ Some things HTTP Core does do:
 For HTTP/1.1 only support, install with:
 
 ```shell
-pip install httpcore
+pip install httpcore2
 ```
 
 For HTTP/1.1 and HTTP/2 support, install with:
 
 ```shell
-pip install httpcore[http2]
+pip install httpcore2[http2]
 ```
 
 For SOCKS proxy support, install with:
 
 ```shell
-pip install httpcore[socks]
+pip install httpcore2[socks]
 ```
 
 ## Example
@@ -48,9 +48,9 @@ pip install httpcore[socks]
 Let's check we're able to send HTTP requests:
 
 ```python
-import httpcore
+import httpcore2
 
-response = httpcore.request("GET", "https://www.example.com/")
+response = httpcore2.request("GET", "https://www.example.com/")
 
 print(response)
 # <Response [200]>

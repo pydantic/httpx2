@@ -2,7 +2,7 @@
 requires = [
     "hatchling",
     "hatch-fancy-pypi-readme",
-    "uv-dynamic-versioning>=0.8.0",
+    "uv-dynamic-versioning>=0.14.0",
 ]
 build-backend = "hatchling.build"
 
@@ -41,6 +41,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Topic :: Internet :: WWW/HTTP",
 ]
 dependencies = ["truststore>=0.10", "h11>=0.16"]
@@ -48,7 +49,7 @@ dependencies = ["truststore>=0.10", "h11>=0.16"]
 [project.optional-dependencies]
 http2 = ["h2>=3,<5"]
 socks = ["socksio==1.*"]
-trio = ["trio>=0.22.0,<1.0"]
+trio = ["trio>=0.33.0,<1.0"]
 asyncio = ["anyio>=4.5.0,<5.0"]
 
 [project.urls]

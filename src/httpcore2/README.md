@@ -1,11 +1,11 @@
-# HTTP Core
+# HTTPCore 2
 
-[![Test Suite](https://github.com/encode/httpcore/workflows/Test%20Suite/badge.svg)](https://github.com/encode/httpcore/actions)
-[![Package version](https://badge.fury.io/py/httpcore.svg)](https://pypi.org/project/httpcore/)
+[![Test Suite](https://github.com/pydantic/httpx2/workflows/Test%20Suite/badge.svg)](https://github.com/pydantic/httpx2/actions)
+[![Package version](https://badge.fury.io/py/httpcore2.svg)](https://pypi.org/project/httpcore2/)
 
 > *Do one thing, and do it well.*
 
-The HTTP Core package provides a minimal low-level HTTP client, which does
+The HTTPCore 2 package provides a minimal low-level HTTP client, which does
 one thing only. Sending HTTP requests.
 
 It does not provide any high level model abstractions over the API,
@@ -14,7 +14,7 @@ transparent HTTP caching, URL parsing, session cookie handling,
 content or charset decoding, handling JSON, environment based configuration
 defaults, or any of that Jazz.
 
-Some things HTTP Core does do:
+Some things HTTPCore 2 does do:
 
 * Sending HTTP requests.
 * Thread-safe / task-safe connection pooling.
@@ -28,13 +28,13 @@ Some things HTTP Core does do:
 For HTTP/1.1 only support, install with:
 
 ```shell
-pip install httpcore
+pip install httpcore2
 ```
 
 There are also a number of optional extras available...
 
 ```shell
-pip install httpcore['asyncio,trio,http2,socks']
+pip install httpcore2['asyncio,trio,http2,socks']
 ```
 
 ## Sending requests
@@ -42,9 +42,9 @@ pip install httpcore['asyncio,trio,http2,socks']
 Send an HTTP request:
 
 ```python
-import httpcore
+import httpcore2
 
-response = httpcore.request("GET", "https://www.example.com/")
+response = httpcore2.request("GET", "https://www.example.com/")
 
 print(response)
 # <Response [200]>
@@ -56,25 +56,25 @@ print(response.content)
 # b'<!doctype html>\n<html>\n<head>\n<title>Example Domain</title>\n\n<meta charset="utf-8"/>\n ...'
 ```
 
-The top-level `httpcore.request()` function is provided for convenience. In practice whenever you're working with `httpcore` you'll want to use the connection pooling functionality that it provides.
+The top-level `httpcore2.request()` function is provided for convenience. In practice whenever you're working with `httpcore2` you'll want to use the connection pooling functionality that it provides.
 
 ```python
-import httpcore
+import httpcore2
 
-http = httpcore.ConnectionPool()
+http = httpcore2.ConnectionPool()
 response = http.request("GET", "https://www.example.com/")
 ```
 
-Once you're ready to get going, [head over to the documentation](https://www.encode.io/httpcore/).
+Once you're ready to get going, [head over to the documentation](https://github.com/pydantic/httpx2/tree/main/src/httpcore2/docs).
 
 ## Motivation
 
-You *probably* don't want to be using HTTP Core directly. It might make sense if
+You *probably* don't want to be using HTTPCore 2 directly. It might make sense if
 you're writing something like a proxy service in Python, and you just want
 something at the lowest possible level, but more typically you'll want to use
-a higher level client library, such as `httpx`.
+a higher level client library, such as `httpx2`.
 
-The motivation for `httpcore` is:
+The motivation for `httpcore2` is:
 
 * To provide a reusable low-level client library, that other packages can then build on top of.
 * To provide a *really clear interface split* between the networking code and client logic,
@@ -82,17 +82,17 @@ The motivation for `httpcore` is:
 
 ## Dependencies
 
-The `httpcore` package has the following dependencies...
+The `httpcore2` package has the following dependencies...
 
 * `h11`
 * `truststore`
 
 And the following optional extras...
 
-* `anyio` - Required by `pip install httpcore['asyncio']`.
-* `trio` - Required by `pip install httpcore['trio']`.
-* `h2` - Required by `pip install httpcore['http2']`.
-* `socksio` - Required by `pip install httpcore['socks']`.
+* `anyio` - Required by `pip install httpcore2['asyncio']`.
+* `trio` - Required by `pip install httpcore2['trio']`.
+* `h2` - Required by `pip install httpcore2['http2']`.
+* `socksio` - Required by `pip install httpcore2['socks']`.
 
 ## Versioning
 
@@ -102,6 +102,6 @@ For changes between package versions please see our [project changelog](CHANGELO
 
 We recommend pinning your requirements either the most current major version, or a more specific version range:
 
-```python
-pip install 'httpcore==1.*'
+```shell
+pip install 'httpcore2==2.*'
 ```

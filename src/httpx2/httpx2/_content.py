@@ -119,7 +119,7 @@ def encode_content(
             headers = {"Transfer-Encoding": "chunked"}
         else:
             headers = {"Content-Length": str(content_length_or_none)}
-        return headers, IteratorByteStream(content)  # type: ignore
+        return headers, IteratorByteStream(content)
 
     elif isinstance(content, AsyncIterable):
         headers = {"Transfer-Encoding": "chunked"}

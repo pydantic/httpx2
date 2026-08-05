@@ -211,7 +211,7 @@ If you use `cachecontrol` or `requests-cache` to add HTTP Caching support to the
 
 `requests` defers most of its HTTP networking code to the excellent [`urllib3` library](https://urllib3.readthedocs.io/en/latest/).
 
-On the other hand, HTTPX uses [HTTPCore](https://github.com/encode/httpcore) as its core HTTP networking layer, which is a different project than `urllib3`.
+On the other hand, HTTPX2 uses [`httpcore2`](https://github.com/pydantic/httpx2/tree/main/src/httpcore2) as its core HTTP networking layer, which is a different project than `urllib3`.
 
 ## Query Parameters
 

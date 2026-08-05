@@ -67,7 +67,7 @@ If you encounter issues when setting up proxies, please refer to our [Troublesho
 
 ## SOCKS
 
-In addition to HTTP proxies, `httpcore` also supports proxies using the SOCKS protocol.
+In addition to HTTP proxies, `httpcore2` also supports proxies using the SOCKS protocol.
 This is an optional feature that requires an additional third-party library be installed before use.
 
 You can install SOCKS support using `pip`:

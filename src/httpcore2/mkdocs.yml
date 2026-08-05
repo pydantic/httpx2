@@ -1,9 +1,8 @@
-site_name: HTTPCore
+site_name: HTTPCore 2
 site_description: A minimal HTTP client for Python.
-site_url: https://www.encode.io/httpcore/
 
-repo_name: encode/httpcore
-repo_url: https://github.com/encode/httpcore/
+repo_name: pydantic/httpx2
+repo_url: https://github.com/pydantic/httpx2/
 
 nav:
     - Introduction: 'index.md'
@@ -25,7 +24,7 @@ plugins:
     - mkdocstrings:
         default_handler: python
         watch:
-            - httpcore
+            - httpcore2
         handlers:
             python:
                 members_order:

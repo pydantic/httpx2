@@ -1,49 +1,49 @@
 # API Reference
 
 * Quickstart
-    * `httpcore.request()`
-    * `httpcore.stream()`
+    * `httpcore2.request()`
+    * `httpcore2.stream()`
 * Requests, Responses, and URLs
-    * `httpcore.Request`
-    * `httpcore.Response`
-    * `httpcore.URL`
+    * `httpcore2.Request`
+    * `httpcore2.Response`
+    * `httpcore2.URL`
 * Connection Pools
-    * `httpcore.ConnectionPool`
+    * `httpcore2.ConnectionPool`
 * Proxies
-    * `httpcore.Proxy`
+    * `httpcore2.Proxy`
 * Connections
-    * `httpcore.HTTPConnection`
-    * `httpcore.HTTP11Connection`
-    * `httpcore.HTTP2Connection`
+    * `httpcore2.HTTPConnection`
+    * `httpcore2.HTTP11Connection`
+    * `httpcore2.HTTP2Connection`
 * Async Support
-    * `httpcore.AsyncConnectionPool`
-    * `httpcore.AsyncHTTPConnection`
-    * `httpcore.AsyncHTTP11Connection`
-    * `httpcore.AsyncHTTP2Connection`
+    * `httpcore2.AsyncConnectionPool`
+    * `httpcore2.AsyncHTTPConnection`
+    * `httpcore2.AsyncHTTP11Connection`
+    * `httpcore2.AsyncHTTP2Connection`
 * Network Backends
     * Sync
-        * `httpcore.backends.sync.SyncBackend`
-        * `httpcore.backends.mock.MockBackend`
+        * `httpcore2._backends.sync.SyncBackend`
+        * `httpcore2._backends.mock.MockBackend`
     * Async
-        * `httpcore.backends.auto.AutoBackend`
-        * `httpcore.backends.asyncio.AsyncioBackend`
-        * `httpcore.backends.trio.TrioBackend`
-        * `httpcore.backends.mock.AsyncMockBackend`
+        * `httpcore2._backends.auto.AutoBackend`
+        * `httpcore2._backends.anyio.AnyIOBackend`
+        * `httpcore2._backends.trio.TrioBackend`
+        * `httpcore2._backends.mock.AsyncMockBackend`
     * Base interfaces
-        * `httpcore.backends.base.NetworkBackend`
-        * `httpcore.backends.base.AsyncNetworkBackend`
+        * `httpcore2._backends.base.NetworkBackend`
+        * `httpcore2._backends.base.AsyncNetworkBackend`
 * Exceptions
-    * `httpcore.TimeoutException`
-        * `httpcore.PoolTimeout`
-        * `httpcore.ConnectTimeout`
-        * `httpcore.ReadTimeout`
-        * `httpcore.WriteTimeout`
-    * `httpcore.NetworkError`
-        * `httpcore.ConnectError`
-        * `httpcore.ReadError`
-        * `httpcore.WriteError`
-    * `httpcore.ProtocolError`
-        * `httpcore.RemoteProtocolError`
-        * `httpcore.LocalProtocolError`
-    * `httpcore.ProxyError`
-    * `httpcore.UnsupportedProtocol`
+    * `httpcore2.TimeoutException`
+        * `httpcore2.PoolTimeout`
+        * `httpcore2.ConnectTimeout`
+        * `httpcore2.ReadTimeout`
+        * `httpcore2.WriteTimeout`
+    * `httpcore2.NetworkError`
+        * `httpcore2.ConnectError`
+        * `httpcore2.ReadError`
+        * `httpcore2.WriteError`
+    * `httpcore2.ProtocolError`
+        * `httpcore2.RemoteProtocolError`
+        * `httpcore2.LocalProtocolError`
+    * `httpcore2.ProxyError`
+    * `httpcore2.UnsupportedProtocol`

@@ -69,6 +69,37 @@ def test_http2_connection_closed() -> None:
 
 
 
+def test_http2_response_closed_twice() -> None:
+    """
+    Closing a response for a stream that has already been removed should be
+    a no-op, rather than raising a `KeyError` that masks the exception which
+    triggered the cleanup. See https://github.com/encode/httpx/issues/3072
+    """
+    origin = httpcore2.Origin(b"https", b"example.com", 443)
+    stream = httpcore2.MockStream(
+        [
+            hyperframe.frame.SettingsFrame().serialize(),
+            hyperframe.frame.HeadersFrame(
+                stream_id=1,
+                data=hpack.Encoder().encode(
+                    [
+                        (b":status", b"200"),
+                        (b"content-type", b"plain/text"),
+                    ]
+                ),
+                flags=["END_HEADERS"],
+            ).serialize(),
+            hyperframe.frame.DataFrame(stream_id=1, data=b"Hello, world!", flags=["END_STREAM"]).serialize(),
+        ]
+    )
+    with httpcore2.HTTP2Connection(origin=origin, stream=stream, keepalive_expiry=5.0) as conn:
+        conn.request("GET", "https://example.com/")
+
+        # The stream was closed when the response completed.
+        conn._response_closed(stream_id=1)
+
+
+
 def test_http2_connection_post_request() -> None:
     origin = httpcore2.Origin(b"https", b"example.com", 443)
     stream = httpcore2.MockStream(
