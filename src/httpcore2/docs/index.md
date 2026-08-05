@@ -1,11 +1,11 @@
-# HTTPCore2
+# HTTP Core 2
 
 [![Test Suite](https://github.com/pydantic/httpx2/workflows/Test%20Suite/badge.svg)](https://github.com/pydantic/httpx2/actions)
 [![Package version](https://badge.fury.io/py/httpcore2.svg)](https://pypi.org/project/httpcore2/)
 
 > *Do one thing, and do it well.*
 
-The HTTPCore2 package provides a minimal low-level HTTP client, which does
+The HTTP Core 2 package provides a minimal low-level HTTP client, which does
 one thing only. Sending HTTP requests.
 
 It does not provide any high level model abstractions over the API,
@@ -14,7 +14,7 @@ transparent HTTP caching, URL parsing, session cookie handling,
 content or charset decoding, handling JSON, environment based configuration
 defaults, or any of that Jazz.
 
-Some things HTTPCore2 does do:
+Some things HTTP Core 2 does do:
 
 * Sending HTTP requests.
 * Thread-safe / task-safe connection pooling.
