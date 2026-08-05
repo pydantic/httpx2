@@ -34,7 +34,7 @@ pip install httpcore2
 There are also a number of optional extras available...
 
 ```shell
-pip install httpcore2['asyncio,trio,http2,socks']
+pip install 'httpcore2[asyncio,trio,http2,socks]'
 ```
 
 ## Sending requests
@@ -89,10 +89,10 @@ The `httpcore2` package has the following dependencies...
 
 And the following optional extras...
 
-* `anyio` - Required by `pip install httpcore2['asyncio']`.
-* `trio` - Required by `pip install httpcore2['trio']`.
-* `h2` - Required by `pip install httpcore2['http2']`.
-* `socksio` - Required by `pip install httpcore2['socks']`.
+* `anyio` - Required by `pip install 'httpcore2[asyncio]'`.
+* `trio` - Required by `pip install 'httpcore2[trio]'`.
+* `h2` - Required by `pip install 'httpcore2[http2]'`.
+* `socksio` - Required by `pip install 'httpcore2[socks]'`.
 
 ## Versioning
 

@@ -34,13 +34,13 @@ pip install httpcore2
 For HTTP/1.1 and HTTP/2 support, install with:
 
 ```shell
-pip install httpcore2[http2]
+pip install 'httpcore2[http2]'
 ```
 
 For SOCKS proxy support, install with:
 
 ```shell
-pip install httpcore2[socks]
+pip install 'httpcore2[socks]'
 ```
 
 ## Example
