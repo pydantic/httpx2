@@ -1,4 +1,5 @@
 import http.cookiejar
+from unittest.mock import Mock
 
 import pytest
 
@@ -52,15 +53,16 @@ def test_cookies_with_domain_and_path() -> None:
     assert len(cookies) == 0
 
 
-def test_extract_cookies_skips_cookie_jar_without_set_cookie() -> None:
-    class FailingCookieJar(http.cookiejar.CookieJar):
-        def extract_cookies(self, response: object, request: object) -> None:
-            raise AssertionError("CookieJar should not be called without a Set-Cookie header")
-
+def test_extract_cookies_skips_cookie_jar_without_set_cookie(monkeypatch: pytest.MonkeyPatch) -> None:
+    jar = http.cookiejar.CookieJar()
+    extract_cookies = Mock()
+    monkeypatch.setattr(jar, "extract_cookies", extract_cookies)
     request = httpx2.Request("GET", "https://www.example.org")
     response = httpx2.Response(200, request=request)
 
-    httpx2.Cookies(FailingCookieJar()).extract_cookies(response)
+    httpx2.Cookies(jar).extract_cookies(response)
+
+    extract_cookies.assert_not_called()
 
 
 def test_set_cookie2() -> None:
