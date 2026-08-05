@@ -66,8 +66,7 @@ class _SSEDecoder:
             return None
 
         self._event_size += len(line.encode("utf-8"))
-        if self._max_event_size is not None and self._event_size > self._max_event_size:
-            raise SSEError(f"Server-sent event exceeded the {self._max_event_size} byte limit.")
+        self._check_size()
 
         fieldname, _, value = line.partition(":")
         value = value[1:] if value.startswith(" ") else value
@@ -91,12 +90,26 @@ class _SSEDecoder:
 
         return None
 
+    def check_pending(self, pending: str) -> None:
+        """
+        Bound the total bytes buffered for the in-progress event, including
+        a trailing line that has not been terminated by a newline yet.
+        """
+        self._check_size(len(pending.encode("utf-8")))
+
+    def _check_size(self, pending_size: int = 0) -> None:
+        if self._max_event_size is not None and self._event_size + pending_size > self._max_event_size:
+            raise SSEError(f"Server-sent event exceeded the {self._max_event_size} byte limit.")
+
 
 class _SSELineDecoder:
-    def __init__(self, max_event_size: int | None = None) -> None:
-        self._max_event_size = max_event_size
+    def __init__(self) -> None:
         self._buffer = ""
         self._trailing_cr = False
+
+    @property
+    def pending(self) -> str:
+        return self._buffer
 
     def decode(self, text: str) -> list[str]:
         if self._trailing_cr:
@@ -109,8 +122,6 @@ class _SSELineDecoder:
         text = self._buffer + text.replace("\r\n", "\n").replace("\r", "\n")
         lines = text.split("\n")
         self._buffer = lines.pop()
-        if self._max_event_size is not None and len(self._buffer.encode("utf-8")) > self._max_event_size:
-            raise SSEError(f"Server-sent event exceeded the {self._max_event_size} byte limit.")
         return lines
 
     def flush(self) -> list[str]:
@@ -142,12 +153,13 @@ class EventSource:
         with request_context(request=self._response.request):
             self._check_content_type()
             decoder = _SSEDecoder(self._max_event_size)
-            lines = _SSELineDecoder(self._max_event_size)
+            lines = _SSELineDecoder()
             for chunk in self._response.iter_text():
                 for line in lines.decode(chunk):
                     sse = decoder.decode(line)
                     if sse is not None:
                         yield sse
+                decoder.check_pending(lines.pending)
             for line in lines.flush():
                 sse = decoder.decode(line)
                 if sse is not None:
@@ -157,12 +169,13 @@ class EventSource:
         with request_context(request=self._response.request):
             self._check_content_type()
             decoder = _SSEDecoder(self._max_event_size)
-            lines = _SSELineDecoder(self._max_event_size)
+            lines = _SSELineDecoder()
             async for chunk in self._response.aiter_text():
                 for line in lines.decode(chunk):
                     sse = decoder.decode(line)
                     if sse is not None:
                         yield sse
+                decoder.check_pending(lines.pending)
             for line in lines.flush():
                 sse = decoder.decode(line)
                 if sse is not None:
