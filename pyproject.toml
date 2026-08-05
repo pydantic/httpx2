@@ -17,7 +17,7 @@ dev = [
   "httpx2[brotli,cli,http2,socks,ws,zstd]",
   "httpcore2[asyncio,trio,http2,socks]",
   # Tests
-  "chardet==7.4.3",
+  "chardet==6.0.0.post1",
   "coverage[toml]==7.15.2",
   "cryptography>=49.0.0",
   "flaky>=3.8",
@@ -50,6 +50,7 @@ bench = [
 [tool.ruff]
 line-length = 120
 exclude = ["src/httpcore2/httpcore2/_sync", "tests/httpcore2/_sync"]
+extend-exclude = ["*.md"]
 
 [tool.ruff.lint]
 select = ["B", "C4", "E", "F", "I", "PERF", "PIE", "UP", "W"]
