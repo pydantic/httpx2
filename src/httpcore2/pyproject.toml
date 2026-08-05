@@ -49,7 +49,7 @@ dependencies = ["truststore>=0.10", "h11>=0.16"]
 [project.optional-dependencies]
 http2 = ["h2>=3,<5"]
 socks = ["socksio==1.*"]
-trio = ["trio>=0.22.0,<1.0"]
+trio = ["trio>=0.33.0,<1.0"]
 asyncio = ["anyio>=4.5.0,<5.0"]
 
 [project.urls]
