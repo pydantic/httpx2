@@ -1,4 +1,4 @@
-site_name: HTTP Core 2
+site_name: HTTPCore 2
 site_description: A minimal HTTP client for Python.
 
 repo_name: pydantic/httpx2
