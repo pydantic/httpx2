@@ -56,7 +56,7 @@ class ServerSentEvent:
         return jsonlib.loads(self.data)
 
 
-class _SSEDecoder:
+class _SSEEventDecoder:
     def __init__(self, max_event_size: int | None = None) -> None:
         self._max_event_size = max_event_size
         self._event = ""
@@ -157,6 +157,25 @@ class _SSELineDecoder:
         return lines
 
 
+class _SSEParser:
+    def __init__(self, max_event_size: int | None = None) -> None:
+        self._event_decoder = _SSEEventDecoder(max_event_size)
+        self._line_decoder = _SSELineDecoder()
+
+    def decode(self, text: str) -> Iterator[ServerSentEvent]:
+        yield from self._decode_lines(self._line_decoder.decode(text))
+        self._event_decoder.check_pending(self._line_decoder.pending)
+
+    def flush(self) -> Iterator[ServerSentEvent]:
+        yield from self._decode_lines(self._line_decoder.flush())
+
+    def _decode_lines(self, lines: list[str]) -> Iterator[ServerSentEvent]:
+        for line in lines:
+            sse = self._event_decoder.decode(line)
+            if sse is not None:
+                yield sse
+
+
 class EventSource:
     def __init__(self, response: Response, max_event_size: int | None = DEFAULT_MAX_EVENT_SIZE_BYTES) -> None:
         self._response = response
@@ -174,31 +193,17 @@ class EventSource:
     def __iter__(self) -> Iterator[ServerSentEvent]:
         with request_context(request=self._response.request):
             self._check_content_type()
-            decoder = _SSEDecoder(self._max_event_size)
-            lines = _SSELineDecoder()
+            parser = _SSEParser(self._max_event_size)
             for chunk in self._response.iter_text():
-                for line in lines.decode(chunk):
-                    sse = decoder.decode(line)
-                    if sse is not None:
-                        yield sse
-                decoder.check_pending(lines.pending)
-            for line in lines.flush():
-                sse = decoder.decode(line)
-                if sse is not None:
-                    yield sse
+                yield from parser.decode(chunk)
+            yield from parser.flush()
 
     async def __aiter__(self) -> AsyncIterator[ServerSentEvent]:
         with request_context(request=self._response.request):
             self._check_content_type()
-            decoder = _SSEDecoder(self._max_event_size)
-            lines = _SSELineDecoder()
+            parser = _SSEParser(self._max_event_size)
             async for chunk in self._response.aiter_text():
-                for line in lines.decode(chunk):
-                    sse = decoder.decode(line)
-                    if sse is not None:
-                        yield sse
-                decoder.check_pending(lines.pending)
-            for line in lines.flush():
-                sse = decoder.decode(line)
-                if sse is not None:
+                for sse in parser.decode(chunk):
                     yield sse
+            for sse in parser.flush():
+                yield sse
