@@ -14,6 +14,7 @@ exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for 
 exclude-newer-span = "P7D"
 
 [options.exclude-newer-package]
+httpx2-jsfetch = "2026-08-08T00:00:00Z"
 idna = "2026-06-03T00:00:00Z"
 
 [manifest]
@@ -1482,6 +1483,7 @@ source = { editable = "src/httpx2" }
 dependencies = [
     { name = "anyio", marker = "sys_platform != 'emscripten'" },
     { name = "httpcore2", marker = "sys_platform != 'emscripten'" },
+    { name = "httpx2-jsfetch", marker = "python_full_version >= '3.12' and sys_platform == 'emscripten'" },
     { name = "idna" },
     { name = "truststore", marker = "sys_platform != 'emscripten'" },
     { name = "typing-extensions", marker = "python_full_version < '3.13'" },
@@ -1518,6 +1520,7 @@ requires-dist = [
     { name = "click", marker = "extra == 'cli'", specifier = ">=8.4.2" },
     { name = "h2", marker = "extra == 'http2'", specifier = ">=3,<5" },
     { name = "httpcore2", marker = "sys_platform != 'emscripten'", editable = "src/httpcore2" },
+    { name = "httpx2-jsfetch", marker = "python_full_version >= '3.12' and sys_platform == 'emscripten'" },
     { name = "idna", specifier = ">=3.18" },
     { name = "pygments", marker = "extra == 'cli'", specifier = "==2.*" },
     { name = "rich", marker = "extra == 'cli'", specifier = ">=10,<16" },
@@ -1528,6 +1531,15 @@ requires-dist = [
     { name = "zstandard", marker = "python_full_version < '3.14' and extra == 'zstd'", specifier = ">=0.18.0" },
 ]
 provides-extras = ["brotli", "cli", "http2", "socks", "ws", "zstd"]
+
+[[package]]
+name = "httpx2-jsfetch"
+version = "1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/cd/c4/0e5636363151a2a1795e0a77617168b9ca438e1748ec05fc9b5687f93d64/httpx2_jsfetch-1.0.tar.gz", hash = "sha256:70a0e3eabfef7cce5ad9c629f7d01ca05e418f586646f4ddf14782e4c1454c60", size = 6872, upload-time = "2026-08-07T00:13:07.492Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/9b/43/832f631d32e4f1211caa2ba368317739fe71f0b8530e4c9d15dc454bac2a/httpx2_jsfetch-1.0-py3-none-any.whl", hash = "sha256:cb916b707601e69a07721aabc8f3f6659be3a6893bc1ff5c6f9e02241df2da32", size = 6382, upload-time = "2026-08-07T00:13:06.567Z" },
+]
 
 [[package]]
 name = "hyperframe"

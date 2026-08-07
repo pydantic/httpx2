@@ -48,7 +48,7 @@ dependencies = [
     "truststore>=0.10; sys_platform != 'emscripten'",
     "httpcore2=={{ version }}; sys_platform != 'emscripten'",
     "anyio>=4.10; sys_platform != 'emscripten'",
-    "httpx2-jsfetch; sys_platform == 'emscripten'",
+    "httpx2-jsfetch; sys_platform == 'emscripten' and python_version >= '3.12'",
     "idna>=3.18",
     "typing_extensions>=4.5.0; python_version < '3.13'",
 ]
