@@ -904,6 +904,33 @@ async def test_threads_wont_hang(server_factory: ServerFactoryFixture) -> None:
 
 
 @pytest.mark.anyio
+async def test_exit_with_full_queue(server_factory: ServerFactoryFixture) -> None:
+    """
+    Check that exiting the session doesn't deadlock when the background receive
+    thread is blocked on a full events queue.
+    """
+
+    async def websocket_endpoint(websocket: WebSocket) -> None:
+        await websocket.accept()
+        for _ in range(10):
+            await websocket.send_text("SERVER_MESSAGE")
+        try:
+            await websocket.receive_text()
+        except StarletteWebSocketDisconnect:
+            pass
+
+    with server_factory(websocket_endpoint) as socket:
+        with httpx.Client(transport=httpx.HTTPTransport(uds=socket)) as client:
+            with connect_ws("http://socket/ws", client, queue_size=1, keepalive_ping_interval_seconds=None) as ws:
+                for _ in range(100):
+                    if ws._events.full():
+                        break
+                    time.sleep(0.05)
+                assert ws._events.full()
+                time.sleep(0.3)
+
+
+@pytest.mark.anyio
 async def test_concurrency_write(server_factory: ServerFactoryFixture) -> None:
     """
     Check that there is no error because of two tasks trying to write the stream at the
