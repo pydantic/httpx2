@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## Unreleased
+
+### Added
+
+* Support for running on WebAssembly / Emscripten via Pyodide, using a
+  JavaScript `fetch`-based transport defined in `httpx2-jsfetch`.
+  ([1119](https://github.com/pydantic/httpx2/pull/1119))
+
 ## 2.9.1 (July 24th, 2026)
 
 ### Fixed
