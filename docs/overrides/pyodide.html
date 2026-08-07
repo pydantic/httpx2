@@ -2,8 +2,11 @@
 {% block styles %}
   {{ super() }}
   <link
-    href="https://cdn.jsdelivr.net/npm/ace-builds@1.36.2/css/ace.min.css"
+    href="https://cdn.jsdelivr.net/npm/ace-builds@1.36.2/css/ace.css"
     rel="stylesheet"
+    integrity="sha384-ufydNiMif57Clv54md4N4sdAsM4gsJXYuGcZ+7v6fqHDlQ7JWICGt3eW00qaw2l5"
+    crossorigin="anonymous"
+    referrerpolicy="no-referrer"
   />
   <style>
   #pyodide_editor {
@@ -42,8 +45,18 @@
 
 {% block scripts %}
 {{ super() }}
-<script src="https://cdn.jsdelivr.net/npm/ace-builds@1.36.2/src-noconflict/ace.min.js"></script>
-<script src="https://cdn.jsdelivr.net/pyodide/v0.29.3/full/pyodide.js"></script>
+<script
+  src="https://cdn.jsdelivr.net/npm/ace-builds@1.36.2/src-noconflict/ace.js"
+  integrity="sha384-KXFed0LStIAv8N+BF2J6AQ1Jt83vq4cc/pWqaHh3JxE6nWxwkWZ2gSYqIBSy3tHq"
+  crossorigin="anonymous"
+  referrerpolicy="no-referrer"
+></script>
+<script
+  src="https://cdn.jsdelivr.net/pyodide/v0.29.3/full/pyodide.js"
+  integrity="sha384-Hcsv6LxK5rH9vVB+a/+cLJZR3kIIM2Y851r6waxy+9JInvSROiD1bTMk748pYdat"
+  crossorigin="anonymous"
+  referrerpolicy="no-referrer"
+></script>
 <script language="javascript">
   const editor = ace.edit("pyodide_editor");
   editor.setTheme("ace/theme/monokai");
