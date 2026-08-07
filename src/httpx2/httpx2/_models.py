@@ -51,6 +51,8 @@ __all__ = ["Cookies", "Headers", "Request", "Response"]
 
 SENSITIVE_HEADERS = {"authorization", "proxy-authorization"}
 
+T = typing.TypeVar("T")
+
 
 def _is_known_encoding(encoding: str) -> bool:
     """
@@ -235,7 +237,16 @@ class Headers(typing.MutableMapping[str, str]):
         """
         return [(key.decode(self.encoding), value.decode(self.encoding)) for _, key, value in self._list]
 
-    def get(self, key: str, default: typing.Any = None) -> typing.Any:
+    @typing.overload
+    def get(self, key: str, /) -> str | None: ...
+
+    @typing.overload
+    def get(self, key: str, default: str, /) -> str: ...
+
+    @typing.overload
+    def get(self, key: str, default: T) -> str | T: ...
+
+    def get(self, key: str, default: T | None = None) -> str | T | None:
         """
         Return a header value. If multiple occurrences of the header occur
         then concatenate them together with commas.
