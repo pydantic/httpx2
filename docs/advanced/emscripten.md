@@ -44,9 +44,10 @@ addresses.
 
 <div id="pyodide_editor">
 import httpx2
+from js import document
 print("Sending response using httpx2 in the browser:")
 print("--------------------------------------------")
-r = httpx2.get("https://www.example.com")
+r = httpx2.get(document.location.origin)
 print("Status = ", r.status_code)
 print("Response = ", r.text[:50], "...")
 </div>

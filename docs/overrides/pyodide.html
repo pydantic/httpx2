@@ -74,10 +74,12 @@
     pyodide.setStderr({ batched: stderrLine });
     if (
       document.location.origin.startsWith("http://127.0.0.1") ||
+      document.location.origin.startsWith("http://0.0.0.0") ||
       document.location.origin.startsWith("http://localhost")
     ) {
       // If we are on a development machine, use the wheel from the dist folder
-      await pyodide.loadPackage(["/test.whl", "ssl", "idna", "certifi"]);
+      await pyodide.loadPackage(["micropip",  "ssl", "idna", "certifi"]);
+      await pyodide.loadPackage(["/test.whl",]);
     } else {
       // Otherwise load it from PyPI
       // (once a Pyodide-supporting version is on there)
