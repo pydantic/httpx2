@@ -11,8 +11,8 @@ if sys.platform == "emscripten":  # pragma: nocover
 
     # in emscripten we use javascript fetch
     from httpx2_jsfetch import (
-        JavascriptFetchTransport as HTTPTransport,
         AsyncJavascriptFetchTransport as AsyncHTTPTransport,
+        JavascriptFetchTransport as HTTPTransport,
     )
 else:
     # everywhere else we use default
