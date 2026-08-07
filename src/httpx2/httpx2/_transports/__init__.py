@@ -6,6 +6,11 @@ from .mock import MockTransport
 from .wsgi import WSGITransport
 
 if sys.platform == "emscripten":  # pragma: nocover
+    if sys.version_info < (3, 12):
+        raise RuntimeError(
+            "Python 3.12 or later is required on emscripten platforms."
+        )
+
     # in emscripten we use javascript fetch
     from httpx2_jsfetch import (
         AsyncJavascriptFetchTransport as HTTPTransport,
