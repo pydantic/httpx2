@@ -7,7 +7,9 @@ from .wsgi import WSGITransport
 
 if sys.platform == "emscripten":  # pragma: nocover
     if sys.version_info < (3, 12):
-        raise RuntimeError("Python 3.12 or later is required on emscripten platforms.")
+        raise RuntimeError(
+            "httpx2 requires Python 3.12+ on Emscripten. If you are using Pyodide, upgrade to Pyodide 0.26 or later."
+        )
 
     from httpx2_jsfetch import (
         AsyncJavascriptFetchTransport as AsyncHTTPTransport,
