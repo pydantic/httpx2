@@ -79,12 +79,12 @@ filterwarnings = [
 markers = [
   "copied_from(source, changes=None): mark test as copied from somewhere else, along with a description of changes made to accommodate e.g. our test setup",
   "network: marks tests which require network connection. Used in 3rd-party build environments that have network disabled.",
-  "benchmark: marks CodSpeed benchmark tests under tests/test_benchmark.py.",
+  "benchmark: marks CodSpeed benchmark tests under tests/test_benchmark*.py.",
 ]
 
 [tool.coverage.run]
 source_pkgs = ["httpx2", "httpcore2", "tests"]
-omit = ["src/httpcore2/httpcore2/_sync/*", "tests/test_benchmark.py"]
+omit = ["src/httpcore2/httpcore2/_sync/*", "tests/test_benchmark*.py"]
 
 [tool.coverage.report]
 exclude_also = [
