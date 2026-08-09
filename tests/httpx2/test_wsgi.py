@@ -11,7 +11,9 @@ import pytest
 import httpx2
 
 if typing.TYPE_CHECKING:
-    from _typeshed.wsgi import StartResponse, WSGIApplication, WSGIEnvironment
+    from _typeshed.wsgi import StartResponse
+    from _typeshed.wsgi import WSGIApplication
+    from _typeshed.wsgi import WSGIEnvironment
 
 
 def application_factory(output: typing.Iterable[bytes]) -> WSGIApplication:

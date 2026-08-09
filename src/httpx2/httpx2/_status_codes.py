@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import warnings
-from enum import EnumMeta, IntEnum
+from enum import EnumMeta
+from enum import IntEnum
 
 __all__ = ["codes"]
 

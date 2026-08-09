@@ -8,44 +8,43 @@ import re
 import typing
 import urllib.request
 from collections.abc import Mapping
-from http.cookiejar import Cookie, CookieJar
+from http.cookiejar import Cookie
+from http.cookiejar import CookieJar
 
-from ._content import ByteStream, UnattachedStream, encode_request, encode_response
-from ._decoders import (
-    ByteChunker,
-    ContentDecoder,
-    IdentityDecoder,
-    LineDecoder,
-    MultiDecoder,
-    TextChunker,
-    TextDecoder,
-)
-from ._exceptions import (
-    CookieConflict,
-    HTTPStatusError,
-    RequestNotRead,
-    ResponseNotRead,
-    StreamClosed,
-    StreamConsumed,
-    request_context,
-)
+from ._content import ByteStream
+from ._content import UnattachedStream
+from ._content import encode_request
+from ._content import encode_response
+from ._decoders import ByteChunker
+from ._decoders import ContentDecoder
+from ._decoders import IdentityDecoder
+from ._decoders import LineDecoder
+from ._decoders import MultiDecoder
+from ._decoders import TextChunker
+from ._decoders import TextDecoder
+from ._exceptions import CookieConflict
+from ._exceptions import HTTPStatusError
+from ._exceptions import RequestNotRead
+from ._exceptions import ResponseNotRead
+from ._exceptions import StreamClosed
+from ._exceptions import StreamConsumed
+from ._exceptions import request_context
 from ._multipart import get_multipart_boundary_from_content_type
 from ._status_codes import codes
-from ._types import (
-    AsyncByteStream,
-    CookieTypes,
-    HeaderTypes,
-    QueryParamTypes,
-    RequestContent,
-    RequestData,
-    RequestExtensions,
-    RequestFiles,
-    ResponseContent,
-    ResponseExtensions,
-    SyncByteStream,
-)
+from ._types import AsyncByteStream
+from ._types import CookieTypes
+from ._types import HeaderTypes
+from ._types import QueryParamTypes
+from ._types import RequestContent
+from ._types import RequestData
+from ._types import RequestExtensions
+from ._types import RequestFiles
+from ._types import ResponseContent
+from ._types import ResponseExtensions
+from ._types import SyncByteStream
 from ._urls import URL
-from ._utils import to_bytes_or_str, to_str
+from ._utils import to_bytes_or_str
+from ._utils import to_str
 
 __all__ = ["Cookies", "Headers", "Request", "Response"]
 

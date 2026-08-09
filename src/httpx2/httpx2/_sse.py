@@ -29,11 +29,13 @@ SOFTWARE.
 from __future__ import annotations
 
 import json as jsonlib
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator
+from collections.abc import Iterator
 from dataclasses import dataclass
 
 from ._config import DEFAULT_MAX_EVENT_SIZE_BYTES
-from ._exceptions import TransportError, request_context
+from ._exceptions import TransportError
+from ._exceptions import request_context
 from ._models import Response
 
 __all__ = ["EventSource", "SSEError", "ServerSentEvent"]

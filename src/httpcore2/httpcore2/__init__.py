@@ -1,52 +1,52 @@
 from importlib.metadata import version
 
-from ._api import request, stream
-from ._async import (
-    AsyncConnectionInterface,
-    AsyncConnectionPool,
-    AsyncHTTP2Connection,
-    AsyncHTTP11Connection,
-    AsyncHTTPConnection,
-    AsyncHTTPProxy,
-    AsyncSOCKSProxy,
-)
-from ._backends.base import (
-    SOCKET_OPTION,
-    AsyncNetworkBackend,
-    AsyncNetworkStream,
-    NetworkBackend,
-    NetworkStream,
-)
-from ._backends.mock import AsyncMockBackend, AsyncMockStream, MockBackend, MockStream
+from ._api import request
+from ._api import stream
+from ._async import AsyncConnectionInterface
+from ._async import AsyncConnectionPool
+from ._async import AsyncHTTP2Connection
+from ._async import AsyncHTTP11Connection
+from ._async import AsyncHTTPConnection
+from ._async import AsyncHTTPProxy
+from ._async import AsyncSOCKSProxy
+from ._backends.base import SOCKET_OPTION
+from ._backends.base import AsyncNetworkBackend
+from ._backends.base import AsyncNetworkStream
+from ._backends.base import NetworkBackend
+from ._backends.base import NetworkStream
+from ._backends.mock import AsyncMockBackend
+from ._backends.mock import AsyncMockStream
+from ._backends.mock import MockBackend
+from ._backends.mock import MockStream
 from ._backends.sync import SyncBackend
-from ._exceptions import (
-    ConnectError,
-    ConnectionNotAvailable,
-    ConnectTimeout,
-    LocalProtocolError,
-    NetworkError,
-    PoolTimeout,
-    ProtocolError,
-    ProxyError,
-    ReadError,
-    ReadTimeout,
-    RemoteProtocolError,
-    TimeoutException,
-    UnsupportedProtocol,
-    WriteError,
-    WriteTimeout,
-)
-from ._models import URL, Origin, Proxy, Request, Response
+from ._exceptions import ConnectError
+from ._exceptions import ConnectionNotAvailable
+from ._exceptions import ConnectTimeout
+from ._exceptions import LocalProtocolError
+from ._exceptions import NetworkError
+from ._exceptions import PoolTimeout
+from ._exceptions import ProtocolError
+from ._exceptions import ProxyError
+from ._exceptions import ReadError
+from ._exceptions import ReadTimeout
+from ._exceptions import RemoteProtocolError
+from ._exceptions import TimeoutException
+from ._exceptions import UnsupportedProtocol
+from ._exceptions import WriteError
+from ._exceptions import WriteTimeout
+from ._models import URL
+from ._models import Origin
+from ._models import Proxy
+from ._models import Request
+from ._models import Response
 from ._ssl import default_ssl_context
-from ._sync import (
-    ConnectionInterface,
-    ConnectionPool,
-    HTTP2Connection,
-    HTTP11Connection,
-    HTTPConnection,
-    HTTPProxy,
-    SOCKSProxy,
-)
+from ._sync import ConnectionInterface
+from ._sync import ConnectionPool
+from ._sync import HTTP2Connection
+from ._sync import HTTP11Connection
+from ._sync import HTTPConnection
+from ._sync import HTTPProxy
+from ._sync import SOCKSProxy
 
 # The 'httpcore2.AnyIOBackend' class is conditional on 'anyio' being installed.
 try:

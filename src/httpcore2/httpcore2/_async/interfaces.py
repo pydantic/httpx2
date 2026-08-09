@@ -4,18 +4,16 @@ import contextlib
 import typing
 from collections.abc import AsyncGenerator
 
-from .._models import (
-    URL,
-    Extensions,
-    HeaderTypes,
-    Origin,
-    Request,
-    Response,
-    enforce_bytes,
-    enforce_headers,
-    enforce_url,
-    include_request_headers,
-)
+from .._models import URL
+from .._models import Extensions
+from .._models import HeaderTypes
+from .._models import Origin
+from .._models import Request
+from .._models import Response
+from .._models import enforce_bytes
+from .._models import enforce_headers
+from .._models import enforce_url
+from .._models import include_request_headers
 
 
 class AsyncRequestInterface:

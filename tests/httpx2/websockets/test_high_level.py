@@ -11,8 +11,11 @@ import wsproto
 from starlette.websockets import WebSocket
 
 import httpx2 as httpx
-from httpcore2 import AsyncNetworkStream, NetworkStream
-from httpx2.websockets import AsyncWebSocketSession, WebSocketSession, _api
+from httpcore2 import AsyncNetworkStream
+from httpcore2 import NetworkStream
+from httpx2.websockets import AsyncWebSocketSession
+from httpx2.websockets import WebSocketSession
+from httpx2.websockets import _api
 from tests.httpx2.websockets.conftest import ServerFactoryFixture
 
 

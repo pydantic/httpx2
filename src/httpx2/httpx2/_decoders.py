@@ -33,9 +33,11 @@ except ImportError:  # pragma: no cover
 if typing.TYPE_CHECKING:
     # We keep checking Python version in the type checker path because try..except doesn't help type checkers.
     if sys.version_info >= (3, 14):
-        from compression.zstd import ZstdDecompressor, ZstdError
+        from compression.zstd import ZstdDecompressor
+        from compression.zstd import ZstdError
     else:
-        from zstandard import ZstdDecompressor as _ZstdDecompressor, ZstdError
+        from zstandard import ZstdDecompressor as _ZstdDecompressor
+        from zstandard import ZstdError
 
         ZstdDecompressor = functools.partial(_ZstdDecompressor().decompressobj)
 
@@ -43,13 +45,15 @@ if typing.TYPE_CHECKING:
 else:  # pragma: no cover
     _zstandard_installed = False
     try:
-        from compression.zstd import ZstdDecompressor, ZstdError
+        from compression.zstd import ZstdDecompressor
+        from compression.zstd import ZstdError
 
         _zstandard_installed = True
     # Either Python <3.14 or the distro doesn't have `compression.zstd`.
     except ImportError:
         try:
-            from zstandard import ZstdDecompressor as _ZstdDecompressor, ZstdError
+            from zstandard import ZstdDecompressor as _ZstdDecompressor
+            from zstandard import ZstdError
 
             ZstdDecompressor = functools.partial(_ZstdDecompressor().decompressobj)
             _zstandard_installed = True

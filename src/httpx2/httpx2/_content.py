@@ -2,24 +2,26 @@ from __future__ import annotations
 
 import inspect
 import warnings
-from collections.abc import AsyncIterable, AsyncIterator, Iterable, Iterator, Mapping
+from collections.abc import AsyncIterable
+from collections.abc import AsyncIterator
+from collections.abc import Iterable
+from collections.abc import Iterator
+from collections.abc import Mapping
 from json import dumps as json_dumps
-from typing import (
-    Any,
-)
+from typing import Any
 from urllib.parse import urlencode
 
-from ._exceptions import StreamClosed, StreamConsumed
+from ._exceptions import StreamClosed
+from ._exceptions import StreamConsumed
 from ._multipart import MultipartStream
-from ._types import (
-    AsyncByteStream,
-    RequestContent,
-    RequestData,
-    RequestFiles,
-    ResponseContent,
-    SyncByteStream,
-)
-from ._utils import peek_filelike_length, primitive_value_to_str
+from ._types import AsyncByteStream
+from ._types import RequestContent
+from ._types import RequestData
+from ._types import RequestFiles
+from ._types import ResponseContent
+from ._types import SyncByteStream
+from ._utils import peek_filelike_length
+from ._utils import primitive_value_to_str
 
 __all__ = ["ByteStream"]
 

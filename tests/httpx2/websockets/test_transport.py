@@ -8,25 +8,27 @@ from typing import Any
 import anyio
 import pytest
 import wsproto
-from anyio import CancelScope, ClosedResourceError, create_task_group
+from anyio import CancelScope
+from anyio import ClosedResourceError
+from anyio import create_task_group
 from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse
-from starlette.routing import Route, WebSocketRoute
+from starlette.routing import Route
+from starlette.routing import WebSocketRoute
 from starlette.websockets import WebSocket
 
 import httpx2 as httpx
 from httpx2.websockets._api import aconnect_ws
-from httpx2.websockets._exceptions import WebSocketDisconnect, WebSocketUpgradeError
-from httpx2.websockets._transport import (
-    ASGIWebSocketAsyncNetworkStream,
-    ASGIWebSocketTransport,
-    Receive,
-    Scope,
-    Send,
-    UnhandledASGIMessageType,
-    UnhandledWebSocketEvent,
-)
+from httpx2.websockets._exceptions import WebSocketDisconnect
+from httpx2.websockets._exceptions import WebSocketUpgradeError
+from httpx2.websockets._transport import ASGIWebSocketAsyncNetworkStream
+from httpx2.websockets._transport import ASGIWebSocketTransport
+from httpx2.websockets._transport import Receive
+from httpx2.websockets._transport import Scope
+from httpx2.websockets._transport import Send
+from httpx2.websockets._transport import UnhandledASGIMessageType
+from httpx2.websockets._transport import UnhandledWebSocketEvent
 
 if sys.version_info < (3, 11):
     from exceptiongroup import ExceptionGroup  # pragma: no cover

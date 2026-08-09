@@ -4,13 +4,11 @@ import ssl
 import typing
 
 from .._exceptions import ReadError
-from .base import (
-    SOCKET_OPTION,
-    AsyncNetworkBackend,
-    AsyncNetworkStream,
-    NetworkBackend,
-    NetworkStream,
-)
+from .base import SOCKET_OPTION
+from .base import AsyncNetworkBackend
+from .base import AsyncNetworkStream
+from .base import NetworkBackend
+from .base import NetworkStream
 
 
 class MockSSLObject:

@@ -1,4 +1,6 @@
-from .__version__ import __description__, __title__, __version__
+from .__version__ import __description__
+from .__version__ import __title__
+from .__version__ import __version__
 from ._alias import *
 from ._api import *
 from ._auth import *

@@ -5,17 +5,17 @@ import typing
 
 import trio
 
-from .._exceptions import (
-    ConnectError,
-    ConnectTimeout,
-    ExceptionMapping,
-    ReadError,
-    ReadTimeout,
-    WriteError,
-    WriteTimeout,
-    map_exceptions,
-)
-from .base import SOCKET_OPTION, AsyncNetworkBackend, AsyncNetworkStream
+from .._exceptions import ConnectError
+from .._exceptions import ConnectTimeout
+from .._exceptions import ExceptionMapping
+from .._exceptions import ReadError
+from .._exceptions import ReadTimeout
+from .._exceptions import WriteError
+from .._exceptions import WriteTimeout
+from .._exceptions import map_exceptions
+from .base import SOCKET_OPTION
+from .base import AsyncNetworkBackend
+from .base import AsyncNetworkStream
 
 
 class TrioStream(AsyncNetworkStream):

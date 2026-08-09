@@ -6,9 +6,16 @@ import ssl
 import socksio
 
 from .._backends.auto import AutoBackend
-from .._backends.base import AsyncNetworkBackend, AsyncNetworkStream
-from .._exceptions import ConnectionNotAvailable, ProxyError
-from .._models import URL, Origin, Request, Response, enforce_bytes, enforce_url
+from .._backends.base import AsyncNetworkBackend
+from .._backends.base import AsyncNetworkStream
+from .._exceptions import ConnectionNotAvailable
+from .._exceptions import ProxyError
+from .._models import URL
+from .._models import Origin
+from .._models import Request
+from .._models import Response
+from .._models import enforce_bytes
+from .._models import enforce_url
 from .._ssl import default_ssl_context
 from .._synchronization import AsyncLock
 from .._trace import Trace

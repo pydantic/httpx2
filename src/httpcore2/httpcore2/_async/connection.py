@@ -7,9 +7,14 @@ import types
 import typing
 
 from .._backends.auto import AutoBackend
-from .._backends.base import SOCKET_OPTION, AsyncNetworkBackend, AsyncNetworkStream
-from .._exceptions import ConnectError, ConnectTimeout
-from .._models import Origin, Request, Response
+from .._backends.base import SOCKET_OPTION
+from .._backends.base import AsyncNetworkBackend
+from .._backends.base import AsyncNetworkStream
+from .._exceptions import ConnectError
+from .._exceptions import ConnectTimeout
+from .._models import Origin
+from .._models import Request
+from .._models import Response
 from .._ssl import default_ssl_context
 from .._synchronization import AsyncLock
 from .._trace import Trace

@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import typing
 
-from .._models import Request, Response
-from .base import AsyncBaseTransport, BaseTransport
+from .._models import Request
+from .._models import Response
+from .base import AsyncBaseTransport
+from .base import BaseTransport
 
 SyncHandler = typing.Callable[[Request], Response]
 AsyncHandler = typing.Callable[[Request], typing.Coroutine[None, None, Response]]

@@ -7,19 +7,15 @@ import re
 import typing
 from pathlib import Path
 
-from ._types import (
-    AsyncByteStream,
-    FileContent,
-    FileTypes,
-    RequestData,
-    RequestFiles,
-    SyncByteStream,
-)
-from ._utils import (
-    peek_filelike_length,
-    primitive_value_to_str,
-    to_bytes,
-)
+from ._types import AsyncByteStream
+from ._types import FileContent
+from ._types import FileTypes
+from ._types import RequestData
+from ._types import RequestFiles
+from ._types import SyncByteStream
+from ._utils import peek_filelike_length
+from ._utils import primitive_value_to_str
+from ._utils import to_bytes
 
 _HTML5_FORM_ENCODING_REPLACEMENTS = {'"': "%22", "\\": "\\\\"}
 _HTML5_FORM_ENCODING_REPLACEMENTS.update({chr(c): f"%{c:02X}" for c in range(0x1F + 1) if c != 0x1B})

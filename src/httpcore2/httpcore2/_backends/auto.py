@@ -3,7 +3,9 @@ from __future__ import annotations
 import typing
 
 from .._synchronization import current_async_library
-from .base import SOCKET_OPTION, AsyncNetworkBackend, AsyncNetworkStream
+from .base import SOCKET_OPTION
+from .base import AsyncNetworkBackend
+from .base import AsyncNetworkStream
 
 
 class AutoBackend(AsyncNetworkBackend):

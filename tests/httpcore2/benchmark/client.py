@@ -2,7 +2,10 @@ import asyncio
 import os
 import sys
 import time
-from collections.abc import Callable, Coroutine, Generator, Iterator
+from collections.abc import Callable
+from collections.abc import Coroutine
+from collections.abc import Generator
+from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from typing import Any

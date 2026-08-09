@@ -5,7 +5,8 @@ import itertools
 import sys
 import typing
 
-from .._models import Request, Response
+from .._models import Request
+from .._models import Response
 from .._types import SyncByteStream
 from .base import BaseTransport
 

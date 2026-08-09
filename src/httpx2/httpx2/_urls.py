@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import sys
 import typing
-from urllib.parse import parse_qs, unquote, urlencode
+from urllib.parse import parse_qs
+from urllib.parse import unquote
+from urllib.parse import urlencode
 
 import idna
 

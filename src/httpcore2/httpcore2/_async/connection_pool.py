@@ -7,13 +7,21 @@ import typing
 from collections.abc import AsyncGenerator
 
 from .._backends.auto import AutoBackend
-from .._backends.base import SOCKET_OPTION, AsyncNetworkBackend
-from .._exceptions import ConnectionNotAvailable, UnsupportedProtocol
-from .._models import Origin, Proxy, Request, Response
-from .._synchronization import AsyncEvent, AsyncShieldCancellation, AsyncThreadLock
+from .._backends.base import SOCKET_OPTION
+from .._backends.base import AsyncNetworkBackend
+from .._exceptions import ConnectionNotAvailable
+from .._exceptions import UnsupportedProtocol
+from .._models import Origin
+from .._models import Proxy
+from .._models import Request
+from .._models import Response
+from .._synchronization import AsyncEvent
+from .._synchronization import AsyncShieldCancellation
+from .._synchronization import AsyncThreadLock
 from .._utils import safe_async_iterate
 from .connection import AsyncHTTPConnection
-from .interfaces import AsyncConnectionInterface, AsyncRequestInterface
+from .interfaces import AsyncConnectionInterface
+from .interfaces import AsyncRequestInterface
 
 
 class AsyncPoolRequest:

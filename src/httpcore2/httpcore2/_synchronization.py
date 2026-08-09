@@ -3,7 +3,9 @@ from __future__ import annotations
 import threading
 import types
 
-from ._exceptions import ExceptionMapping, PoolTimeout, map_exceptions
+from ._exceptions import ExceptionMapping
+from ._exceptions import PoolTimeout
+from ._exceptions import map_exceptions
 
 # Our async synchronization primitives use either 'anyio' or 'trio' depending
 # on if they're running under asyncio or trio.

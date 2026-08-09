@@ -19,40 +19,39 @@ else:
 import anyio
 import wsproto
 import wsproto.utilities
-from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
+from anyio.streams.memory import MemoryObjectReceiveStream
+from anyio.streams.memory import MemoryObjectSendStream
 from wsproto.frame_protocol import CloseReason
 
 from .._client import USE_CLIENT_DEFAULT
-from .._config import (
-    DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS,
-    DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
-    DEFAULT_MAX_MESSAGE_SIZE_BYTES,
-    DEFAULT_QUEUE_SIZE,
-)
+from .._config import DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS
+from .._config import DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS
+from .._config import DEFAULT_MAX_MESSAGE_SIZE_BYTES
+from .._config import DEFAULT_QUEUE_SIZE
 from .._models import Headers
-from ._exceptions import (
-    HTTPXWSException,
-    WebSocketDisconnect,
-    WebSocketInvalidTypeReceived,
-    WebSocketNetworkError,
-    WebSocketUpgradeError,
-)
-from ._ping import AsyncPingManager, PingManager
+from ._exceptions import HTTPXWSException
+from ._exceptions import WebSocketDisconnect
+from ._exceptions import WebSocketInvalidTypeReceived
+from ._exceptions import WebSocketNetworkError
+from ._exceptions import WebSocketUpgradeError
+from ._ping import AsyncPingManager
+from ._ping import PingManager
 from ._transport import ASGIWebSocketAsyncNetworkStream
 
 if typing.TYPE_CHECKING:
-    from httpcore2 import AsyncNetworkStream, NetworkStream
+    from httpcore2 import AsyncNetworkStream
+    from httpcore2 import NetworkStream
 
-    from .._client import AsyncClient, Client, UseClientDefault
+    from .._client import AsyncClient
+    from .._client import Client
+    from .._client import UseClientDefault
     from .._models import Response
-    from .._types import (
-        AuthTypes,
-        CookieTypes,
-        HeaderTypes,
-        QueryParamTypes,
-        RequestExtensions,
-        TimeoutTypes,
-    )
+    from .._types import AuthTypes
+    from .._types import CookieTypes
+    from .._types import HeaderTypes
+    from .._types import QueryParamTypes
+    from .._types import RequestExtensions
+    from .._types import TimeoutTypes
 
 JSONMode = typing.Literal["text", "binary"]
 TaskFunction = typing.TypeVar("TaskFunction")

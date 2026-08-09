@@ -9,7 +9,8 @@ import typing
 import pytest
 
 import httpx2
-from httpx2._utils import URLPattern, get_environment_proxies
+from httpx2._utils import URLPattern
+from httpx2._utils import get_environment_proxies
 
 if typing.TYPE_CHECKING:
     from conftest import TestServer

@@ -38,7 +38,8 @@ import typing
 from collections.abc import Generator
 
 if typing.TYPE_CHECKING:
-    from ._models import Request, Response  # pragma: no cover
+    from ._models import Request  # pragma: no cover
+    from ._models import Response  # pragma: no cover
 
 __all__ = [
     "CloseError",

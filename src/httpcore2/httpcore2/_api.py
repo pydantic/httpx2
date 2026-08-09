@@ -4,7 +4,10 @@ import contextlib
 import typing
 from collections.abc import Generator
 
-from ._models import URL, Extensions, HeaderTypes, Response
+from ._models import URL
+from ._models import Extensions
+from ._models import HeaderTypes
+from ._models import Response
 from ._sync.connection_pool import ConnectionPool
 
 

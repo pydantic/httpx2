@@ -4,7 +4,9 @@ import os
 import typing
 
 from ._models import Headers
-from ._types import CertTypes, HeaderTypes, TimeoutTypes
+from ._types import CertTypes
+from ._types import HeaderTypes
+from ._types import TimeoutTypes
 from ._urls import URL
 
 if typing.TYPE_CHECKING:

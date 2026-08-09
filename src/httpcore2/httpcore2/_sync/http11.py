@@ -11,15 +11,16 @@ from collections.abc import Generator
 import h11
 
 from .._backends.base import NetworkStream
-from .._exceptions import (
-    ConnectionNotAvailable,
-    LocalProtocolError,
-    RemoteProtocolError,
-    WriteError,
-    map_exceptions,
-)
-from .._models import Origin, Request, Response
-from .._synchronization import Lock, ShieldCancellation
+from .._exceptions import ConnectionNotAvailable
+from .._exceptions import LocalProtocolError
+from .._exceptions import RemoteProtocolError
+from .._exceptions import WriteError
+from .._exceptions import map_exceptions
+from .._models import Origin
+from .._models import Request
+from .._models import Response
+from .._synchronization import Lock
+from .._synchronization import ShieldCancellation
 from .._trace import Trace
 from .._utils import safe_iterate
 from .interfaces import ConnectionInterface

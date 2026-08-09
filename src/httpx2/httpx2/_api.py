@@ -5,25 +5,21 @@ from collections.abc import Generator
 from contextlib import contextmanager
 
 from ._client import Client
-from ._config import (
-    DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS,
-    DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
-    DEFAULT_MAX_MESSAGE_SIZE_BYTES,
-    DEFAULT_QUEUE_SIZE,
-    DEFAULT_TIMEOUT_CONFIG,
-)
+from ._config import DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS
+from ._config import DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS
+from ._config import DEFAULT_MAX_MESSAGE_SIZE_BYTES
+from ._config import DEFAULT_QUEUE_SIZE
+from ._config import DEFAULT_TIMEOUT_CONFIG
 from ._models import Response
-from ._types import (
-    AuthTypes,
-    CookieTypes,
-    HeaderTypes,
-    ProxyTypes,
-    QueryParamTypes,
-    RequestContent,
-    RequestData,
-    RequestFiles,
-    TimeoutTypes,
-)
+from ._types import AuthTypes
+from ._types import CookieTypes
+from ._types import HeaderTypes
+from ._types import ProxyTypes
+from ._types import QueryParamTypes
+from ._types import RequestContent
+from ._types import RequestData
+from ._types import RequestFiles
+from ._types import TimeoutTypes
 from ._urls import URL
 
 if typing.TYPE_CHECKING:

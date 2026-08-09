@@ -2,15 +2,28 @@
 Type definitions for type checking purposes.
 """
 
-from collections.abc import AsyncIterable, AsyncIterator, Callable, Iterable, Iterator, Mapping, Sequence
+from collections.abc import AsyncIterable
+from collections.abc import AsyncIterator
+from collections.abc import Callable
+from collections.abc import Iterable
+from collections.abc import Iterator
+from collections.abc import Mapping
+from collections.abc import Sequence
 from http.cookiejar import CookieJar
-from typing import IO, TYPE_CHECKING, Any, Union
+from typing import IO
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import Union
 
 if TYPE_CHECKING:
     from ._auth import Auth  # noqa: F401
-    from ._config import Proxy, Timeout  # noqa: F401
-    from ._models import Cookies, Headers, Request  # noqa: F401
-    from ._urls import URL, QueryParams  # noqa: F401
+    from ._config import Proxy  # noqa: F401
+    from ._config import Timeout  # noqa: F401
+    from ._models import Cookies  # noqa: F401
+    from ._models import Headers  # noqa: F401
+    from ._models import Request  # noqa: F401
+    from ._urls import URL  # noqa: F401
+    from ._urls import QueryParams  # noqa: F401
 
 
 PrimitiveData = str | int | float | bool | None

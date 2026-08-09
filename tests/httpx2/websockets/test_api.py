@@ -5,32 +5,32 @@ import queue
 import threading
 import time
 import typing
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock
+from unittest.mock import call
+from unittest.mock import patch
 
 import anyio
 import pytest
 import wsproto
-from starlette.websockets import WebSocket, WebSocketDisconnect as StarletteWebSocketDisconnect
+from starlette.websockets import WebSocket
+from starlette.websockets import WebSocketDisconnect as StarletteWebSocketDisconnect
 
 import httpcore2 as httpcore
 import httpx2 as httpx
-from httpcore2 import AsyncNetworkStream, NetworkStream
+from httpcore2 import AsyncNetworkStream
+from httpcore2 import NetworkStream
 from httpx2.websockets import _api
-from httpx2.websockets._api import (
-    AsyncWebSocketClient,
-    AsyncWebSocketSession,
-    JSONMode,
-    WebSocketClient,
-    WebSocketSession,
-    aconnect_ws,
-    connect_ws,
-)
-from httpx2.websockets._exceptions import (
-    WebSocketDisconnect,
-    WebSocketInvalidTypeReceived,
-    WebSocketNetworkError,
-    WebSocketUpgradeError,
-)
+from httpx2.websockets._api import AsyncWebSocketClient
+from httpx2.websockets._api import AsyncWebSocketSession
+from httpx2.websockets._api import JSONMode
+from httpx2.websockets._api import WebSocketClient
+from httpx2.websockets._api import WebSocketSession
+from httpx2.websockets._api import aconnect_ws
+from httpx2.websockets._api import connect_ws
+from httpx2.websockets._exceptions import WebSocketDisconnect
+from httpx2.websockets._exceptions import WebSocketInvalidTypeReceived
+from httpx2.websockets._exceptions import WebSocketNetworkError
+from httpx2.websockets._exceptions import WebSocketUpgradeError
 from tests.httpx2.websockets.conftest import ServerFactoryFixture
 
 

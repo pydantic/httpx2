@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import typing
 
-from .._models import Request, Response
+from .._models import Request
+from .._models import Response
 from .._types import AsyncByteStream
 from .base import AsyncBaseTransport
 

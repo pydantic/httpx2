@@ -11,15 +11,16 @@ from collections.abc import AsyncGenerator
 import h11
 
 from .._backends.base import AsyncNetworkStream
-from .._exceptions import (
-    ConnectionNotAvailable,
-    LocalProtocolError,
-    RemoteProtocolError,
-    WriteError,
-    map_exceptions,
-)
-from .._models import Origin, Request, Response
-from .._synchronization import AsyncLock, AsyncShieldCancellation
+from .._exceptions import ConnectionNotAvailable
+from .._exceptions import LocalProtocolError
+from .._exceptions import RemoteProtocolError
+from .._exceptions import WriteError
+from .._exceptions import map_exceptions
+from .._models import Origin
+from .._models import Request
+from .._models import Response
+from .._synchronization import AsyncLock
+from .._synchronization import AsyncShieldCancellation
 from .._trace import Trace
 from .._utils import safe_async_iterate
 from .interfaces import AsyncConnectionInterface

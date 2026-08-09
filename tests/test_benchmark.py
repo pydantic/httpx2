@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import gzip
 import json
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
+from typing import Any
 
 import pytest
 
 import httpx2
-from httpx2._decoders import GZipDecoder, LineDecoder
+from httpx2._decoders import GZipDecoder
+from httpx2._decoders import LineDecoder
 
 if TYPE_CHECKING:
     from pytest_codspeed import BenchmarkFixture

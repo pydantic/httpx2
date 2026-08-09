@@ -4,15 +4,14 @@ import select
 import socket
 import sys
 import typing
-from collections.abc import (
-    AsyncGenerator,
-    AsyncIterable,
-    AsyncIterator,
-    Generator,
-    Iterable,
-    Iterator,
-)
-from contextlib import asynccontextmanager, contextmanager
+from collections.abc import AsyncGenerator
+from collections.abc import AsyncIterable
+from collections.abc import AsyncIterator
+from collections.abc import Generator
+from collections.abc import Iterable
+from collections.abc import Iterator
+from contextlib import asynccontextmanager
+from contextlib import contextmanager
 from inspect import isasyncgen
 
 T = typing.TypeVar("T")

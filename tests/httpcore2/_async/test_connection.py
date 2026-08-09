@@ -5,18 +5,16 @@ import hpack
 import hyperframe.frame
 import pytest
 
-from httpcore2 import (
-    SOCKET_OPTION,
-    AsyncHTTPConnection,
-    AsyncMockBackend,
-    AsyncMockStream,
-    AsyncNetworkStream,
-    ConnectError,
-    ConnectionNotAvailable,
-    Origin,
-    RemoteProtocolError,
-    WriteError,
-)
+from httpcore2 import SOCKET_OPTION
+from httpcore2 import AsyncHTTPConnection
+from httpcore2 import AsyncMockBackend
+from httpcore2 import AsyncMockStream
+from httpcore2 import AsyncNetworkStream
+from httpcore2 import ConnectError
+from httpcore2 import ConnectionNotAvailable
+from httpcore2 import Origin
+from httpcore2 import RemoteProtocolError
+from httpcore2 import WriteError
 
 
 @pytest.mark.anyio

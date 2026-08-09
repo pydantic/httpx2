@@ -1,4 +1,5 @@
-from http.cookiejar import Cookie, CookieJar
+from http.cookiejar import Cookie
+from http.cookiejar import CookieJar
 
 import pytest
 

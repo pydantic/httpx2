@@ -14,9 +14,15 @@ import h2.exceptions
 import h2.settings
 
 from .._backends.base import NetworkStream
-from .._exceptions import ConnectionNotAvailable, LocalProtocolError, RemoteProtocolError
-from .._models import Origin, Request, Response
-from .._synchronization import Lock, Semaphore, ShieldCancellation
+from .._exceptions import ConnectionNotAvailable
+from .._exceptions import LocalProtocolError
+from .._exceptions import RemoteProtocolError
+from .._models import Origin
+from .._models import Request
+from .._models import Response
+from .._synchronization import Lock
+from .._synchronization import Semaphore
+from .._synchronization import ShieldCancellation
 from .._trace import Trace
 from .._utils import safe_iterate
 from .interfaces import ConnectionInterface

@@ -6,59 +6,65 @@ import logging
 import time
 import typing
 import warnings
-from collections.abc import AsyncGenerator, Generator
-from contextlib import asynccontextmanager, contextmanager
+from collections.abc import AsyncGenerator
+from collections.abc import Generator
+from contextlib import asynccontextmanager
+from contextlib import contextmanager
 from types import TracebackType
 
 from .__version__ import __version__
-from ._auth import Auth, BasicAuth, FunctionAuth
-from ._config import (
-    DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS,
-    DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
-    DEFAULT_LIMITS,
-    DEFAULT_MAX_EVENT_SIZE_BYTES,
-    DEFAULT_MAX_MESSAGE_SIZE_BYTES,
-    DEFAULT_MAX_REDIRECTS,
-    DEFAULT_QUEUE_SIZE,
-    DEFAULT_TIMEOUT_CONFIG,
-    Limits,
-    Proxy,
-    Timeout,
-)
+from ._auth import Auth
+from ._auth import BasicAuth
+from ._auth import FunctionAuth
+from ._config import DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS
+from ._config import DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS
+from ._config import DEFAULT_LIMITS
+from ._config import DEFAULT_MAX_EVENT_SIZE_BYTES
+from ._config import DEFAULT_MAX_MESSAGE_SIZE_BYTES
+from ._config import DEFAULT_MAX_REDIRECTS
+from ._config import DEFAULT_QUEUE_SIZE
+from ._config import DEFAULT_TIMEOUT_CONFIG
+from ._config import Limits
+from ._config import Proxy
+from ._config import Timeout
 from ._decoders import SUPPORTED_DECODERS
-from ._exceptions import (
-    InvalidURL,
-    RemoteProtocolError,
-    TooManyRedirects,
-    request_context,
-)
-from ._models import Cookies, Headers, Request, Response
+from ._exceptions import InvalidURL
+from ._exceptions import RemoteProtocolError
+from ._exceptions import TooManyRedirects
+from ._exceptions import request_context
+from ._models import Cookies
+from ._models import Headers
+from ._models import Request
+from ._models import Response
 from ._sse import EventSource
 from ._status_codes import codes
-from ._transports import AsyncHTTPTransport, HTTPTransport
-from ._transports.base import AsyncBaseTransport, BaseTransport
-from ._types import (
-    AsyncByteStream,
-    AuthTypes,
-    CertTypes,
-    CookieTypes,
-    HeaderTypes,
-    ProxyTypes,
-    QueryParamTypes,
-    RequestContent,
-    RequestData,
-    RequestExtensions,
-    RequestFiles,
-    SyncByteStream,
-    TimeoutTypes,
-)
-from ._urls import URL, QueryParams
-from ._utils import URLPattern, get_environment_proxies
+from ._transports import AsyncHTTPTransport
+from ._transports import HTTPTransport
+from ._transports.base import AsyncBaseTransport
+from ._transports.base import BaseTransport
+from ._types import AsyncByteStream
+from ._types import AuthTypes
+from ._types import CertTypes
+from ._types import CookieTypes
+from ._types import HeaderTypes
+from ._types import ProxyTypes
+from ._types import QueryParamTypes
+from ._types import RequestContent
+from ._types import RequestData
+from ._types import RequestExtensions
+from ._types import RequestFiles
+from ._types import SyncByteStream
+from ._types import TimeoutTypes
+from ._urls import URL
+from ._urls import QueryParams
+from ._utils import URLPattern
+from ._utils import get_environment_proxies
 
 if typing.TYPE_CHECKING:
     import ssl  # pragma: no cover
 
-    from .websockets._api import AsyncWebSocketSession, WebSocketSession
+    from .websockets._api import AsyncWebSocketSession
+    from .websockets._api import WebSocketSession
 
 __all__ = ["USE_CLIENT_DEFAULT", "AsyncClient", "Client"]
 

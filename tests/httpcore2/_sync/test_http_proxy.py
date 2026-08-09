@@ -5,16 +5,14 @@ import hpack
 import hyperframe.frame
 import pytest
 
-from httpcore2 import (
-    SOCKET_OPTION,
-    ConnectionPool,
-    MockBackend,
-    MockStream,
-    NetworkStream,
-    Origin,
-    Proxy,
-    ProxyError,
-)
+from httpcore2 import SOCKET_OPTION
+from httpcore2 import ConnectionPool
+from httpcore2 import MockBackend
+from httpcore2 import MockStream
+from httpcore2 import NetworkStream
+from httpcore2 import Origin
+from httpcore2 import Proxy
+from httpcore2 import ProxyError
 
 
 

@@ -5,18 +5,16 @@ import hpack
 import hyperframe.frame
 import pytest
 
-from httpcore2 import (
-    SOCKET_OPTION,
-    HTTPConnection,
-    MockBackend,
-    MockStream,
-    NetworkStream,
-    ConnectError,
-    ConnectionNotAvailable,
-    Origin,
-    RemoteProtocolError,
-    WriteError,
-)
+from httpcore2 import SOCKET_OPTION
+from httpcore2 import HTTPConnection
+from httpcore2 import MockBackend
+from httpcore2 import MockStream
+from httpcore2 import NetworkStream
+from httpcore2 import ConnectError
+from httpcore2 import ConnectionNotAvailable
+from httpcore2 import Origin
+from httpcore2 import RemoteProtocolError
+from httpcore2 import WriteError
 
 
 

@@ -6,18 +6,18 @@ import ssl
 import sys
 import typing
 
-from .._exceptions import (
-    ConnectError,
-    ConnectTimeout,
-    ExceptionMapping,
-    ReadError,
-    ReadTimeout,
-    WriteError,
-    WriteTimeout,
-    map_exceptions,
-)
+from .._exceptions import ConnectError
+from .._exceptions import ConnectTimeout
+from .._exceptions import ExceptionMapping
+from .._exceptions import ReadError
+from .._exceptions import ReadTimeout
+from .._exceptions import WriteError
+from .._exceptions import WriteTimeout
+from .._exceptions import map_exceptions
 from .._utils import is_socket_readable
-from .base import SOCKET_OPTION, NetworkBackend, NetworkStream
+from .base import SOCKET_OPTION
+from .base import NetworkBackend
+from .base import NetworkStream
 
 
 class TLSinTLSStream(NetworkStream):  # pragma: no cover

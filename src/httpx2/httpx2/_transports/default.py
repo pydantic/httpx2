@@ -36,27 +36,33 @@ if typing.TYPE_CHECKING:  # pragma: no cover
 
     import httpx2
 
-from .._config import DEFAULT_LIMITS, Limits, Proxy, create_ssl_context
-from .._exceptions import (
-    ConnectError,
-    ConnectTimeout,
-    LocalProtocolError,
-    NetworkError,
-    PoolTimeout,
-    ProtocolError,
-    ProxyError,
-    ReadError,
-    ReadTimeout,
-    RemoteProtocolError,
-    TimeoutException,
-    UnsupportedProtocol,
-    WriteError,
-    WriteTimeout,
-)
-from .._models import Request, Response
-from .._types import AsyncByteStream, CertTypes, ProxyTypes, SyncByteStream
+from .._config import DEFAULT_LIMITS
+from .._config import Limits
+from .._config import Proxy
+from .._config import create_ssl_context
+from .._exceptions import ConnectError
+from .._exceptions import ConnectTimeout
+from .._exceptions import LocalProtocolError
+from .._exceptions import NetworkError
+from .._exceptions import PoolTimeout
+from .._exceptions import ProtocolError
+from .._exceptions import ProxyError
+from .._exceptions import ReadError
+from .._exceptions import ReadTimeout
+from .._exceptions import RemoteProtocolError
+from .._exceptions import TimeoutException
+from .._exceptions import UnsupportedProtocol
+from .._exceptions import WriteError
+from .._exceptions import WriteTimeout
+from .._models import Request
+from .._models import Response
+from .._types import AsyncByteStream
+from .._types import CertTypes
+from .._types import ProxyTypes
+from .._types import SyncByteStream
 from .._urls import URL
-from .base import AsyncBaseTransport, BaseTransport
+from .base import AsyncBaseTransport
+from .base import BaseTransport
 
 T = typing.TypeVar("T", bound="HTTPTransport")
 A = typing.TypeVar("A", bound="AsyncHTTPTransport")

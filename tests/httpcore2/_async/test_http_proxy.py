@@ -5,16 +5,14 @@ import hpack
 import hyperframe.frame
 import pytest
 
-from httpcore2 import (
-    SOCKET_OPTION,
-    AsyncConnectionPool,
-    AsyncMockBackend,
-    AsyncMockStream,
-    AsyncNetworkStream,
-    Origin,
-    Proxy,
-    ProxyError,
-)
+from httpcore2 import SOCKET_OPTION
+from httpcore2 import AsyncConnectionPool
+from httpcore2 import AsyncMockBackend
+from httpcore2 import AsyncMockStream
+from httpcore2 import AsyncNetworkStream
+from httpcore2 import Origin
+from httpcore2 import Proxy
+from httpcore2 import ProxyError
 
 
 @pytest.mark.anyio

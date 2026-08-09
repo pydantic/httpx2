@@ -7,13 +7,21 @@ import typing
 from collections.abc import Generator
 
 from .._backends.sync import SyncBackend
-from .._backends.base import SOCKET_OPTION, NetworkBackend
-from .._exceptions import ConnectionNotAvailable, UnsupportedProtocol
-from .._models import Origin, Proxy, Request, Response
-from .._synchronization import Event, ShieldCancellation, ThreadLock
+from .._backends.base import SOCKET_OPTION
+from .._backends.base import NetworkBackend
+from .._exceptions import ConnectionNotAvailable
+from .._exceptions import UnsupportedProtocol
+from .._models import Origin
+from .._models import Proxy
+from .._models import Request
+from .._models import Response
+from .._synchronization import Event
+from .._synchronization import ShieldCancellation
+from .._synchronization import ThreadLock
 from .._utils import safe_iterate
 from .connection import HTTPConnection
-from .interfaces import ConnectionInterface, RequestInterface
+from .interfaces import ConnectionInterface
+from .interfaces import RequestInterface
 
 
 class PoolRequest:

@@ -3,7 +3,8 @@ from __future__ import annotations
 import typing
 from types import TracebackType
 
-from .._models import Request, Response
+from .._models import Request
+from .._models import Response
 
 # TODO(Marcelo): When Python 3.10 reaches EOF, we can use `typing.Self` instead of defining those two.
 T = typing.TypeVar("T", bound="BaseTransport")

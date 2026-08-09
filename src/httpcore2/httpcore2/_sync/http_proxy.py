@@ -5,17 +5,16 @@ import logging
 import ssl
 import typing
 
-from .._backends.base import SOCKET_OPTION, NetworkBackend
+from .._backends.base import SOCKET_OPTION
+from .._backends.base import NetworkBackend
 from .._exceptions import ProxyError
-from .._models import (
-    URL,
-    Origin,
-    Request,
-    Response,
-    enforce_bytes,
-    enforce_headers,
-    enforce_url,
-)
+from .._models import URL
+from .._models import Origin
+from .._models import Request
+from .._models import Response
+from .._models import enforce_bytes
+from .._models import enforce_headers
+from .._models import enforce_url
 from .._ssl import default_ssl_context
 from .._synchronization import Lock
 from .._trace import Trace
