@@ -124,17 +124,16 @@ def test_zstd() -> None:
 
 
 def test_zstd_decoder_yields_bounded_chunks() -> None:
-    if sys.version_info < (3, 14):  # pragma: no cover
-        pytest.skip("zstd bounded decoding requires the stdlib `compression.zstd` backend (Python 3.14+)")
-
-    from httpx2._decoders import MAX_DECODE_CHUNK_SIZE, ZStandardDecoder
+    from httpx2._decoders import MAX_DECODE_CHUNK_SIZE, ZStandardDecoder, _zstd_stdlib_backend
 
     body = b"\x00" * (MAX_DECODE_CHUNK_SIZE * 4)
     chunks = list(ZStandardDecoder().decode(zstd.compress(body)))
 
-    assert len(chunks) > 1
-    assert max(len(chunk) for chunk in chunks) <= MAX_DECODE_CHUNK_SIZE
     assert b"".join(chunks) == body
+    if _zstd_stdlib_backend:  # pragma: no cover
+        # Only the stdlib `compression.zstd` backend bounds a single decompress call.
+        assert len(chunks) > 1
+        assert max(len(chunk) for chunk in chunks) <= MAX_DECODE_CHUNK_SIZE
 
 
 def test_zstd_decoding_error() -> None:
