@@ -149,9 +149,16 @@ class WebSocketSession:
         tb: TracebackType | None,
     ) -> None:
         self.close()
-        self._background_receive_task.join()
+        self._join_discarding_events(self._background_receive_task)
         if self._background_keepalive_ping_task is not None:
-            self._background_keepalive_ping_task.join()
+            self._join_discarding_events(self._background_keepalive_ping_task)
+
+    def _join_discarding_events(self, task: threading.Thread) -> None:
+        # A task blocked on a full events queue can only exit once room is made.
+        while task.is_alive():
+            with contextlib.suppress(queue.Empty):
+                self._events.get_nowait()
+            task.join(timeout=0.01)
 
     def ping(self, payload: bytes = b"") -> threading.Event:
         """
@@ -487,15 +494,6 @@ class WebSocketSession:
                 pass
         self.stream.close()
 
-    def _put_event(self, event: wsproto.events.Event | HTTPXWSException) -> None:
-        while True:
-            try:
-                self._events.put(event, timeout=0.1)
-                return
-            except queue.Full:
-                if self._should_close.is_set():
-                    raise ShouldClose() from None
-
     def _background_receive(self, max_bytes: int) -> None:
         """
         Background thread listening for data from the server.
@@ -533,7 +531,7 @@ class WebSocketSession:
                         partial_message_size += len(event.data.encode() if isinstance(event.data, str) else event.data)
                         if partial_message_size > max_bytes:
                             self.close(CloseReason.MESSAGE_TOO_BIG, "Message too big")
-                            self._put_event(WebSocketDisconnect(CloseReason.MESSAGE_TOO_BIG, "Message too big"))
+                            self._events.put(WebSocketDisconnect(CloseReason.MESSAGE_TOO_BIG, "Message too big"))
                             break
                         # Unfinished message: bufferize
                         if not event.message_finished:
@@ -544,20 +542,19 @@ class WebSocketSession:
                         # Finished message but no buffer: just emit the event
                         elif partial_message_buffer is None:
                             partial_message_size = 0
-                            self._put_event(event)
+                            self._events.put(event)
                         # Finished message with buffer: emit the full event
                         else:
                             event_type = type(event)
                             full_message_event = event_type(partial_message_buffer + event.data)
                             partial_message_buffer = None
                             partial_message_size = 0
-                            self._put_event(full_message_event)
+                            self._events.put(full_message_event)
                         continue
-                    self._put_event(event)
+                    self._events.put(event)
         except (httpcore2.ReadError, httpcore2.WriteError, EndOfStream):
             self.close(CloseReason.INTERNAL_ERROR, "Stream error")
-            with contextlib.suppress(ShouldClose):
-                self._put_event(WebSocketNetworkError())
+            self._events.put(WebSocketNetworkError())
         except ShouldClose:
             pass
 
@@ -572,7 +569,7 @@ class WebSocketSession:
                     acknowledged = self._wait_until_closed(pong_callback.wait, timeout_seconds)
                     if not acknowledged:
                         self.close(CloseReason.INTERNAL_ERROR, "Keepalive ping timeout")
-                        self._put_event(WebSocketNetworkError())
+                        self._events.put(WebSocketNetworkError())
         except ShouldClose:
             pass
 
