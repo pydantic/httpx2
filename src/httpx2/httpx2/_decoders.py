@@ -107,8 +107,7 @@ class IdentityDecoder(ContentDecoder):
     """
 
     def decode(self, data: bytes) -> typing.Iterator[bytes]:
-        if data:
-            yield data
+        yield data
 
     def flush(self) -> typing.Iterator[bytes]:
         yield from ()
