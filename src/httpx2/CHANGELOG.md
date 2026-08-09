@@ -4,13 +4,27 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## Unreleased
+## 2.10.0 (August 9th, 2026)
 
 ### Added
 
 * Add support for running on WebAssembly / Emscripten via Pyodide, using a JavaScript
   `fetch`-based transport defined in `httpx2-jsfetch`.
-  ([1119](https://github.com/pydantic/httpx2/pull/1119))
+  ([#1119](https://github.com/pydantic/httpx2/pull/1119))
+* Add `max_event_size` to cap SSE event buffering. ([#1071](https://github.com/pydantic/httpx2/pull/1071))
+* Add RFC 9110 status code constants. ([#1069](https://github.com/pydantic/httpx2/pull/1069))
+* Add support for Python 3.15. ([#1090](https://github.com/pydantic/httpx2/pull/1090))
+
+### Changed
+
+* Improve SSE chunk buffering performance. ([#1117](https://github.com/pydantic/httpx2/pull/1117))
+* Skip cookie extraction for responses without `Set-Cookie` headers. ([#1107](https://github.com/pydantic/httpx2/pull/1107))
+* Return `str | None` instead of `Any` from `Headers.get`. ([#1121](https://github.com/pydantic/httpx2/pull/1121))
+
+### Fixed
+
+* Enforce the WebSocket max message size across fragmented messages. ([#1085](https://github.com/pydantic/httpx2/pull/1085))
+* Ignore unsolicited and duplicate WebSocket Pong frames. ([#1122](https://github.com/pydantic/httpx2/pull/1122))
 
 ## 2.9.1 (July 24th, 2026)
 
