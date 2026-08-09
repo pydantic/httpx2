@@ -67,6 +67,36 @@ def test_gzip() -> None:
     assert response.content == body
 
 
+@pytest.mark.parametrize("wbits", (zlib.MAX_WBITS | 16, zlib.MAX_WBITS))
+def test_zlib_decoder_yields_bounded_chunks(wbits: int) -> None:
+    from httpx2._decoders import MAX_DECODE_CHUNK_SIZE, DeflateDecoder, GZipDecoder
+
+    body = b"\x00" * (MAX_DECODE_CHUNK_SIZE * 4)
+    compressor = zlib.compressobj(9, zlib.DEFLATED, wbits)
+    compressed = compressor.compress(body) + compressor.flush()
+
+    decoder: GZipDecoder | DeflateDecoder = GZipDecoder() if wbits & 16 else DeflateDecoder()
+    chunks = list(decoder.decode(compressed))
+
+    assert len(chunks) >= 4
+    assert all(len(chunk) <= MAX_DECODE_CHUNK_SIZE for chunk in chunks)
+    assert b"".join(chunks) + b"".join(decoder.flush()) == body
+
+
+def test_brotli_decoder_yields_bounded_chunks() -> None:
+    import brotli
+
+    from httpx2._decoders import BrotliDecoder
+
+    body = b"\x00" * (4 * 1024 * 1024)
+    chunks = list(BrotliDecoder().decode(brotli.compress(body)))
+
+    assert len(chunks) > 1
+    # `output_buffer_limit` is a soft cap that overshoots, but stays far below the full size.
+    assert max(len(chunk) for chunk in chunks) < len(body) // 4
+    assert b"".join(chunks) == body
+
+
 def test_brotli() -> None:
     body = b"test 123"
     compressed_body = b"\x8b\x03\x80test 123\x03"
@@ -91,6 +121,20 @@ def test_zstd() -> None:
         content=compressed_body,
     )
     assert response.content == body
+
+
+def test_zstd_decoder_yields_bounded_chunks() -> None:
+    if sys.version_info < (3, 14):  # pragma: no cover
+        pytest.skip("zstd bounded decoding requires the stdlib `compression.zstd` backend (Python 3.14+)")
+
+    from httpx2._decoders import MAX_DECODE_CHUNK_SIZE, ZStandardDecoder
+
+    body = b"\x00" * (MAX_DECODE_CHUNK_SIZE * 4)
+    chunks = list(ZStandardDecoder().decode(zstd.compress(body)))
+
+    assert len(chunks) > 1
+    assert max(len(chunk) for chunk in chunks) <= MAX_DECODE_CHUNK_SIZE
+    assert b"".join(chunks) == body
 
 
 def test_zstd_decoding_error() -> None:
@@ -222,6 +266,30 @@ def test_multi_brotli_zstd() -> None:
     compressed_body = zstd.compress(b"\x8b\x03\x80test 123\x03")
 
     headers = [(b"Content-Encoding", b"br, zstd")]
+    response = httpx2.Response(200, headers=headers, content=compressed_body)
+    assert response.content == body
+
+
+def test_multi_zstd_gzip() -> None:
+    # A gzip layer ahead of zstd means gzip's end-of-stream flush feeds b"" into
+    # the zstd decoder after its frame is complete; it must not raise.
+    body = b"test 123"
+    inner = zstd.compress(body)
+    compressor = zlib.compressobj(9, zlib.DEFLATED, zlib.MAX_WBITS | 16)
+    compressed_body = compressor.compress(inner) + compressor.flush()
+
+    headers = [(b"Content-Encoding", b"zstd, gzip")]
+    response = httpx2.Response(200, headers=headers, content=compressed_body)
+    assert response.content == body
+
+
+def test_multi_brotli_gzip() -> None:
+    body = b"test 123"
+    inner = b"\x8b\x03\x80test 123\x03"
+    compressor = zlib.compressobj(9, zlib.DEFLATED, zlib.MAX_WBITS | 16)
+    compressed_body = compressor.compress(inner) + compressor.flush()
+
+    headers = [(b"Content-Encoding", b"br, gzip")]
     response = httpx2.Response(200, headers=headers, content=compressed_body)
     assert response.content == body
 
@@ -405,3 +473,15 @@ def test_invalid_content_encoding_header() -> None:
         content=body,
     )
     assert response.content == body
+
+
+@pytest.mark.anyio
+async def test_streaming_decode_error_does_not_leak_stream() -> None:
+    # A decode error raised mid-stream must still close the underlying stream. Under strict async
+    # generator finalization an unclosed stream surfaces as a ResourceWarning (i.e. a test failure).
+    async def content() -> typing.AsyncIterator[bytes]:
+        yield b"this is not valid gzip"
+
+    response = httpx2.Response(200, headers=[(b"Content-Encoding", b"gzip")], content=content())
+    with pytest.raises(httpx2.DecodingError):
+        await response.aread()

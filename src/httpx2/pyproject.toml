@@ -54,7 +54,7 @@ dependencies = [
 
 [project.optional-dependencies]
 brotli = [
-    "brotli; platform_python_implementation == 'CPython'",
+    "brotli>=1.2.0; platform_python_implementation == 'CPython'",
     "brotlicffi; platform_python_implementation != 'CPython'",
 ]
 cli = [

@@ -1513,7 +1513,7 @@ zstd = [
 [package.metadata]
 requires-dist = [
     { name = "anyio", marker = "sys_platform != 'emscripten'", specifier = ">=4.10" },
-    { name = "brotli", marker = "platform_python_implementation == 'CPython' and extra == 'brotli'" },
+    { name = "brotli", marker = "platform_python_implementation == 'CPython' and extra == 'brotli'", specifier = ">=1.2.0" },
     { name = "brotlicffi", marker = "platform_python_implementation != 'CPython' and extra == 'brotli'" },
     { name = "click", marker = "extra == 'cli'", specifier = ">=8.4.2" },
     { name = "h2", marker = "extra == 'http2'", specifier = ">=3,<5" },
