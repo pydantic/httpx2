@@ -51,7 +51,7 @@ __all__ = ["Cookies", "Headers", "Request", "Response"]
 
 SENSITIVE_HEADERS = {"authorization", "proxy-authorization"}
 
-T = typing.TypeVar("T")
+_T = typing.TypeVar("_T")
 
 
 def _is_known_encoding(encoding: str) -> bool:
@@ -241,12 +241,9 @@ class Headers(typing.MutableMapping[str, str]):
     def get(self, key: str, /) -> str | None: ...
 
     @typing.overload
-    def get(self, key: str, default: str, /) -> str: ...
+    def get(self, key: str, default: _T) -> str | _T: ...
 
-    @typing.overload
-    def get(self, key: str, default: T) -> str | T: ...
-
-    def get(self, key: str, default: T | None = None) -> str | T | None:
+    def get(self, key: str, default: _T | None = None) -> str | _T | None:
         """
         Return a header value. If multiple occurrences of the header occur
         then concatenate them together with commas.
@@ -1131,13 +1128,21 @@ class Cookies(typing.MutableMapping[str, str]):
         cookie = Cookie(**kwargs)  # type: ignore
         self.jar.set_cookie(cookie)
 
-    def get(  # type: ignore
+    @typing.overload
+    def get(
+        self, name: str, default: None = None, domain: str | None = None, path: str | None = None
+    ) -> str | None: ...
+
+    @typing.overload
+    def get(self, name: str, default: _T, domain: str | None = None, path: str | None = None) -> str | _T: ...
+
+    def get(
         self,
         name: str,
-        default: str | None = None,
+        default: _T | None = None,
         domain: str | None = None,
         path: str | None = None,
-    ) -> str | None:
+    ) -> str | _T | None:
         """
         Get a cookie by name. May optionally include domain and path
         in order to specify exactly which cookie to retrieve.
