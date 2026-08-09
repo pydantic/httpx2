@@ -1128,21 +1128,13 @@ class Cookies(typing.MutableMapping[str, str]):
         cookie = Cookie(**kwargs)  # type: ignore
         self.jar.set_cookie(cookie)
 
-    @typing.overload
-    def get(
-        self, name: str, default: None = None, domain: str | None = None, path: str | None = None
-    ) -> str | None: ...
-
-    @typing.overload
-    def get(self, name: str, default: _T, domain: str | None = None, path: str | None = None) -> str | _T: ...
-
-    def get(
+    def get(  # type: ignore
         self,
         name: str,
-        default: _T | None = None,
+        default: str | None = None,
         domain: str | None = None,
         path: str | None = None,
-    ) -> str | _T | None:
+    ) -> str | None:
         """
         Get a cookie by name. May optionally include domain and path
         in order to specify exactly which cookie to retrieve.

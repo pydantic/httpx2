@@ -18,8 +18,6 @@ from ._utils import primitive_value_to_str
 
 __all__ = ["URL", "QueryParams"]
 
-_T = typing.TypeVar("_T")
-
 
 class URL:
     """
@@ -506,13 +504,7 @@ class QueryParams(typing.Mapping[str, str]):
             multi_items.extend([(k, i) for i in v])
         return multi_items
 
-    @typing.overload
-    def get(self, key: typing.Any, /) -> str | None: ...
-
-    @typing.overload
-    def get(self, key: typing.Any, default: _T) -> str | _T: ...
-
-    def get(self, key: typing.Any, default: _T | None = None) -> str | _T | None:
+    def get(self, key: typing.Any, default: typing.Any = None) -> typing.Any:
         """
         Get a value from the query param for a given key. If the key occurs
         more than once, then only the first value is returned.
