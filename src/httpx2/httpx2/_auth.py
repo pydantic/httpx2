@@ -175,9 +175,16 @@ class DigestAuth(Auth):
         "SHA-512": hashlib.sha512,
         "SHA-512-SESS": hashlib.sha512,
     }
+    # MD5 is not FIPS-approved. Some FIPS-enforced Python builds remove hashlib.md5
+    # entirely, while others keep it but raise ValueError when called with
+    # usedforsecurity=True (the default). Only register MD5 if it is actually usable.
     if hasattr(hashlib, "md5"):
-        _ALGORITHM_TO_HASH_FUNCTION["MD5"] = hashlib.md5
-        _ALGORITHM_TO_HASH_FUNCTION["MD5-SESS"] = hashlib.md5
+        try:
+            hashlib.md5(b"", usedforsecurity=True)
+            _ALGORITHM_TO_HASH_FUNCTION["MD5"] = hashlib.md5
+            _ALGORITHM_TO_HASH_FUNCTION["MD5-SESS"] = hashlib.md5
+        except ValueError:
+            pass
 
     def __init__(self, username: str | bytes, password: str | bytes) -> None:
         self._username = to_bytes(username)
