@@ -275,6 +275,23 @@ def test_digest_auth_empty_realm() -> None:
     assert request.headers["Authorization"].startswith('Digest username="user", realm="", nonce="..."')
 
 
+def test_digest_auth_importable_without_hashlib_md5(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Verify the import-time hasattr guard works by reloading the module
+    # with hashlib.md5 removed, simulating a FIPS build that strips it entirely.
+    import importlib
+
+    from httpx2 import _auth
+
+    monkeypatch.delattr("hashlib.md5")
+    try:
+        importlib.reload(_auth)
+        assert "MD5" not in _auth.DigestAuth._ALGORITHM_TO_HASH_FUNCTION
+        assert "SHA-256" in _auth.DigestAuth._ALGORITHM_TO_HASH_FUNCTION
+    finally:
+        monkeypatch.undo()
+        importlib.reload(_auth)
+
+
 def test_digest_auth_fips_missing_md5(monkeypatch: pytest.MonkeyPatch) -> None:
     # On FIPS-enforced Python, hashlib.md5 may not exist.
     # Simulate by removing MD5 entries from the algorithm map.
