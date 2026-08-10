@@ -273,3 +273,39 @@ def test_digest_auth_empty_realm() -> None:
     request = flow.send(response)
 
     assert request.headers["Authorization"].startswith('Digest username="user", realm="", nonce="..."')
+
+
+def test_digest_auth_fips_missing_md5(monkeypatch: pytest.MonkeyPatch) -> None:
+    # On FIPS-enforced Python, hashlib.md5 may not exist.
+    # Simulate by removing MD5 entries from the algorithm map.
+    fips_algorithms = {k: v for k, v in httpx2.DigestAuth._ALGORITHM_TO_HASH_FUNCTION.items() if "MD5" not in k}
+    monkeypatch.setattr(httpx2.DigestAuth, "_ALGORITHM_TO_HASH_FUNCTION", fips_algorithms)
+
+    # SHA-256 digest auth should still work.
+    auth = httpx2.DigestAuth(username="user", password="pass")
+    request = httpx2.Request("GET", "https://www.example.com")
+
+    flow = auth.sync_auth_flow(request)
+    request = next(flow)
+
+    headers = {"WWW-Authenticate": 'Digest realm="test", qop="auth", algorithm=SHA-256, nonce="abc", opaque="xyz"'}
+    response = httpx2.Response(content=b"Auth required", status_code=401, headers=headers, request=request)
+    request = flow.send(response)
+    assert request.headers["Authorization"].startswith("Digest")
+    assert "algorithm=SHA-256" in request.headers["Authorization"]
+
+
+def test_digest_auth_unavailable_algorithm_raises_protocol_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    # When a server requests an algorithm not in the map, a clear error is raised.
+    monkeypatch.setattr(httpx2.DigestAuth, "_ALGORITHM_TO_HASH_FUNCTION", {})
+
+    auth = httpx2.DigestAuth(username="user", password="pass")
+    request = httpx2.Request("GET", "https://www.example.com")
+
+    flow = auth.sync_auth_flow(request)
+    request = next(flow)
+
+    headers = {"WWW-Authenticate": 'Digest realm="test", qop="auth", algorithm=MD5, nonce="abc", opaque="xyz"'}
+    response = httpx2.Response(content=b"Auth required", status_code=401, headers=headers, request=request)
+    with pytest.raises(httpx2.ProtocolError, match="Unsupported or unavailable digest auth algorithm"):
+        flow.send(response)
