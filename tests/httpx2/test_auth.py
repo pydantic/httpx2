@@ -292,6 +292,26 @@ def test_digest_auth_importable_without_hashlib_md5(monkeypatch: pytest.MonkeyPa
         importlib.reload(_auth)
 
 
+def test_digest_auth_importable_with_blocked_hashlib_md5(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Verify the import-time guard works when hashlib.md5 exists but raises
+    # ValueError, simulating a FIPS build that blocks MD5 at call time.
+    import importlib
+
+    from httpx2 import _auth
+
+    def fips_blocked_md5(*args: object, **kwargs: object) -> None:
+        raise ValueError("[digital envelope routines] disabled for FIPS")
+
+    monkeypatch.setattr("hashlib.md5", fips_blocked_md5)
+    try:
+        importlib.reload(_auth)
+        assert "MD5" not in _auth.DigestAuth._ALGORITHM_TO_HASH_FUNCTION
+        assert "SHA-256" in _auth.DigestAuth._ALGORITHM_TO_HASH_FUNCTION
+    finally:
+        monkeypatch.undo()
+        importlib.reload(_auth)
+
+
 def test_digest_auth_fips_missing_md5(monkeypatch: pytest.MonkeyPatch) -> None:
     # On FIPS-enforced Python, hashlib.md5 may not exist.
     # Simulate by removing MD5 entries from the algorithm map.
