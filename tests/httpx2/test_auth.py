@@ -282,7 +282,7 @@ def test_digest_auth_importable_without_hashlib_md5(monkeypatch: pytest.MonkeyPa
 
     from httpx2 import _auth
 
-    monkeypatch.delattr("hashlib.md5")
+    monkeypatch.delattr("hashlib.md5", raising=False)
     try:
         importlib.reload(_auth)
         assert "MD5" not in _auth.DigestAuth._ALGORITHM_TO_HASH_FUNCTION
