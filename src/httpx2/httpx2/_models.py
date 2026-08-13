@@ -452,7 +452,10 @@ class Request:
 
     def _prepare(self, default_headers: dict[str, str]) -> None:
         for key, value in default_headers.items():
-            # Ignore Transfer-Encoding if the Content-Length has been set explicitly.
+            # Ignore Content-Length if Transfer-Encoding has been set explicitly.
+            if key.lower() == "content-length" and "Transfer-Encoding" in self.headers:
+                continue
+            # Ignore Transfer-Encoding if Content-Length has been set explicitly.
             if key.lower() == "transfer-encoding" and "Content-Length" in self.headers:
                 continue
             self.headers.setdefault(key, value)
