@@ -106,7 +106,7 @@ text = "\n## Release Information\n\n"
 
 [[tool.hatch.metadata.hooks.fancy-pypi-readme.fragments]]
 path = "CHANGELOG.md"
-pattern = "\n(###.+?\n)## "
+pattern = "\n(## [0-9].+?)(?=\n## |$)"
 
 [[tool.hatch.metadata.hooks.fancy-pypi-readme.fragments]]
 text = "\n---\n\n[Full changelog](https://github.com/pydantic/httpx2/blob/main/src/httpx2/CHANGELOG.md)\n"
