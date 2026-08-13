@@ -116,7 +116,6 @@ def test_origin_effective_port(url: str, scheme: str, port: int | None) -> None:
         ("https://[2001:db8::1]", "https://[2001:0db8:0:0:0:0:0:1]"),
         ("https://[::ffff:192.168.0.1]", "https://[::ffff:c0a8:1]"),
         ("https://[fe80::1%25eth0]", "https://[fe80:0:0:0:0:0:0:1%25eth0]"),
-        ("https://[fe80::1%eth0]", "https://[fe80::1%25eth0]"),
     ],
 )
 def test_equivalent_origins(left: str, right: str) -> None:
@@ -132,6 +131,8 @@ def test_equivalent_origins(left: str, right: str) -> None:
         ("https://example.com", "https://example.com:444"),
         ("https://[::1]", "https://[::2]"),
         ("https://[fe80::1%25eth0]", "https://[fe80::1%25eth1]"),
+        ("https://[fe80::1%eth0]", "https://[fe80::1%25eth0]"),
+        ("https://[2001:db8::1%30]", "https://[2001:db8::10]"),
     ],
 )
 def test_distinct_origins(left: str, right: str) -> None:
@@ -142,6 +143,10 @@ def test_distinct_origins(left: str, right: str) -> None:
 def test_relative_url_does_not_have_origin(url: str) -> None:
     with pytest.raises(ValueError, match="URL must be absolute to have an origin"):
         _ = httpx2.URL(url).origin
+
+
+def test_origin_preserves_percent_escaped_ipv6_scope() -> None:
+    assert httpx2.Origin("https://[2001:db8::1%2e]").host == "2001:db8::1%2e"
 
 
 # Tests for percent encoding across path, query, and fragment...

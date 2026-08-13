@@ -258,6 +258,16 @@ def test_not_same_origin() -> None:
     assert headers["Host"] == origin.netloc.decode("ascii")
 
 
+def test_not_same_origin_with_percent_encoded_ipv6_scope() -> None:
+    origin = httpx2.URL("https://[2001:db8::10]")
+    request = httpx2.Request("GET", "https://[2001:db8::1%30]", headers={"Authorization": "secret"})
+
+    client = httpx2.Client()
+    headers = client._redirect_headers(request, origin, "GET")
+
+    assert "Authorization" not in headers
+
+
 def test_is_https_redirect() -> None:
     url = httpx2.URL("https://example.com")
     request = httpx2.Request("GET", "http://example.com", headers={"Authorization": "empty"})

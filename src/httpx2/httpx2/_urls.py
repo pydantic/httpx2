@@ -445,8 +445,8 @@ class Origin:
     The scheme, host, and effective port of a URL.
 
     Origins are normalized, immutable, comparable, and hashable.
-    See RFC 9110, Section 4.3.1:
-    https://www.rfc-editor.org/rfc/rfc9110.html#name-uri-origin
+
+    See RFC 9110, Section 4.3.1: https://www.rfc-editor.org/rfc/rfc9110.html#name-uri-origin
     """
 
     scheme: str
@@ -464,7 +464,7 @@ class Origin:
         if b":" in url.raw_host:
             # IPv6 addresses may have multiple equivalent string forms. Store
             # their canonical compressed form so origin equality is numeric.
-            host = str(ipaddress.IPv6Address(unquote(url.raw_host.decode("ascii"))))
+            host = str(ipaddress.IPv6Address(url.raw_host.decode("ascii")))
 
         port = url.port
         if port is None:
