@@ -84,13 +84,6 @@ def _is_https_redirect(url: URL, location: URL) -> bool:
     )
 
 
-def _same_origin(url: URL, other: URL) -> bool:
-    """
-    Return 'True' if the given URLs share the same origin.
-    """
-    return url.origin == other.origin
-
-
 class UseClientDefault:
     """
     For some parameters such as `auth=...` and `timeout=...` we need to be able
@@ -529,7 +522,7 @@ class BaseClient:
         """
         headers = Headers(request.headers)
 
-        if not _same_origin(url, request.url):
+        if url.origin != request.url.origin:
             if not _is_https_redirect(request.url, url):
                 # Strip Authorization headers when responses are redirected
                 # away from the origin. (Except for direct HTTP to HTTPS redirects.)
