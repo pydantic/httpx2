@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ipaddress
 import sys
 import typing
 from urllib.parse import parse_qs, unquote, urlencode
@@ -16,7 +17,16 @@ from ._types import QueryParamTypes
 from ._urlparse import urlparse
 from ._utils import primitive_value_to_str
 
-__all__ = ["URL", "QueryParams"]
+__all__ = ["URL", "Origin", "QueryParams"]
+
+
+_ORIGIN_DEFAULT_PORTS = {
+    "ftp": 21,
+    "http": 80,
+    "https": 443,
+    "ws": 80,
+    "wss": 443,
+}
 
 
 class URL:
@@ -328,6 +338,16 @@ class URL:
         """
         return not self.is_absolute_url
 
+    @property
+    def origin(self) -> Origin:
+        """
+        The URL origin as an immutable, hashable `Origin` value.
+
+        The origin consists of the URL scheme, host, and effective port.
+        User information, path, query, and fragment components are excluded.
+        """
+        return Origin(self)
+
     def copy_with(self, **kwargs: typing.Any) -> URL:
         """
         Copy this URL, returning a new URL with some components altered.
@@ -416,6 +436,63 @@ class URL:
             port=self.port,
             raw_path=self.raw_path,
         )
+
+
+class Origin:
+    """
+    The scheme, host, and effective port of a URL.
+
+    Origins are normalized, immutable, comparable, and hashable.
+    """
+
+    __slots__ = ("_scheme", "_host", "_port")
+
+    def __init__(self, url: URL | str) -> None:
+        if not isinstance(url, URL):
+            url = URL(url)
+
+        if url.is_relative_url:
+            raise ValueError("URL must be absolute to have an origin")
+
+        host = url.host
+        if b":" in url.raw_host:
+            # IPv6 addresses may have multiple equivalent string forms. Store
+            # their canonical compressed form so origin equality is numeric.
+            host = str(ipaddress.IPv6Address(url.raw_host.decode("ascii")))
+
+        port = url.port
+        if port is None:
+            port = _ORIGIN_DEFAULT_PORTS.get(url.scheme)
+
+        self._scheme = url.scheme
+        self._host = host
+        self._port = port
+
+    @property
+    def scheme(self) -> str:
+        return self._scheme
+
+    @property
+    def host(self) -> str:
+        return self._host
+
+    @property
+    def port(self) -> int | None:
+        return self._port
+
+    def __eq__(self, other: typing.Any) -> bool:
+        return (
+            isinstance(other, Origin)
+            and self.scheme == other.scheme
+            and self.host == other.host
+            and self.port == other.port
+        )
+
+    def __hash__(self) -> int:
+        return hash((self.scheme, self.host, self.port))
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(scheme={self.scheme!r}, host={self.host!r}, port={self.port!r})"
 
 
 class QueryParams(typing.Mapping[str, str]):

@@ -72,28 +72,23 @@ def _is_https_redirect(url: URL, location: URL) -> bool:
     """
     Return 'True' if 'location' is a HTTPS upgrade of 'url'
     """
-    if url.host != location.host:
-        return False
+    origin = url.origin
+    location_origin = location.origin
 
     return (
-        url.scheme == "http"
-        and _port_or_default(url) == 80
-        and location.scheme == "https"
-        and _port_or_default(location) == 443
+        origin.host == location_origin.host
+        and origin.scheme == "http"
+        and origin.port == 80
+        and location_origin.scheme == "https"
+        and location_origin.port == 443
     )
-
-
-def _port_or_default(url: URL) -> int | None:
-    if url.port is not None:
-        return url.port
-    return {"http": 80, "https": 443}.get(url.scheme)
 
 
 def _same_origin(url: URL, other: URL) -> bool:
     """
     Return 'True' if the given URLs share the same origin.
     """
-    return url.scheme == other.scheme and url.host == other.host and _port_or_default(url) == _port_or_default(other)
+    return url.origin == other.origin
 
 
 class UseClientDefault:

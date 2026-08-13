@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## Unreleased
+
+### Added
+
+* Add the public `Origin` value object and `URL.origin` property for normalized,
+  hashable origin comparisons.
+
 ## 2.10.0 (August 9th, 2026)
 
 ### Added
