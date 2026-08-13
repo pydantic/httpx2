@@ -3,6 +3,7 @@ from __future__ import annotations
 import ipaddress
 import sys
 import typing
+from dataclasses import dataclass
 from urllib.parse import parse_qs, unquote, urlencode
 
 import idna
@@ -18,15 +19,6 @@ from ._urlparse import urlparse
 from ._utils import primitive_value_to_str
 
 __all__ = ["URL", "Origin", "QueryParams"]
-
-
-_ORIGIN_DEFAULT_PORTS = {
-    "ftp": 21,
-    "http": 80,
-    "https": 443,
-    "ws": 80,
-    "wss": 443,
-}
 
 
 class URL:
@@ -438,6 +430,16 @@ class URL:
         )
 
 
+_ORIGIN_DEFAULT_PORTS = {
+    "ftp": 21,
+    "http": 80,
+    "https": 443,
+    "ws": 80,
+    "wss": 443,
+}
+
+
+@dataclass(frozen=True, slots=True, init=False)
 class Origin:
     """
     The scheme, host, and effective port of a URL.
@@ -445,7 +447,9 @@ class Origin:
     Origins are normalized, immutable, comparable, and hashable.
     """
 
-    __slots__ = ("_scheme", "_host", "_port")
+    scheme: str
+    host: str
+    port: int | None
 
     def __init__(self, url: URL | str) -> None:
         if not isinstance(url, URL):
@@ -458,41 +462,15 @@ class Origin:
         if b":" in url.raw_host:
             # IPv6 addresses may have multiple equivalent string forms. Store
             # their canonical compressed form so origin equality is numeric.
-            host = str(ipaddress.IPv6Address(url.raw_host.decode("ascii")))
+            host = str(ipaddress.IPv6Address(unquote(url.raw_host.decode("ascii"))))
 
         port = url.port
         if port is None:
             port = _ORIGIN_DEFAULT_PORTS.get(url.scheme)
 
-        self._scheme = url.scheme
-        self._host = host
-        self._port = port
-
-    @property
-    def scheme(self) -> str:
-        return self._scheme
-
-    @property
-    def host(self) -> str:
-        return self._host
-
-    @property
-    def port(self) -> int | None:
-        return self._port
-
-    def __eq__(self, other: typing.Any) -> bool:
-        return (
-            isinstance(other, Origin)
-            and self.scheme == other.scheme
-            and self.host == other.host
-            and self.port == other.port
-        )
-
-    def __hash__(self) -> int:
-        return hash((self.scheme, self.host, self.port))
-
-    def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(scheme={self.scheme!r}, host={self.host!r}, port={self.port!r})"
+        object.__setattr__(self, "scheme", url.scheme)
+        object.__setattr__(self, "host", host)
+        object.__setattr__(self, "port", port)
 
 
 class QueryParams(typing.Mapping[str, str]):

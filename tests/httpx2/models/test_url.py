@@ -116,6 +116,7 @@ def test_origin_effective_port(url: str, scheme: str, port: int | None) -> None:
         ("https://[2001:db8::1]", "https://[2001:0db8:0:0:0:0:0:1]"),
         ("https://[::ffff:192.168.0.1]", "https://[::ffff:c0a8:1]"),
         ("https://[fe80::1%25eth0]", "https://[fe80:0:0:0:0:0:0:1%25eth0]"),
+        ("https://[fe80::1%eth0]", "https://[fe80::1%25eth0]"),
     ],
 )
 def test_equivalent_origins(left: str, right: str) -> None:
