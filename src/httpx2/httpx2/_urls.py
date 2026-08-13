@@ -445,6 +445,8 @@ class Origin:
     The scheme, host, and effective port of a URL.
 
     Origins are normalized, immutable, comparable, and hashable.
+    See RFC 9110, Section 4.3.1:
+    https://www.rfc-editor.org/rfc/rfc9110.html#name-uri-origin
     """
 
     scheme: str
