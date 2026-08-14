@@ -62,7 +62,7 @@ else:  # pragma: no cover
             pass
 
 
-MAX_DECODE_CHUNK_SIZE = 2**16  # 64 KiB
+MAX_DECODE_CHUNK_SIZE = 2**20  # 1 MiB
 
 
 class Decompressor(typing.Protocol):
