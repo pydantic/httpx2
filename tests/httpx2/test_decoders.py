@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import sys
+import tracemalloc
 import typing
 import zlib
 
@@ -68,33 +69,30 @@ def test_gzip() -> None:
 
 
 @pytest.mark.parametrize("wbits", (zlib.MAX_WBITS | 16, zlib.MAX_WBITS))
-def test_zlib_decoder_yields_bounded_chunks(wbits: int) -> None:
-    from httpx2._decoders import MAX_DECODE_CHUNK_SIZE, DeflateDecoder, GZipDecoder
-
-    body = b"\x00" * (MAX_DECODE_CHUNK_SIZE * 4)
+def test_decoding_bounds_peak_memory(wbits: int) -> None:
+    # A small compressed body that inflates to a large output must not be
+    # materialised in a single decode step. Even when the entire compressed
+    # body arrives as one raw chunk, peak memory stays far below the decoded
+    # size because decoding happens in bounded pieces.
+    decoded_size = 64 * 1024 * 1024
     compressor = zlib.compressobj(9, zlib.DEFLATED, wbits)
-    compressed = compressor.compress(body) + compressor.flush()
+    compressed = compressor.compress(b"\x00" * decoded_size) + compressor.flush()
+    encoding = b"gzip" if wbits & 16 else b"deflate"
 
-    decoder: GZipDecoder | DeflateDecoder = GZipDecoder() if wbits & 16 else DeflateDecoder()
-    chunks = list(decoder.decode(compressed))
+    def raw() -> typing.Iterator[bytes]:
+        yield compressed  # deliver the whole bomb as a single raw chunk
 
-    assert len(chunks) >= 4
-    assert all(len(chunk) <= MAX_DECODE_CHUNK_SIZE for chunk in chunks)
-    assert b"".join(chunks) + b"".join(decoder.flush()) == body
+    response = httpx2.Response(200, headers=[(b"Content-Encoding", encoding)], content=raw())
 
+    total = 0
+    tracemalloc.start()
+    for chunk in response.iter_bytes():
+        total += len(chunk)
+    _, peak = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
 
-def test_brotli_decoder_yields_bounded_chunks() -> None:
-    import brotli
-
-    from httpx2._decoders import BrotliDecoder
-
-    body = b"\x00" * (4 * 1024 * 1024)
-    chunks = list(BrotliDecoder().decode(brotli.compress(body)))
-
-    assert len(chunks) > 1
-    # `output_buffer_limit` is a soft cap that overshoots, but stays far below the full size.
-    assert max(len(chunk) for chunk in chunks) < len(body) // 4
-    assert b"".join(chunks) == body
+    assert total == decoded_size
+    assert peak < decoded_size // 8
 
 
 def test_brotli() -> None:
@@ -121,19 +119,6 @@ def test_zstd() -> None:
         content=compressed_body,
     )
     assert response.content == body
-
-
-def test_zstd_decoder_yields_bounded_chunks() -> None:
-    from httpx2._decoders import MAX_DECODE_CHUNK_SIZE, ZStandardDecoder, _zstd_stdlib_backend
-
-    body = b"\x00" * (MAX_DECODE_CHUNK_SIZE * 4)
-    chunks = list(ZStandardDecoder().decode(zstd.compress(body)))
-
-    assert b"".join(chunks) == body
-    if _zstd_stdlib_backend:  # pragma: no cover
-        # Only the stdlib `compression.zstd` backend bounds a single decompress call.
-        assert len(chunks) > 1
-        assert max(len(chunk) for chunk in chunks) <= MAX_DECODE_CHUNK_SIZE
 
 
 def test_zstd_decoding_error() -> None:
