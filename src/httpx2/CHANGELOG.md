@@ -11,6 +11,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * Add the public `Origin` value object and `URL.origin` property for normalized,
   hashable origin comparisons. ([#1134](https://github.com/pydantic/httpx2/pull/1134))
 
+### Changed
+
+* Improve URL parsing performance by approximately 2x.
+
 ## 2.10.0 (August 9th, 2026)
 
 ### Added
