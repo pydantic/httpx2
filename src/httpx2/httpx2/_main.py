@@ -393,11 +393,11 @@ def handle_help(
     help="Automatically follow redirects.",
 )
 @click.option(
-    "--no-verify",
+    "--verify",
     "verify",
-    is_flag=True,
+    type=bool,
     default=True,
-    help="Disable SSL verification.",
+    help="Enable SSL verification.",
 )
 @click.option(
     "--http2",
