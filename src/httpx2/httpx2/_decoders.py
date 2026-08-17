@@ -83,7 +83,7 @@ class ZlibDecompressor:
     def __init__(self, decompressor: Decompressor) -> None:
         self.decompressor = decompressor
 
-    def __call__(self, data: bytes) -> typing.Iterator[bytes]:
+    def decompress(self, data: bytes) -> typing.Iterator[bytes]:
         decompressed = self.decompressor.decompress(data, MAX_DECODE_CHUNK_SIZE)
         while decompressed:
             yield decompressed
@@ -128,7 +128,7 @@ class DeflateDecoder(ContentDecoder):
         was_first_attempt = self.first_attempt
         self.first_attempt = False
         try:
-            yield from self.decompressor(data)
+            yield from self.decompressor.decompress(data)
         except zlib.error as exc:
             if was_first_attempt:
                 self.decompressor = ZlibDecompressor(zlib.decompressobj(-zlib.MAX_WBITS))
@@ -155,7 +155,7 @@ class GZipDecoder(ContentDecoder):
 
     def decode(self, data: bytes) -> typing.Iterator[bytes]:
         try:
-            yield from self.decompressor(data)
+            yield from self.decompressor.decompress(data)
         except zlib.error as exc:
             raise DecodingError(str(exc)) from exc
 
