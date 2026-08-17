@@ -497,3 +497,21 @@ async def test_event_dispatched_at_eof_on_trailing_cr_async() -> None:
             events = [event async for event in source]
 
     assert [event.data for event in events] == ["hi"]
+
+
+def test_many_chunks_without_line_separator() -> None:
+    parts = [f"{index:04d}".encode() for index in range(1_000)]
+
+    def chunks() -> Iterator[bytes]:
+        yield b"data: "
+        yield from parts
+        yield b"\n\n"
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(200, content=chunks(), headers={"Content-Type": "text/event-stream"})
+
+    with httpx2.Client(transport=httpx2.MockTransport(handler)) as client:
+        with client.sse("http://testserver/sse") as source:
+            (event,) = list(source)
+
+    assert event.data == b"".join(parts).decode()

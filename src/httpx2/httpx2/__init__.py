@@ -53,6 +53,7 @@ __all__ = [
     "NetRCAuth",
     "NetworkError",
     "options",
+    "Origin",
     "patch",
     "PoolTimeout",
     "post",

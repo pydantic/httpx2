@@ -238,6 +238,16 @@ def test_same_origin() -> None:
     assert headers["Host"] == request.url.netloc.decode("ascii")
 
 
+def test_same_origin_with_equivalent_ipv6_addresses() -> None:
+    origin = httpx2.URL("https://[0:0:0:0:0:0:0:1]/redirected")
+    request = httpx2.Request("GET", "https://[::1]/", headers={"Authorization": "secret"})
+
+    client = httpx2.Client()
+    headers = client._redirect_headers(request, origin, "GET")
+
+    assert headers["Authorization"] == "secret"
+
+
 def test_not_same_origin() -> None:
     origin = httpx2.URL("https://example.com")
     request = httpx2.Request("GET", "HTTP://EXAMPLE.COM:80")
@@ -248,6 +258,16 @@ def test_not_same_origin() -> None:
     assert headers["Host"] == origin.netloc.decode("ascii")
 
 
+def test_not_same_origin_with_percent_encoded_ipv6_scope() -> None:
+    origin = httpx2.URL("https://[2001:db8::10]")
+    request = httpx2.Request("GET", "https://[2001:db8::1%30]", headers={"Authorization": "secret"})
+
+    client = httpx2.Client()
+    headers = client._redirect_headers(request, origin, "GET")
+
+    assert "Authorization" not in headers
+
+
 def test_is_https_redirect() -> None:
     url = httpx2.URL("https://example.com")
     request = httpx2.Request("GET", "http://example.com", headers={"Authorization": "empty"})
@@ -256,6 +276,16 @@ def test_is_https_redirect() -> None:
     headers = client._redirect_headers(request, url, "GET")
 
     assert "Authorization" in headers
+
+
+def test_is_https_redirect_with_equivalent_ipv6_addresses() -> None:
+    url = httpx2.URL("https://[0:0:0:0:0:0:0:1]")
+    request = httpx2.Request("GET", "http://[::1]", headers={"Authorization": "secret"})
+
+    client = httpx2.Client()
+    headers = client._redirect_headers(request, url, "GET")
+
+    assert headers["Authorization"] == "secret"
 
 
 def test_is_not_https_redirect() -> None:

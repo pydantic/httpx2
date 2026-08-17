@@ -99,6 +99,23 @@ def test_bench_line_decoder(benchmark: BenchmarkFixture) -> None:
     benchmark(split)
 
 
+def test_bench_sse_many_chunks_without_line_separator(benchmark: BenchmarkFixture) -> None:
+    chunks = [b"data: ", *([b"A" * 16] * 10_000), b"\n\n"]
+    request = httpx2.Request("GET", "https://example.org/sse")
+
+    def decode() -> int:
+        response = httpx2.Response(
+            200,
+            content=iter(chunks),
+            headers={"content-type": "text/event-stream"},
+            request=request,
+        )
+        (event,) = list(httpx2.EventSource(response, max_event_size=None))
+        return len(event.data)
+
+    assert benchmark(decode) == 10_000 * 16
+
+
 def test_bench_extract_cookies(benchmark: BenchmarkFixture) -> None:
     request = httpx2.Request("GET", "https://example.org/")
 

@@ -246,10 +246,11 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
         """
         Send a single chunk of data in one or more data frames.
         """
-        while data:
+        position = 0
+        while position < len(data):
             max_flow = await self._wait_for_outgoing_flow(request, stream_id)
-            chunk_size = min(len(data), max_flow)
-            chunk, data = data[:chunk_size], data[chunk_size:]
+            chunk = data[position : position + max_flow]
+            position += len(chunk)
             self._h2_state.send_data(stream_id, chunk)
             await self._write_outgoing_data(request)
 
