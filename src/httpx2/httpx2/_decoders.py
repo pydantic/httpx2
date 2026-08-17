@@ -218,6 +218,10 @@ class BrotliDecoder(ContentDecoder):
         self.seen_data = True
         try:
             if _brotli_bounds_output():
+                # Drain until the backend stops producing output. `output_buffer_limit`
+                # caps a single call, so a large chunk is emitted over several calls.
+                # Draining to empty also leaves `can_accept_more_data()` true, which the
+                # backend requires before it is passed non-empty input again.
                 decompressed = self._decompress(data, output_buffer_limit=MAX_DECODE_CHUNK_SIZE)
                 while decompressed:
                     yield decompressed
