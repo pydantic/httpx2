@@ -29,6 +29,24 @@ except ImportError:  # pragma: no cover
         brotli = None
 
 
+@functools.cache
+def _brotli_bounds_output() -> bool:
+    """
+    Return `True` if the installed brotli backend supports `output_buffer_limit`,
+    which is required to decode in bounded pieces. Older backends decode a whole
+    chunk in one call instead.
+    """
+    decompressor = brotli.Decompressor()
+    decompress = getattr(decompressor, "decompress", None) or decompressor.process
+    try:
+        decompress(b"", output_buffer_limit=MAX_DECODE_CHUNK_SIZE)
+    except TypeError:
+        return False
+    except brotli.error:  # pragma: no cover
+        pass
+    return True
+
+
 # Zstandard support is optional on Python <= 3.13.
 # On Python 3.14+, the stdlib includes an optional built-in zstd implementation.
 if typing.TYPE_CHECKING:
@@ -199,13 +217,15 @@ class BrotliDecoder(ContentDecoder):
             return
         self.seen_data = True
         try:
-            decompressed = self._decompress(data, output_buffer_limit=MAX_DECODE_CHUNK_SIZE)
-            while decompressed:
-                yield decompressed
-                decompressed = self._decompress(b"", output_buffer_limit=MAX_DECODE_CHUNK_SIZE)
-        except TypeError:  # pragma: no cover
-            # Backend without `output_buffer_limit` (e.g. brotlicffi < 1.2.0); fall back to unbounded.
-            yield self._decompress(data)
+            if _brotli_bounds_output():
+                decompressed = self._decompress(data, output_buffer_limit=MAX_DECODE_CHUNK_SIZE)
+                while decompressed:
+                    yield decompressed
+                    decompressed = self._decompress(b"", output_buffer_limit=MAX_DECODE_CHUNK_SIZE)
+            else:  # pragma: no cover
+                # Backend without `output_buffer_limit` (e.g. brotli < 1.2.0), so the
+                # output of a single chunk cannot be bounded.
+                yield self._decompress(data)
         except brotli.error as exc:
             raise DecodingError(str(exc)) from exc
 
