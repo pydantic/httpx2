@@ -475,13 +475,37 @@ def test_invalid_content_encoding_header() -> None:
     assert response.content == body
 
 
-@pytest.mark.anyio
-async def test_streaming_decode_error_does_not_leak_stream() -> None:
-    # A decode error raised mid-stream must still close the underlying stream. Under strict async
-    # generator finalization an unclosed stream surfaces as a ResourceWarning (i.e. a test failure).
-    async def content() -> typing.AsyncIterator[bytes]:
-        yield b"this is not valid gzip"
+def test_streaming_decode_error_closes_response() -> None:
+    response: httpx2.Response | None = None
 
-    response = httpx2.Response(200, headers=[(b"Content-Encoding", b"gzip")], content=content())
-    with pytest.raises(httpx2.DecodingError):
-        await response.aread()
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        nonlocal response
+        response = httpx2.Response(200, headers={"Content-Encoding": "gzip"}, content=iter([b"invalid"]))
+        return response
+
+    with httpx2.Client(transport=httpx2.MockTransport(handler)) as client:
+        with pytest.raises(httpx2.DecodingError):
+            client.get("https://example.org")
+
+    assert response is not None
+    assert response.is_closed
+
+
+@pytest.mark.anyio
+async def test_async_streaming_decode_error_closes_response() -> None:
+    response: httpx2.Response | None = None
+
+    async def content() -> typing.AsyncIterator[bytes]:
+        yield b"invalid"
+
+    async def handler(request: httpx2.Request) -> httpx2.Response:
+        nonlocal response
+        response = httpx2.Response(200, headers={"Content-Encoding": "gzip"}, content=content())
+        return response
+
+    async with httpx2.AsyncClient(transport=httpx2.MockTransport(handler)) as client:
+        with pytest.raises(httpx2.DecodingError):
+            await client.get("https://example.org")
+
+    assert response is not None
+    assert response.is_closed

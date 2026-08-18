@@ -160,8 +160,13 @@ class BoundAsyncStream(AsyncByteStream):
         self.elapsed: datetime.timedelta | None = None
 
     async def __aiter__(self) -> typing.AsyncIterator[bytes]:
-        async for chunk in self._stream:
-            yield chunk
+        stream = self._stream.__aiter__()
+        try:
+            async for chunk in stream:
+                yield chunk
+        finally:
+            if isinstance(stream, AsyncGenerator):
+                await stream.aclose()
 
     async def aclose(self) -> None:
         self.elapsed = datetime.timedelta(seconds=time.perf_counter() - self._start)
