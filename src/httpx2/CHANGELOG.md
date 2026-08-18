@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2.12.0 (August 18th, 2026)
+
+### Changed
+
+* Use `backports.zstd` for Zstandard decoding on Python 3.13 and earlier.
+  ([#1146](https://github.com/pydantic/httpx2/pull/1146))
+
+### Fixed
+
+* Bound peak memory while streaming compressed responses and close response streams when decoding fails.
+  ([#1126](https://github.com/pydantic/httpx2/pull/1126))
+
 ## 2.11.0 (August 18th, 2026)
 
 ### Added
