@@ -125,6 +125,17 @@ def peek_async_filelike_length(stream: typing.Any) -> int | None:
     descriptor can be stat'ed. There is no `tell()`/`seek()` fallback as in the
     sync case, because those would have to be awaited.
     """
+    seekable = getattr(stream, "seekable", None)
+    if callable(seekable) and not inspect.iscoroutinefunction(seekable):
+        try:
+            rewindable = seekable()
+        except OSError:
+            return None
+        if not rewindable:
+            # We rewind before sending, so for a stream that can't be rewound the
+            # descriptor size wouldn't match the bytes we'd actually upload.
+            return None
+
     fileno = getattr(stream, "fileno", None)
     if not callable(fileno) or inspect.iscoroutinefunction(fileno):
         return None

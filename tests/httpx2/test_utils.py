@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import pathlib
 import random
 import typing
 
@@ -182,3 +183,43 @@ def test_peek_async_filelike_length_with_unstatable_fileno(fileno: typing.Callab
             self.fileno = fileno
 
     assert peek_async_filelike_length(Unstatable()) is None
+
+
+def test_peek_async_filelike_length_with_non_seekable_stream() -> None:
+    class AsyncPipe:
+        def seekable(self) -> bool:
+            return False
+
+        def fileno(self) -> int:
+            return 0  # pragma: no cover
+
+    assert peek_async_filelike_length(AsyncPipe()) is None
+
+
+def test_peek_async_filelike_length_with_unusable_seekable() -> None:
+    class Closed:
+        def seekable(self) -> bool:
+            raise OSError("closed")
+
+        def fileno(self) -> int:
+            return 0  # pragma: no cover
+
+    assert peek_async_filelike_length(Closed()) is None
+
+
+def test_peek_async_filelike_length_with_async_seekable(tmp_path: pathlib.Path) -> None:
+    path = tmp_path / "upload.bin"
+    path.write_bytes(b"<file content>")
+
+    class AsyncSeekable:
+        def __init__(self, fileno: int) -> None:
+            self._fileno = fileno
+
+        async def seekable(self) -> bool:
+            return True  # pragma: no cover
+
+        def fileno(self) -> int:
+            return self._fileno
+
+    with path.open("rb") as file:
+        assert peek_async_filelike_length(AsyncSeekable(file.fileno())) == len(b"<file content>")

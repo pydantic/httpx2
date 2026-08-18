@@ -579,3 +579,17 @@ async def test_async_file_content_with_sync_client(tmp_path: pathlib.Path) -> No
         with httpx2.Client(transport=httpx2.MockTransport(handler)) as client:
             with pytest.raises(RuntimeError, match="Attempted to send an async request"):
                 client.post(url, content=upload)
+
+
+@pytest.mark.anyio
+async def test_async_file_content_in_text_mode(tmp_path: pathlib.Path) -> None:
+    path = tmp_path / "upload.txt"
+    path.write_text("<file content>")
+
+    async with await anyio.open_file(path) as upload:
+        # Text mode is rejected statically by the `AsyncReadableFile` protocol, and
+        # at runtime for file objects that aren't type checked.
+        request = httpx2.Request(method, url, content=upload)  # type: ignore[arg-type]
+        assert isinstance(request.stream, typing.AsyncIterable)
+        with pytest.raises(TypeError, match="must be opened in binary mode"):
+            [part async for part in request.stream]
