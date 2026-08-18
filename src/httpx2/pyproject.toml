@@ -74,7 +74,7 @@ ws = [
 ]
 # TODO(Marcelo): Remove when Python 3.13 reaches EOL.
 zstd = [
-  "zstandard>=0.18.0; python_version <= '3.13'",
+    "backports.zstd>=1.0.0; python_version <= '3.13'",
 ]
 
 [project.scripts]

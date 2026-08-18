@@ -7,7 +7,6 @@ See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Encoding
 from __future__ import annotations
 
 import codecs
-import functools
 import io
 import sys
 import typing
@@ -31,30 +30,22 @@ except ImportError:  # pragma: no cover
 # Zstandard support is optional on Python <= 3.13.
 # On Python 3.14+, the stdlib includes an optional built-in zstd implementation.
 if typing.TYPE_CHECKING:
-    # We keep checking Python version in the type checker path because try..except doesn't help type checkers.
     if sys.version_info >= (3, 14):
         from compression.zstd import ZstdDecompressor, ZstdError
     else:
-        from zstandard import ZstdDecompressor as _ZstdDecompressor, ZstdError
+        from backports.zstd import ZstdDecompressor, ZstdError
 
-        ZstdDecompressor = functools.partial(_ZstdDecompressor().decompressobj)
-
-    _zstandard_installed: bool = False
+    _zstandard_installed: bool
 else:  # pragma: no cover
-    _zstandard_installed = False
     try:
-        from compression.zstd import ZstdDecompressor, ZstdError
+        if sys.version_info >= (3, 14):
+            from compression.zstd import ZstdDecompressor, ZstdError
+        else:
+            from backports.zstd import ZstdDecompressor, ZstdError
 
         _zstandard_installed = True
-    # Either Python <3.14 or the distro doesn't have `compression.zstd`.
     except ImportError:
-        try:
-            from zstandard import ZstdDecompressor as _ZstdDecompressor, ZstdError
-
-            ZstdDecompressor = functools.partial(_ZstdDecompressor().decompressobj)
-            _zstandard_installed = True
-        except ImportError:
-            pass
+        _zstandard_installed = False
 
 
 class ContentDecoder:
@@ -185,8 +176,7 @@ class BrotliDecoder(ContentDecoder):
 class ZStandardDecoder(ContentDecoder):
     """Handle 'zstd' RFC 8878 decoding.
 
-    If running on Python 3.14+ or a distro that doesn't have the `compression.zstd` stdlib module, requires either:
-    `pip install zstandard` or `pip install httpx2[zstd]`.
+    On Python 3.13 and below, this requires `pip install httpx2[zstd]`.
     """
 
     # inspired by the ZstdDecoder implementation in urllib3
