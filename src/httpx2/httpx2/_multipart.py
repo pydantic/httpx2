@@ -221,7 +221,7 @@ class FileField:
                 pass
 
         chunk = await self.file.read(self.CHUNK_SIZE)
-        if chunk and not isinstance(chunk, bytes):
+        if not isinstance(chunk, bytes):
             # `get_length()` derives Content-Length from the file size on disk,
             # which only matches the uploaded bytes for binary mode reads.
             raise TypeError("Multipart file uploads must be opened in binary mode, not text mode.")

@@ -621,3 +621,42 @@ async def test_multipart_encode_async_file_that_is_not_seekable() -> None:
     content = b"".join([chunk async for chunk in request.stream])
 
     assert b"<file content>" in content
+
+
+@pytest.mark.anyio
+async def test_multipart_encode_empty_async_file_in_text_mode(tmp_path: pathlib.Path) -> None:
+    path = tmp_path / "name.txt"
+    path.write_text("")
+
+    async with await anyio.open_file(path) as upload:
+        request = httpx2.Request("POST", "https://www.example.com/", files={"file": upload})  # type: ignore[dict-item]
+        assert isinstance(request.stream, typing.AsyncIterable)
+        # An empty read still has to be rejected, rather than silently uploading nothing.
+        with pytest.raises(TypeError, match="must be opened in binary mode"):
+            [chunk async for chunk in request.stream]
+
+
+@pytest.mark.anyio
+async def test_multipart_encode_empty_async_file(tmp_path: pathlib.Path) -> None:
+    path = tmp_path / "name.txt"
+    path.write_bytes(b"")
+
+    url = "https://www.example.com/"
+    headers = {"Content-Type": "multipart/form-data; boundary=BOUNDARY"}
+
+    async with await anyio.open_file(path, "rb") as upload:
+        request = httpx2.Request("POST", url, headers=headers, files={"file": upload})
+        assert isinstance(request.stream, typing.AsyncIterable)
+        content = b"".join([chunk async for chunk in request.stream])
+
+    assert content == b"".join(
+        [
+            b"--BOUNDARY\r\n",
+            b'Content-Disposition: form-data; name="file"; filename="name.txt"\r\n',
+            b"Content-Type: text/plain\r\n",
+            b"\r\n",
+            b"\r\n",
+            b"--BOUNDARY--\r\n",
+        ]
+    )
+    assert request.headers["Content-Length"] == str(len(content))

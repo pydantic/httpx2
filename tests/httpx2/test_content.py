@@ -593,3 +593,30 @@ async def test_async_file_content_in_text_mode(tmp_path: pathlib.Path) -> None:
         assert isinstance(request.stream, typing.AsyncIterable)
         with pytest.raises(TypeError, match="must be opened in binary mode"):
             [part async for part in request.stream]
+
+
+@pytest.mark.anyio
+async def test_empty_async_file_content_in_text_mode(tmp_path: pathlib.Path) -> None:
+    path = tmp_path / "upload.txt"
+    path.write_text("")
+
+    async with await anyio.open_file(path) as upload:
+        request = httpx2.Request(method, url, content=upload)  # type: ignore[arg-type]
+        assert isinstance(request.stream, typing.AsyncIterable)
+        # An empty read still has to be rejected, rather than silently uploading nothing.
+        with pytest.raises(TypeError, match="must be opened in binary mode"):
+            [part async for part in request.stream]
+
+
+@pytest.mark.anyio
+async def test_empty_async_file_content(tmp_path: pathlib.Path) -> None:
+    path = tmp_path / "upload.bin"
+    path.write_bytes(b"")
+
+    async with await anyio.open_file(path, "rb") as upload:
+        request = httpx2.Request(method, url, content=upload)
+        assert isinstance(request.stream, typing.AsyncIterable)
+        chunks = [part async for part in request.stream]
+
+    assert request.headers == {"Host": "www.example.com", "Content-Length": "0"}
+    assert chunks == []
