@@ -24,13 +24,8 @@ from ._utils import (
 _HTML5_FORM_ENCODING_REPLACEMENTS = {'"': "%22", "\\": "\\\\"}
 _HTML5_FORM_ENCODING_REPLACEMENTS.update({chr(c): f"%{c:02X}" for c in range(0x1F + 1) if c != 0x1B})
 _HTML5_FORM_ENCODING_RE = re.compile(r"|".join([re.escape(c) for c in _HTML5_FORM_ENCODING_REPLACEMENTS.keys()]))
-_FORBIDDEN_HEADER_CHARS_RE = re.compile(r"[\x00-\x08\x0a-\x1f\x7f]")
-
-
-def _safe_header(value: str) -> str:
-    if _FORBIDDEN_HEADER_CHARS_RE.search(value) is not None:
-        raise ValueError("Invalid control character in multipart header.")
-    return value
+_HEADER_NAME_RE = re.compile(r"[!#$%&'*+\-.^_`|~0-9A-Za-z]+")
+_FORBIDDEN_HEADER_VALUE_CHARS_RE = re.compile(r"[\x00-\x08\x0a-\x1f\x7f]")
 
 
 def _format_form_param(name: str, value: str) -> bytes:
@@ -183,8 +178,11 @@ class FileField:
                 filename = _format_form_param("filename", self.filename)
                 parts.extend([b"; ", filename])
             for header_name, header_value in self.headers.items():
-                key = f"\r\n{_safe_header(header_name)}: ".encode()
-                val = _safe_header(header_value).encode()
+                if _HEADER_NAME_RE.fullmatch(header_name) is None:
+                    raise ValueError("Invalid multipart header name.")
+                if _FORBIDDEN_HEADER_VALUE_CHARS_RE.search(header_value) is not None:
+                    raise ValueError("Invalid control character in multipart header value.")
+                key, val = f"\r\n{header_name}: ".encode(), header_value.encode()
                 parts.extend([key, val])
             parts.append(b"\r\n\r\n")
             self._headers = b"".join(parts)
