@@ -236,21 +236,18 @@ class ZStandardDecoder(ContentDecoder):
                 data = self.decompressor.unused_data + data
                 self.decompressor = ZstdDecompressor()
             while True:
-                yield from self._decompress_frame(data)
+                decompressed = self.decompressor.decompress(data, MAX_DECODE_CHUNK_SIZE)
+                while decompressed:
+                    yield decompressed
+                    if self.decompressor.needs_input or self.decompressor.eof:
+                        break
+                    decompressed = self.decompressor.decompress(b"", MAX_DECODE_CHUNK_SIZE)
                 if not (self.decompressor.eof and self.decompressor.unused_data):
                     break
                 data = self.decompressor.unused_data
                 self.decompressor = ZstdDecompressor()
         except ZstdError as exc:
             raise DecodingError(str(exc)) from exc
-
-    def _decompress_frame(self, data: bytes) -> typing.Iterator[bytes]:
-        decompressed = self.decompressor.decompress(data, MAX_DECODE_CHUNK_SIZE)
-        while decompressed:
-            yield decompressed
-            if self.decompressor.needs_input or self.decompressor.eof:
-                break
-            decompressed = self.decompressor.decompress(b"", MAX_DECODE_CHUNK_SIZE)
 
     def flush(self) -> typing.Iterator[bytes]:
         if not self.seen_data:
