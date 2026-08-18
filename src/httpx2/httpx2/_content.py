@@ -83,6 +83,10 @@ class AsyncIteratorByteStream(AsyncByteStream):
             # Async file objects are iterable, but iterating yields one *line*
             # at a time, so read explicitly instead.
             chunk = await self._stream.read(self.CHUNK_SIZE)
+            if chunk and not isinstance(chunk, bytes):
+                # Content-Length is derived from the file size on disk, which only
+                # matches the uploaded bytes for binary mode reads.
+                raise TypeError("Async file uploads must be opened in binary mode, not text mode.")
             while chunk:
                 yield chunk
                 chunk = await self._stream.read(self.CHUNK_SIZE)
