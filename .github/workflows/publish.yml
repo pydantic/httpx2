@@ -5,11 +5,6 @@ on:
     tags:
       - "**"
   workflow_dispatch:
-    inputs:
-      ref:
-        description: Git ref to build and publish
-        required: false
-        type: string
 
 permissions: {}
 
@@ -25,7 +20,6 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-          ref: ${{ inputs.ref || github.ref }}
 
       - name: Install uv
         uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
