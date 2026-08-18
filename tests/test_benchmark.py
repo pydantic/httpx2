@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import asyncio
 import gzip
+import io
 import json
+from collections.abc import AsyncIterable, AsyncIterator
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -192,3 +195,52 @@ def test_bench_client_get_with_large_cookie_jar(benchmark: BenchmarkFixture) -> 
             client.cookies.set(f"session{i}", f"value{i}", domain=f"site{i % 500}.example.org")
         response = benchmark(lambda: client.get("https://site0.example.org/"))
     assert response.request.headers["Cookie"] == "session0=value0; session500=value500"
+
+
+# --- Async file uploads -----------------------------------------------------------
+
+
+class AsyncFile:
+    """
+    Emulates the file interface returned by `anyio`, `trio` and `aiofiles`, which
+    reads with `await` and iterates a line at a time.
+    """
+
+    def __init__(self, content: bytes) -> None:
+        self._buffer = io.BytesIO(content)
+
+    async def read(self, size: int = -1) -> bytes:
+        return self._buffer.read(size)
+
+    async def seek(self, offset: int, whence: int = io.SEEK_SET) -> int:
+        return self._buffer.seek(offset, whence)
+
+    async def __aiter__(self) -> AsyncIterator[bytes]:
+        for line in self._buffer:
+            yield line
+
+
+# Short lines, so that iterating rather than reading in chunks is markedly slower.
+UPLOAD_BODY = b"".join([b"x" * 63 + b"\n"] * (64 * 1024))
+
+
+async def _drain(request: httpx2.Request) -> int:
+    assert isinstance(request.stream, AsyncIterable)
+    return sum([len(chunk) async for chunk in request.stream])
+
+
+def test_bench_async_file_upload(benchmark: BenchmarkFixture) -> None:
+    def upload() -> int:
+        request = httpx2.Request("POST", TYPICAL_URL, content=AsyncFile(UPLOAD_BODY))
+        return asyncio.run(_drain(request))
+
+    assert benchmark(upload) == len(UPLOAD_BODY)
+
+
+def test_bench_async_file_multipart_upload(benchmark: BenchmarkFixture) -> None:
+    def upload() -> int:
+        files = {"upload": ("upload.bin", AsyncFile(UPLOAD_BODY))}
+        request = httpx2.Request("POST", TYPICAL_URL, files=files)
+        return asyncio.run(_drain(request))
+
+    assert benchmark(upload) > len(UPLOAD_BODY)

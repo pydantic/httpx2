@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## Unreleased
+
+### Added
+
+* Support async file objects, such as those returned by `anyio.open_file()`,
+  `trio.open_file()` or `aiofiles.open()`, as `content=...` and as multipart
+  `files=...` uploads.
+
+### Fixed
+
+* Read async file objects passed as `content=...` in chunks, rather than a line at a
+  time, and set `Content-Length` rather than `Transfer-Encoding: chunked` when the
+  length is known upfront.
+* Raise `TypeError` instead of looping indefinitely when a multipart upload from an
+  async file object is sent with a sync `Client`.
+
 ## 2.16.2 (November 16th, 2026)
 
 ### Fixed
