@@ -6,6 +6,7 @@ import tracemalloc
 import typing
 import zlib
 
+import brotli
 import chardet
 import pytest
 
@@ -14,7 +15,7 @@ import httpx2
 if sys.version_info >= (3, 14):  # pragma: no cover
     from compression import zstd
 else:  # pragma: no cover
-    import zstandard as zstd
+    from backports import zstd
 
 
 def test_deflate() -> None:
@@ -106,6 +107,21 @@ def test_brotli() -> None:
         content=compressed_body,
     )
     assert response.content == body
+
+
+@pytest.mark.parametrize(("encoding", "compress"), [(b"br", brotli.compress), (b"zstd", zstd.compress)])
+def test_decoding_bounds_output_chunks(encoding: bytes, compress: typing.Callable[[bytes], bytes]) -> None:
+    body = b"\x00" * (2**20 + 1)
+    compressed_body = compress(body)
+
+    def raw() -> typing.Iterator[bytes]:
+        yield compressed_body
+
+    response = httpx2.Response(200, headers=[(b"Content-Encoding", encoding)], content=raw())
+    chunks = list(response.iter_bytes())
+
+    assert b"".join(chunks) == body
+    assert max(map(len, chunks)) <= 2**20
 
 
 def test_zstd() -> None:

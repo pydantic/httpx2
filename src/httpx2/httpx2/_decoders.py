@@ -7,7 +7,6 @@ See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Encoding
 from __future__ import annotations
 
 import codecs
-import functools
 import io
 import itertools
 import sys
@@ -29,55 +28,25 @@ except ImportError:  # pragma: no cover
         brotli = None
 
 
-@functools.cache
-def _brotli_bounds_output() -> bool:
-    """
-    Return `True` if the installed brotli backend supports `output_buffer_limit`,
-    which is required to decode in bounded pieces. Older backends decode a whole
-    chunk in one call instead.
-    """
-    decompressor = brotli.Decompressor()
-    decompress = getattr(decompressor, "decompress", None) or decompressor.process
-    try:
-        decompress(b"", output_buffer_limit=MAX_DECODE_CHUNK_SIZE)
-    except TypeError:
-        return False
-    except brotli.error:  # pragma: no cover
-        pass
-    return True
-
-
 # Zstandard support is optional on Python <= 3.13.
 # On Python 3.14+, the stdlib includes an optional built-in zstd implementation.
 if typing.TYPE_CHECKING:
-    # We keep checking Python version in the type checker path because try..except doesn't help type checkers.
     if sys.version_info >= (3, 14):
         from compression.zstd import ZstdDecompressor, ZstdError
     else:
-        from zstandard import ZstdDecompressor as _ZstdDecompressor, ZstdError
+        from backports.zstd import ZstdDecompressor, ZstdError
 
-        ZstdDecompressor = functools.partial(_ZstdDecompressor().decompressobj)
-
-    _zstandard_installed: bool = False
-    # True only when the stdlib `compression.zstd` backend is in use (bounded, incremental decode).
-    _zstd_stdlib_backend: bool = False
+    _zstandard_installed: bool
 else:  # pragma: no cover
-    _zstandard_installed = False
-    _zstd_stdlib_backend = False
     try:
-        from compression.zstd import ZstdDecompressor, ZstdError
+        if sys.version_info >= (3, 14):
+            from compression.zstd import ZstdDecompressor, ZstdError
+        else:
+            from backports.zstd import ZstdDecompressor, ZstdError
 
         _zstandard_installed = True
-        _zstd_stdlib_backend = True
-    # Either Python <3.14 or the distro doesn't have `compression.zstd`.
     except ImportError:
-        try:
-            from zstandard import ZstdDecompressor as _ZstdDecompressor, ZstdError
-
-            ZstdDecompressor = functools.partial(_ZstdDecompressor().decompressobj)
-            _zstandard_installed = True
-        except ImportError:
-            pass
+        _zstandard_installed = False
 
 
 MAX_DECODE_CHUNK_SIZE = 2**20  # 1 MiB
@@ -217,19 +186,12 @@ class BrotliDecoder(ContentDecoder):
             return
         self.seen_data = True
         try:
-            if _brotli_bounds_output():
-                # Drain until the backend stops producing output. `output_buffer_limit`
-                # caps a single call, so a large chunk is emitted over several calls.
-                # Draining to empty also leaves `can_accept_more_data()` true, which the
-                # backend requires before it is passed non-empty input again.
-                decompressed = self._decompress(data, output_buffer_limit=MAX_DECODE_CHUNK_SIZE)
-                while decompressed:
-                    yield decompressed
-                    decompressed = self._decompress(b"", output_buffer_limit=MAX_DECODE_CHUNK_SIZE)
-            else:  # pragma: no cover
-                # Backend without `output_buffer_limit` (e.g. brotli < 1.2.0), so the
-                # output of a single chunk cannot be bounded.
-                yield self._decompress(data)
+            # The C backend may allocate nearly twice the requested threshold.
+            output_buffer_limit = MAX_DECODE_CHUNK_SIZE // 2
+            decompressed = self._decompress(data, output_buffer_limit=output_buffer_limit)
+            while decompressed:
+                yield decompressed
+                decompressed = self._decompress(b"", output_buffer_limit=output_buffer_limit)
         except brotli.error as exc:
             raise DecodingError(str(exc)) from exc
 
@@ -252,8 +214,7 @@ class BrotliDecoder(ContentDecoder):
 class ZStandardDecoder(ContentDecoder):
     """Handle 'zstd' RFC 8878 decoding.
 
-    If running on Python 3.14+ or a distro that doesn't have the `compression.zstd` stdlib module, requires either:
-    `pip install zstandard` or `pip install httpx2[zstd]`.
+    On Python 3.13 and below, this requires `pip install httpx2[zstd]`.
     """
 
     # inspired by the ZstdDecoder implementation in urllib3
@@ -284,21 +245,12 @@ class ZStandardDecoder(ContentDecoder):
             raise DecodingError(str(exc)) from exc
 
     def _decompress_frame(self, data: bytes) -> typing.Iterator[bytes]:
-        # The `sys.version_info` guard is what lets the type checker pick the right backend type;
-        # `_zstd_stdlib_backend` additionally handles a 3.14 install where `compression.zstd` is
-        # absent and the third-party `zstandard` backend is used instead.
-        if sys.version_info >= (3, 14) and _zstd_stdlib_backend:  # pragma: no cover
-            # The stdlib `compression.zstd` decompressor bounds a single call's output.
-            decompressed = self.decompressor.decompress(data, MAX_DECODE_CHUNK_SIZE)
-            while decompressed:
-                yield decompressed
-                if self.decompressor.needs_input or self.decompressor.eof:
-                    break
-                decompressed = self.decompressor.decompress(b"", MAX_DECODE_CHUNK_SIZE)
-        else:  # pragma: no cover
-            # `zstandard`'s incremental (decompressobj) API has no per-call output bound, so a
-            # frame is decompressed in one shot rather than in bounded pieces.
-            yield self.decompressor.decompress(data)
+        decompressed = self.decompressor.decompress(data, MAX_DECODE_CHUNK_SIZE)
+        while decompressed:
+            yield decompressed
+            if self.decompressor.needs_input or self.decompressor.eof:
+                break
+            decompressed = self.decompressor.decompress(b"", MAX_DECODE_CHUNK_SIZE)
 
     def flush(self) -> typing.Iterator[bytes]:
         if not self.seen_data:
