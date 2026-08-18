@@ -10,6 +10,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 * Add the public `Origin` value object and `URL.origin` property for normalized,
   hashable origin comparisons. ([#1134](https://github.com/pydantic/httpx2/pull/1134))
+* Support async file objects, such as those returned by `anyio.open_file()`,
+  `trio.open_file()` or `aiofiles.open()`, as `content=...` and as multipart
+  `files=...` uploads.
+
+### Fixed
+
+* Read async file objects passed as `content=...` in chunks, rather than a line at a
+  time, and set `Content-Length` rather than `Transfer-Encoding: chunked` when the
+  length is known upfront.
+* Raise `TypeError` instead of looping indefinitely when a multipart upload from an
+  async file object is sent with a sync `Client`.
 
 ## 2.10.0 (August 9th, 2026)
 

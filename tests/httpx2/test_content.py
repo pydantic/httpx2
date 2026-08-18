@@ -1,9 +1,12 @@
 import io
+import pathlib
 import typing
 
+import anyio
 import pytest
 
 import httpx2
+from httpx2._content import AsyncIteratorByteStream
 
 method = "POST"
 url = "https://www.example.com"
@@ -515,3 +518,64 @@ def test_allow_nan_false() -> None:
         httpx2.Response(200, json=data_with_nan)
     with pytest.raises(ValueError, match="Out of range float values are not JSON compliant"):
         httpx2.Response(200, json=data_with_inf)
+
+
+@pytest.mark.anyio
+async def test_async_file_content(tmp_path: pathlib.Path) -> None:
+    # No newlines, so iterating the file would yield the whole thing in one go.
+    body = b"x" * (2 * AsyncIteratorByteStream.CHUNK_SIZE + 7)
+    path = tmp_path / "upload.bin"
+    path.write_bytes(body)
+
+    async with await anyio.open_file(path, "rb") as upload:
+        request = httpx2.Request(method, url, content=upload)
+        assert not isinstance(request.stream, typing.Iterable)
+        assert isinstance(request.stream, typing.AsyncIterable)
+
+        chunks = [part async for part in request.stream]
+
+    assert request.headers == {
+        "Host": "www.example.com",
+        "Content-Length": str(len(body)),
+    }
+    assert b"".join(chunks) == body
+    # Read in chunks, rather than buffering the whole file as a single line.
+    assert len(chunks) == 3
+
+
+@pytest.mark.anyio
+async def test_async_file_content_without_fileno(tmp_path: pathlib.Path) -> None:
+    class AsyncBytesIO:
+        def __init__(self, content: bytes) -> None:
+            self._buffer = io.BytesIO(content)
+
+        async def read(self, size: int = -1) -> bytes:
+            return self._buffer.read(size)
+
+        async def __aiter__(self) -> typing.AsyncIterator[bytes]:
+            yield self._buffer.read()  # pragma: no cover
+
+    request = httpx2.Request(method, url, content=AsyncBytesIO(b"Hello, world!"))
+    assert isinstance(request.stream, typing.AsyncIterable)
+    content = b"".join([part async for part in request.stream])
+
+    # There's no file descriptor to stat, so we can't determine the length upfront.
+    assert request.headers == {
+        "Host": "www.example.com",
+        "Transfer-Encoding": "chunked",
+    }
+    assert content == b"Hello, world!"
+
+
+@pytest.mark.anyio
+async def test_async_file_content_with_sync_client(tmp_path: pathlib.Path) -> None:
+    path = tmp_path / "upload.bin"
+    path.write_bytes(b"<file content>")
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(200)  # pragma: no cover
+
+    async with await anyio.open_file(path, "rb") as upload:
+        with httpx2.Client(transport=httpx2.MockTransport(handler)) as client:
+            with pytest.raises(RuntimeError, match="Attempted to send an async request"):
+                client.post(url, content=upload)

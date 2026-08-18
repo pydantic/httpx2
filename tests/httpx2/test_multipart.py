@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import io
+import pathlib
 import tempfile
 import typing
 
+import anyio
 import pytest
 
 import httpx2
+from httpx2._multipart import FileField
 
 
 def echo_request_content(request: httpx2.Request) -> httpx2.Response:
@@ -465,3 +468,156 @@ class TestHeaderParamHTML5Formatting:
         files = {"upload": (filename, b"<file content>")}
         request = httpx2.Request("GET", "https://www.example.com", files=files)
         assert expected in request.read()
+
+
+@pytest.mark.anyio
+async def test_multipart_encode_async_file(tmp_path: pathlib.Path) -> None:
+    # No newlines, so iterating the file would yield the whole thing in one go.
+    body = b"x" * (2 * FileField.CHUNK_SIZE + 7)
+    path = tmp_path / "name.txt"
+    path.write_bytes(body)
+
+    url = "https://www.example.com/"
+    headers = {"Content-Type": "multipart/form-data; boundary=BOUNDARY"}
+
+    async with await anyio.open_file(path, "rb") as upload:
+        request = httpx2.Request("POST", url, headers=headers, files={"file": upload})
+        assert isinstance(request.stream, typing.AsyncIterable)
+        chunks = [chunk async for chunk in request.stream]
+
+    content = b"".join(
+        [
+            b"--BOUNDARY\r\n",
+            b'Content-Disposition: form-data; name="file"; filename="name.txt"\r\n',
+            b"Content-Type: text/plain\r\n",
+            b"\r\n",
+            body,
+            b"\r\n",
+            b"--BOUNDARY--\r\n",
+        ]
+    )
+    assert request.headers == {
+        "Host": "www.example.com",
+        "Content-Type": "multipart/form-data; boundary=BOUNDARY",
+        "Content-Length": str(len(content)),
+    }
+    assert b"".join(chunks) == content
+    # The file body is read in chunks, rather than buffered as a single line.
+    assert [len(chunk) for chunk in chunks if len(chunk) > 1000] == [FileField.CHUNK_SIZE, FileField.CHUNK_SIZE]
+
+
+@pytest.mark.anyio
+async def test_multipart_encode_async_file_and_data(tmp_path: pathlib.Path) -> None:
+    path = tmp_path / "name.txt"
+    path.write_bytes(b"<file content>")
+
+    url = "https://www.example.com/"
+    headers = {"Content-Type": "multipart/form-data; boundary=BOUNDARY"}
+
+    async with await anyio.open_file(path, "rb") as upload:
+        request = httpx2.Request("POST", url, headers=headers, data={"a": "1"}, files={"file": upload})
+        assert isinstance(request.stream, typing.AsyncIterable)
+        content = b"".join([chunk async for chunk in request.stream])
+
+    assert content == b"".join(
+        [
+            b"--BOUNDARY\r\n",
+            b'Content-Disposition: form-data; name="a"\r\n',
+            b"\r\n",
+            b"1\r\n",
+            b"--BOUNDARY\r\n",
+            b'Content-Disposition: form-data; name="file"; filename="name.txt"\r\n',
+            b"Content-Type: text/plain\r\n",
+            b"\r\n",
+            b"<file content>\r\n",
+            b"--BOUNDARY--\r\n",
+        ]
+    )
+
+
+@pytest.mark.anyio
+async def test_multipart_encode_async_file_without_fileno() -> None:
+    class AsyncBytesIO:
+        def __init__(self, content: bytes) -> None:
+            self._buffer = io.BytesIO(content)
+
+        async def read(self, size: int = -1) -> bytes:
+            return self._buffer.read(size)
+
+        async def seek(self, offset: int, whence: int = io.SEEK_SET) -> int:
+            return self._buffer.seek(offset, whence)
+
+    url = "https://www.example.com/"
+    headers = {"Content-Type": "multipart/form-data; boundary=BOUNDARY"}
+    files = {"file": ("name.txt", AsyncBytesIO(b"<file content>"))}
+
+    request = httpx2.Request("POST", url, headers=headers, files=files)
+    assert isinstance(request.stream, typing.AsyncIterable)
+    content = b"".join([chunk async for chunk in request.stream])
+
+    # There's no file descriptor to stat, so we can't determine the length upfront.
+    assert request.headers == {
+        "Host": "www.example.com",
+        "Content-Type": "multipart/form-data; boundary=BOUNDARY",
+        "Transfer-Encoding": "chunked",
+    }
+    assert content == b"".join(
+        [
+            b"--BOUNDARY\r\n",
+            b'Content-Disposition: form-data; name="file"; filename="name.txt"\r\n',
+            b"Content-Type: text/plain\r\n",
+            b"\r\n",
+            b"<file content>\r\n",
+            b"--BOUNDARY--\r\n",
+        ]
+    )
+
+
+@pytest.mark.anyio
+async def test_multipart_encode_async_file_in_text_mode(tmp_path: pathlib.Path) -> None:
+    path = tmp_path / "name.txt"
+    path.write_text("<file content>")
+
+    url = "https://www.example.com/"
+
+    async with await anyio.open_file(path) as upload:
+        # Text mode is rejected statically by the `AsyncReadableFile` protocol,
+        # and at runtime for file objects that aren't type checked.
+        request = httpx2.Request("POST", url, files={"file": upload})  # type: ignore[dict-item]
+        assert isinstance(request.stream, typing.AsyncIterable)
+        with pytest.raises(TypeError, match="must be opened in binary mode"):
+            [chunk async for chunk in request.stream]
+
+
+@pytest.mark.anyio
+async def test_multipart_encode_async_file_with_sync_client(tmp_path: pathlib.Path) -> None:
+    path = tmp_path / "name.txt"
+    path.write_bytes(b"<file content>")
+
+    async with await anyio.open_file(path, "rb") as upload:
+        client = httpx2.Client(transport=httpx2.MockTransport(echo_request_content))
+        with pytest.raises(TypeError, match="only supported by 'httpx2.AsyncClient'"):
+            client.post("https://www.example.com/", files={"file": upload})
+
+
+@pytest.mark.anyio
+async def test_multipart_encode_async_file_that_is_not_seekable() -> None:
+    class AsyncPipe:
+        def __init__(self, content: bytes) -> None:
+            self._buffer = io.BytesIO(content)
+
+        async def read(self, size: int = -1) -> bytes:
+            return self._buffer.read(size)
+
+        async def seek(self, offset: int, whence: int = io.SEEK_SET) -> int:
+            raise io.UnsupportedOperation("seek")
+
+    url = "https://www.example.com/"
+    headers = {"Content-Type": "multipart/form-data; boundary=BOUNDARY"}
+    files = {"file": ("name.txt", AsyncPipe(b"<file content>"))}
+
+    request = httpx2.Request("POST", url, headers=headers, files=files)
+    assert isinstance(request.stream, typing.AsyncIterable)
+    content = b"".join([chunk async for chunk in request.stream])
+
+    assert b"<file content>" in content

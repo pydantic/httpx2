@@ -18,8 +18,9 @@ from ._types import (
     RequestFiles,
     ResponseContent,
     SyncByteStream,
+    is_async_readable_file,
 )
-from ._utils import peek_filelike_length, primitive_value_to_str
+from ._utils import peek_async_filelike_length, peek_filelike_length, primitive_value_to_str
 
 __all__ = ["ByteStream"]
 
@@ -78,6 +79,13 @@ class AsyncIteratorByteStream(AsyncByteStream):
             while chunk:
                 yield chunk
                 chunk = await self._stream.aread(self.CHUNK_SIZE)
+        elif is_async_readable_file(self._stream):
+            # Async file objects are iterable, but iterating yields one *line*
+            # at a time, so read explicitly instead.
+            chunk = await self._stream.read(self.CHUNK_SIZE)
+            while chunk:
+                yield chunk
+                chunk = await self._stream.read(self.CHUNK_SIZE)
         else:
             # Otherwise iterate.
             async for part in self._stream:
@@ -122,7 +130,12 @@ def encode_content(
         return headers, IteratorByteStream(content)
 
     elif isinstance(content, AsyncIterable):
-        headers = {"Transfer-Encoding": "chunked"}
+        content_length_or_none = peek_async_filelike_length(content) if is_async_readable_file(content) else None
+
+        if content_length_or_none is None:
+            headers = {"Transfer-Encoding": "chunked"}
+        else:
+            headers = {"Content-Length": str(content_length_or_none)}
         return headers, AsyncIteratorByteStream(content)
 
     raise TypeError(f"Unexpected type for 'content', {type(content)!r}")

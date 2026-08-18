@@ -9,7 +9,7 @@ import typing
 import pytest
 
 import httpx2
-from httpx2._utils import URLPattern, get_environment_proxies
+from httpx2._utils import URLPattern, get_environment_proxies, peek_async_filelike_length
 
 if typing.TYPE_CHECKING:
     from conftest import TestServer
@@ -157,3 +157,28 @@ def test_pattern_priority() -> None:
         URLPattern("http://"),
         URLPattern("all://"),
     ]
+
+
+def test_peek_async_filelike_length_without_fileno() -> None:
+    class AsyncBytesIO:
+        async def read(self, size: int = -1) -> bytes:
+            return b""  # pragma: no cover
+
+    assert peek_async_filelike_length(AsyncBytesIO()) is None
+
+
+def test_peek_async_filelike_length_with_async_fileno() -> None:
+    class AsyncFileno:
+        async def fileno(self) -> int:
+            return 0  # pragma: no cover
+
+    assert peek_async_filelike_length(AsyncFileno()) is None
+
+
+@pytest.mark.parametrize("fileno", (lambda: -1, lambda: None))
+def test_peek_async_filelike_length_with_unstatable_fileno(fileno: typing.Callable[[], typing.Any]) -> None:
+    class Unstatable:
+        def __init__(self) -> None:
+            self.fileno = fileno
+
+    assert peek_async_filelike_length(Unstatable()) is None
