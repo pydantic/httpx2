@@ -213,7 +213,8 @@ class HTTP2Connection(ConnectionInterface):
 
         self._h2_state.initiate_connection()
         self._h2_state.increment_flow_control_window(2**24)
-        self._write_outgoing_data(request)
+        with self._write_lock:
+            self._flush_outgoing_data(request)
 
     # Sending the request...
 
@@ -370,29 +371,41 @@ class HTTP2Connection(ConnectionInterface):
             # block until we've available flow control, event when we have events
             # pending for the stream ID we're attempting to send on.
             if stream_id is None or not self._events.get(stream_id):
-                events = self._read_incoming_data(request)
-                for event in events:
-                    if isinstance(event, h2.events.RemoteSettingsChanged):
-                        with Trace("receive_remote_settings", logger, request) as trace:
-                            self._receive_remote_settings_change(event)
-                            trace.return_value = event
+                data = self._read_incoming_data(request)
+                settings_changes: list[h2.events.RemoteSettingsChanged] = []
+                with self._write_lock:
+                    # Feeding inbound data into the `h2` state machine, recording
+                    # the resulting events, and flushing any outgoing data (such as
+                    # automatic PING responses) must be atomic with respect to
+                    # outgoing frames from concurrently sending streams.
+                    events: list[h2.events.Event] = self._h2_state.receive_data(data)
+                    for event in events:
+                        if isinstance(event, h2.events.RemoteSettingsChanged):
+                            settings_changes.append(event)
 
-                    elif isinstance(
-                        event,
-                        (
-                            h2.events.ResponseReceived,
-                            h2.events.DataReceived,
-                            h2.events.StreamEnded,
-                            h2.events.StreamReset,
-                        ),
-                    ):
-                        if event.stream_id in self._events:
-                            self._events[event.stream_id].append(event)
+                        elif isinstance(
+                            event,
+                            (
+                                h2.events.ResponseReceived,
+                                h2.events.DataReceived,
+                                h2.events.StreamEnded,
+                                h2.events.StreamReset,
+                            ),
+                        ):
+                            if event.stream_id in self._events:
+                                self._events[event.stream_id].append(event)
 
-                    elif isinstance(event, h2.events.ConnectionTerminated):
-                        self._connection_terminated = event
+                        elif isinstance(event, h2.events.ConnectionTerminated):
+                            self._connection_terminated = event
 
-        self._write_outgoing_data(request)
+                    self._flush_outgoing_data(request)
+
+                # Adjusting the max streams semaphore may block, and the trace
+                # extension runs user code, so both happen outside the write lock.
+                for settings_change in settings_changes:
+                    with Trace("receive_remote_settings", logger, request) as trace:
+                        self._receive_remote_settings_change(settings_change)
+                        trace.return_value = settings_change
 
     def _receive_remote_settings_change(self, event: h2.events.RemoteSettingsChanged) -> None:
         max_concurrent_streams = event.changed_settings.get(h2.settings.SettingCodes.MAX_CONCURRENT_STREAMS)
@@ -434,7 +447,7 @@ class HTTP2Connection(ConnectionInterface):
 
     # Wrappers around network read/write operations...
 
-    def _read_incoming_data(self, request: Request) -> list[h2.events.Event]:
+    def _read_incoming_data(self, request: Request) -> bytes:
         timeouts = request.extensions.get("timeout", {})
         timeout = timeouts.get("read", None)
 
@@ -458,14 +471,7 @@ class HTTP2Connection(ConnectionInterface):
             self._connection_error = True
             raise exc
 
-        with self._write_lock:
-            events: list[h2.events.Event] = self._h2_state.receive_data(data)
-
-        return events
-
-    def _write_outgoing_data(self, request: Request) -> None:
-        with self._write_lock:
-            self._flush_outgoing_data(request)
+        return data
 
     def _flush_outgoing_data(self, request: Request) -> None:
         """
