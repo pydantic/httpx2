@@ -116,30 +116,34 @@ class HTTP2Connection(ConnectionInterface):
 
         self._max_streams_semaphore.acquire()
 
-        with self._write_lock:
-            # Stream ID allocation, HPACK encoding of the outgoing headers, and
-            # writing the HEADERS frame to the network must be a single atomic
-            # section with respect to other streams on this connection.
-            try:
-                stream_id = self._h2_state.get_next_available_stream_id()
-                self._events[stream_id] = []
-            except h2.exceptions.NoAvailableStreamIDError:  # pragma: no cover
-                self._used_all_stream_ids = True
-                self._request_count -= 1
-                self._max_streams_semaphore.release()
-                raise ConnectionNotAvailable()
-
-            try:
-                kwargs = {"request": request, "stream_id": stream_id}
-                with Trace("send_request_headers", logger, request, kwargs):
+        stream_id: int | None = None
+        try:
+            kwargs: dict[str, typing.Any] = {"request": request}
+            with Trace("send_request_headers", logger, request, kwargs):
+                with self._write_lock:
+                    # Stream ID allocation, HPACK encoding of the outgoing headers, and
+                    # writing the HEADERS frame to the network must be a single atomic
+                    # section with respect to other streams on this connection.
+                    stream_id = self._h2_state.get_next_available_stream_id()
+                    self._events[stream_id] = []
+                    kwargs["stream_id"] = stream_id
                     self._send_request_headers(request=request, stream_id=stream_id)
-            except BaseException as exc:  # noqa: PIE786
-                with ShieldCancellation():
+        except h2.exceptions.NoAvailableStreamIDError:  # pragma: no cover
+            self._used_all_stream_ids = True
+            self._request_count -= 1
+            self._max_streams_semaphore.release()
+            raise ConnectionNotAvailable()
+        except BaseException as exc:  # noqa: PIE786
+            with ShieldCancellation():
+                if stream_id is None:  # pragma: no cover
+                    self._max_streams_semaphore.release()
+                else:
                     closed_kwargs = {"stream_id": stream_id}
                     with Trace("response_closed", logger, request, closed_kwargs):
                         self._response_closed(stream_id=stream_id)
-                raise self._map_exception(exc)
+            raise self._map_exception(exc)
 
+        assert stream_id is not None
         try:
             with Trace("send_request_body", logger, request, kwargs):
                 self._send_request_body(request=request, stream_id=stream_id)
