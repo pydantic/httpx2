@@ -136,7 +136,15 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
         except BaseException as exc:  # noqa: PIE786
             with AsyncShieldCancellation():
                 if stream_id is None:  # pragma: no cover
+                    # The request failed before a stream was allocated, for
+                    # example within the trace 'started' callback, or by
+                    # cancellation while waiting on the write lock.
                     await self._max_streams_semaphore.release()
+                    async with self._state_lock:
+                        if self._state == HTTPConnectionState.ACTIVE and not self._events:
+                            self._state = HTTPConnectionState.IDLE
+                            if self._keepalive_expiry is not None:
+                                self._expire_at = time.monotonic() + self._keepalive_expiry
                 else:
                     closed_kwargs = {"stream_id": stream_id}
                     async with Trace("response_closed", logger, request, closed_kwargs):
