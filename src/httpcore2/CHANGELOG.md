@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2.12.0 (August 18th, 2026)
+
+No changes since `2.11.0`. Version bumped to stay in lockstep with `httpx2`.
+
+## 2.11.0 (August 18th, 2026)
+
+### Changed
+
+* Cache sniffio availability instead of importing it on every synchronization call.
+  ([#1132](https://github.com/pydantic/httpx2/pull/1132))
+
 ## 2.10.0 (August 9th, 2026)
 
 ### Added

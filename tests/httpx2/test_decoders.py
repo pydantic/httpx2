@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import io
 import sys
+import tracemalloc
 import typing
 import zlib
 
+import brotli
 import chardet
 import pytest
 
@@ -13,7 +15,7 @@ import httpx2
 if sys.version_info >= (3, 14):  # pragma: no cover
     from compression import zstd
 else:  # pragma: no cover
-    import zstandard as zstd
+    from backports import zstd
 
 
 def test_deflate() -> None:
@@ -67,6 +69,33 @@ def test_gzip() -> None:
     assert response.content == body
 
 
+@pytest.mark.parametrize("wbits", (zlib.MAX_WBITS | 16, zlib.MAX_WBITS))
+def test_decoding_bounds_peak_memory(wbits: int) -> None:
+    # A small compressed body that inflates to a large output must not be
+    # materialised in a single decode step. Even when the entire compressed
+    # body arrives as one raw chunk, peak memory stays far below the decoded
+    # size because decoding happens in bounded pieces.
+    decoded_size = 64 * 1024 * 1024
+    compressor = zlib.compressobj(9, zlib.DEFLATED, wbits)
+    compressed = compressor.compress(b"\x00" * decoded_size) + compressor.flush()
+    encoding = b"gzip" if wbits & 16 else b"deflate"
+
+    def raw() -> typing.Iterator[bytes]:
+        yield compressed  # deliver the whole bomb as a single raw chunk
+
+    response = httpx2.Response(200, headers=[(b"Content-Encoding", encoding)], content=raw())
+
+    total = 0
+    tracemalloc.start()
+    for chunk in response.iter_bytes():
+        total += len(chunk)
+    _, peak = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
+
+    assert total == decoded_size
+    assert peak < decoded_size // 8
+
+
 def test_brotli() -> None:
     body = b"test 123"
     compressed_body = b"\x8b\x03\x80test 123\x03"
@@ -78,6 +107,21 @@ def test_brotli() -> None:
         content=compressed_body,
     )
     assert response.content == body
+
+
+@pytest.mark.parametrize(("encoding", "compress"), [(b"br", brotli.compress), (b"zstd", zstd.compress)])
+def test_decoding_bounds_output_chunks(encoding: bytes, compress: typing.Callable[[bytes], bytes]) -> None:
+    body = b"\x00" * (2**20 + 1)
+    compressed_body = compress(body)
+
+    def raw() -> typing.Iterator[bytes]:
+        yield compressed_body
+
+    response = httpx2.Response(200, headers=[(b"Content-Encoding", encoding)], content=raw())
+    chunks = list(response.iter_bytes())
+
+    assert b"".join(chunks) == body
+    assert max(map(len, chunks)) <= 2**20
 
 
 def test_zstd() -> None:
@@ -222,6 +266,30 @@ def test_multi_brotli_zstd() -> None:
     compressed_body = zstd.compress(b"\x8b\x03\x80test 123\x03")
 
     headers = [(b"Content-Encoding", b"br, zstd")]
+    response = httpx2.Response(200, headers=headers, content=compressed_body)
+    assert response.content == body
+
+
+def test_multi_zstd_gzip() -> None:
+    # A gzip layer ahead of zstd means gzip's end-of-stream flush feeds b"" into
+    # the zstd decoder after its frame is complete; it must not raise.
+    body = b"test 123"
+    inner = zstd.compress(body)
+    compressor = zlib.compressobj(9, zlib.DEFLATED, zlib.MAX_WBITS | 16)
+    compressed_body = compressor.compress(inner) + compressor.flush()
+
+    headers = [(b"Content-Encoding", b"zstd, gzip")]
+    response = httpx2.Response(200, headers=headers, content=compressed_body)
+    assert response.content == body
+
+
+def test_multi_brotli_gzip() -> None:
+    body = b"test 123"
+    inner = b"\x8b\x03\x80test 123\x03"
+    compressor = zlib.compressobj(9, zlib.DEFLATED, zlib.MAX_WBITS | 16)
+    compressed_body = compressor.compress(inner) + compressor.flush()
+
+    headers = [(b"Content-Encoding", b"br, gzip")]
     response = httpx2.Response(200, headers=headers, content=compressed_body)
     assert response.content == body
 
@@ -405,3 +473,39 @@ def test_invalid_content_encoding_header() -> None:
         content=body,
     )
     assert response.content == body
+
+
+def test_streaming_decode_error_closes_response() -> None:
+    response: httpx2.Response | None = None
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        nonlocal response
+        response = httpx2.Response(200, headers={"Content-Encoding": "gzip"}, content=iter([b"invalid"]))
+        return response
+
+    with httpx2.Client(transport=httpx2.MockTransport(handler)) as client:
+        with pytest.raises(httpx2.DecodingError):
+            client.get("https://example.org")
+
+    assert response is not None
+    assert response.is_closed
+
+
+@pytest.mark.anyio
+async def test_async_streaming_decode_error_closes_response() -> None:
+    response: httpx2.Response | None = None
+
+    async def content() -> typing.AsyncIterator[bytes]:
+        yield b"invalid"
+
+    async def handler(request: httpx2.Request) -> httpx2.Response:
+        nonlocal response
+        response = httpx2.Response(200, headers={"Content-Encoding": "gzip"}, content=content())
+        return response
+
+    async with httpx2.AsyncClient(transport=httpx2.MockTransport(handler)) as client:
+        with pytest.raises(httpx2.DecodingError):
+            await client.get("https://example.org")
+
+    assert response is not None
+    assert response.is_closed

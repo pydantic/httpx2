@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Changed
+
+* Improve URL parsing performance by approximately 2x. ([#1139](https://github.com/pydantic/httpx2/pull/1139))
+
+## 2.12.0 (August 18th, 2026)
+
+### Changed
+
+* Use `backports.zstd` for Zstandard decoding on Python 3.13 and earlier.
+  ([#1146](https://github.com/pydantic/httpx2/pull/1146))
+
+### Fixed
+
+* Bound peak memory while streaming compressed responses and close response streams when decoding fails.
+  ([#1126](https://github.com/pydantic/httpx2/pull/1126))
+
+## 2.11.0 (August 18th, 2026)
+
 ### Added
 
 * Add the public `Origin` value object and `URL.origin` property for normalized,
@@ -13,7 +31,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
-* Improve URL parsing performance by approximately 2x. ([#1139](https://github.com/pydantic/httpx2/pull/1139))
+* Require Brotli 1.2.0 or later for the `brotli` extra. ([#1141](https://github.com/pydantic/httpx2/pull/1141))
+
+### Fixed
+
+* Restore deprecated status code aliases. ([#1135](https://github.com/pydantic/httpx2/pull/1135))
+* Extract HTTP/2 release notes from changelog headings correctly. ([#1136](https://github.com/pydantic/httpx2/pull/1136))
+* Respect explicit `Transfer-Encoding` headers and expose buffered request body lengths to WSGI applications.
+  ([#1137](https://github.com/pydantic/httpx2/pull/1137))
+* Validate multipart part header names and values before serialization.
+  ([#1142](https://github.com/pydantic/httpx2/pull/1142))
 
 ## 2.10.0 (August 9th, 2026)
 

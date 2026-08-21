@@ -55,8 +55,8 @@ dependencies = [
 
 [project.optional-dependencies]
 brotli = [
-    "brotli; platform_python_implementation == 'CPython'",
-    "brotlicffi; platform_python_implementation != 'CPython'",
+    "brotli>=1.2.0; platform_python_implementation == 'CPython'",
+    "brotlicffi>=1.2.0.0; platform_python_implementation != 'CPython'",
 ]
 cli = [
     "click>=8.4.2",
@@ -74,7 +74,7 @@ ws = [
 ]
 # TODO(Marcelo): Remove when Python 3.13 reaches EOL.
 zstd = [
-  "zstandard>=0.18.0; python_version <= '3.13'",
+    "backports.zstd>=1.0.0; python_version <= '3.13'",
 ]
 
 [project.scripts]
