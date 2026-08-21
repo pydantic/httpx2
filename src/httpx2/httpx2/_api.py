@@ -146,7 +146,7 @@ def stream(
 
     See also: [Streaming Responses][0]
 
-    [0]: /quickstart#streaming-responses
+    [0]: https://www.python-httpx2.org/quickstart#streaming-responses
     """
     with Client(
         cookies=cookies,
