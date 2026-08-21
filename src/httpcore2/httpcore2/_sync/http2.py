@@ -54,6 +54,9 @@ class HTTP2Connection(ConnectionInterface):
         self._init_lock = Lock()
         self._state_lock = Lock()
         self._read_lock = Lock()
+        # The write lock guards every mutation of the `h2` state machine and the
+        # flush of its outgoing data, so that concurrent streams cannot interleave
+        # stream ID allocation, HPACK encoder state, or partially written frames.
         self._write_lock = Lock()
         self._sent_connection_init = False
         self._used_all_stream_ids = False
@@ -113,19 +116,31 @@ class HTTP2Connection(ConnectionInterface):
 
         self._max_streams_semaphore.acquire()
 
-        try:
-            stream_id = self._h2_state.get_next_available_stream_id()
-            self._events[stream_id] = []
-        except h2.exceptions.NoAvailableStreamIDError:  # pragma: no cover
-            self._used_all_stream_ids = True
-            self._request_count -= 1
-            self._max_streams_semaphore.release()
-            raise ConnectionNotAvailable()
+        with self._write_lock:
+            # Stream ID allocation, HPACK encoding of the outgoing headers, and
+            # writing the HEADERS frame to the network must be a single atomic
+            # section with respect to other streams on this connection.
+            try:
+                stream_id = self._h2_state.get_next_available_stream_id()
+                self._events[stream_id] = []
+            except h2.exceptions.NoAvailableStreamIDError:  # pragma: no cover
+                self._used_all_stream_ids = True
+                self._request_count -= 1
+                self._max_streams_semaphore.release()
+                raise ConnectionNotAvailable()
+
+            try:
+                kwargs = {"request": request, "stream_id": stream_id}
+                with Trace("send_request_headers", logger, request, kwargs):
+                    self._send_request_headers(request=request, stream_id=stream_id)
+            except BaseException as exc:  # noqa: PIE786
+                with ShieldCancellation():
+                    closed_kwargs = {"stream_id": stream_id}
+                    with Trace("response_closed", logger, request, closed_kwargs):
+                        self._response_closed(stream_id=stream_id)
+                raise self._map_exception(exc)
 
         try:
-            kwargs = {"request": request, "stream_id": stream_id}
-            with Trace("send_request_headers", logger, request, kwargs):
-                self._send_request_headers(request=request, stream_id=stream_id)
             with Trace("send_request_body", logger, request, kwargs):
                 self._send_request_body(request=request, stream_id=stream_id)
             with Trace("receive_response_headers", logger, request, kwargs) as trace:
@@ -144,27 +159,28 @@ class HTTP2Connection(ConnectionInterface):
             )
         except BaseException as exc:  # noqa: PIE786
             with ShieldCancellation():
-                kwargs = {"stream_id": stream_id}
-                with Trace("response_closed", logger, request, kwargs):
+                closed_kwargs = {"stream_id": stream_id}
+                with Trace("response_closed", logger, request, closed_kwargs):
                     self._response_closed(stream_id=stream_id)
+            raise self._map_exception(exc)
 
-            if isinstance(exc, h2.exceptions.ProtocolError):
-                # One case where h2 can raise a protocol error is when a
-                # closed frame has been seen by the state machine.
-                #
-                # This happens when one stream is reading, and encounters
-                # a GOAWAY event. Other flows of control may then raise
-                # a protocol error at any point they interact with the 'h2_state'.
-                #
-                # In this case we'll have stored the event, and should raise
-                # it as a RemoteProtocolError.
-                if self._connection_terminated:  # pragma: no cover
-                    raise RemoteProtocolError(self._connection_terminated)
-                # If h2 raises a protocol error in some other state then we
-                # must somehow have made a protocol violation.
-                raise LocalProtocolError(exc)  # pragma: no cover
-
-            raise exc
+    def _map_exception(self, exc: BaseException) -> BaseException:
+        if isinstance(exc, h2.exceptions.ProtocolError):
+            # One case where h2 can raise a protocol error is when a
+            # closed frame has been seen by the state machine.
+            #
+            # This happens when one stream is reading, and encounters
+            # a GOAWAY event. Other flows of control may then raise
+            # a protocol error at any point they interact with the 'h2_state'.
+            #
+            # In this case we'll have stored the event, and should raise
+            # it as a RemoteProtocolError.
+            if self._connection_terminated:  # pragma: no cover
+                return RemoteProtocolError(self._connection_terminated)
+            # If h2 raises a protocol error in some other state then we
+            # must somehow have made a protocol violation.
+            return LocalProtocolError(exc)  # pragma: no cover
+        return exc
 
     def _send_connection_init(self, request: Request) -> None:
         """
@@ -200,6 +216,8 @@ class HTTP2Connection(ConnectionInterface):
     def _send_request_headers(self, request: Request, stream_id: int) -> None:
         """
         Send the request headers to a given stream ID.
+
+        Must be called while holding the write lock.
         """
         end_stream = not has_body_headers(request)
 
@@ -226,7 +244,7 @@ class HTTP2Connection(ConnectionInterface):
 
         self._h2_state.send_headers(stream_id, headers, end_stream=end_stream)
         self._h2_state.increment_flow_control_window(2**24, stream_id=stream_id)
-        self._write_outgoing_data(request)
+        self._flush_outgoing_data(request)
 
     def _send_request_body(self, request: Request, stream_id: int) -> None:
         """
@@ -245,21 +263,34 @@ class HTTP2Connection(ConnectionInterface):
     def _send_stream_data(self, request: Request, stream_id: int, data: bytes) -> None:
         """
         Send a single chunk of data in one or more data frames.
+
+        The available outgoing flow must be checked under the write lock, since
+        concurrent streams share the connection-level flow control window.
+        If the allowable flow is zero, then we wait on the network until
+        WindowUpdated frames have increased the flow rate.
+        https://tools.ietf.org/html/rfc7540#section-6.9
         """
         position = 0
         while position < len(data):
-            max_flow = self._wait_for_outgoing_flow(request, stream_id)
-            chunk = data[position : position + max_flow]
-            position += len(chunk)
-            self._h2_state.send_data(stream_id, chunk)
-            self._write_outgoing_data(request)
+            with self._write_lock:
+                local_flow: int = self._h2_state.local_flow_control_window(stream_id)
+                max_frame_size: int = self._h2_state.max_outbound_frame_size
+                max_flow = min(local_flow, max_frame_size)
+                if max_flow > 0:
+                    chunk = data[position : position + max_flow]
+                    position += len(chunk)
+                    self._h2_state.send_data(stream_id, chunk)
+                    self._flush_outgoing_data(request)
+                    continue
+            self._receive_events(request)
 
     def _send_end_stream(self, request: Request, stream_id: int) -> None:
         """
         Send an empty data frame on on a given stream ID with the END_STREAM flag set.
         """
-        self._h2_state.end_stream(stream_id)
-        self._write_outgoing_data(request)
+        with self._write_lock:
+            self._h2_state.end_stream(stream_id)
+            self._flush_outgoing_data(request)
 
     # Receiving the response...
 
@@ -293,8 +324,9 @@ class HTTP2Connection(ConnectionInterface):
                 assert event.flow_controlled_length is not None
                 assert event.data is not None
                 amount = event.flow_controlled_length
-                self._h2_state.acknowledge_received_data(amount, stream_id)
-                self._write_outgoing_data(request)
+                with self._write_lock:
+                    self._h2_state.acknowledge_received_data(amount, stream_id)
+                    self._flush_outgoing_data(request)
                 yield event.data
             elif isinstance(event, h2.events.StreamEnded):
                 break
@@ -422,54 +454,43 @@ class HTTP2Connection(ConnectionInterface):
             self._connection_error = True
             raise exc
 
-        events: list[h2.events.Event] = self._h2_state.receive_data(data)
+        with self._write_lock:
+            events: list[h2.events.Event] = self._h2_state.receive_data(data)
 
         return events
 
     def _write_outgoing_data(self, request: Request) -> None:
+        with self._write_lock:
+            self._flush_outgoing_data(request)
+
+    def _flush_outgoing_data(self, request: Request) -> None:
+        """
+        Write any pending outgoing data to the network.
+
+        Must be called while holding the write lock.
+        """
         timeouts = request.extensions.get("timeout", {})
         timeout = timeouts.get("write", None)
 
-        with self._write_lock:
-            data_to_send = self._h2_state.data_to_send()
+        data_to_send = self._h2_state.data_to_send()
 
-            if self._write_exception is not None:
-                raise self._write_exception  # pragma: no cover
+        if self._write_exception is not None:
+            raise self._write_exception  # pragma: no cover
 
-            try:
-                self._network_stream.write(data_to_send, timeout)
-            except Exception as exc:  # pragma: no cover
-                # If we get a network error we should:
-                #
-                # 1. Save the exception and just raise it immediately on any future write.
-                #    (For example, this means that a single write timeout or disconnect will
-                #    immediately close all pending streams. Without requiring multiple
-                #    sequential timeouts.)
-                # 2. Mark the connection as errored, so that we don't accept any other
-                #    incoming requests.
-                self._write_exception = exc
-                self._connection_error = True
-                raise exc
-
-    # Flow control...
-
-    def _wait_for_outgoing_flow(self, request: Request, stream_id: int) -> int:
-        """
-        Returns the maximum allowable outgoing flow for a given stream.
-
-        If the allowable flow is zero, then waits on the network until
-        WindowUpdated frames have increased the flow rate.
-        https://tools.ietf.org/html/rfc7540#section-6.9
-        """
-        local_flow: int = self._h2_state.local_flow_control_window(stream_id)
-        max_frame_size: int = self._h2_state.max_outbound_frame_size
-        flow = min(local_flow, max_frame_size)
-        while flow <= 0:
-            self._receive_events(request)
-            local_flow = self._h2_state.local_flow_control_window(stream_id)
-            max_frame_size = self._h2_state.max_outbound_frame_size
-            flow = min(local_flow, max_frame_size)
-        return flow
+        try:
+            self._network_stream.write(data_to_send, timeout)
+        except Exception as exc:  # pragma: no cover
+            # If we get a network error we should:
+            #
+            # 1. Save the exception and just raise it immediately on any future write.
+            #    (For example, this means that a single write timeout or disconnect will
+            #    immediately close all pending streams. Without requiring multiple
+            #    sequential timeouts.)
+            # 2. Mark the connection as errored, so that we don't accept any other
+            #    incoming requests.
+            self._write_exception = exc
+            self._connection_error = True
+            raise exc
 
     # Interface for connection pooling...
 
