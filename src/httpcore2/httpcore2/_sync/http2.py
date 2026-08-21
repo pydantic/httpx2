@@ -117,6 +117,7 @@ class HTTP2Connection(ConnectionInterface):
         self._max_streams_semaphore.acquire()
 
         stream_id: int | None = None
+        stream_ids_exhausted = False
         try:
             kwargs: dict[str, typing.Any] = {"request": request}
             with Trace("send_request_headers", logger, request, kwargs):
@@ -130,13 +131,14 @@ class HTTP2Connection(ConnectionInterface):
                         self._used_all_stream_ids = True
                         self._request_count -= 1
                         self._max_streams_semaphore.release()
+                        stream_ids_exhausted = True
                         raise ConnectionNotAvailable()
                     self._events[stream_id] = []
                     kwargs["stream_id"] = stream_id
                     self._send_request_headers(request=request, stream_id=stream_id)
-        except ConnectionNotAvailable:  # pragma: no cover
-            raise
         except BaseException as exc:  # noqa: PIE786
+            if stream_ids_exhausted:  # pragma: no cover
+                raise
             with ShieldCancellation():
                 if stream_id is None:  # pragma: no cover
                     # The request failed before a stream was allocated, for
