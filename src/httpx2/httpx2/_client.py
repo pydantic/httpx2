@@ -262,7 +262,7 @@ class BaseClient:
 
         See also [Authentication][0].
 
-        [0]: https://www.python-httpx2.org/quickstart/#authentication
+        [0]: https://httpx2.pydantic.dev/quickstart/#authentication
         """
         return self._auth
 
@@ -347,7 +347,7 @@ class BaseClient:
 
         See also: [Request instances][0]
 
-        [0]: https://www.python-httpx2.org/advanced/clients/#request-instances
+        [0]: https://httpx2.pydantic.dev/advanced/clients/#request-instances
         """
         url = self._merge_url(url)
         headers = self._merge_headers(headers)
@@ -771,7 +771,7 @@ class Client(BaseClient):
         [Merging of configuration][0] for how the various parameters
         are merged with client-level configuration.
 
-        [0]: https://www.python-httpx2.org/advanced/clients/#merging-of-configuration
+        [0]: https://httpx2.pydantic.dev/advanced/clients/#merging-of-configuration
         """
         if cookies is not None:
             message = (
@@ -822,7 +822,7 @@ class Client(BaseClient):
 
         See also: [Streaming Responses][0]
 
-        [0]: https://www.python-httpx2.org/quickstart#streaming-responses
+        [0]: https://httpx2.pydantic.dev/quickstart#streaming-responses
         """
         request = self.build_request(
             method=method,
@@ -965,7 +965,7 @@ class Client(BaseClient):
 
         See also: [Request instances][0]
 
-        [0]: https://www.python-httpx2.org/advanced/clients/#request-instances
+        [0]: https://httpx2.pydantic.dev/advanced/clients/#request-instances
         """
         if self._state == ClientState.CLOSED:
             raise RuntimeError("Cannot send a request, as the client has been closed.")
@@ -1608,7 +1608,7 @@ class AsyncClient(BaseClient):
         and [Merging of configuration][0] for how the various parameters
         are merged with client-level configuration.
 
-        [0]: https://www.python-httpx2.org/advanced/clients/#merging-of-configuration
+        [0]: https://httpx2.pydantic.dev/advanced/clients/#merging-of-configuration
         """
 
         if cookies is not None:  # pragma: no cover
@@ -1660,7 +1660,7 @@ class AsyncClient(BaseClient):
 
         See also: [Streaming Responses][0]
 
-        [0]: https://www.python-httpx2.org/quickstart#streaming-responses
+        [0]: https://httpx2.pydantic.dev/quickstart#streaming-responses
         """
         request = self.build_request(
             method=method,
@@ -1803,7 +1803,7 @@ class AsyncClient(BaseClient):
 
         See also: [Request instances][0]
 
-        [0]: https://www.python-httpx2.org/advanced/clients/#request-instances
+        [0]: https://httpx2.pydantic.dev/advanced/clients/#request-instances
         """
         if self._state == ClientState.CLOSED:
             raise RuntimeError("Cannot send a request, as the client has been closed.")
