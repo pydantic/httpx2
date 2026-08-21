@@ -124,15 +124,18 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
                     # Stream ID allocation, HPACK encoding of the outgoing headers, and
                     # writing the HEADERS frame to the network must be a single atomic
                     # section with respect to other streams on this connection.
-                    stream_id = self._h2_state.get_next_available_stream_id()
+                    try:
+                        stream_id = self._h2_state.get_next_available_stream_id()
+                    except h2.exceptions.NoAvailableStreamIDError:  # pragma: no cover
+                        self._used_all_stream_ids = True
+                        self._request_count -= 1
+                        await self._max_streams_semaphore.release()
+                        raise ConnectionNotAvailable()
                     self._events[stream_id] = []
                     kwargs["stream_id"] = stream_id
                     await self._send_request_headers(request=request, stream_id=stream_id)
-        except h2.exceptions.NoAvailableStreamIDError:  # pragma: no cover
-            self._used_all_stream_ids = True
-            self._request_count -= 1
-            await self._max_streams_semaphore.release()
-            raise ConnectionNotAvailable()
+        except ConnectionNotAvailable:  # pragma: no cover
+            raise
         except BaseException as exc:  # noqa: PIE786
             with AsyncShieldCancellation():
                 if stream_id is None:  # pragma: no cover
