@@ -77,12 +77,7 @@ class ConnectError(NetworkError):
 
 
 class SSLError(ConnectError):
-    """
-    Raised when a TLS handshake fails.
-
-    A subclass of `ConnectError`, since the handshake is part of establishing
-    the connection.
-    """
+    pass
 
 
 class ReadError(NetworkError):
