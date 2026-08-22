@@ -78,12 +78,13 @@ class TrioStream(AsyncNetworkStream):
             except Exception as exc:
                 await self.aclose()
                 # `trio` reports a failed handshake as `BrokenResourceError`, which
-                # carries no message of its own. Re-raise the underlying
-                # `ssl.SSLError` so that it maps to `SSLError` and the reason for
-                # the failure isn't lost.
+                # carries no message of its own. Raise `SSLError` with the message
+                # from the underlying `ssl.SSLError` so the reason isn't lost.
+                # Note we raise a new exception rather than re-raising the cause,
+                # which `trio` already back-references and would make cyclic.
                 cause = exc.__cause__
                 if isinstance(exc, trio.BrokenResourceError) and isinstance(cause, ssl.SSLError):
-                    raise cause from exc
+                    raise SSLError(str(cause)) from exc
                 raise exc  # pragma: no cover
         return TrioStream(ssl_stream)
 
