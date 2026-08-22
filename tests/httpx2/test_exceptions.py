@@ -9,6 +9,7 @@ import httpx2
 
 if typing.TYPE_CHECKING:
     from conftest import TestServer
+    from pytest_httpbin.serve import Server
 
 
 def test_httpcore_all_exceptions_mapped() -> None:
@@ -45,6 +46,20 @@ def test_httpcore_exception_mapping(server: TestServer) -> None:
             server.url.copy_with(path="/slow_response"),
             timeout=httpx2.Timeout(5, read=0.01),
         )
+
+
+def test_ssl_exception_mapping(httpbin_secure: Server) -> None:
+    """
+    A failed TLS handshake maps to `httpx2.SSLError`.
+
+    `SSLError` subclasses `ConnectError`, so code that already catches
+    `ConnectError` keeps working unchanged.
+    """
+    with pytest.raises(httpx2.SSLError) as exc_info:
+        httpx2.get(httpbin_secure.url)
+
+    assert isinstance(exc_info.value, httpx2.ConnectError)
+    assert "CERTIFICATE_VERIFY_FAILED" in str(exc_info.value)
 
 
 def test_request_attribute() -> None:

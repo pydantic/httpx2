@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## Unreleased
+
+### Added
+
+* Add `SSLError`, raised when a TLS handshake fails. It subclasses `ConnectError`,
+  so existing `except ConnectError` handling continues to catch it.
+  ([#XXXX](https://github.com/pydantic/httpx2/pull/XXXX))
+
 ## 2.12.0 (August 18th, 2026)
 
 ### Changed

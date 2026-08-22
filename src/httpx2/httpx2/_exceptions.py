@@ -60,6 +60,7 @@ __all__ = [
     "RequestError",
     "RequestNotRead",
     "ResponseNotRead",
+    "SSLError",
     "StreamClosed",
     "StreamConsumed",
     "StreamError",
@@ -198,6 +199,15 @@ class WriteError(NetworkError):
 class ConnectError(NetworkError):
     """
     Failed to establish a connection.
+    """
+
+
+class SSLError(ConnectError):
+    """
+    Failed to establish a TLS connection.
+
+    A subclass of `ConnectError`, since the TLS handshake is part of
+    establishing the connection.
     """
 
 

@@ -24,6 +24,34 @@ async def test_ssl_request(httpbin_secure: Server) -> None:
 
 
 @pytest.mark.anyio
+async def test_ssl_verification_failure(httpbin_secure: Server) -> None:
+    """
+    A failed TLS handshake raises `SSLError`, which is a subclass of `ConnectError`
+    so that existing `except ConnectError` handling keeps working.
+    """
+    async with httpcore2.AsyncConnectionPool() as pool:
+        with pytest.raises(httpcore2.SSLError) as exc_info:
+            await pool.request("GET", httpbin_secure.url)
+
+    assert isinstance(exc_info.value, httpcore2.ConnectError)
+
+
+@pytest.mark.trio
+async def test_ssl_verification_failure_includes_reason(httpbin_secure: Server) -> None:
+    """
+    The underlying `ssl.SSLError` message is preserved.
+
+    Some backends wrap the handshake failure in an exception that carries no
+    message of its own, so the reason has to be recovered from the `__cause__`.
+    """
+    async with httpcore2.AsyncConnectionPool() as pool:
+        with pytest.raises(httpcore2.SSLError) as exc_info:
+            await pool.request("GET", httpbin_secure.url)
+
+    assert "CERTIFICATE_VERIFY_FAILED" in str(exc_info.value)
+
+
+@pytest.mark.anyio
 async def test_extra_info(httpbin_secure: Server) -> None:
     ssl_context = ssl.create_default_context()
     ssl_context.check_hostname = False

@@ -74,6 +74,7 @@ __all__ = [
     "ResponseNotRead",
     "ServerSentEvent",
     "SSEError",
+    "SSLError",
     "stream",
     "StreamClosed",
     "StreamConsumed",
