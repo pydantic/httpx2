@@ -48,7 +48,9 @@ def test_ssl_verification_failure_includes_reason(httpbin_secure: Server) -> Non
         with pytest.raises(httpcore2.SSLError) as exc_info:
             pool.request("GET", httpbin_secure.url)
 
-    assert "CERTIFICATE_VERIFY_FAILED" in str(exc_info.value)
+    # Match the lower-case reason text rather than the `CERTIFICATE_VERIFY_FAILED`
+    # mnemonic, which is not emitted by every OpenSSL/LibreSSL build.
+    assert "certificate verify failed" in str(exc_info.value)
 
 
 

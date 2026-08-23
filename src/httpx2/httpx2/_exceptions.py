@@ -11,6 +11,7 @@ Our exception hierarchy:
         · PoolTimeout
       - NetworkError
         · ConnectError
+          · SSLError
         · ReadError
         · WriteError
         · CloseError

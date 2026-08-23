@@ -59,7 +59,9 @@ def test_ssl_exception_mapping(httpbin_secure: Server) -> None:
         httpx2.get(httpbin_secure.url)
 
     assert isinstance(exc_info.value, httpx2.ConnectError)
-    assert "CERTIFICATE_VERIFY_FAILED" in str(exc_info.value)
+    # Match the lower-case reason text rather than the `CERTIFICATE_VERIFY_FAILED`
+    # mnemonic, which is not emitted by every OpenSSL/LibreSSL build.
+    assert "certificate verify failed" in str(exc_info.value)
 
 
 def test_request_attribute() -> None:
