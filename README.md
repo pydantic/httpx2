@@ -5,6 +5,7 @@
 <p align="center">
 <a href="https://github.com/pydantic/httpx2/actions"><img src="https://github.com/pydantic/httpx2/workflows/Test%20Suite/badge.svg" alt="Test Suite"></a>
 <a href="https://pypi.org/project/httpx2/"><img src="https://badge.fury.io/py/httpx2.svg" alt="Package version"></a>
+<a href="https://pydantic.dev/docs/logfire/join-slack/"><img src="https://img.shields.io/badge/Slack-Join%20Slack-4A154B?logo=slack" alt="Join Slack"></a>
 </p>
 
 HTTPX2 is a fully featured HTTP client library for Python. It includes **an integrated command line client**, has support for both **HTTP/1.1 and HTTP/2**, and provides both **sync and async APIs**.
