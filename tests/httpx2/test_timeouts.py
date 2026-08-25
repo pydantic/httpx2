@@ -15,7 +15,7 @@ async def test_read_timeout(server: TestServer) -> None:
     timeout = httpx2.Timeout(None, read=1e-6)
 
     async with httpx2.AsyncClient(timeout=timeout) as client:
-        with pytest.raises(httpx2.ReadTimeout):
+        with pytest.raises(httpx2.ReadTimeout, match="timed out"):
             await client.get(server.url.copy_with(path="/slow_response"))
 
 

@@ -14,6 +14,8 @@ def map_exceptions(map: ExceptionMapping) -> Generator[None]:
     except Exception as exc:  # noqa: PIE786
         for from_exc, to_exc in map.items():
             if isinstance(exc, from_exc):
+                if issubclass(to_exc, TimeoutException) and not str(exc):
+                    raise to_exc("timed out") from exc
                 raise to_exc(exc) from exc
         raise  # pragma: no cover
 
