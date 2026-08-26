@@ -136,6 +136,14 @@ def test_get_environment_proxies(environment: dict[str, str], proxies: dict[str,
         ("http://", "https://example.com", False),
         ("all://", "https://example.com:123", True),
         ("", "https://example.com:123", True),
+        ("all://192.168.0.0/16", "http://192.168.5.10", True),
+        ("all://192.168.0.0/16", "http://192.168.5.10:8080", True),
+        ("all://192.168.0.0/16", "http://10.0.0.1", False),
+        ("all://192.168.0.0/16", "http://example.com", False),
+        ("all://[::1]/128", "http://[::1]", True),
+        ("all://[::1]/128", "http://[::1]:8080", True),
+        ("all://[::1]/128", "http://[::2]", False),
+        ("all://192.168.0.0.0/16", "http://192.168.4.5", False),  # Invalid CIDR
     ],
 )
 def test_url_matches(pattern: str, url: str, expected: bool) -> None:
@@ -149,9 +157,17 @@ def test_pattern_priority() -> None:
         URLPattern("http://"),
         URLPattern("http://example.com"),
         URLPattern("http://example.com:123"),
+        URLPattern("all://[::]/8"),  # 2**120 addresses
+        URLPattern("all://192.168.1.0/24"),  # 256 addresses
+        URLPattern("all://192.168.1.0/23"),  # 512 addresses
+        URLPattern("all://[::]/126"),  # 4 addresses
     ]
     random.shuffle(matchers)
     assert sorted(matchers) == [
+        URLPattern("all://[::]/126"),
+        URLPattern("all://192.168.1.0/24"),
+        URLPattern("all://192.168.1.0/23"),
+        URLPattern("all://[::]/8"),
         URLPattern("http://example.com:123"),
         URLPattern("http://example.com"),
         URLPattern("http://"),
