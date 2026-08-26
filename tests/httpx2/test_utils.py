@@ -144,6 +144,8 @@ def test_get_environment_proxies(environment: dict[str, str], proxies: dict[str,
         ("all://[::1]/128", "http://[::1]:8080", True),
         ("all://[::1]/128", "http://[::2]", False),
         ("all://192.168.0.0.0/16", "http://192.168.4.5", False),  # Invalid CIDR
+        ("all://[fe11::]/16", "http://[fe11:1234::5]", True),
+        ("all://192.168.0.10/16", "http://192.168.5.10", True),  # host bits set
     ],
 )
 def test_url_matches(pattern: str, url: str, expected: bool) -> None:
