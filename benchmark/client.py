@@ -65,6 +65,18 @@ def check_size(received: int, expected: int) -> None:
 def build_httpx2(scenario: Scenario, payload: bytes) -> tuple[RequestFn, CloseFn]:
     import httpx2
 
+    return _build_httpx_like(httpx2, scenario, payload)
+
+
+def build_httpx(scenario: Scenario, payload: bytes) -> tuple[RequestFn, CloseFn]:
+    # The original httpx, for reference; it shares the httpx2 API.
+    import httpx
+
+    return _build_httpx_like(httpx, scenario, payload)
+
+
+def _build_httpx_like(httpx2: Any, scenario: Scenario, payload: bytes) -> tuple[RequestFn, CloseFn]:
+
     client = httpx2.AsyncClient(
         limits=httpx2.Limits(
             max_connections=scenario.max_connections,
@@ -79,13 +91,15 @@ def build_httpx2(scenario: Scenario, payload: bytes) -> tuple[RequestFn, CloseFn
     if scenario.post:
         headers.append(("content-length", str(len(payload))))
 
-    class RequestBody(httpx2.AsyncByteStream):
-        async def __aiter__(self) -> AsyncIterator[bytes]:
-            if scenario.post:
-                yield payload
+    async def request_body(self: object) -> AsyncIterator[bytes]:
+        if scenario.post:
+            yield payload
+
+    # Built dynamically so the helper can serve both httpx2 and httpx.
+    request_body_stream = type("RequestBody", (httpx2.AsyncByteStream,), {"__aiter__": request_body})
 
     async def stream_one() -> None:
-        request = httpx2.Request(scenario.method, scenario.url, headers=headers, stream=RequestBody())
+        request = httpx2.Request(scenario.method, scenario.url, headers=headers, stream=request_body_stream())
         response = await client.send(request, stream=True, follow_redirects=False)
         received = 0
         async for chunk in response.aiter_raw(scenario.chunk_size):
@@ -198,6 +212,7 @@ def build_punkreq(scenario: Scenario, payload: bytes) -> tuple[RequestFn, CloseF
 
 BUILDERS: dict[str, Builder] = {
     "httpx2": build_httpx2,
+    "httpx": build_httpx,
     "httpcore2": build_httpcore2,
     "aiohttp": build_aiohttp,
     "punkreq": build_punkreq,
