@@ -368,9 +368,13 @@ class ConnectionPool(RequestInterface):
             return entry
 
         # Idle sharable connections were handled above; the remaining ones are
-        # either serving requests or not yet connected.
-        for entry in self._sharable_by_origin.get(origin, ()):
-            if entry.connection.is_available():
+        # either serving requests or not yet connected. One that closed while
+        # a response still holds it is dropped now rather than at that release,
+        # so it does not count against `max_connections` in the meantime.
+        for entry in list(self._sharable_by_origin.get(origin, ())):
+            if entry.connection.is_closed():
+                self._drop_connection(entry)
+            elif entry.connection.is_available():
                 return entry
 
         if len(self._entries) < self._max_connections:
@@ -396,7 +400,11 @@ class ConnectionPool(RequestInterface):
             self._drop_connection(entry)
             return
         if entry.holders:
-            # Still serving another request, or reserved by a queued request.
+            # Still serving another request, or reserved by a request that has
+            # not sent on it yet. Once known to be HTTP/1.1, it must not be
+            # handed to further requests while it is held.
+            if not connection.can_multiplex():
+                self._remove_sharable(entry)
             return
         if not connection.is_connected():
             # Garbage: a NEW-state connection whose request was cancelled
@@ -405,12 +413,11 @@ class ConnectionPool(RequestInterface):
             self._drop_connection(entry)
             return
 
-        sharable = self._sharable_by_origin.setdefault(entry.origin, {})
         if connection.can_multiplex():
-            sharable[entry] = None
+            self._sharable_by_origin.setdefault(entry.origin, {})[entry] = None
         else:
             # An HTTP/1.1 connection is no longer a candidate for multiplexing.
-            sharable.pop(entry, None)
+            self._remove_sharable(entry)
 
         if connection.is_idle():
             entry.idle_since = time.monotonic()
@@ -454,15 +461,18 @@ class ConnectionPool(RequestInterface):
         if not by_origin:
             del self._idle_by_origin[entry.origin]
 
-    def _drop_connection(self, entry: _ConnectionEntry) -> None:
-        if entry in self._idle:
-            self._remove_idle(entry)
-        del self._entries[id(entry.connection)]
+    def _remove_sharable(self, entry: _ConnectionEntry) -> None:
         sharable = self._sharable_by_origin.get(entry.origin)
         if sharable is not None:
             sharable.pop(entry, None)
             if not sharable:
                 del self._sharable_by_origin[entry.origin]
+
+    def _drop_connection(self, entry: _ConnectionEntry) -> None:
+        if entry in self._idle:
+            self._remove_idle(entry)
+        del self._entries[id(entry.connection)]
+        self._remove_sharable(entry)
 
     def _reserve_connection(self, pool_request: PoolRequest, entry: _ConnectionEntry) -> None:
         entry.holders += 1

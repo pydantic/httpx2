@@ -1117,3 +1117,71 @@ def test_connection_pool_with_unhashable_connections() -> None:
             assert response.status == 200
         info = [repr(c) for c in pool.connections]
         assert info == ["<UnhashableConnection ['https://example.com:443', HTTP/1.1, IDLE, Request Count: 2]>"]
+
+
+
+def test_connection_pool_replaces_http2_connection_closed_while_held() -> None:
+    """
+    An HTTP/2 connection that closes while a response still holds it is
+    replaced immediately, rather than counting against `max_connections`
+    until that response is closed.
+    """
+    network_backend = httpcore2.MockBackend(buffer=http2_response_buffer(), http2=True)
+
+    with httpcore2.ConnectionPool(network_backend=network_backend, max_connections=1, http2=True) as pool:
+        with pool.stream("GET", "https://example.com/") as response:
+            pool.connections[0].close()
+
+            timeout = {"timeout": {"pool": 1.0}}
+            second = pool.request("GET", "https://example.com/", extensions=timeout)
+            assert second.status == 200
+            info = [repr(c) for c in pool.connections]
+            assert info == ["<HTTPConnection ['https://example.com:443', HTTP/2, IDLE, Request Count: 1]>"]
+
+        assert response.status == 200
+
+
+
+def test_connection_pool_stops_sharing_http11_connection_still_held_speculatively() -> None:
+    """
+    With HTTP/2 enabled, requests may be assigned to a connection before it
+    has negotiated a protocol. Once it turns out to be HTTP/1.1 and its first
+    request completes while another is still waiting to send on it, it must
+    not be handed to any further request.
+    """
+
+    class YieldingBackend(httpcore2.MockBackend):
+        def connect_tcp(
+            self,
+            host: str,
+            port: int,
+            timeout: float | None = None,
+            local_address: str | None = None,
+            socket_options: typing.Iterable[httpcore2.SOCKET_OPTION] | None = None,
+        ) -> httpcore2.NetworkStream:
+            # Let other requests be queued while this connection is being established.
+            concurrency.sleep(0)
+            return super().connect_tcp(host, port, timeout, local_address, socket_options)
+
+    network_backend = YieldingBackend(
+        [
+            b"HTTP/1.1 200 OK\r\n",
+            b"Content-Type: plain/text\r\n",
+            b"Content-Length: 13\r\n",
+            b"\r\n",
+            b"Hello, world!",
+        ]
+        * 3
+    )
+
+    def fetch(pool: httpcore2.ConnectionPool) -> None:
+        response = pool.request("GET", "https://example.com/")
+        assert response.status == 200
+
+    with httpcore2.ConnectionPool(network_backend=network_backend, max_connections=1, http2=True) as pool:
+        with concurrency.open_nursery() as nursery:
+            for _ in range(3):
+                nursery.start_soon(fetch, pool)
+
+        info = [repr(c) for c in pool.connections]
+        assert info == ["<HTTPConnection ['https://example.com:443', HTTP/1.1, IDLE, Request Count: 3]>"]
