@@ -72,7 +72,6 @@ async def streaming_hello_world(scope: Scope, receive: Receive, send: Send) -> N
         await anyio.sleep(1.0)
 
 
-
 async def raise_exc(scope: Scope, receive: Receive, send: Send) -> None:
     raise RuntimeError()
 
@@ -240,7 +239,7 @@ async def test_asgi_exc_no_raise() -> None:
 
 
 @pytest.mark.anyio
-@pytest.mark.filterwarnings('ignore::ResourceWarning')
+@pytest.mark.filterwarnings("ignore::ResourceWarning")
 async def test_asgi_streaming() -> None:
     async with httpx2.ASGITransport(app=streaming_hello_world) as transport:
         request = httpx2.Request("GET", "http://www.example.com/")

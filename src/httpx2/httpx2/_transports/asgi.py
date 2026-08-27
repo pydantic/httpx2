@@ -126,7 +126,7 @@ class ASGITransport(AsyncBaseTransport):
         # Response.
         status_code = None
         response_headers = None
-        body_send, body_receive = anyio.create_memory_object_stream[bytes|Exception](16)
+        body_send, body_receive = anyio.create_memory_object_stream[bytes | Exception](16)
         response_started = anyio.Event()
         response_complete = anyio.Event()
         app_exception = None
