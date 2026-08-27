@@ -43,7 +43,7 @@ docs = ["zensical>=0.0.51", "mkdocstrings[python]>=1.0.6"]
 bench = [
   "aiohttp>=3.14.3",
   "pyinstrument>=4.6.2",
-  "uvloop>=0.21; sys_platform != 'win32' and implementation_name == 'cpython'",
+  "zuvloop>=0.0.8; python_version >= '3.14' and implementation_name == 'cpython'",
 ]
 
 [tool.ruff]

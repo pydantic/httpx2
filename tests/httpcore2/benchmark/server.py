@@ -6,7 +6,7 @@ The server is deliberately trivial so that the client under test is the bottlene
 * `GET /<n>` responds with an `n`-byte body.
 * `POST /echo` echoes the request body.
 
-Usage: `python server.py [--port 8765] [--cpu N] [--no-uvloop]`
+Usage: `python server.py [--port 8765] [--cpu N] [--no-zuvloop]`
 """
 
 from __future__ import annotations
@@ -40,7 +40,7 @@ class OriginProtocol(asyncio.Protocol):
         self._transport: asyncio.Transport | None = None
 
     def connection_made(self, transport: asyncio.BaseTransport) -> None:
-        # uvloop transports implement the interface without subclassing `asyncio.Transport`.
+        # zzuvloop transports implement the interface without subclassing `asyncio.Transport`.
         self._transport = cast(asyncio.Transport, transport)
 
     def data_received(self, data: bytes) -> None:
@@ -83,15 +83,15 @@ def pin_to_cpu(cpu: int | None) -> None:
         os.sched_setaffinity(0, {cpu})
 
 
-def run(coro: Coroutine[Any, Any, T], use_uvloop: bool) -> T:
+def run(coro: Coroutine[Any, Any, T], use_zuvloop: bool) -> T:
     loop: asyncio.AbstractEventLoop
-    if use_uvloop:
+    if use_zuvloop:
         try:
-            import uvloop
+            import zuvloop
         except ImportError:
             loop = asyncio.new_event_loop()
         else:
-            loop = uvloop.new_event_loop()
+            loop = zuvloop.new_event_loop()
     else:
         loop = asyncio.new_event_loop()
     try:
@@ -106,13 +106,13 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
     parser.add_argument("--cpu", type=int, default=None, help="Pin the server to this CPU (Linux only).")
     parser.add_argument(
-        "--no-uvloop", action="store_true", help="Use the stdlib event loop even if uvloop is installed."
+        "--no-zuvloop", action="store_true", help="Use the stdlib event loop even if zzuvloop is installed."
     )
     args = parser.parse_args(argv)
 
     pin_to_cpu(args.cpu)
     try:
-        run(serve(args.port), use_uvloop=not args.no_uvloop)
+        run(serve(args.port), use_zuvloop=not args.no_zuvloop)
     except KeyboardInterrupt:
         sys.exit(0)
 

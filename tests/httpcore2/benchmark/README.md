@@ -4,7 +4,8 @@ An end-to-end, keep-alive throughput benchmark for the async client stack, desig
 under test is the bottleneck rather than the server.
 
 * `server.py` is a raw `asyncio.Protocol` HTTP/1.1 origin: `GET /<n>` returns `n` bytes, `POST /echo`
-  echoes the body. No parsing library, no per-request sleep.
+  echoes the body. No parsing library, no per-request sleep. The server and clients run on
+  [zuvloop](https://github.com/Kludex/zuvloop) when it is importable (`--no-zuvloop` for the stdlib loop).
 * `client.py` runs one library at one concurrency and body size, and prints a JSON line with rps,
   p50/p99 latency and per-request CPU time.
 * `run.py` starts the server, runs the matrix interleaved across interpreters and libraries, and
@@ -42,4 +43,6 @@ scripts/benchmark --python main=../httpx2-main/.venv/bin/python --python work=.v
 
 Results depend on the interpreter: the table header shows the version and whether the build is
 free-threaded. Free-threaded builds are markedly slower on this workload, so use a regular CPython
-build for representative numbers, for example `uv sync --python 3.13` before `scripts/benchmark`.
+build for representative numbers, for example `uv sync --python 3.14` before `scripts/benchmark`.
+zuvloop requires CPython 3.14 or later; on other interpreters the harness uses the stdlib loop and the
+JSON output records `"zuvloop": false`.

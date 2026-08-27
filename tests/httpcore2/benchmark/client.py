@@ -275,21 +275,21 @@ def pin_to_cpu(cpu: int | None) -> None:
         os.sched_setaffinity(0, {cpu})
 
 
-def run(coro: Coroutine[Any, Any, T], use_uvloop: bool) -> tuple[T, bool]:
+def run(coro: Coroutine[Any, Any, T], use_zuvloop: bool) -> tuple[T, bool]:
     loop: asyncio.AbstractEventLoop
-    uvloop_active = False
-    if use_uvloop:
+    zuvloop_active = False
+    if use_zuvloop:
         try:
-            import uvloop
+            import zuvloop
         except ImportError:
             loop = asyncio.new_event_loop()
         else:
-            loop = uvloop.new_event_loop()
-            uvloop_active = True
+            loop = zuvloop.new_event_loop()
+            zuvloop_active = True
     else:
         loop = asyncio.new_event_loop()
     try:
-        return loop.run_until_complete(coro), uvloop_active
+        return loop.run_until_complete(coro), zuvloop_active
     finally:
         loop.run_until_complete(loop.shutdown_asyncgens())
         loop.close()
@@ -314,7 +314,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
     parser.add_argument("--cpu", type=int, default=None, help="Pin this worker to a CPU (Linux only).")
-    parser.add_argument("--no-uvloop", action="store_true")
+    parser.add_argument("--no-zuvloop", action="store_true")
     parser.add_argument("--profile", default=None, help="Write a pyinstrument profile of the measured phase here.")
     args = parser.parse_args(argv)
 
@@ -330,10 +330,10 @@ def main(argv: list[str] | None = None) -> None:
         host=args.host,
         port=args.port,
     )
-    result, uvloop_active = run(
-        run_scenario(scenario, args.seconds, args.warmup, args.profile), use_uvloop=not args.no_uvloop
+    result, zuvloop_active = run(
+        run_scenario(scenario, args.seconds, args.warmup, args.profile), use_zuvloop=not args.no_zuvloop
     )
-    result.update(interpreter_info(), uvloop=uvloop_active)
+    result.update(interpreter_info(), zuvloop=zuvloop_active)
     print(json.dumps(result), flush=True)
 
 

@@ -128,8 +128,8 @@ def run_worker(
         command += ["--max-connections", str(args.max_connections)]
     if args.client_cpu is not None:
         command += ["--cpu", str(args.client_cpu)]
-    if args.no_uvloop:
-        command.append("--no-uvloop")
+    if args.no_zuvloop:
+        command.append("--no-zuvloop")
     if profile is not None:
         command += ["--profile", str(profile)]
 
@@ -214,7 +214,9 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--server-cpu", type=int, default=None, help="Default: 0 when at least two CPUs are available.")
     parser.add_argument("--client-cpu", type=int, default=None, help="Default: 1 when at least two CPUs are available.")
     parser.add_argument("--no-pin", action="store_true", help="Do not pin the server and clients to CPUs.")
-    parser.add_argument("--no-uvloop", action="store_true")
+    parser.add_argument(
+        "--no-zuvloop", action="store_true", help="Use the stdlib event loop for the server and clients."
+    )
     parser.add_argument("--profile", type=pathlib.Path, default=None, help="Directory for pyinstrument profiles.")
     parser.add_argument("--output", type=pathlib.Path, default=None, help="Write raw results as JSON.")
     args = parser.parse_args(argv)
@@ -239,8 +241,8 @@ def main(argv: list[str] | None = None) -> None:
     server_command = [sys.executable, str(SERVER), "--port", str(args.port)]
     if args.server_cpu is not None:
         server_command += ["--cpu", str(args.server_cpu)]
-    if args.no_uvloop:
-        server_command.append("--no-uvloop")
+    if args.no_zuvloop:
+        server_command.append("--no-zuvloop")
     server = subprocess.Popen(server_command)
     results: dict[tuple[str, str], list[dict[str, Any]]] = {}
     try:
