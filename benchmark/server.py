@@ -40,7 +40,7 @@ class OriginProtocol(asyncio.Protocol):
         self._transport: asyncio.Transport | None = None
 
     def connection_made(self, transport: asyncio.BaseTransport) -> None:
-        # zzuvloop transports implement the interface without subclassing `asyncio.Transport`.
+        # zuvloop transports implement the interface without subclassing `asyncio.Transport`.
         self._transport = cast(asyncio.Transport, transport)
 
     def data_received(self, data: bytes) -> None:
@@ -106,7 +106,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
     parser.add_argument("--cpu", type=int, default=None, help="Pin the server to this CPU (Linux only).")
     parser.add_argument(
-        "--no-zuvloop", action="store_true", help="Use the stdlib event loop even if zzuvloop is installed."
+        "--no-zuvloop", action="store_true", help="Use the stdlib event loop even if zuvloop is installed."
     )
     args = parser.parse_args(argv)
 

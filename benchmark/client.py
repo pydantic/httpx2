@@ -72,6 +72,8 @@ def build_httpx2(scenario: Scenario, payload: bytes) -> tuple[RequestFn, CloseFn
             keepalive_expiry=KEEPALIVE_EXPIRY,
         ),
         timeout=httpx2.Timeout(CONNECT_TIMEOUT, read=READ_TIMEOUT),
+        # Keep the benchmark direct even if HTTP_PROXY or ALL_PROXY is set in the environment.
+        trust_env=False,
     )
     headers = [("host", scenario.host), ("user-agent", "httpx2-benchmark")]
     if scenario.post:
@@ -162,6 +164,7 @@ def build_punkreq(scenario: Scenario, payload: bytes) -> tuple[RequestFn, CloseF
         timeout=punkreq.Timeout(connect=CONNECT_TIMEOUT, read=READ_TIMEOUT, pool=CONNECT_TIMEOUT, total=None),
         follow_redirects=False,
         http2=False,
+        trust_env=False,
     )
     headers = [("host", scenario.host), ("user-agent", "httpx2-benchmark")]
     if scenario.post:

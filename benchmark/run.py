@@ -49,11 +49,10 @@ class ScenarioSpec:
     @classmethod
     def parse(cls, text: str) -> ScenarioSpec:
         parts = text.split("/")
-        if len(parts) not in (2, 3) or not parts[0].startswith("c"):
+        valid = len(parts) in (2, 3) and parts[0].startswith("c") and (len(parts) == 2 or parts[2] == "post")
+        if not valid:
             raise argparse.ArgumentTypeError(f"Expected 'c<concurrency>/<size>[/post]', got {text!r}.")
-        return cls(
-            concurrency=int(parts[0][1:]), size=parse_size(parts[1]), post=len(parts) == 3 and parts[2] == "post"
-        )
+        return cls(concurrency=int(parts[0][1:]), size=parse_size(parts[1]), post=len(parts) == 3)
 
     @property
     def label(self) -> str:
@@ -74,6 +73,13 @@ def format_size(size: int) -> str:
     if size % 1024 == 0:
         return f"{size // 1024}k"
     return str(size)
+
+
+def available_cpus() -> list[int]:
+    # Respect the affinity mask: in containers the usable CPU IDs need not start at zero.
+    if hasattr(os, "sched_getaffinity"):
+        return sorted(os.sched_getaffinity(0))
+    return list(range(os.cpu_count() or 1))
 
 
 def parse_python(text: str) -> tuple[str, str]:
@@ -211,8 +217,12 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--seconds", type=float, default=4.0, help="Measured duration per run.")
     parser.add_argument("--max-connections", type=int, default=None)
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
-    parser.add_argument("--server-cpu", type=int, default=None, help="Default: 0 when at least two CPUs are available.")
-    parser.add_argument("--client-cpu", type=int, default=None, help="Default: 1 when at least two CPUs are available.")
+    parser.add_argument(
+        "--server-cpu", type=int, default=None, help="Default: the first usable CPU when at least two are available."
+    )
+    parser.add_argument(
+        "--client-cpu", type=int, default=None, help="Default: the second usable CPU when at least two are available."
+    )
     parser.add_argument("--no-pin", action="store_true", help="Do not pin the server and clients to CPUs.")
     parser.add_argument(
         "--no-zuvloop", action="store_true", help="Use the stdlib event loop for the server and clients."
@@ -226,13 +236,13 @@ def main(argv: list[str] | None = None) -> None:
     specs: list[ScenarioSpec] = args.scenario or [
         ScenarioSpec.parse(s) for s in (QUICK_SCENARIOS if args.quick else DEFAULT_SCENARIOS)
     ]
-    cpu_count = os.cpu_count() or 1
-    if not args.no_pin and cpu_count >= 2:
-        args.server_cpu = 0 if args.server_cpu is None else args.server_cpu
-        args.client_cpu = 1 if args.client_cpu is None else args.client_cpu
+    cpus = available_cpus()
+    if not args.no_pin and len(cpus) >= 2:
+        args.server_cpu = cpus[0] if args.server_cpu is None else args.server_cpu
+        args.client_cpu = cpus[1] if args.client_cpu is None else args.client_cpu
 
     columns = [f"{lib}@{label}" if len(pythons) > 1 else lib for label, _ in pythons for lib in libs]
-    print(f"cpus: {cpu_count}, server cpu: {args.server_cpu}, client cpu: {args.client_cpu}, mode: {args.mode}")
+    print(f"cpus: {len(cpus)}, server cpu: {args.server_cpu}, client cpu: {args.client_cpu}, mode: {args.mode}")
     for label, python in pythons:
         print(f"{label}: {python} ({interpreter_summary(python)})")
     print(f"rounds: {args.rounds}, {args.seconds}s per run, {len(specs)} scenarios, {len(columns)} columns")
