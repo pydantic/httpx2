@@ -1,45 +1,121 @@
+"""
+Minimal HTTP/1.1 keep-alive origin for the benchmark harness.
+
+The server is deliberately trivial so that the client under test is the bottleneck:
+
+* `GET /<n>` responds with an `n`-byte body.
+* `POST /echo` echoes the request body.
+
+Usage: `python server.py [--port 8765] [--cpu N] [--no-uvloop]`
+"""
+
+from __future__ import annotations
+
+import argparse
 import asyncio
-from collections.abc import Awaitable, Callable
-from typing import Any
+import os
+import sys
+from collections.abc import Coroutine
+from typing import Any, TypeVar, cast
 
-import uvicorn
+DEFAULT_PORT = 8765
+RESPONSE_HEAD = b"HTTP/1.1 200 OK\r\ncontent-type: application/octet-stream\r\ncontent-length: %d\r\n\r\n"
 
-PORT = 1234
-RESP = b"a" * 2000
-SLEEP = 0.01
+T = TypeVar("T")
+
+_bodies: dict[int, bytes] = {}
 
 
-async def app(
-    scope: dict[str, Any],
-    receive: Callable[[], Awaitable[dict[str, Any]]],
-    send: Callable[[dict[str, Any]], Awaitable[None]],
-) -> None:
-    assert scope["type"] == "http"
-    assert scope["path"] == "/req"
-    assert not (await receive()).get("more_body", False)
+def response_body(target: bytes) -> bytes:
+    size = int(target.rsplit(b"/", 1)[-1] or b"0")
+    body = _bodies.get(size)
+    if body is None:
+        body = _bodies[size] = b"x" * size
+    return body
 
-    await asyncio.sleep(SLEEP)
-    await send(
-        {
-            "type": "http.response.start",
-            "status": 200,
-            "headers": [[b"content-type", b"text/plain"]],
-        }
+
+class OriginProtocol(asyncio.Protocol):
+    def __init__(self) -> None:
+        self._buffer = bytearray()
+        self._transport: asyncio.Transport | None = None
+
+    def connection_made(self, transport: asyncio.BaseTransport) -> None:
+        # uvloop transports implement the interface without subclassing `asyncio.Transport`.
+        self._transport = cast(asyncio.Transport, transport)
+
+    def data_received(self, data: bytes) -> None:
+        self._buffer += data
+        while self._respond_once():
+            pass
+
+    def _respond_once(self) -> bool:
+        head_end = self._buffer.find(b"\r\n\r\n")
+        if head_end < 0:
+            return False
+        request_line, _, header_block = bytes(self._buffer[:head_end]).partition(b"\r\n")
+        method, target, _ = request_line.split(b" ", 2)
+        content_length = 0
+        for line in header_block.split(b"\r\n"):
+            name, _, value = line.partition(b":")
+            if name.strip().lower() == b"content-length":
+                content_length = int(value)
+        total = head_end + 4 + content_length
+        if len(self._buffer) < total:
+            return False
+        body = bytes(self._buffer[head_end + 4 : total])
+        del self._buffer[:total]
+
+        payload = body if method == b"POST" else response_body(target)
+        assert self._transport is not None
+        self._transport.writelines([RESPONSE_HEAD % len(payload), payload])
+        return True
+
+
+async def serve(port: int) -> None:
+    loop = asyncio.get_running_loop()
+    server = await loop.create_server(OriginProtocol, "127.0.0.1", port, backlog=4096)
+    async with server:
+        await server.serve_forever()
+
+
+def pin_to_cpu(cpu: int | None) -> None:
+    if cpu is not None and hasattr(os, "sched_setaffinity"):
+        os.sched_setaffinity(0, {cpu})
+
+
+def run(coro: Coroutine[Any, Any, T], use_uvloop: bool) -> T:
+    loop: asyncio.AbstractEventLoop
+    if use_uvloop:
+        try:
+            import uvloop
+        except ImportError:
+            loop = asyncio.new_event_loop()
+        else:
+            loop = uvloop.new_event_loop()
+    else:
+        loop = asyncio.new_event_loop()
+    try:
+        return loop.run_until_complete(coro)
+    finally:
+        loop.run_until_complete(loop.shutdown_asyncgens())
+        loop.close()
+
+
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--port", type=int, default=DEFAULT_PORT)
+    parser.add_argument("--cpu", type=int, default=None, help="Pin the server to this CPU (Linux only).")
+    parser.add_argument(
+        "--no-uvloop", action="store_true", help="Use the stdlib event loop even if uvloop is installed."
     )
-    await send(
-        {
-            "type": "http.response.body",
-            "body": RESP,
-        }
-    )
+    args = parser.parse_args(argv)
+
+    pin_to_cpu(args.cpu)
+    try:
+        run(serve(args.port), use_uvloop=not args.no_uvloop)
+    except KeyboardInterrupt:
+        sys.exit(0)
 
 
 if __name__ == "__main__":
-    uvicorn.run(
-        app,
-        port=PORT,
-        log_level="error",
-        # Keep warmed up connections alive during the test to have consistent results across test runs.
-        # This avoids timing differences with connections getting closed and reopened in the background.
-        timeout_keep_alive=100,
-    )
+    main()
