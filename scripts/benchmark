@@ -5,6 +5,6 @@
 #   scripts/benchmark --quick
 #   scripts/benchmark --python main=../httpx2-main/.venv/bin/python --python work=.venv/bin/python
 #
-# See tests/httpcore2/benchmark/README.md.
+# See benchmark/README.md.
 
-exec uv run python tests/httpcore2/benchmark/run.py "$@"
+exec uv run python benchmark/run.py "$@"

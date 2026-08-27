@@ -296,7 +296,9 @@ def run(coro: Coroutine[Any, Any, T], use_zuvloop: bool) -> tuple[T, bool]:
 
 
 def interpreter_info() -> dict[str, Any]:
-    gil_enabled = sys._is_gil_enabled() if sys.version_info >= (3, 13) else True
+    gil_enabled = True
+    if sys.version_info >= (3, 13):
+        gil_enabled = sys._is_gil_enabled()
     return {"python": sys.version.split()[0], "gil": gil_enabled}
 
 
