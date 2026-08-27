@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import typing
 from types import TracebackType
 
@@ -72,30 +73,32 @@ class ASGITransport(AsyncBaseTransport):
         self.raise_app_exceptions = raise_app_exceptions
         self.root_path = root_path
         self.client = client
-        self.__task_group = None
+        self._task_group = None
+        self._exit_stack = None
 
     async def __aenter__(self):
-        self.__task_group = anyio.create_task_group()
-        await self.__task_group.__aenter__()
+        await super().__aenter__()
+
+        async with contextlib.AsyncExitStack() as stack:
+            self._task_group = await stack.enter_async_context(anyio.create_task_group())
+            # Make sure all remaining tasks are cancelled after normal cleanup
+            stack.callback(self._task_group.cancel_scope.cancel)
+            self._exit_stack = stack.pop_all()
+
         return self
 
     async def __aexit__(
         self,
         exc_type: type[BaseException] | None = None,
-        exc_value: BaseException | None = None,
-        traceback: TracebackType | None = None,
+        exc_val: BaseException | None = None,
+        exc_tb: TracebackType | None = None,
     ) -> None:
-        if self.__task_group is not None:
-            self.__task_group.cancel_scope.cancel()
-            await self.__task_group.__aexit__(exc_type, exc_value, traceback)
-            self.__task_group = None
-        return await super().__aexit__(exc_type, exc_value, traceback)
+        if self._exit_stack is not None:
+            await self._exit_stack.__aexit__(exc_type, exc_val, exc_tb)
+            self._task_group = None
+            self._exit_stack = None
 
-    async def aclose(self):
-        if self.__task_group is not None:
-            self.__task_group.cancel_scope.cancel()
-            await self.__task_group.__aexit__(None, None, None)
-            self.__task_group = None
+        await super().__aexit__(exc_type, exc_val, exc_tb)
 
     async def handle_async_request(self, request: Request) -> Response:
         assert isinstance(request.stream, AsyncByteStream)
@@ -182,9 +185,9 @@ class ASGITransport(AsyncBaseTransport):
             finally:
                 body_send.close()
 
-        if self.__task_group is None:
+        if self._task_group is None:
             raise RuntimeError("ASGITransport.__aenter__ not called")
-        self.__task_group.start_soon(app_wrapper)
+        self._task_group.start_soon(app_wrapper)
         await response_started.wait()
 
         assert status_code is not None

@@ -199,25 +199,7 @@ class ASGIWebSocketTransport(ASGITransport):
         initial_receive_timeout: float = 1.0,
     ) -> None:
         super().__init__(app, raise_app_exceptions, root_path, client)
-        self._exit_stack: contextlib.AsyncExitStack | None = None
         self._initial_receive_timeout = initial_receive_timeout
-
-    async def __aenter__(self) -> ASGIWebSocketTransport:
-        async with contextlib.AsyncExitStack() as stack:
-            self._task_group = await stack.enter_async_context(anyio.create_task_group())
-            self._exit_stack = stack.pop_all()
-
-        return await super().__aenter__()
-
-    async def __aexit__(
-        self,
-        exc_type: type[BaseException] | None = None,
-        exc_val: BaseException | None = None,
-        exc_tb: TracebackType | None = None,
-    ) -> None:
-        await super().__aexit__(exc_type, exc_val, exc_tb)
-        assert self._exit_stack is not None
-        await self._exit_stack.__aexit__(exc_type, exc_val, exc_tb)
 
     async def handle_async_request(self, request: Request) -> Response:
         scheme = request.url.scheme
