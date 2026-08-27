@@ -5,6 +5,7 @@ import typing
 from types import TracebackType
 
 import anyio
+import anyio.abc
 import anyio.streams.memory
 
 from .._models import Request, Response
@@ -20,7 +21,7 @@ __all__ = ["ASGITransport"]
 
 
 class ASGIResponseStream(AsyncByteStream):
-    def __init__(self, body_parts_stream: anyio.streams.memory.MemoryObjectReceiveStream) -> None:
+    def __init__(self, body_parts_stream: anyio.streams.memory.MemoryObjectReceiveStream[bytes | Exception]) -> None:
         self._body_parts = body_parts_stream
 
     async def __aiter__(self) -> typing.AsyncIterator[bytes]:
@@ -33,10 +34,10 @@ class ASGIResponseStream(AsyncByteStream):
                 raise TypeError(part)
         self._body_parts.close()
 
-    async def aclose(self):
+    async def aclose(self) -> None:
         self._body_parts.close()
 
-    def __del__(self):
+    def __del__(self) -> None:
         self._body_parts.close()
 
 
@@ -73,10 +74,10 @@ class ASGITransport(AsyncBaseTransport):
         self.raise_app_exceptions = raise_app_exceptions
         self.root_path = root_path
         self.client = client
-        self._task_group = None
-        self._exit_stack = None
+        self._task_group: anyio.abc.TaskGroup | None = None
+        self._exit_stack: contextlib.AsyncExitStack | None = None
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> ASGITransport:
         await super().__aenter__()
 
         async with contextlib.AsyncExitStack() as stack:
@@ -168,7 +169,7 @@ class ASGITransport(AsyncBaseTransport):
                 if not more_body:
                     response_complete.set()
 
-        async def app_wrapper():
+        async def app_wrapper() -> None:
             nonlocal app_exception, status_code, response_headers
             try:
                 await self.app(scope, receive, send)

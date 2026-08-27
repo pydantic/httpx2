@@ -231,6 +231,7 @@ class ASGIWebSocketTransport(ASGITransport):
         *,
         task_status: anyio.abc.TaskStatus[tuple[ASGIWebSocketAsyncNetworkStream, bytes]],
     ) -> None:
+        assert self._task_group is not None
         stream = ASGIWebSocketAsyncNetworkStream(
             self.app,  # type: ignore[arg-type]
             self.scope,
@@ -249,6 +250,7 @@ class ASGIWebSocketTransport(ASGITransport):
         assert isinstance(request.stream, AsyncByteStream)
 
         self.scope = scope
+        assert self._task_group is not None
         stream, accept_response = await self._task_group.start(self._create_asgi_websocket_async_network_stream)
         accept_response_lines = accept_response.decode("utf-8").splitlines()
         headers = [
