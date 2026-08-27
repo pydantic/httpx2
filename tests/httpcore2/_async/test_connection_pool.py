@@ -1,4 +1,5 @@
 import logging
+import time
 import typing
 
 import anyio
@@ -939,12 +940,33 @@ async def test_connection_pool_discards_idle_connection_closed_by_server() -> No
         assert info == ["<AsyncHTTPConnection ['https://example.com:443', HTTP/1.1, IDLE, Request Count: 1]>"]
 
 
+class FakeClock:
+    """
+    A monotonic clock the test can advance, so keepalive expiry
+    does not depend on real time.
+    """
+
+    def __init__(self) -> None:
+        self._real = time.monotonic
+        self._offset = 0.0
+
+    def __call__(self) -> float:
+        return self._real() + self._offset
+
+    def advance(self, seconds: float) -> None:
+        self._offset += seconds
+
+
 @pytest.mark.anyio
-async def test_connection_pool_expires_only_the_idle_connections_past_keepalive() -> None:
+async def test_connection_pool_expires_only_the_idle_connections_past_keepalive(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """
     Once the oldest idle connection passes its keepalive expiry, it is closed
     while younger idle connections are kept.
     """
+    clock = FakeClock()
+    monkeypatch.setattr(time, "monotonic", clock)
     network_backend = httpcore2.AsyncMockBackend(
         [
             b"HTTP/1.1 200 OK\r\n",
@@ -955,11 +977,11 @@ async def test_connection_pool_expires_only_the_idle_connections_past_keepalive(
         ]
     )
 
-    async with httpcore2.AsyncConnectionPool(network_backend=network_backend, keepalive_expiry=0.4) as pool:
+    async with httpcore2.AsyncConnectionPool(network_backend=network_backend, keepalive_expiry=10.0) as pool:
         await pool.request("GET", "https://a.com/")
-        await anyio.sleep(0.25)
+        clock.advance(6.0)
         await pool.request("GET", "https://b.com/")
-        await anyio.sleep(0.25)
+        clock.advance(6.0)
 
         # The a.com connection has expired, the b.com connection has not.
         await pool.request("GET", "https://c.com/")
@@ -983,23 +1005,27 @@ def http2_response_buffer(stream_id: int = 1) -> list[bytes]:
 
 
 @pytest.mark.anyio
-async def test_connection_pool_expires_idle_http2_connections_past_keepalive() -> None:
+async def test_connection_pool_expires_idle_http2_connections_past_keepalive(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """
     Idle HTTP/2 connections are subject to the keepalive expiry too, with
     younger idle connections kept.
     """
+    clock = FakeClock()
+    monkeypatch.setattr(time, "monotonic", clock)
     network_backend = httpcore2.AsyncMockBackend(buffer=http2_response_buffer(), http2=True)
 
-    async with httpcore2.AsyncConnectionPool(network_backend=network_backend, keepalive_expiry=0.4) as pool:
+    async with httpcore2.AsyncConnectionPool(network_backend=network_backend, keepalive_expiry=10.0) as pool:
         await pool.request("GET", "https://a.com/")
-        await anyio.sleep(0.25)
+        clock.advance(6.0)
         await pool.request("GET", "https://b.com/")
         info = [repr(c) for c in pool.connections]
         assert info == [
             "<AsyncHTTPConnection ['https://a.com:443', HTTP/2, IDLE, Request Count: 1]>",
             "<AsyncHTTPConnection ['https://b.com:443', HTTP/2, IDLE, Request Count: 1]>",
         ]
-        await anyio.sleep(0.25)
+        clock.advance(6.0)
 
         # The a.com connection has expired, the b.com connection has not.
         await pool.request("GET", "https://c.com/")
@@ -1010,7 +1036,7 @@ async def test_connection_pool_expires_idle_http2_connections_past_keepalive() -
         ]
 
         # Left long enough, the remaining connections expire as well.
-        await anyio.sleep(0.5)
+        clock.advance(11.0)
         await pool.request("GET", "https://a.com/")
         info = [repr(c) for c in pool.connections]
         assert info == ["<AsyncHTTPConnection ['https://a.com:443', HTTP/2, IDLE, Request Count: 1]>"]
