@@ -22,11 +22,11 @@ import argparse
 import json
 import os
 import pathlib
-import socket
+import queue
 import statistics
 import subprocess
 import sys
-import time
+import threading
 from dataclasses import dataclass
 from typing import Any
 
@@ -89,15 +89,20 @@ def parse_python(text: str) -> tuple[str, str]:
     return label, path
 
 
-def wait_for_port(port: int, timeout: float = 10.0) -> None:
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        try:
-            socket.create_connection(("127.0.0.1", port), timeout=0.2).close()
-            return
-        except OSError:
-            time.sleep(0.05)
-    raise RuntimeError(f"Benchmark server did not start listening on port {port}.")
+def wait_for_server(server: subprocess.Popen[bytes], port: int, timeout: float = 10.0) -> None:
+    # Wait for the server's readiness line rather than probing the port, so a failed
+    # bind (for example, the port already in use) is an error instead of a silent
+    # benchmark against whatever else is listening there.
+    assert server.stdout is not None
+    lines: queue.Queue[bytes] = queue.Queue()
+    threading.Thread(target=lambda: lines.put(server.stdout.readline()), daemon=True).start()  # type: ignore[union-attr]
+    try:
+        line = lines.get(timeout=timeout)
+    except queue.Empty:
+        raise RuntimeError(f"Benchmark server did not start listening on port {port} within {timeout}s.") from None
+    if not line.startswith(b"listening on "):
+        code = server.wait(timeout=5)
+        raise RuntimeError(f"Benchmark server exited with code {code}; is port {port} already in use?")
 
 
 def interpreter_summary(python: str) -> str:
@@ -232,10 +237,15 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
 
     pythons: list[tuple[str, str]] = args.python or [("current", sys.executable)]
-    libs: list[str] = args.lib or ["httpx2", "aiohttp"]
-    specs: list[ScenarioSpec] = args.scenario or [
-        ScenarioSpec.parse(s) for s in (QUICK_SCENARIOS if args.quick else DEFAULT_SCENARIOS)
-    ]
+    if len({label for label, _ in pythons}) != len(pythons):
+        parser.error("--python labels must be unique.")
+    libs: list[str] = list(dict.fromkeys(args.lib or ["httpx2", "aiohttp"]))
+    # Deduplicate by value, so `c16/1k` and `c16/1024` do not become two rows sharing one bucket.
+    specs: list[ScenarioSpec] = list(
+        dict.fromkeys(
+            args.scenario or [ScenarioSpec.parse(s) for s in (QUICK_SCENARIOS if args.quick else DEFAULT_SCENARIOS)]
+        )
+    )
     cpus = available_cpus()
     if not args.no_pin and len(cpus) >= 2:
         args.server_cpu = cpus[0] if args.server_cpu is None else args.server_cpu
@@ -253,10 +263,10 @@ def main(argv: list[str] | None = None) -> None:
         server_command += ["--cpu", str(args.server_cpu)]
     if args.no_zuvloop:
         server_command.append("--no-zuvloop")
-    server = subprocess.Popen(server_command)
+    server = subprocess.Popen(server_command, stdout=subprocess.PIPE)
     results: dict[tuple[str, str], list[dict[str, Any]]] = {}
     try:
-        wait_for_port(args.port)
+        wait_for_server(server, args.port)
         for round_number in range(1, args.rounds + 1):
             for spec in specs:
                 for label, python in pythons:

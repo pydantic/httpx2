@@ -20,14 +20,21 @@ from typing import Any, TypeVar, cast
 
 DEFAULT_PORT = 8765
 RESPONSE_HEAD = b"HTTP/1.1 200 OK\r\ncontent-type: application/octet-stream\r\ncontent-length: %d\r\n\r\n"
+BAD_REQUEST = b"HTTP/1.1 400 Bad Request\r\ncontent-length: 0\r\n\r\n"
+MAX_BODY_SIZE = 64 * 1024 * 1024
 
 T = TypeVar("T")
 
 _bodies: dict[int, bytes] = {}
 
 
-def response_body(target: bytes) -> bytes:
-    size = int(target.rsplit(b"/", 1)[-1] or b"0")
+def response_body(target: bytes) -> bytes | None:
+    try:
+        size = int(target.rsplit(b"/", 1)[-1] or b"0")
+    except ValueError:
+        return None
+    if not 0 <= size <= MAX_BODY_SIZE:
+        return None
     body = _bodies.get(size)
     if body is None:
         body = _bodies[size] = b"x" * size
@@ -67,13 +74,18 @@ class OriginProtocol(asyncio.Protocol):
 
         payload = body if method == b"POST" else response_body(target)
         assert self._transport is not None
-        self._transport.writelines([RESPONSE_HEAD % len(payload), payload])
+        if payload is None:
+            self._transport.write(BAD_REQUEST)
+        else:
+            self._transport.writelines([RESPONSE_HEAD % len(payload), payload])
         return True
 
 
 async def serve(port: int) -> None:
     loop = asyncio.get_running_loop()
     server = await loop.create_server(OriginProtocol, "127.0.0.1", port, backlog=4096)
+    # The orchestrator waits for this line; a bind failure ends stdout without it.
+    print(f"listening on 127.0.0.1:{port}", flush=True)
     async with server:
         await server.serve_forever()
 
