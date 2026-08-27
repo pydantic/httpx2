@@ -5,7 +5,8 @@ from pytest_httpbin.serve import Server
 
 import httpcore2
 
-BACKENDS = [None, httpcore2.SyncBackend()]
+# The automatic backend, and the explicit anyio backend it no longer selects under asyncio.
+BACKENDS = [None]
 
 
 

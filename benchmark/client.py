@@ -69,7 +69,8 @@ def build_httpx2(scenario: Scenario, payload: bytes) -> tuple[RequestFn, CloseFn
 
 
 def build_httpx(scenario: Scenario, payload: bytes) -> tuple[RequestFn, CloseFn]:
-    # The original httpx, for reference; it shares the httpx2 API.
+    # The original httpx, for reference; it shares the httpx2 API. Not part of the
+    # project environment: see the README for how to provision it.
     import httpx
 
     return _build_httpx_like(httpx, scenario, payload)
