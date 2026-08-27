@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## Unreleased
+
+### Fixed
+
+* Restore `AsyncIterator[bytes]` as the return annotation of `Response.aiter_bytes()` and
+  `Response.aiter_raw()`, so that they can be overridden with any async iterator.
+  ([#1168](https://github.com/pydantic/httpx2/pull/1168))
+
 ## 2.12.0 (August 18th, 2026)
 
 ### Changed
