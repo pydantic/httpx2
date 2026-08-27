@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import codecs
-import contextlib
 import datetime
 import email.message
 import json as jsonlib
@@ -972,11 +971,15 @@ class Response:
         Read and return the response content.
         """
         if not hasattr(self, "_content"):
-            async with contextlib.aclosing(self.aiter_bytes()) as parts:
+            parts = self.aiter_bytes()
+            try:
                 self._content = b"".join([part async for part in parts])
+            finally:
+                if isinstance(parts, AsyncGenerator):
+                    await parts.aclose()
         return self._content
 
-    async def aiter_bytes(self, chunk_size: int | None = None) -> typing.AsyncGenerator[bytes, None]:
+    async def aiter_bytes(self, chunk_size: int | None = None) -> typing.AsyncIterator[bytes]:
         """
         A byte-iterator over the decoded response content.
         This allows us to handle gzip, deflate, brotli, and zstd encoded responses.
@@ -989,11 +992,15 @@ class Response:
             decoder = self._get_content_decoder()
             chunker = ByteChunker(chunk_size=chunk_size)
             with request_context(request=self._request):
-                async with contextlib.aclosing(self.aiter_raw()) as raw_stream:
+                raw_stream = self.aiter_raw()
+                try:
                     async for raw_bytes in raw_stream:
                         for decoded in decoder.decode(raw_bytes):
                             for chunk in chunker.decode(decoded):
                                 yield chunk
+                finally:
+                    if isinstance(raw_stream, AsyncGenerator):
+                        await raw_stream.aclose()
                 for decoded in decoder.flush():
                     for chunk in chunker.decode(decoded):
                         yield chunk  # pragma: no cover
@@ -1028,7 +1035,7 @@ class Response:
             for line in decoder.flush():
                 yield line
 
-    async def aiter_raw(self, chunk_size: int | None = None) -> typing.AsyncGenerator[bytes, None]:
+    async def aiter_raw(self, chunk_size: int | None = None) -> typing.AsyncIterator[bytes]:
         """
         A byte-iterator over the raw response content.
         """

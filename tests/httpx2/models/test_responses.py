@@ -27,6 +27,22 @@ async def async_streaming_body() -> typing.AsyncIterator[bytes]:
     yield b"world!"
 
 
+class PlainAsyncIterator:
+    """An async iterator that is not an async generator, and so has no `aclose()`."""
+
+    def __init__(self, chunks: list[bytes]) -> None:
+        self._chunks = iter(chunks)
+
+    def __aiter__(self) -> PlainAsyncIterator:
+        return self
+
+    async def __anext__(self) -> bytes:
+        try:
+            return next(self._chunks)
+        except StopIteration:
+            raise StopAsyncIteration from None
+
+
 def autodetect(content: bytes) -> str | None:
     return chardet.detect(content).get("encoding")
 
@@ -490,6 +506,28 @@ async def test_aiter_raw_with_chunksize() -> None:
 
     parts = [part async for part in response.aiter_raw(chunk_size=20)]
     assert parts == [b"Hello, world!"]
+
+
+@pytest.mark.anyio
+async def test_aiter_bytes_override_with_plain_async_iterator() -> None:
+    # Subclasses may override the async iteration methods with any async iterator,
+    # and not only with an async generator.
+    class CustomResponse(httpx2.Response):
+        def aiter_bytes(self, chunk_size: int | None = None) -> typing.AsyncIterator[bytes]:
+            return PlainAsyncIterator([b"Hello, ", b"world!"])
+
+    response = CustomResponse(200, content=async_streaming_body())
+    assert await response.aread() == b"Hello, world!"
+
+
+@pytest.mark.anyio
+async def test_aiter_raw_override_with_plain_async_iterator() -> None:
+    class CustomResponse(httpx2.Response):
+        def aiter_raw(self, chunk_size: int | None = None) -> typing.AsyncIterator[bytes]:
+            return PlainAsyncIterator([b"Hello, ", b"world!"])
+
+    response = CustomResponse(200, content=async_streaming_body())
+    assert await response.aread() == b"Hello, world!"
 
 
 @pytest.mark.anyio
