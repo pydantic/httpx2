@@ -11,6 +11,7 @@ SUBS = [
     ),
     ("import trio as concurrency", "from tests.httpcore2 import concurrency"),
     ("anyio.sleep", "concurrency.sleep"),
+    ("BACKENDS = \\[None, httpcore2.AnyIOBackend\\(\\)\\]", "BACKENDS = [None]"),
     ("AsyncIterator", "Iterator"),
     ("Async([A-Z][A-Za-z0-9_]*)", r"\2"),
     ("async def", "def"),

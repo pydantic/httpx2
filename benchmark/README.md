@@ -28,7 +28,14 @@ git worktree add ../httpx2-main main && (cd ../httpx2-main && uv sync)
 scripts/benchmark --python main=../httpx2-main/.venv/bin/python --python work=.venv/bin/python --lib httpx2
 ```
 
-`punkreq` is supported as an extra reference point (`--lib punkreq`) if it is installed.
+The original `httpx` and `punkreq` are supported as reference points (`--lib httpx`, `--lib punkreq`).
+Neither is part of the project's environment (installing `httpx` next to `httpx2` interferes with the
+alias tests), so provision them in a separate interpreter and pass it with `--python`:
+
+```
+uv venv --python 3.14 /tmp/refs && uv pip install --python /tmp/refs/bin/python httpx punkreq zuvloop
+scripts/benchmark --python refs=/tmp/refs/bin/python --lib httpx --lib punkreq
+```
 
 ## Reading the results
 

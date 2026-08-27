@@ -5,30 +5,36 @@ from pytest_httpbin.serve import Server
 
 import httpcore2
 
+# The automatic backend, and the explicit anyio backend it no longer selects under asyncio.
+BACKENDS = [None, httpcore2.AnyIOBackend()]
+
 
 @pytest.mark.anyio
-async def test_request(httpbin: Server) -> None:
-    async with httpcore2.AsyncConnectionPool() as pool:
+@pytest.mark.parametrize("network_backend", BACKENDS)
+async def test_request(httpbin: Server, network_backend: httpcore2.AsyncNetworkBackend | None) -> None:
+    async with httpcore2.AsyncConnectionPool(network_backend=network_backend) as pool:
         response = await pool.request("GET", httpbin.url)
         assert response.status == 200
 
 
 @pytest.mark.anyio
-async def test_ssl_request(httpbin_secure: Server) -> None:
+@pytest.mark.parametrize("network_backend", BACKENDS)
+async def test_ssl_request(httpbin_secure: Server, network_backend: httpcore2.AsyncNetworkBackend | None) -> None:
     ssl_context = ssl.create_default_context()
     ssl_context.check_hostname = False
     ssl_context.verify_mode = ssl.CERT_NONE
-    async with httpcore2.AsyncConnectionPool(ssl_context=ssl_context) as pool:
+    async with httpcore2.AsyncConnectionPool(ssl_context=ssl_context, network_backend=network_backend) as pool:
         response = await pool.request("GET", httpbin_secure.url)
         assert response.status == 200
 
 
 @pytest.mark.anyio
-async def test_extra_info(httpbin_secure: Server) -> None:
+@pytest.mark.parametrize("network_backend", BACKENDS)
+async def test_extra_info(httpbin_secure: Server, network_backend: httpcore2.AsyncNetworkBackend | None) -> None:
     ssl_context = ssl.create_default_context()
     ssl_context.check_hostname = False
     ssl_context.verify_mode = ssl.CERT_NONE
-    async with httpcore2.AsyncConnectionPool(ssl_context=ssl_context) as pool:
+    async with httpcore2.AsyncConnectionPool(ssl_context=ssl_context, network_backend=network_backend) as pool:
         async with pool.stream("GET", httpbin_secure.url) as response:
             assert response.status == 200
             stream = response.extensions["network_stream"]
