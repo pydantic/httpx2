@@ -130,8 +130,8 @@ class ConnectionPool(RequestInterface):
         # HTTP/1.1 connection with a holder is reserved by a request that has
         # not sent on it yet.
         self._holders: dict[ConnectionInterface, int] = {}
-        # Idle HTTP/1.1 connections free for reuse, oldest first, mapped to the
-        # time they became idle, plus the same connections keyed by origin.
+        # Idle connections free for reuse, oldest first, mapped to the time
+        # they became idle, plus the same connections keyed by origin.
         self._idle: dict[ConnectionInterface, float] = {}
         self._idle_by_origin: dict[Origin, dict[ConnectionInterface, None]] = {}
         # Connections that may take a request while not idle: HTTP/2 connections,
@@ -343,15 +343,18 @@ class ConnectionPool(RequestInterface):
         while idle:
             connection = next(iter(idle))
             self._remove_idle(connection)
-            # `has_expired()` also probes the socket, catching a connection
-            # the server closed while it sat idle.
-            if connection.has_expired():
+            # `has_expired()` also probes the socket, catching a connection the
+            # server closed while it sat idle. An idle HTTP/2 connection may
+            # have become unusable without closing, for example after an error.
+            if connection.has_expired() or not connection.is_available():
                 self._drop_connection(connection)
                 closing_connections.append(connection)
                 continue
             return connection
 
-        for connection in self._live_sharable_connections(origin, closing_connections):
+        # Idle sharable connections were handled above; the remaining ones are
+        # either serving requests or not yet connected.
+        for connection in self._sharable_by_origin.get(origin, ()):
             if connection.is_available():
                 return connection
 
@@ -360,7 +363,6 @@ class ConnectionPool(RequestInterface):
 
         if self._idle:
             connection = next(iter(self._idle))
-            self._remove_idle(connection)
             self._drop_connection(connection)
             closing_connections.append(connection)
             return self._add_connection(origin)
@@ -388,69 +390,37 @@ class ConnectionPool(RequestInterface):
             self._drop_connection(connection)
             return
 
+        sharable = self._sharable_by_origin.setdefault(origin, {})
         if connection.can_multiplex():
-            self._sharable_by_origin.setdefault(origin, {})[connection] = None
-            if connection.is_idle():
-                self._schedule_expiry(time.monotonic())
-            return
-
-        # An HTTP/1.1 connection: no longer a candidate for HTTP/2 multiplexing.
-        sharable = self._sharable_by_origin.get(origin)
-        if sharable is not None:
+            sharable[connection] = None
+        else:
+            # An HTTP/1.1 connection is no longer a candidate for multiplexing.
             sharable.pop(connection, None)
 
         if connection.is_idle():
             now = time.monotonic()
             self._idle[connection] = now
             self._idle_by_origin.setdefault(origin, {})[connection] = None
-            self._schedule_expiry(now)
+            if self._expiry_due is None and self._keepalive_expiry is not None:
+                self._expiry_due = now + self._keepalive_expiry
 
             # Enforce `max_keepalive_connections`, closing the longest idle first.
             while len(self._idle) > self._max_keepalive_connections:
                 surplus = next(iter(self._idle))
-                self._remove_idle(surplus)
                 self._drop_connection(surplus)
                 closing_connections.append(surplus)
 
     def _expire_idle_connections(self, closing_connections: list[ConnectionInterface]) -> None:
         for connection in list(self._idle):
             if connection.has_expired():
-                self._remove_idle(connection)
                 self._drop_connection(connection)
                 closing_connections.append(connection)
 
-        sharable_idle = False
-        for origin in list(self._sharable_by_origin):
-            for connection in self._live_sharable_connections(origin, closing_connections):
-                if connection.is_idle():
-                    sharable_idle = True
-
-        self._expiry_due = None
         assert self._keepalive_expiry is not None
+        self._expiry_due = None
         if self._idle:
+            # The next sweep is due when the oldest remaining idle connection expires.
             self._expiry_due = next(iter(self._idle.values())) + self._keepalive_expiry
-        elif sharable_idle:
-            self._expiry_due = time.monotonic() + self._keepalive_expiry
-
-    def _live_sharable_connections(
-        self, origin: Origin, closing_connections: list[ConnectionInterface]
-    ) -> list[ConnectionInterface]:
-        # Drop sharable connections that were closed or expired while the pool
-        # was not looking at them, returning the ones still worth using.
-        live: list[ConnectionInterface] = []
-        for connection in list(self._sharable_by_origin.get(origin, ())):
-            if connection.is_closed():
-                self._drop_connection(connection)
-            elif connection.has_expired():
-                self._drop_connection(connection)
-                closing_connections.append(connection)
-            else:
-                live.append(connection)
-        return live
-
-    def _schedule_expiry(self, now: float) -> None:
-        if self._expiry_due is None and self._keepalive_expiry is not None:
-            self._expiry_due = now + self._keepalive_expiry
 
     def _add_connection(self, origin: Origin) -> ConnectionInterface:
         connection = self.create_connection(origin)
@@ -470,6 +440,8 @@ class ConnectionPool(RequestInterface):
             del self._idle_by_origin[origin]
 
     def _drop_connection(self, connection: ConnectionInterface) -> None:
+        if connection in self._idle:
+            self._remove_idle(connection)
         origin = self._connections.pop(connection)
         self._holders.pop(connection, None)
         sharable = self._sharable_by_origin.get(origin)

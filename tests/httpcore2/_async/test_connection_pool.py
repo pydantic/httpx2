@@ -1032,3 +1032,35 @@ async def test_connection_pool_discards_externally_closed_http2_connection() -> 
         assert response.status == 200
         info = [repr(c) for c in pool.connections]
         assert info == ["<AsyncHTTPConnection ['https://example.com:443', HTTP/2, IDLE, Request Count: 1]>"]
+
+
+@pytest.mark.anyio
+async def test_connection_pool_keepalive_limit_applies_to_http2_connections() -> None:
+    """
+    Idle HTTP/2 connections count towards `max_keepalive_connections`.
+    """
+    network_backend = httpcore2.AsyncMockBackend(buffer=http2_response_buffer(), http2=True)
+
+    async with httpcore2.AsyncConnectionPool(network_backend=network_backend, max_keepalive_connections=0) as pool:
+        response = await pool.request("GET", "https://example.com/")
+        assert response.status == 200
+        assert pool.connections == []
+
+
+@pytest.mark.anyio
+async def test_connection_pool_closes_idle_http2_connection_for_different_origin() -> None:
+    """
+    When the pool is full, an idle HTTP/2 connection to another origin is
+    closed to make room, just like an idle HTTP/1.1 connection.
+    """
+    network_backend = httpcore2.AsyncMockBackend(buffer=http2_response_buffer(), http2=True)
+
+    async with httpcore2.AsyncConnectionPool(network_backend=network_backend, max_connections=1) as pool:
+        await pool.request("GET", "https://a.com/")
+        info = [repr(c) for c in pool.connections]
+        assert info == ["<AsyncHTTPConnection ['https://a.com:443', HTTP/2, IDLE, Request Count: 1]>"]
+
+        response = await pool.request("GET", "https://b.com/")
+        assert response.status == 200
+        info = [repr(c) for c in pool.connections]
+        assert info == ["<AsyncHTTPConnection ['https://b.com:443', HTTP/2, IDLE, Request Count: 1]>"]
