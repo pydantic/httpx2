@@ -5,30 +5,35 @@ from pytest_httpbin.serve import Server
 
 import httpcore2
 
+BACKENDS = [None, httpcore2.SyncBackend()]
 
 
-def test_request(httpbin: Server) -> None:
-    with httpcore2.ConnectionPool() as pool:
+
+@pytest.mark.parametrize("network_backend", BACKENDS)
+def test_request(httpbin: Server, network_backend: httpcore2.NetworkBackend | None) -> None:
+    with httpcore2.ConnectionPool(network_backend=network_backend) as pool:
         response = pool.request("GET", httpbin.url)
         assert response.status == 200
 
 
 
-def test_ssl_request(httpbin_secure: Server) -> None:
+@pytest.mark.parametrize("network_backend", BACKENDS)
+def test_ssl_request(httpbin_secure: Server, network_backend: httpcore2.NetworkBackend | None) -> None:
     ssl_context = ssl.create_default_context()
     ssl_context.check_hostname = False
     ssl_context.verify_mode = ssl.CERT_NONE
-    with httpcore2.ConnectionPool(ssl_context=ssl_context) as pool:
+    with httpcore2.ConnectionPool(ssl_context=ssl_context, network_backend=network_backend) as pool:
         response = pool.request("GET", httpbin_secure.url)
         assert response.status == 200
 
 
 
-def test_extra_info(httpbin_secure: Server) -> None:
+@pytest.mark.parametrize("network_backend", BACKENDS)
+def test_extra_info(httpbin_secure: Server, network_backend: httpcore2.NetworkBackend | None) -> None:
     ssl_context = ssl.create_default_context()
     ssl_context.check_hostname = False
     ssl_context.verify_mode = ssl.CERT_NONE
-    with httpcore2.ConnectionPool(ssl_context=ssl_context) as pool:
+    with httpcore2.ConnectionPool(ssl_context=ssl_context, network_backend=network_backend) as pool:
         with pool.stream("GET", httpbin_secure.url) as response:
             assert response.status == 200
             stream = response.extensions["network_stream"]
