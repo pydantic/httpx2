@@ -33,7 +33,11 @@ def _connection_kwargs(loop: asyncio.AbstractEventLoop) -> dict[str, typing.Any]
     # Not every event loop implements Happy Eyeballs; use it where available.
     supported = _happy_eyeballs_support.get(type(loop))
     if supported is None:
-        supported = "happy_eyeballs_delay" in inspect.signature(loop.create_connection).parameters
+        try:
+            supported = "happy_eyeballs_delay" in inspect.signature(loop.create_connection).parameters
+        except (TypeError, ValueError):
+            # Some extension-implemented loops expose no signature to inspect.
+            supported = False
         _happy_eyeballs_support[type(loop)] = supported
     return {"happy_eyeballs_delay": HAPPY_EYEBALLS_DELAY} if supported else {}
 

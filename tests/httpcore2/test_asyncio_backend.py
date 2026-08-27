@@ -187,6 +187,21 @@ async def test_happy_eyeballs_is_used_where_supported() -> None:
     assert _connection_kwargs(loop) == {}
 
 
+async def test_happy_eyeballs_detection_tolerates_loops_without_signatures(monkeypatch: pytest.MonkeyPatch) -> None:
+    import inspect
+
+    from httpcore2._backends.asyncio import _connection_kwargs
+
+    class OpaqueLoop:
+        def create_connection(self, *args: typing.Any, **kwargs: typing.Any) -> None: ...
+
+    def no_signature(callable: typing.Any) -> typing.Any:
+        raise ValueError("no signature found")
+
+    monkeypatch.setattr(inspect, "signature", no_signature)
+    assert _connection_kwargs(typing.cast(asyncio.AbstractEventLoop, OpaqueLoop())) == {}
+
+
 async def test_start_tls_failure(serve: Callable[..., Awaitable[int]]) -> None:
     # A plain echo server answers the ClientHello with the ClientHello.
     port = await serve()
