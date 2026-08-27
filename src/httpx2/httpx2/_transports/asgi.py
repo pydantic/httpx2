@@ -30,8 +30,6 @@ class ASGIResponseStream(AsyncByteStream):
                 yield part
             elif isinstance(part, Exception):
                 raise part
-            else:
-                raise TypeError(part)
         self._body_parts.close()
 
     async def aclose(self) -> None:
@@ -186,8 +184,7 @@ class ASGITransport(AsyncBaseTransport):
             finally:
                 body_send.close()
 
-        if self._task_group is None:
-            raise RuntimeError("ASGITransport.__aenter__ not called")
+        assert self._task_group is not None
         self._task_group.start_soon(app_wrapper)
         await response_started.wait()
 
