@@ -159,6 +159,34 @@ async def test_start_tls(serve: Callable[..., Awaitable[int]]) -> None:
     await tls_stream.aclose()
 
 
+async def test_start_tls_rejects_data_received_before_the_handshake(serve: Callable[..., Awaitable[int]]) -> None:
+    async def banner(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        writer.write(b"220 hello\r\n")
+        await writer.drain()
+        await reader.read()
+        writer.close()
+
+    port = await serve(banner)
+    stream = await httpcore2.AsyncioBackend().connect_tcp("127.0.0.1", port)
+    # Give the banner time to arrive and be buffered.
+    await asyncio.sleep(0.05)
+    with pytest.raises(httpcore2.ConnectError):
+        await stream.start_tls(ssl.create_default_context(), server_hostname="localhost", timeout=5.0)
+
+
+async def test_happy_eyeballs_is_used_where_supported() -> None:
+    from httpcore2._backends.asyncio import HAPPY_EYEBALLS_DELAY, _connection_kwargs
+
+    assert _connection_kwargs(asyncio.get_running_loop()) == {"happy_eyeballs_delay": HAPPY_EYEBALLS_DELAY}
+
+    class MinimalLoop:
+        async def create_connection(self, protocol_factory: typing.Any, host: str, port: int) -> None: ...
+
+    loop = typing.cast(asyncio.AbstractEventLoop, MinimalLoop())
+    assert _connection_kwargs(loop) == {}
+    assert _connection_kwargs(loop) == {}
+
+
 async def test_start_tls_failure(serve: Callable[..., Awaitable[int]]) -> None:
     # A plain echo server answers the ClientHello with the ClientHello.
     port = await serve()

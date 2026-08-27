@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import collections
+import inspect
 import ssl
 import typing
 
@@ -19,6 +20,22 @@ from .base import SOCKET_OPTION, AsyncNetworkBackend, AsyncNetworkStream
 # and start again once the buffer drains below the low-water mark.
 RECEIVE_HIGH_WATER = 256 * 1024
 RECEIVE_LOW_WATER = 64 * 1024
+
+# Stagger connection attempts across resolved addresses, as in RFC 8305.
+HAPPY_EYEBALLS_DELAY = 0.25
+# The event loop insists on a TLS handshake timeout; this stands in for "none".
+NO_HANDSHAKE_TIMEOUT = 365 * 24 * 60 * 60.0
+
+_happy_eyeballs_support: dict[type[asyncio.AbstractEventLoop], bool] = {}
+
+
+def _connection_kwargs(loop: asyncio.AbstractEventLoop) -> dict[str, typing.Any]:
+    # Not every event loop implements Happy Eyeballs; use it where available.
+    supported = _happy_eyeballs_support.get(type(loop))
+    if supported is None:
+        supported = "happy_eyeballs_delay" in inspect.signature(loop.create_connection).parameters
+        _happy_eyeballs_support[type(loop)] = supported
+    return {"happy_eyeballs_delay": HAPPY_EYEBALLS_DELAY} if supported else {}
 
 
 class _Timeout(Exception):
@@ -175,10 +192,24 @@ class AsyncioStream(AsyncNetworkStream):
         server_hostname: str | None = None,
         timeout: float | None = None,
     ) -> AsyncNetworkStream:
+        protocol = self._protocol
+        if protocol.chunks or protocol.eof or protocol.closed:
+            # Nothing may arrive before the handshake: anything already buffered
+            # is plaintext that must not be mistaken for data received over TLS.
+            await self.aclose()
+            raise ConnectError("Received unexpected data before the TLS handshake")
+
         loop = asyncio.get_running_loop()
-        # The loop reports its own handshake timeout as a connection error,
-        # so the deadline is applied here instead to raise a timeout.
-        handshake = loop.start_tls(self._transport, self._protocol, ssl_context, server_hostname=server_hostname)
+        # The loop reports its own handshake timeout as a connection error, so
+        # the deadline is applied here to raise a timeout, with the loop's own
+        # deadline kept out of the way.
+        handshake = loop.start_tls(
+            self._transport,
+            protocol,
+            ssl_context,
+            server_hostname=server_hostname,
+            ssl_handshake_timeout=NO_HANDSHAKE_TIMEOUT if timeout is None else timeout + 1.0,
+        )
         try:
             transport = await asyncio.wait_for(handshake, timeout)
         except (TimeoutError, asyncio.TimeoutError):
@@ -189,8 +220,8 @@ class AsyncioStream(AsyncNetworkStream):
             raise ConnectError(str(exc)) from exc
         if transport is None:  # pragma: no cover
             raise ConnectError("TLS handshake failed")
-        self._protocol.transport = transport
-        return AsyncioStream(transport, self._protocol)
+        protocol.transport = transport
+        return AsyncioStream(transport, protocol)
 
     def get_extra_info(self, info: str) -> typing.Any:
         if info == "ssl_object":
@@ -222,7 +253,9 @@ class AsyncioBackend(AsyncNetworkBackend):
         loop = asyncio.get_running_loop()
         local_addr = None if local_address is None else (local_address, 0)
         # By default TCP sockets opened in `asyncio` include TCP_NODELAY.
-        connect = loop.create_connection(AsyncioStreamProtocol, host, port, local_addr=local_addr)
+        connect = loop.create_connection(
+            AsyncioStreamProtocol, host, port, local_addr=local_addr, **_connection_kwargs(loop)
+        )
         return await self._connect(connect, timeout, socket_options)
 
     async def connect_unix_socket(
