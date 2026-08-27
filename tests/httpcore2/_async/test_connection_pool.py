@@ -1064,3 +1064,56 @@ async def test_connection_pool_closes_idle_http2_connection_for_different_origin
         assert response.status == 200
         info = [repr(c) for c in pool.connections]
         assert info == ["<AsyncHTTPConnection ['https://b.com:443', HTTP/2, IDLE, Request Count: 1]>"]
+
+
+@pytest.mark.anyio
+async def test_connection_pool_with_negative_keepalive_limit() -> None:
+    """
+    A negative `max_keepalive_connections` behaves like zero.
+    """
+    network_backend = httpcore2.AsyncMockBackend(
+        [
+            b"HTTP/1.1 200 OK\r\n",
+            b"Content-Type: plain/text\r\n",
+            b"Content-Length: 13\r\n",
+            b"\r\n",
+            b"Hello, world!",
+        ]
+    )
+
+    async with httpcore2.AsyncConnectionPool(max_keepalive_connections=-1, network_backend=network_backend) as pool:
+        response = await pool.request("GET", "https://example.com/")
+        assert response.status == 200
+        assert pool.connections == []
+
+
+@pytest.mark.anyio
+async def test_connection_pool_with_unhashable_connections() -> None:
+    """
+    Connections returned by an overridden `create_connection` need not be hashable.
+    """
+
+    class UnhashableConnection(httpcore2.AsyncHTTPConnection):
+        __hash__ = None  # type: ignore[assignment]
+
+    class CustomPool(httpcore2.AsyncConnectionPool):
+        def create_connection(self, origin: httpcore2.Origin) -> httpcore2.AsyncConnectionInterface:
+            return UnhashableConnection(origin=origin, network_backend=self._network_backend)
+
+    network_backend = httpcore2.AsyncMockBackend(
+        [
+            b"HTTP/1.1 200 OK\r\n",
+            b"Content-Type: plain/text\r\n",
+            b"Content-Length: 13\r\n",
+            b"\r\n",
+            b"Hello, world!",
+        ]
+        * 2
+    )
+
+    async with CustomPool(network_backend=network_backend) as pool:
+        for _ in range(2):
+            response = await pool.request("GET", "https://example.com/")
+            assert response.status == 200
+        info = [repr(c) for c in pool.connections]
+        assert info == ["<UnhashableConnection ['https://example.com:443', HTTP/1.1, IDLE, Request Count: 2]>"]

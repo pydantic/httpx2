@@ -22,6 +22,7 @@ class PoolRequest:
     def __init__(self, request: Request) -> None:
         self.request = request
         self.connection: ConnectionInterface | None = None
+        self.entry: _ConnectionEntry | None = None
         # Created only by a request that actually has to wait: in the common
         # case a connection is assigned before `wait_for_connection` is called.
         self._connection_acquired: Event | None = None
@@ -47,6 +48,24 @@ class PoolRequest:
 
     def is_queued(self) -> bool:
         return self.connection is None
+
+
+class _ConnectionEntry:
+    """
+    The pool's bookkeeping for one connection. Entries are hashed by identity,
+    so connections themselves need not be hashable.
+    """
+
+    __slots__ = ("connection", "origin", "holders", "idle_since")
+
+    def __init__(self, connection: ConnectionInterface, origin: Origin) -> None:
+        self.connection = connection
+        self.origin = origin
+        # The number of in-flight requests holding the connection. An idle
+        # HTTP/1.1 connection with a holder is reserved by a request that has
+        # not sent on it yet.
+        self.holders = 0
+        self.idle_since = 0.0
 
 
 class ConnectionPool(RequestInterface):
@@ -104,7 +123,7 @@ class ConnectionPool(RequestInterface):
         self._max_keepalive_connections = (
             sys.maxsize if max_keepalive_connections is None else max_keepalive_connections
         )
-        self._max_keepalive_connections = min(self._max_connections, self._max_keepalive_connections)
+        self._max_keepalive_connections = max(0, min(self._max_connections, self._max_keepalive_connections))
 
         self._keepalive_expiry = keepalive_expiry
         self._http1 = http1
@@ -120,26 +139,22 @@ class ConnectionPool(RequestInterface):
         # releasing a connection costs O(1) rather than a scan of every
         # connection and every in-flight request.
         #
-        # Every connection owned by the pool, in creation order, with its origin.
-        self._connections: dict[ConnectionInterface, Origin] = {}
+        # Every connection owned by the pool, in creation order, keyed by identity.
+        self._entries: dict[int, _ConnectionEntry] = {}
         # Every in-flight request, in arrival order.
         self._requests: dict[PoolRequest, None] = {}
         # Requests still waiting for a connection, in arrival order.
         self._queued: deque[PoolRequest] = deque()
-        # The number of in-flight requests holding each connection. An idle
-        # HTTP/1.1 connection with a holder is reserved by a request that has
-        # not sent on it yet.
-        self._holders: dict[ConnectionInterface, int] = {}
-        # Idle connections free for reuse, oldest first, mapped to the time
-        # they became idle, plus the same connections keyed by origin.
-        self._idle: dict[ConnectionInterface, float] = {}
-        self._idle_by_origin: dict[Origin, dict[ConnectionInterface, None]] = {}
+        # Idle connections free for reuse, oldest first, plus the same
+        # connections keyed by origin.
+        self._idle: dict[_ConnectionEntry, None] = {}
+        self._idle_by_origin: dict[Origin, dict[_ConnectionEntry, None]] = {}
         # Connections that may take a request while not idle: HTTP/2 connections,
         # and connections that may still negotiate HTTP/2.
-        self._sharable_by_origin: dict[Origin, dict[ConnectionInterface, None]] = {}
+        self._sharable_by_origin: dict[Origin, dict[_ConnectionEntry, None]] = {}
         # Connections whose in-flight request has ended since the last pass,
         # to be re-examined by the next pass.
-        self._released: list[ConnectionInterface] = []
+        self._released: list[_ConnectionEntry] = []
         # When the oldest idle connection may have expired, or `None` while
         # no idle connection is subject to expiry.
         self._expiry_due: float | None = None
@@ -218,7 +233,7 @@ class ConnectionPool(RequestInterface):
         ]
         ```
         """
-        return list(self._connections)
+        return [entry.connection for entry in self._entries.values()]
 
     def handle_request(self, request: Request) -> Response:
         """
@@ -308,8 +323,8 @@ class ConnectionPool(RequestInterface):
         # dropped if their request left them closed.
         if self._released:
             released, self._released = self._released, []
-            for connection in released:
-                self._examine_released_connection(connection, closing_connections)
+            for entry in released:
+                self._examine_released_connection(entry, closing_connections)
 
         # Expire idle connections, but only once the oldest may have expired.
         if self._expiry_due is not None and time.monotonic() >= self._expiry_due:
@@ -332,7 +347,7 @@ class ConnectionPool(RequestInterface):
 
     def _acquire_connection(
         self, origin: Origin, closing_connections: list[ConnectionInterface]
-    ) -> ConnectionInterface | None:
+    ) -> _ConnectionEntry | None:
         # There are three cases for how we may be able to handle the request:
         #
         # 1. There is an existing connection that can handle the request.
@@ -341,129 +356,126 @@ class ConnectionPool(RequestInterface):
         #    to handle the request.
         idle = self._idle_by_origin.get(origin)
         while idle:
-            connection = next(iter(idle))
-            self._remove_idle(connection)
+            entry = next(iter(idle))
+            self._remove_idle(entry)
             # `has_expired()` also probes the socket, catching a connection the
             # server closed while it sat idle. An idle HTTP/2 connection may
             # have become unusable without closing, for example after an error.
-            if connection.has_expired() or not connection.is_available():
-                self._drop_connection(connection)
-                closing_connections.append(connection)
+            if entry.connection.has_expired() or not entry.connection.is_available():
+                self._drop_connection(entry)
+                closing_connections.append(entry.connection)
                 continue
-            return connection
+            return entry
 
         # Idle sharable connections were handled above; the remaining ones are
         # either serving requests or not yet connected.
-        for connection in self._sharable_by_origin.get(origin, ()):
-            if connection.is_available():
-                return connection
+        for entry in self._sharable_by_origin.get(origin, ()):
+            if entry.connection.is_available():
+                return entry
 
-        if len(self._connections) < self._max_connections:
+        if len(self._entries) < self._max_connections:
             return self._add_connection(origin)
 
         if self._idle:
-            connection = next(iter(self._idle))
-            self._drop_connection(connection)
-            closing_connections.append(connection)
+            entry = next(iter(self._idle))
+            self._drop_connection(entry)
+            closing_connections.append(entry.connection)
             return self._add_connection(origin)
 
         return None
 
     def _examine_released_connection(
-        self, connection: ConnectionInterface, closing_connections: list[ConnectionInterface]
+        self, entry: _ConnectionEntry, closing_connections: list[ConnectionInterface]
     ) -> None:
-        origin = self._connections.get(connection)
-        if origin is None:
+        connection = entry.connection
+        if self._entries.get(id(connection)) is not entry:
             # Already dropped, for example by the pool closing.
             return
         if connection.is_closed():
             # The request left the connection closed; there is no socket to close.
-            self._drop_connection(connection)
+            self._drop_connection(entry)
             return
-        if self._holders.get(connection, 0):
+        if entry.holders:
             # Still serving another request, or reserved by a queued request.
             return
         if not connection.is_connected():
             # Garbage: a NEW-state connection whose request was cancelled
             # before the TCP handshake completed. Drop it without closing
             # (there is no socket to close yet).
-            self._drop_connection(connection)
+            self._drop_connection(entry)
             return
 
-        sharable = self._sharable_by_origin.setdefault(origin, {})
+        sharable = self._sharable_by_origin.setdefault(entry.origin, {})
         if connection.can_multiplex():
-            sharable[connection] = None
+            sharable[entry] = None
         else:
             # An HTTP/1.1 connection is no longer a candidate for multiplexing.
-            sharable.pop(connection, None)
+            sharable.pop(entry, None)
 
         if connection.is_idle():
-            now = time.monotonic()
-            self._idle[connection] = now
-            self._idle_by_origin.setdefault(origin, {})[connection] = None
+            entry.idle_since = time.monotonic()
+            self._idle[entry] = None
+            self._idle_by_origin.setdefault(entry.origin, {})[entry] = None
             if self._expiry_due is None and self._keepalive_expiry is not None:
-                self._expiry_due = now + self._keepalive_expiry
+                self._expiry_due = entry.idle_since + self._keepalive_expiry
 
             # Enforce `max_keepalive_connections`, closing the longest idle first.
             while len(self._idle) > self._max_keepalive_connections:
                 surplus = next(iter(self._idle))
                 self._drop_connection(surplus)
-                closing_connections.append(surplus)
+                closing_connections.append(surplus.connection)
 
     def _expire_idle_connections(self, closing_connections: list[ConnectionInterface]) -> None:
-        for connection in list(self._idle):
-            if connection.has_expired():
-                self._drop_connection(connection)
-                closing_connections.append(connection)
+        for entry in list(self._idle):
+            if entry.connection.has_expired():
+                self._drop_connection(entry)
+                closing_connections.append(entry.connection)
 
         assert self._keepalive_expiry is not None
         self._expiry_due = None
         if self._idle:
             # The next sweep is due when the oldest remaining idle connection expires.
-            self._expiry_due = next(iter(self._idle.values())) + self._keepalive_expiry
+            self._expiry_due = next(iter(self._idle)).idle_since + self._keepalive_expiry
 
-    def _add_connection(self, origin: Origin) -> ConnectionInterface:
+    def _add_connection(self, origin: Origin) -> _ConnectionEntry:
         connection = self.create_connection(origin)
-        self._connections[connection] = origin
+        entry = _ConnectionEntry(connection, origin)
+        self._entries[id(connection)] = entry
         if connection.is_available():
             # Not yet connected, but may negotiate HTTP/2 and then take
             # further requests concurrently.
-            self._sharable_by_origin.setdefault(origin, {})[connection] = None
-        return connection
+            self._sharable_by_origin.setdefault(origin, {})[entry] = None
+        return entry
 
-    def _remove_idle(self, connection: ConnectionInterface) -> None:
-        del self._idle[connection]
-        origin = self._connections[connection]
-        by_origin = self._idle_by_origin[origin]
-        del by_origin[connection]
+    def _remove_idle(self, entry: _ConnectionEntry) -> None:
+        del self._idle[entry]
+        by_origin = self._idle_by_origin[entry.origin]
+        del by_origin[entry]
         if not by_origin:
-            del self._idle_by_origin[origin]
+            del self._idle_by_origin[entry.origin]
 
-    def _drop_connection(self, connection: ConnectionInterface) -> None:
-        if connection in self._idle:
-            self._remove_idle(connection)
-        origin = self._connections.pop(connection)
-        self._holders.pop(connection, None)
-        sharable = self._sharable_by_origin.get(origin)
+    def _drop_connection(self, entry: _ConnectionEntry) -> None:
+        if entry in self._idle:
+            self._remove_idle(entry)
+        del self._entries[id(entry.connection)]
+        sharable = self._sharable_by_origin.get(entry.origin)
         if sharable is not None:
-            sharable.pop(connection, None)
+            sharable.pop(entry, None)
             if not sharable:
-                del self._sharable_by_origin[origin]
+                del self._sharable_by_origin[entry.origin]
 
-    def _reserve_connection(self, pool_request: PoolRequest, connection: ConnectionInterface) -> None:
-        self._holders[connection] = self._holders.get(connection, 0) + 1
-        pool_request.assign_to_connection(connection)
+    def _reserve_connection(self, pool_request: PoolRequest, entry: _ConnectionEntry) -> None:
+        entry.holders += 1
+        pool_request.entry = entry
+        pool_request.assign_to_connection(entry.connection)
 
     def _release_connection(self, pool_request: PoolRequest) -> None:
-        connection = pool_request.connection
-        if connection is None:
+        entry = pool_request.entry
+        if entry is None:
             return
-        count = self._holders.get(connection, 0) - 1
-        if count > 0:
-            self._holders[connection] = count
-        else:
-            self._holders.pop(connection, None)
-        self._released.append(connection)
+        pool_request.entry = None
+        entry.holders -= 1
+        self._released.append(entry)
 
     def _close_connections(self, closing: list[ConnectionInterface]) -> None:
         # Close connections which have been removed from the pool.
@@ -477,9 +489,8 @@ class ConnectionPool(RequestInterface):
         # Explicitly close the connection pool.
         # Clears all existing requests and connections.
         with self._optional_thread_lock:
-            closing_connections = list(self._connections)
-            self._connections = {}
-            self._holders = {}
+            closing_connections = [entry.connection for entry in self._entries.values()]
+            self._entries = {}
             self._idle = {}
             self._idle_by_origin = {}
             self._sharable_by_origin = {}
@@ -503,7 +514,7 @@ class ConnectionPool(RequestInterface):
         with self._optional_thread_lock:
             num_queued_requests = len(self._queued)
             num_active_requests = len(self._requests) - num_queued_requests
-            connection_is_idle = [connection.is_idle() for connection in self._connections]
+            connection_is_idle = [entry.connection.is_idle() for entry in self._entries.values()]
 
             num_active_connections = connection_is_idle.count(False)
             num_idle_connections = connection_is_idle.count(True)
