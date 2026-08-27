@@ -103,6 +103,12 @@ async def test_read_timeout(serve: Callable[..., Awaitable[int]]) -> None:
     await stream.aclose()
 
 
+async def test_invalid_socket_option(serve: Callable[..., Awaitable[int]]) -> None:
+    port = await serve()
+    with pytest.raises(httpcore2.ConnectError):
+        await httpcore2.AsyncioBackend().connect_tcp("127.0.0.1", port, socket_options=[(socket.SOL_SOCKET, -1, 1)])
+
+
 async def test_connect_refused() -> None:
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))

@@ -247,11 +247,16 @@ class AsyncioBackend(AsyncNetworkBackend):
             raise ConnectTimeout("timed out") from None
         except OSError as exc:
             raise ConnectError(str(exc)) from exc
+        stream = AsyncioStream(typing.cast(asyncio.Transport, transport), protocol)
         if socket_options:
             sock = transport.get_extra_info("socket")
-            for option in socket_options:
-                sock.setsockopt(*option)
-        return AsyncioStream(typing.cast(asyncio.Transport, transport), protocol)
+            try:
+                for option in socket_options:
+                    sock.setsockopt(*option)
+            except OSError as exc:
+                await stream.aclose()
+                raise ConnectError(str(exc)) from exc
+        return stream
 
     async def sleep(self, seconds: float) -> None:
         await asyncio.sleep(seconds)
