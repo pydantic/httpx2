@@ -41,6 +41,7 @@ async def test_socks5_request() -> None:
         assert proxy.connections[0].is_idle()
         assert proxy.connections[0].is_available()
         assert not proxy.connections[0].is_closed()
+        assert not proxy.connections[0].has_expired()
 
         # A connection on a tunneled proxy can only handle HTTPS requests to the same origin.
         assert not proxy.connections[0].can_handle_request(httpcore2.Origin(b"http", b"example.com", 80))
@@ -92,6 +93,7 @@ async def test_authenticated_socks5_request() -> None:
         assert proxy.connections[0].is_idle()
         assert proxy.connections[0].is_available()
         assert not proxy.connections[0].is_closed()
+        assert not proxy.connections[0].has_expired()
 
 
 @pytest.mark.anyio

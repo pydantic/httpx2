@@ -52,6 +52,7 @@ async def test_proxy_forwarding() -> None:
         assert proxy.connections[0].is_idle()
         assert proxy.connections[0].is_available()
         assert not proxy.connections[0].is_closed()
+        assert not proxy.connections[0].has_expired()
 
         # A connection on a forwarding proxy can only handle HTTP requests to the same origin.
         assert proxy.connections[0].can_handle_request(Origin(b"http", b"example.com", 80))
@@ -97,6 +98,7 @@ async def test_proxy_tunneling() -> None:
         assert proxy.connections[0].is_idle()
         assert proxy.connections[0].is_available()
         assert not proxy.connections[0].is_closed()
+        assert not proxy.connections[0].has_expired()
 
         # A connection on a tunneled proxy can only handle HTTPS requests to the same origin.
         assert not proxy.connections[0].can_handle_request(Origin(b"http", b"example.com", 80))
@@ -175,6 +177,7 @@ async def test_proxy_tunneling_http2() -> None:
         assert proxy.connections[0].is_idle()
         assert proxy.connections[0].is_available()
         assert not proxy.connections[0].is_closed()
+        assert not proxy.connections[0].has_expired()
 
         # A connection on a tunneled proxy can only handle HTTPS requests to the same origin.
         assert not proxy.connections[0].can_handle_request(Origin(b"http", b"example.com", 80))

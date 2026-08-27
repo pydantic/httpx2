@@ -1,6 +1,7 @@
 import logging
 import typing
 
+import anyio
 import hpack
 import hyperframe.frame
 import pytest
@@ -884,3 +885,150 @@ def test_connection_pool_multiplexes_idle_http2_connection_within_a_pass() -> No
                 nursery.start_soon(fetch, pool)
 
     assert QueueObservingPool.max_queued_after_pass == 0
+
+
+
+def test_connection_pool_discards_idle_connection_closed_by_server() -> None:
+    """
+    An idle connection that the server has closed is discarded when a request
+    would otherwise reuse it, and a new connection is opened instead.
+    """
+
+    class ServerClosingBackend(httpcore2.MockBackend):
+        server_closed = False
+
+        def connect_tcp(
+            self,
+            host: str,
+            port: int,
+            timeout: float | None = None,
+            local_address: str | None = None,
+            socket_options: typing.Iterable[httpcore2.SOCKET_OPTION] | None = None,
+        ) -> httpcore2.NetworkStream:
+            backend = self
+
+            class ServerClosingStream(httpcore2.MockStream):
+                def get_extra_info(self, info: str) -> typing.Any:
+                    # A readable idle socket means the server sent a FIN.
+                    if info == "is_readable":
+                        return backend.server_closed
+                    return super().get_extra_info(info)
+
+            return ServerClosingStream(list(self._buffer))
+
+    network_backend = ServerClosingBackend(
+        [
+            b"HTTP/1.1 200 OK\r\n",
+            b"Content-Type: plain/text\r\n",
+            b"Content-Length: 13\r\n",
+            b"\r\n",
+            b"Hello, world!",
+        ]
+    )
+
+    with httpcore2.ConnectionPool(network_backend=network_backend) as pool:
+        response = pool.request("GET", "https://example.com/")
+        assert response.status == 200
+        info = [repr(c) for c in pool.connections]
+        assert info == ["<HTTPConnection ['https://example.com:443', HTTP/1.1, IDLE, Request Count: 1]>"]
+
+        network_backend.server_closed = True
+        response = pool.request("GET", "https://example.com/")
+        assert response.status == 200
+        info = [repr(c) for c in pool.connections]
+        assert info == ["<HTTPConnection ['https://example.com:443', HTTP/1.1, IDLE, Request Count: 1]>"]
+
+
+
+def test_connection_pool_expires_only_the_idle_connections_past_keepalive() -> None:
+    """
+    Once the oldest idle connection passes its keepalive expiry, it is closed
+    while younger idle connections are kept.
+    """
+    network_backend = httpcore2.MockBackend(
+        [
+            b"HTTP/1.1 200 OK\r\n",
+            b"Content-Type: plain/text\r\n",
+            b"Content-Length: 13\r\n",
+            b"\r\n",
+            b"Hello, world!",
+        ]
+    )
+
+    with httpcore2.ConnectionPool(network_backend=network_backend, keepalive_expiry=0.4) as pool:
+        pool.request("GET", "https://a.com/")
+        concurrency.sleep(0.25)
+        pool.request("GET", "https://b.com/")
+        concurrency.sleep(0.25)
+
+        # The a.com connection has expired, the b.com connection has not.
+        pool.request("GET", "https://c.com/")
+        info = [repr(c) for c in pool.connections]
+        assert info == [
+            "<HTTPConnection ['https://b.com:443', HTTP/1.1, IDLE, Request Count: 1]>",
+            "<HTTPConnection ['https://c.com:443', HTTP/1.1, IDLE, Request Count: 1]>",
+        ]
+
+
+def http2_response_buffer(stream_id: int = 1) -> list[bytes]:
+    return [
+        hyperframe.frame.SettingsFrame().serialize(),
+        hyperframe.frame.HeadersFrame(
+            stream_id=stream_id,
+            data=hpack.Encoder().encode([(b":status", b"200")]),
+            flags=["END_HEADERS"],
+        ).serialize(),
+        hyperframe.frame.DataFrame(stream_id=stream_id, data=b"Hello, world!", flags=["END_STREAM"]).serialize(),
+    ]
+
+
+
+def test_connection_pool_expires_idle_http2_connections_past_keepalive() -> None:
+    """
+    Idle HTTP/2 connections are subject to the keepalive expiry too, with
+    younger idle connections kept.
+    """
+    network_backend = httpcore2.MockBackend(buffer=http2_response_buffer(), http2=True)
+
+    with httpcore2.ConnectionPool(network_backend=network_backend, keepalive_expiry=0.4) as pool:
+        pool.request("GET", "https://a.com/")
+        concurrency.sleep(0.25)
+        pool.request("GET", "https://b.com/")
+        info = [repr(c) for c in pool.connections]
+        assert info == [
+            "<HTTPConnection ['https://a.com:443', HTTP/2, IDLE, Request Count: 1]>",
+            "<HTTPConnection ['https://b.com:443', HTTP/2, IDLE, Request Count: 1]>",
+        ]
+        concurrency.sleep(0.25)
+
+        # The a.com connection has expired, the b.com connection has not.
+        pool.request("GET", "https://c.com/")
+        info = [repr(c) for c in pool.connections]
+        assert info == [
+            "<HTTPConnection ['https://b.com:443', HTTP/2, IDLE, Request Count: 1]>",
+            "<HTTPConnection ['https://c.com:443', HTTP/2, IDLE, Request Count: 1]>",
+        ]
+
+        # Left long enough, the remaining connections expire as well.
+        concurrency.sleep(0.5)
+        pool.request("GET", "https://a.com/")
+        info = [repr(c) for c in pool.connections]
+        assert info == ["<HTTPConnection ['https://a.com:443', HTTP/2, IDLE, Request Count: 1]>"]
+
+
+
+def test_connection_pool_discards_externally_closed_http2_connection() -> None:
+    """
+    An HTTP/2 connection closed outside of a request is discarded rather than
+    handed to the next request for that origin.
+    """
+    network_backend = httpcore2.MockBackend(buffer=http2_response_buffer(), http2=True)
+
+    with httpcore2.ConnectionPool(network_backend=network_backend) as pool:
+        pool.request("GET", "https://example.com/")
+        pool.connections[0].close()
+
+        response = pool.request("GET", "https://example.com/")
+        assert response.status == 200
+        info = [repr(c) for c in pool.connections]
+        assert info == ["<HTTPConnection ['https://example.com:443', HTTP/2, IDLE, Request Count: 1]>"]
