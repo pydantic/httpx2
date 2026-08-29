@@ -240,7 +240,10 @@ def test_request_params() -> None:
     assert str(request.url) == "http://example.com"
 
     request = httpx2.Request("GET", "http://example.com?c=3", params={"a": "1", "b": "2"})
-    assert str(request.url) == "http://example.com?a=1&b=2"
+    assert str(request.url) == "http://example.com?c=3&a=1&b=2"
 
     request = httpx2.Request("GET", "http://example.com?a=1", params={})
-    assert str(request.url) == "http://example.com"
+    assert str(request.url) == "http://example.com?a=1"
+
+    request = httpx2.Request("GET", "http://example.com?a=old", params={"a": "new"})
+    assert str(request.url) == "http://example.com?a=old&a=new"
