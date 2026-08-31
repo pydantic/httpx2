@@ -36,7 +36,6 @@ dev = [
   "mypy==2.3.0",
   "ruff==0.16.0",
   # Packaging
-  "build==1.5.0",
   "twine==7.0.0",
 ]
 docs = ["zensical>=0.0.51", "mkdocstrings[python]>=1.0.6"]
