@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling", "hatch-fancy-pypi-readme", "uv-dynamic-versioning>=0.14.0"]
+requires = ["hatchling", "hatch-fancy-pypi-readme", "uv-dynamic-versioning>=0.14.1"]
 build-backend = "hatchling.build"
 
 [tool.hatch.version]
