@@ -19,7 +19,7 @@ dev = [
   # Tests
   "chardet==6.0.0.post1",
   "coverage[toml]==7.15.2",
-  "cryptography>=49.0.0",
+  "cryptography>=50.0.0",
   "flaky>=3.8",
   "pytest>=9.1.0",
   "pytest-codspeed>=5.0.3",
