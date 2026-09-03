@@ -77,7 +77,7 @@ def print_help() -> None:
     )
 
     table.add_row("--follow-redirects", "Automatically follow redirects.")
-    table.add_row("--no-verify", "Disable SSL verification.")
+    table.add_row("--verify / --no-verify", "Enable SSL verification.")
     table.add_row("--http2", "Send the request using HTTP/2, if the remote server supports it.")
 
     table.add_row(
@@ -393,11 +393,9 @@ def handle_help(
     help="Automatically follow redirects.",
 )
 @click.option(
-    "--no-verify",
-    "verify",
-    is_flag=True,
+    "--verify/--no-verify",
     default=True,
-    help="Disable SSL verification.",
+    help="Enable SSL verification.",
 )
 @click.option(
     "--http2",

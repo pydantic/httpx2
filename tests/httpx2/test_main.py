@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import typing
 
+import pytest
 from click.testing import CliRunner
 
 import httpx2
@@ -25,6 +26,19 @@ def test_help() -> None:
     result = runner.invoke(main, ["--help"])
     assert result.exit_code == 0
     assert "A next generation HTTP client." in result.output
+
+
+@pytest.mark.parametrize(
+    ("option", "expected"),
+    [
+        ([], True),
+        (["--verify"], True),
+        (["--no-verify"], False),
+    ],
+)
+def test_verify_option(option: list[str], expected: bool) -> None:
+    with main.make_context("httpx2", ["https://example.com", *option]) as context:
+        assert context.params["verify"] is expected
 
 
 def test_get(server: TestServer) -> None:
