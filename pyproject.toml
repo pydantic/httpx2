@@ -17,26 +17,26 @@ dev = [
   "httpx2[brotli,cli,http2,socks,ws,zstd]",
   "httpcore2[asyncio,trio,http2,socks]",
   # Tests
-  "chardet==7.6.0",
-  "coverage[toml]==7.15.4",
+  "chardet>=7.6.0",
+  "coverage[toml]>=7.15.4",
   "cryptography>=50.0.1",
   "flaky>=3.8",
   "pytest>=9.1.0",
   "pytest-codspeed>=5.0.3",
-  "pytest-httpbin==2.1.0",
-  "pytest-trio==0.8.0",
+  "pytest-httpbin>=2.1.0",
+  "pytest-trio>=0.8.0",
   "starlette>=1.6.0",
-  "trio==0.34.0",
-  "trio-typing==0.10.0",
-  "trustme==1.2.1",
+  "trio>=0.34.0",
+  "trio-typing>=0.10.0",
+  "trustme>=1.2.1",
   "uvicorn>=0.52.4",
   "websockets>=16.1.1",
   "werkzeug>=3.1.6",
   # Linting
-  "mypy==2.3.1",
-  "ruff==0.16.4",
+  "mypy>=2.3.1",
+  "ruff>=0.16.4",
   # Packaging
-  "twine==7.0.0",
+  "twine>=7.0.0",
 ]
 docs = ["zensical>=0.0.57", "mkdocstrings[python]>=1.0.6"]
 bench = [
