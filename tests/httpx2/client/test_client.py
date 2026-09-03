@@ -438,7 +438,7 @@ def test_client_decode_text_using_autodetect() -> None:
 
         assert response.status_code == 200
         assert response.reason_phrase == "OK"
-        assert response.encoding == "WINDOWS-1252"
+        assert response.encoding == "Windows-1252"
         assert response.text == text
 
 
@@ -467,5 +467,5 @@ def test_client_decode_text_using_explicit_encoding() -> None:
 
         assert response.status_code == 200
         assert response.reason_phrase == "OK"
-        assert response.encoding == "WINDOWS-1252"
+        assert response.encoding == "Windows-1252"
         assert response.text == text

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import typing
 
 import pytest
@@ -10,6 +9,8 @@ import httpx2
 from httpx2._main import main
 
 if typing.TYPE_CHECKING:
+    from pathlib import Path
+
     from conftest import TestServer
 
 
@@ -188,14 +189,12 @@ def test_auth(server: TestServer) -> None:
     ]
 
 
-def test_download(server: TestServer) -> None:
+def test_download(server: TestServer, tmp_path: Path) -> None:
     url = str(server.url)
+    output_path = tmp_path / "index.txt"
     runner = CliRunner()
-    with runner.isolated_filesystem():
-        runner.invoke(main, [url, "--download", "index.txt"])
-        assert os.path.exists("index.txt")
-        with open("index.txt") as input_file:
-            assert input_file.read() == "Hello, world!"
+    runner.invoke(main, [url, "--download", str(output_path)])
+    assert output_path.read_text() == "Hello, world!"
 
 
 def test_errors() -> None:
