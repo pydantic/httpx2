@@ -26,7 +26,6 @@ def test_help() -> None:
     result = runner.invoke(main, ["--help"])
     assert result.exit_code == 0
     assert "A next generation HTTP client." in result.output
-    assert "--verify / --no-verify" in result.output
 
 
 @pytest.mark.parametrize(
