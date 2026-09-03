@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import typing
 
+import pytest
 from click.testing import CliRunner
 
 import httpx2
@@ -28,10 +29,17 @@ def test_help() -> None:
     assert "--verify / --no-verify" in result.output
 
 
-def test_no_verify(https_server: TestServer) -> None:
-    runner = CliRunner()
-    result = runner.invoke(main, [str(https_server.url), "--no-verify"])
-    assert result.exit_code == 0
+@pytest.mark.parametrize(
+    ("option", "expected"),
+    [
+        ([], True),
+        (["--verify"], True),
+        (["--no-verify"], False),
+    ],
+)
+def test_verify_option(option: list[str], expected: bool) -> None:
+    with main.make_context("httpx2", ["https://example.com", *option]) as context:
+        assert context.params["verify"] is expected
 
 
 def test_get(server: TestServer) -> None:
