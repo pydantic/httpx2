@@ -25,6 +25,13 @@ def test_help() -> None:
     result = runner.invoke(main, ["--help"])
     assert result.exit_code == 0
     assert "A next generation HTTP client." in result.output
+    assert "--verify / --no-verify" in result.output
+
+
+def test_no_verify(https_server: TestServer) -> None:
+    runner = CliRunner()
+    result = runner.invoke(main, [str(https_server.url), "--no-verify"])
+    assert result.exit_code == 0
 
 
 def test_get(server: TestServer) -> None:

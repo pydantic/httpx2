@@ -277,3 +277,22 @@ def server(free_tcp_port_factory: typing.Callable[[], int]) -> typing.Iterator[T
     config = Config(app=app, lifespan="off", loop="asyncio", ws="none", port=free_tcp_port_factory())
     server = TestServer(config=config)
     yield from serve_in_thread(server)
+
+
+@pytest.fixture(scope="session")
+def https_server(
+    free_tcp_port_factory: typing.Callable[[], int],
+    cert_pem_file: str,
+    cert_private_key_file: str,
+) -> typing.Iterator[TestServer]:
+    config = Config(
+        app=app,
+        lifespan="off",
+        loop="asyncio",
+        ws="none",
+        port=free_tcp_port_factory(),
+        ssl_certfile=cert_pem_file,
+        ssl_keyfile=cert_private_key_file,
+    )
+    server = TestServer(config=config)
+    yield from serve_in_thread(server)
