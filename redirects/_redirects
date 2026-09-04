@@ -1,0 +1,46 @@
+/ https://pydantic.dev/docs/httpx2/get-started/ 301
+/index.html https://pydantic.dev/docs/httpx2/get-started/ 301
+
+/quickstart https://pydantic.dev/docs/httpx2/get-started/quickstart/ 301
+/quickstart/ https://pydantic.dev/docs/httpx2/get-started/quickstart/ 301
+/migration https://pydantic.dev/docs/httpx2/get-started/migration/ 301
+/migration/ https://pydantic.dev/docs/httpx2/get-started/migration/ 301
+
+/advanced https://pydantic.dev/docs/httpx2/advanced/clients/ 301
+/advanced/ https://pydantic.dev/docs/httpx2/advanced/clients/ 301
+/advanced/emscripten https://pydantic.dev/docs/httpx2/advanced/clients/ 301
+/advanced/emscripten/ https://pydantic.dev/docs/httpx2/advanced/clients/ 301
+
+/async https://pydantic.dev/docs/httpx2/guides/async/ 301
+/async/ https://pydantic.dev/docs/httpx2/guides/async/ 301
+/compatibility https://pydantic.dev/docs/httpx2/guides/compatibility/ 301
+/compatibility/ https://pydantic.dev/docs/httpx2/guides/compatibility/ 301
+/http2 https://pydantic.dev/docs/httpx2/guides/http2/ 301
+/http2/ https://pydantic.dev/docs/httpx2/guides/http2/ 301
+/logging https://pydantic.dev/docs/httpx2/guides/logging/ 301
+/logging/ https://pydantic.dev/docs/httpx2/guides/logging/ 301
+/sse https://pydantic.dev/docs/httpx2/guides/sse/ 301
+/sse/ https://pydantic.dev/docs/httpx2/guides/sse/ 301
+/troubleshooting https://pydantic.dev/docs/httpx2/guides/troubleshooting/ 301
+/troubleshooting/ https://pydantic.dev/docs/httpx2/guides/troubleshooting/ 301
+/websockets https://pydantic.dev/docs/httpx2/guides/websockets/ 301
+/websockets/ https://pydantic.dev/docs/httpx2/guides/websockets/ 301
+
+/api https://pydantic.dev/docs/httpx2/api/api/ 301
+/api/ https://pydantic.dev/docs/httpx2/api/api/ 301
+/environment_variables https://pydantic.dev/docs/httpx2/api/environment_variables/ 301
+/environment_variables/ https://pydantic.dev/docs/httpx2/api/environment_variables/ 301
+/exceptions https://pydantic.dev/docs/httpx2/api/exceptions/ 301
+/exceptions/ https://pydantic.dev/docs/httpx2/api/exceptions/ 301
+/objects.inv https://pydantic.dev/docs/httpx2/objects.inv 301
+
+/code_of_conduct https://pydantic.dev/docs/httpx2/community/code_of_conduct/ 301
+/code_of_conduct/ https://pydantic.dev/docs/httpx2/community/code_of_conduct/ 301
+/contributing https://pydantic.dev/docs/httpx2/community/contributing/ 301
+/contributing/ https://pydantic.dev/docs/httpx2/community/contributing/ 301
+/third_party_packages https://pydantic.dev/docs/httpx2/community/third_party_packages/ 301
+/third_party_packages/ https://pydantic.dev/docs/httpx2/community/third_party_packages/ 301
+
+/advanced/* https://pydantic.dev/docs/httpx2/advanced/:splat 301
+/img/* https://pydantic.dev/docs/httpx2/img/:splat 301
+/* https://pydantic.dev/docs/httpx2/get-started/ 301
