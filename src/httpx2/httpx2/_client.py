@@ -1049,13 +1049,18 @@ class Client(BaseClient):
                 if not response.has_redirect_location:
                     return response
 
-                request = self._build_redirect_request(request, response)
-                history = history + [response]
-
                 if follow_redirects:
+                    request = self._build_redirect_request(request, response)
+                    history = history + [response]
                     response.read()
                 else:
-                    response.next_request = request
+                    # When not following redirects, building the next request is
+                    # best-effort: a malformed 'Location' must not discard the
+                    # response and its headers. Leave next_request as None.
+                    try:
+                        response.next_request = self._build_redirect_request(request, response)
+                    except (InvalidURL, RemoteProtocolError):
+                        pass
                     return response
 
             except BaseException as exc:
@@ -1888,13 +1893,18 @@ class AsyncClient(BaseClient):
                 if not response.has_redirect_location:
                     return response
 
-                request = self._build_redirect_request(request, response)
-                history = history + [response]
-
                 if follow_redirects:
+                    request = self._build_redirect_request(request, response)
+                    history = history + [response]
                     await response.aread()
                 else:
-                    response.next_request = request
+                    # When not following redirects, building the next request is
+                    # best-effort: a malformed 'Location' must not discard the
+                    # response and its headers. Leave next_request as None.
+                    try:
+                        response.next_request = self._build_redirect_request(request, response)
+                    except (InvalidURL, RemoteProtocolError):
+                        pass
                     return response
 
             except BaseException as exc:
