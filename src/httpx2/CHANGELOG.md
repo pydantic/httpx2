@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## Unreleased
+
+### Fixed
+
+* Forward `uds`, `local_address` and `retries` to the underlying connection pool when a `proxy` is configured on `HTTPTransport` and `AsyncHTTPTransport`. Previously these options were silently ignored for proxied connections. SOCKS proxies support `retries` only.
+  ([#1160](https://github.com/pydantic/httpx2/discussions/1160))
+
 ## 2.12.0 (August 18th, 2026)
 
 ### Changed

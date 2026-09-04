@@ -130,6 +130,7 @@ class AsyncConnectionPool(AsyncRequestInterface):
                     keepalive_expiry=self._keepalive_expiry,
                     http1=self._http1,
                     http2=self._http2,
+                    retries=self._retries,
                     network_backend=self._network_backend,
                 )
             elif origin.scheme == b"http":
@@ -141,7 +142,11 @@ class AsyncConnectionPool(AsyncRequestInterface):
                     proxy_ssl_context=self._proxy.ssl_context,
                     remote_origin=origin,
                     keepalive_expiry=self._keepalive_expiry,
+                    retries=self._retries,
+                    local_address=self._local_address,
+                    uds=self._uds,
                     network_backend=self._network_backend,
+                    socket_options=self._socket_options,
                 )
             from .http_proxy import AsyncTunnelHTTPConnection
 
@@ -154,7 +159,11 @@ class AsyncConnectionPool(AsyncRequestInterface):
                 keepalive_expiry=self._keepalive_expiry,
                 http1=self._http1,
                 http2=self._http2,
+                retries=self._retries,
+                local_address=self._local_address,
+                uds=self._uds,
                 network_backend=self._network_backend,
+                socket_options=self._socket_options,
             )
 
         return AsyncHTTPConnection(
