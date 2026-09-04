@@ -45,7 +45,7 @@ from ._types import (
     ResponseExtensions,
     SyncByteStream,
 )
-from ._urls import URL
+from ._urls import URL, QueryParams
 from ._utils import to_bytes_or_str, to_str
 
 __all__ = ["Cookies", "Headers", "Request", "Response"]
@@ -411,7 +411,18 @@ class Request:
         extensions: RequestExtensions | None = None,
     ) -> None:
         self.method = method.upper()
-        self.url = URL(url) if params is None else URL(url, params=params)
+        if params is None:
+            self.url = URL(url)
+        else:
+            base_url = URL(url)
+            params_obj = QueryParams(params)
+            if params_obj:
+                new_params_bytes = str(params_obj).encode("ascii")
+                existing_query = base_url.query  # b"" if no query
+                merged_query = (existing_query + b"&" + new_params_bytes) if existing_query else new_params_bytes
+                self.url = base_url.copy_with(query=merged_query)
+            else:
+                self.url = base_url
         self.headers = Headers(headers)
         self.extensions = {} if extensions is None else dict(extensions)
 
