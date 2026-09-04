@@ -1,0 +1,22 @@
+redirects/_redirects
+  s_7630ddf8c35c31::t_a63a8143518c0d 69,80
+  s_7630ddf8c35c31::t_40f98984207348 14-33,66-68,70-76,78-79
+  s_7630ddf8c35c31::t_e328fe8e4f411e 77
+  s_7630ddf8c35c31::t_f64deb82ec5276 1-3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "a5eb598e656330f66489e9001a00b82cb739ff5d",
+  "prompts": {},
+  "sessions": {
+    "s_7630ddf8c35c31": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "17083cd3-d1f2-45f0-9066-689ae7aa6055",
+        "model": "claude-opus-5"
+      },
+      "human_author": null
+    }
+  }
+}
