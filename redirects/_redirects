@@ -1,3 +1,6 @@
+# Redirects from the old docs site to https://pydantic.dev/docs/httpx2/.
+# Deployed by hand: `wrangler deploy` (see wrangler.toml).
+
 / https://pydantic.dev/docs/httpx2/get-started/ 301
 /index.html https://pydantic.dev/docs/httpx2/get-started/ 301
 
@@ -8,6 +11,26 @@
 
 /advanced https://pydantic.dev/docs/httpx2/advanced/clients/ 301
 /advanced/ https://pydantic.dev/docs/httpx2/advanced/clients/ 301
+/advanced/authentication https://pydantic.dev/docs/httpx2/advanced/authentication/ 301
+/advanced/authentication/ https://pydantic.dev/docs/httpx2/advanced/authentication/ 301
+/advanced/clients https://pydantic.dev/docs/httpx2/advanced/clients/ 301
+/advanced/clients/ https://pydantic.dev/docs/httpx2/advanced/clients/ 301
+/advanced/event-hooks https://pydantic.dev/docs/httpx2/advanced/event-hooks/ 301
+/advanced/event-hooks/ https://pydantic.dev/docs/httpx2/advanced/event-hooks/ 301
+/advanced/extensions https://pydantic.dev/docs/httpx2/advanced/extensions/ 301
+/advanced/extensions/ https://pydantic.dev/docs/httpx2/advanced/extensions/ 301
+/advanced/proxies https://pydantic.dev/docs/httpx2/advanced/proxies/ 301
+/advanced/proxies/ https://pydantic.dev/docs/httpx2/advanced/proxies/ 301
+/advanced/resource-limits https://pydantic.dev/docs/httpx2/advanced/resource-limits/ 301
+/advanced/resource-limits/ https://pydantic.dev/docs/httpx2/advanced/resource-limits/ 301
+/advanced/ssl https://pydantic.dev/docs/httpx2/advanced/ssl/ 301
+/advanced/ssl/ https://pydantic.dev/docs/httpx2/advanced/ssl/ 301
+/advanced/text-encodings https://pydantic.dev/docs/httpx2/advanced/text-encodings/ 301
+/advanced/text-encodings/ https://pydantic.dev/docs/httpx2/advanced/text-encodings/ 301
+/advanced/timeouts https://pydantic.dev/docs/httpx2/advanced/timeouts/ 301
+/advanced/timeouts/ https://pydantic.dev/docs/httpx2/advanced/timeouts/ 301
+/advanced/transports https://pydantic.dev/docs/httpx2/advanced/transports/ 301
+/advanced/transports/ https://pydantic.dev/docs/httpx2/advanced/transports/ 301
 /advanced/emscripten https://pydantic.dev/docs/httpx2/advanced/clients/ 301
 /advanced/emscripten/ https://pydantic.dev/docs/httpx2/advanced/clients/ 301
 
@@ -32,9 +55,6 @@
 /environment_variables/ https://pydantic.dev/docs/httpx2/api/environment_variables/ 301
 /exceptions https://pydantic.dev/docs/httpx2/api/exceptions/ 301
 /exceptions/ https://pydantic.dev/docs/httpx2/api/exceptions/ 301
-/objects.inv https://pydantic.dev/docs/httpx2/objects.inv 301
-/sitemap.xml https://pydantic.dev/sitemap.xml 301
-/favicon.ico https://pydantic.dev/favicon.ico 301
 
 /code_of_conduct https://pydantic.dev/docs/httpx2/community/code_of_conduct/ 301
 /code_of_conduct/ https://pydantic.dev/docs/httpx2/community/code_of_conduct/ 301
@@ -43,5 +63,18 @@
 /third_party_packages https://pydantic.dev/docs/httpx2/community/third_party_packages/ 301
 /third_party_packages/ https://pydantic.dev/docs/httpx2/community/third_party_packages/ 301
 
-/advanced/* https://pydantic.dev/docs/httpx2/advanced/:splat 301
-/img/* https://pydantic.dev/docs/httpx2/img/:splat 301
+/objects.inv https://pydantic.dev/docs/httpx2/objects.inv 301
+/sitemap.xml https://pydantic.dev/sitemap.xml 301
+/favicon.ico https://pydantic.dev/favicon.ico 301
+
+/img/butterfly.png https://pydantic.dev/docs/httpx2/img/butterfly.png 301
+/img/gh-actions-fail-check.png https://pydantic.dev/docs/httpx2/img/gh-actions-fail-check.png 301
+/img/gh-actions-fail-test.png https://pydantic.dev/docs/httpx2/img/gh-actions-fail-test.png 301
+/img/gh-actions-fail.png https://pydantic.dev/docs/httpx2/img/gh-actions-fail.png 301
+/img/logo.jpg https://pydantic.dev/docs/httpx2/img/logo.jpg 301
+/img/rich-progress.gif https://pydantic.dev/docs/httpx2/img/rich-progress.gif 301
+/img/tqdm-progress.gif https://pydantic.dev/docs/httpx2/img/tqdm-progress.gif 301
+
+# Everything else, including pages that no longer exist. Splat rules lose to this
+# one in production, so every path we care about is listed explicitly above.
+/* https://pydantic.dev/docs/httpx2/get-started/ 301
