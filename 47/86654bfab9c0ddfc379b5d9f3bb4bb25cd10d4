@@ -1,0 +1,19 @@
+docs/index.md
+  s_7630ddf8c35c31::t_3ffebda48edaf8 1-2,5-7,9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "4786654bfab9c0ddfc379b5d9f3bb4bb25cd10d4",
+  "prompts": {},
+  "sessions": {
+    "s_7630ddf8c35c31": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "17083cd3-d1f2-45f0-9066-689ae7aa6055",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Samuel Colvin <s@muelcolvin.com>"
+    }
+  }
+}
