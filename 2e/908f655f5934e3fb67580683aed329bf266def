@@ -1,0 +1,19 @@
+.github/workflows/main.yml
+  s_0c1b9037554b10::t_77fb37cdc5cd28 56-80
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "2e908f655f5934e3fb67580683aed329bf266def",
+  "prompts": {},
+  "sessions": {
+    "s_0c1b9037554b10": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "30e26a64-e513-4ab6-ba95-bdfce97a09cb",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Samuel Colvin <s@muelcolvin.com>"
+    }
+  }
+}
