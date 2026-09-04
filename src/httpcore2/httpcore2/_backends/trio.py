@@ -25,14 +25,16 @@ class TrioStream(AsyncNetworkStream):
     async def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
         timeout_or_inf = float("inf") if timeout is None else timeout
         exc_map: ExceptionMapping = {
-            trio.TooSlowError: ReadTimeout,
             trio.BrokenResourceError: ReadError,
             trio.ClosedResourceError: ReadError,
         }
-        with map_exceptions(exc_map):
-            with trio.fail_after(timeout_or_inf):
-                data: bytes = await self._stream.receive_some(max_bytes=max_bytes)
-                return data
+        try:
+            with map_exceptions(exc_map):
+                with trio.fail_after(timeout_or_inf):
+                    data: bytes = await self._stream.receive_some(max_bytes=max_bytes)
+                    return data
+        except trio.TooSlowError as exc:
+            raise ReadTimeout("timed out") from exc
 
     async def write(self, buffer: bytes, timeout: float | None = None) -> None:
         if not buffer:

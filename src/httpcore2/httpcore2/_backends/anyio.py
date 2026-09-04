@@ -26,17 +26,19 @@ class AnyIOStream(AsyncNetworkStream):
 
     async def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
         exc_map: dict[type[Exception], type[Exception]] = {
-            TimeoutError: ReadTimeout,
             anyio.BrokenResourceError: ReadError,
             anyio.ClosedResourceError: ReadError,
             anyio.EndOfStream: ReadError,
         }
-        with map_exceptions(exc_map):
-            with anyio.fail_after(timeout):
-                try:
-                    return await self._stream.receive(max_bytes=max_bytes)
-                except anyio.EndOfStream:  # pragma: no cover
-                    return b""
+        try:
+            with map_exceptions(exc_map):
+                with anyio.fail_after(timeout):
+                    try:
+                        return await self._stream.receive(max_bytes=max_bytes)
+                    except anyio.EndOfStream:  # pragma: no cover
+                        return b""
+        except TimeoutError as exc:
+            raise ReadTimeout("timed out") from exc
 
     async def write(self, buffer: bytes, timeout: float | None = None) -> None:
         if not buffer:
