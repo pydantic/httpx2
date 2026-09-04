@@ -1,6 +1,9 @@
+import sys
+
 import hpack
 import hyperframe.frame
 import pytest
+import trio as concurrency
 
 import httpcore2
 
@@ -97,6 +100,55 @@ async def test_http2_response_closed_twice() -> None:
 
         # The stream was closed when the response completed.
         await conn._response_closed(stream_id=1)
+
+
+@pytest.mark.trio
+async def test_http2_connection_concurrent_requests() -> None:
+    """
+    Concurrent requests over a single HTTP/2 connection must not corrupt the
+    shared `h2` state machine. In the sync case this exercises multiple threads
+    sharing one connection. See https://github.com/pydantic/httpx2/discussions/1152
+    """
+    switch_interval = sys.getswitchinterval()
+    sys.setswitchinterval(1e-6)
+    try:
+        requests_count = 10
+        origin = httpcore2.Origin(b"https", b"example.com", 443)
+        encoder = hpack.Encoder()
+        buffer = [
+            hyperframe.frame.SettingsFrame(
+                settings={hyperframe.frame.SettingsFrame.MAX_CONCURRENT_STREAMS: 100}
+            ).serialize()
+        ]
+        for stream_id in range(1, requests_count * 2, 2):
+            buffer.append(
+                hyperframe.frame.HeadersFrame(
+                    stream_id=stream_id,
+                    data=encoder.encode([(b":status", b"200"), (b"content-type", b"plain/text")]),
+                    flags=["END_HEADERS"],
+                ).serialize()
+            )
+            buffer.append(
+                hyperframe.frame.DataFrame(stream_id=stream_id, data=b"Hello, world!", flags=["END_STREAM"]).serialize()
+            )
+        stream = httpcore2.AsyncMockStream(buffer)
+
+        async def fetch(conn: httpcore2.AsyncHTTP2Connection, responses: list[httpcore2.Response]) -> None:
+            response = await conn.request("GET", "https://example.com/")
+            responses.append(response)
+
+        async with httpcore2.AsyncHTTP2Connection(origin=origin, stream=stream) as conn:
+            responses: list[httpcore2.Response] = []
+            async with concurrency.open_nursery() as nursery:
+                for _ in range(requests_count):
+                    nursery.start_soon(fetch, conn, responses)
+
+            assert len(responses) == requests_count
+            for response in responses:
+                assert response.status == 200
+                assert response.content == b"Hello, world!"
+    finally:
+        sys.setswitchinterval(switch_interval)
 
 
 @pytest.mark.anyio
