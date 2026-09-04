@@ -297,9 +297,16 @@ class AsyncTunnelHTTPConnection(AsyncConnectionInterface):
                     "server_hostname": self._remote_origin.host.decode("ascii"),
                     "timeout": timeout,
                 }
-                async with Trace("start_tls", logger, request, kwargs) as trace:
-                    stream = await stream.start_tls(**kwargs)
-                    trace.return_value = stream
+                try:
+                    async with Trace("start_tls", logger, request, kwargs) as trace:
+                        stream = await stream.start_tls(**kwargs)
+                        trace.return_value = stream
+                except Exception:
+                    # If TLS setup fails, close the underlying CONNECT
+                    # connection so the pool can discard it instead of
+                    # leaving it ACTIVE until max_connections is exhausted.
+                    await self._connection.aclose()
+                    raise
 
                 # Determine if we should be using HTTP/1.1 or HTTP/2
                 ssl_object = stream.get_extra_info("ssl_object")
