@@ -10,6 +10,7 @@ import anyio.streams.tls
 from .._exceptions import (
     ConnectError,
     ConnectTimeout,
+    ExceptionMapping,
     ReadError,
     ReadTimeout,
     WriteError,
@@ -25,27 +26,25 @@ class AnyIOStream(AsyncNetworkStream):
         self._stream = stream
 
     async def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
-        exc_map: dict[type[Exception], type[Exception]] = {
+        exc_map: ExceptionMapping = {
+            TimeoutError: lambda exc: ReadTimeout(str(exc) or "timed out"),
             anyio.BrokenResourceError: ReadError,
             anyio.ClosedResourceError: ReadError,
             anyio.EndOfStream: ReadError,
         }
-        try:
-            with map_exceptions(exc_map):
-                with anyio.fail_after(timeout):
-                    try:
-                        return await self._stream.receive(max_bytes=max_bytes)
-                    except anyio.EndOfStream:  # pragma: no cover
-                        return b""
-        except TimeoutError as exc:
-            raise ReadTimeout("timed out") from exc
+        with map_exceptions(exc_map):
+            with anyio.fail_after(timeout):
+                try:
+                    return await self._stream.receive(max_bytes=max_bytes)
+                except anyio.EndOfStream:  # pragma: no cover
+                    return b""
 
     async def write(self, buffer: bytes, timeout: float | None = None) -> None:
         if not buffer:
             return
 
-        exc_map: dict[type[Exception], type[Exception]] = {
-            TimeoutError: WriteTimeout,
+        exc_map: ExceptionMapping = {
+            TimeoutError: lambda exc: WriteTimeout(str(exc) or "timed out"),
             anyio.BrokenResourceError: WriteError,
             anyio.ClosedResourceError: WriteError,
         }
@@ -62,8 +61,8 @@ class AnyIOStream(AsyncNetworkStream):
         server_hostname: str | None = None,
         timeout: float | None = None,
     ) -> AsyncNetworkStream:
-        exc_map: dict[type[Exception], type[Exception]] = {
-            TimeoutError: ConnectTimeout,
+        exc_map: ExceptionMapping = {
+            TimeoutError: lambda exc: ConnectTimeout(str(exc) or "timed out"),
             anyio.BrokenResourceError: ConnectError,
             anyio.EndOfStream: ConnectError,
             ssl.SSLError: ConnectError,
@@ -109,8 +108,8 @@ class AnyIOBackend(AsyncNetworkBackend):
     ) -> AsyncNetworkStream:  # pragma: no cover
         if socket_options is None:
             socket_options = []
-        exc_map: dict[type[Exception], type[Exception]] = {
-            TimeoutError: ConnectTimeout,
+        exc_map: ExceptionMapping = {
+            TimeoutError: lambda exc: ConnectTimeout(str(exc) or "timed out"),
             OSError: ConnectError,
             anyio.BrokenResourceError: ConnectError,
         }
@@ -134,8 +133,8 @@ class AnyIOBackend(AsyncNetworkBackend):
     ) -> AsyncNetworkStream:  # pragma: no cover
         if socket_options is None:
             socket_options = []
-        exc_map: dict[type[Exception], type[Exception]] = {
-            TimeoutError: ConnectTimeout,
+        exc_map: ExceptionMapping = {
+            TimeoutError: lambda exc: ConnectTimeout(str(exc) or "timed out"),
             OSError: ConnectError,
             anyio.BrokenResourceError: ConnectError,
         }

@@ -25,16 +25,14 @@ class TrioStream(AsyncNetworkStream):
     async def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
         timeout_or_inf = float("inf") if timeout is None else timeout
         exc_map: ExceptionMapping = {
+            trio.TooSlowError: lambda exc: ReadTimeout(str(exc) or "timed out"),
             trio.BrokenResourceError: ReadError,
             trio.ClosedResourceError: ReadError,
         }
-        try:
-            with map_exceptions(exc_map):
-                with trio.fail_after(timeout_or_inf):
-                    data: bytes = await self._stream.receive_some(max_bytes=max_bytes)
-                    return data
-        except trio.TooSlowError as exc:
-            raise ReadTimeout("timed out") from exc
+        with map_exceptions(exc_map):
+            with trio.fail_after(timeout_or_inf):
+                data: bytes = await self._stream.receive_some(max_bytes=max_bytes)
+                return data
 
     async def write(self, buffer: bytes, timeout: float | None = None) -> None:
         if not buffer:
@@ -42,7 +40,7 @@ class TrioStream(AsyncNetworkStream):
 
         timeout_or_inf = float("inf") if timeout is None else timeout
         exc_map: ExceptionMapping = {
-            trio.TooSlowError: WriteTimeout,
+            trio.TooSlowError: lambda exc: WriteTimeout(str(exc) or "timed out"),
             trio.BrokenResourceError: WriteError,
             trio.ClosedResourceError: WriteError,
         }
@@ -61,7 +59,7 @@ class TrioStream(AsyncNetworkStream):
     ) -> AsyncNetworkStream:
         timeout_or_inf = float("inf") if timeout is None else timeout
         exc_map: ExceptionMapping = {
-            trio.TooSlowError: ConnectTimeout,
+            trio.TooSlowError: lambda exc: ConnectTimeout(str(exc) or "timed out"),
             trio.BrokenResourceError: ConnectError,
         }
         ssl_stream = trio.SSLStream(
@@ -123,7 +121,7 @@ class TrioBackend(AsyncNetworkBackend):
             socket_options = []  # pragma: no cover
         timeout_or_inf = float("inf") if timeout is None else timeout
         exc_map: ExceptionMapping = {
-            trio.TooSlowError: ConnectTimeout,
+            trio.TooSlowError: lambda exc: ConnectTimeout(str(exc) or "timed out"),
             trio.BrokenResourceError: ConnectError,
             OSError: ConnectError,
         }
@@ -144,7 +142,7 @@ class TrioBackend(AsyncNetworkBackend):
             socket_options = []
         timeout_or_inf = float("inf") if timeout is None else timeout
         exc_map: ExceptionMapping = {
-            trio.TooSlowError: ConnectTimeout,
+            trio.TooSlowError: lambda exc: ConnectTimeout(str(exc) or "timed out"),
             trio.BrokenResourceError: ConnectError,
             OSError: ConnectError,
         }

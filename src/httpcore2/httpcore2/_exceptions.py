@@ -4,7 +4,7 @@ import contextlib
 import typing
 from collections.abc import Generator
 
-ExceptionMapping = typing.Mapping[type[Exception], type[Exception]]
+ExceptionMapping = typing.Mapping[type[Exception], typing.Callable[[Exception], Exception]]
 
 
 @contextlib.contextmanager

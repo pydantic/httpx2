@@ -24,7 +24,7 @@ async def test_write_timeout(server: TestServer) -> None:
     timeout = httpx2.Timeout(None, write=1e-6)
 
     async with httpx2.AsyncClient(timeout=timeout) as client:
-        with pytest.raises(httpx2.WriteTimeout):
+        with pytest.raises(httpx2.WriteTimeout, match="timed out"):
             data = b"*" * 1024 * 1024 * 100
             await client.put(server.url.copy_with(path="/slow_response"), content=data)
 
@@ -35,7 +35,7 @@ async def test_connect_timeout(server: TestServer) -> None:
     timeout = httpx2.Timeout(None, connect=1e-6)
 
     async with httpx2.AsyncClient(timeout=timeout) as client:
-        with pytest.raises(httpx2.ConnectTimeout):
+        with pytest.raises(httpx2.ConnectTimeout, match="timed out"):
             # See https://stackoverflow.com/questions/100841/
             await client.get("http://10.255.255.1/")
 
