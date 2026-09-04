@@ -79,6 +79,7 @@ jobs:
           private-key: ${{ secrets.DOCS_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
           repositories: unified-docs
+          permission-contents: write
 
       - name: Trigger unified-docs deployment
         env:
