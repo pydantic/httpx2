@@ -124,6 +124,27 @@ def test_decoding_bounds_output_chunks(encoding: bytes, compress: typing.Callabl
     assert max(map(len, chunks)) <= 2**20
 
 
+@pytest.mark.parametrize(
+    ("encoding", "compress"),
+    [
+        (b"deflate", zlib.compress),
+        (b"gzip", zlib.compressobj(wbits=zlib.MAX_WBITS | 16).compress),
+        (b"br", brotli.compress),
+        (b"zstd", zstd.compress),
+    ],
+)
+def test_truncated(encoding: bytes, compress: typing.Callable[[bytes], bytes]) -> None:
+    compressed_body = compress(b"test 123")
+    headers = [(b"Content-Encoding", encoding)]
+
+    with pytest.raises(httpx2.DecodingError):
+        httpx2.Response(
+            200,
+            headers=headers,
+            content=compressed_body[: len(compressed_body) // 2],
+        )
+
+
 def test_zstd() -> None:
     body = b"test 123"
     compressed_body = zstd.compress(body)
@@ -153,19 +174,6 @@ def test_zstd_empty() -> None:
     headers = [(b"Content-Encoding", b"zstd")]
     response = httpx2.Response(200, headers=headers, content=b"")
     assert response.content == b""
-
-
-def test_zstd_truncated() -> None:
-    body = b"test 123"
-    compressed_body = zstd.compress(body)
-
-    headers = [(b"Content-Encoding", b"zstd")]
-    with pytest.raises(httpx2.DecodingError):
-        httpx2.Response(
-            200,
-            headers=headers,
-            content=compressed_body[1:3],
-        )
 
 
 def test_zstd_multiframe() -> None:
