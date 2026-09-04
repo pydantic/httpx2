@@ -1,3 +1,8 @@
+import ssl
+import typing
+
+import hpack
+import hyperframe.frame
 import pytest
 
 import httpcore2
@@ -47,6 +52,56 @@ async def test_socks5_request() -> None:
         assert not proxy.connections[0].can_handle_request(httpcore2.Origin(b"http", b"other.com", 80))
         assert proxy.connections[0].can_handle_request(httpcore2.Origin(b"https", b"example.com", 443))
         assert not proxy.connections[0].can_handle_request(httpcore2.Origin(b"https", b"other.com", 443))
+
+
+class HTTP2SocksStream(httpcore2.AsyncMockStream):
+    async def start_tls(
+        self,
+        ssl_context: ssl.SSLContext,
+        server_hostname: str | None = None,
+        timeout: float | None = None,
+    ) -> httpcore2.AsyncNetworkStream:
+        self._http2 = True
+        return self
+
+
+class HTTP2SocksBackend(httpcore2.AsyncMockBackend):
+    async def connect_tcp(
+        self,
+        host: str,
+        port: int,
+        timeout: float | None = None,
+        local_address: str | None = None,
+        socket_options: typing.Iterable[httpcore2.SOCKET_OPTION] | None = None,
+    ) -> httpcore2.AsyncNetworkStream:
+        return HTTP2SocksStream(list(self._buffer))
+
+
+@pytest.mark.anyio
+async def test_socks5_request_http2_can_multiplex() -> None:
+    network_backend = HTTP2SocksBackend(
+        [
+            b"\x05\x00",
+            b"\x05\x00\x00\x01\xff\x00\x00\x01\x00\x50",
+            hyperframe.frame.SettingsFrame().serialize(),
+            hyperframe.frame.HeadersFrame(
+                stream_id=1,
+                data=hpack.Encoder().encode([(b":status", b"200")]),
+                flags=["END_HEADERS"],
+            ).serialize(),
+            hyperframe.frame.DataFrame(stream_id=1, data=b"Hello, world!", flags=["END_STREAM"]).serialize(),
+        ]
+    )
+
+    async with httpcore2.AsyncConnectionPool(
+        proxy=httpcore2.Proxy("socks5://localhost:8080/"),
+        network_backend=network_backend,
+        http2=True,
+    ) as proxy:
+        response = await proxy.request("GET", "https://example.com/")
+
+        assert response.status == 200
+        assert proxy.connections[0].can_multiplex()
 
 
 @pytest.mark.anyio

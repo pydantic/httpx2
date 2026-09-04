@@ -884,3 +884,104 @@ async def test_connection_pool_multiplexes_idle_http2_connection_within_a_pass()
                 nursery.start_soon(fetch, pool)
 
     assert QueueObservingPool.max_queued_after_pass == 0
+
+
+class RacingConnection(httpcore2.AsyncConnectionInterface):
+    def __init__(self, *, activate_during_availability_check: bool = False) -> None:
+        self.active = False
+        self.closed = False
+        self.activate_during_availability_check = activate_during_availability_check
+
+    async def handle_async_request(self, request: httpcore2.Request) -> httpcore2.Response:
+        raise NotImplementedError
+
+    async def aclose(self) -> None:
+        self.closed = True
+
+    def info(self) -> str:
+        return "racing connection"
+
+    def can_handle_request(self, origin: httpcore2.Origin) -> bool:
+        return True
+
+    def is_connected(self) -> bool:
+        return not self.closed
+
+    def is_available(self) -> bool:
+        available = not self.active and not self.closed
+        if self.activate_during_availability_check:
+            self.active = True
+        return available
+
+    def has_expired(self) -> bool:
+        return False
+
+    def is_idle(self) -> bool:
+        return not self.active and not self.closed
+
+    def is_closed(self) -> bool:
+        return self.closed
+
+
+class RacingPoolRequest:
+    def __init__(
+        self,
+        *,
+        connection: RacingConnection | None = None,
+        activate_on_assignment: bool = False,
+    ) -> None:
+        self.request = httpcore2.Request("GET", "https://example.com/")
+        self.connection = connection
+        self.activate_on_assignment = activate_on_assignment
+
+    def assign_to_connection(self, connection: RacingConnection) -> None:
+        self.connection = connection
+        if self.activate_on_assignment:
+            connection.active = True
+
+    def is_queued(self) -> bool:
+        return self.connection is None
+
+
+@pytest.mark.anyio
+async def test_connection_pool_removes_connection_before_waking_request() -> None:
+    """
+    A sync request may start using a connection as soon as its event is set.
+    Remove a non-multiplexing connection from the candidate snapshot before
+    assigning it, so that state transition cannot make it eligible again.
+    """
+    connection = RacingConnection()
+    first = RacingPoolRequest(activate_on_assignment=True)
+    second = RacingPoolRequest()
+    pool = httpcore2.AsyncConnectionPool(max_connections=1)
+    pool_state = typing.cast(typing.Any, pool)
+    pool_state._connections = [connection]
+    pool_state._requests = [first, second]
+
+    pool._assign_requests_to_connections()
+
+    assert first.connection is connection
+    assert second.connection is None
+    await pool.aclose()
+
+
+@pytest.mark.anyio
+async def test_connection_pool_excludes_reserved_connection_during_state_transition() -> None:
+    """
+    A connection may transition from IDLE to ACTIVE between `is_available()`
+    and the reservation check. Established reserved HTTP/1.1 connections must
+    remain excluded regardless of that mutable state.
+    """
+    connection = RacingConnection(activate_during_availability_check=True)
+    active = RacingPoolRequest(connection=connection)
+    queued = RacingPoolRequest()
+    pool = httpcore2.AsyncConnectionPool(max_connections=1)
+    pool_state = typing.cast(typing.Any, pool)
+    pool_state._connections = [connection]
+    pool_state._requests = [active, queued]
+    pool_state._request_connections = {connection: 1}
+
+    pool._assign_requests_to_connections()
+
+    assert queued.connection is None
+    await pool.aclose()
