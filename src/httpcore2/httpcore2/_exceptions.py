@@ -82,3 +82,10 @@ class ReadError(NetworkError):
 
 class WriteError(NetworkError):
     pass
+
+
+def map_timeout(exception_class: type[TimeoutException]) -> typing.Callable[[Exception], Exception]:
+    def factory(exc: Exception) -> Exception:
+        return exception_class(str(exc) or "timed out")
+
+    return factory

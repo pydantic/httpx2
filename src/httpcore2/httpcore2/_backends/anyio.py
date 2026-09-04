@@ -16,6 +16,7 @@ from .._exceptions import (
     WriteError,
     WriteTimeout,
     map_exceptions,
+    map_timeout,
 )
 from .._utils import is_socket_readable
 from .base import SOCKET_OPTION, AsyncNetworkBackend, AsyncNetworkStream
@@ -27,7 +28,7 @@ class AnyIOStream(AsyncNetworkStream):
 
     async def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
         exc_map: ExceptionMapping = {
-            TimeoutError: lambda exc: ReadTimeout(str(exc) or "timed out"),
+            TimeoutError: map_timeout(ReadTimeout),
             anyio.BrokenResourceError: ReadError,
             anyio.ClosedResourceError: ReadError,
             anyio.EndOfStream: ReadError,
@@ -44,7 +45,7 @@ class AnyIOStream(AsyncNetworkStream):
             return
 
         exc_map: ExceptionMapping = {
-            TimeoutError: lambda exc: WriteTimeout(str(exc) or "timed out"),
+            TimeoutError: map_timeout(WriteTimeout),
             anyio.BrokenResourceError: WriteError,
             anyio.ClosedResourceError: WriteError,
         }
@@ -62,7 +63,7 @@ class AnyIOStream(AsyncNetworkStream):
         timeout: float | None = None,
     ) -> AsyncNetworkStream:
         exc_map: ExceptionMapping = {
-            TimeoutError: lambda exc: ConnectTimeout(str(exc) or "timed out"),
+            TimeoutError: map_timeout(ConnectTimeout),
             anyio.BrokenResourceError: ConnectError,
             anyio.EndOfStream: ConnectError,
             ssl.SSLError: ConnectError,
@@ -109,7 +110,7 @@ class AnyIOBackend(AsyncNetworkBackend):
         if socket_options is None:
             socket_options = []
         exc_map: ExceptionMapping = {
-            TimeoutError: lambda exc: ConnectTimeout(str(exc) or "timed out"),
+            TimeoutError: map_timeout(ConnectTimeout),
             OSError: ConnectError,
             anyio.BrokenResourceError: ConnectError,
         }
@@ -134,7 +135,7 @@ class AnyIOBackend(AsyncNetworkBackend):
         if socket_options is None:
             socket_options = []
         exc_map: ExceptionMapping = {
-            TimeoutError: lambda exc: ConnectTimeout(str(exc) or "timed out"),
+            TimeoutError: map_timeout(ConnectTimeout),
             OSError: ConnectError,
             anyio.BrokenResourceError: ConnectError,
         }
