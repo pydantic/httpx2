@@ -33,6 +33,8 @@
 /exceptions https://pydantic.dev/docs/httpx2/api/exceptions/ 301
 /exceptions/ https://pydantic.dev/docs/httpx2/api/exceptions/ 301
 /objects.inv https://pydantic.dev/docs/httpx2/objects.inv 301
+/sitemap.xml https://pydantic.dev/sitemap.xml 301
+/favicon.ico https://pydantic.dev/favicon.ico 301
 
 /code_of_conduct https://pydantic.dev/docs/httpx2/community/code_of_conduct/ 301
 /code_of_conduct/ https://pydantic.dev/docs/httpx2/community/code_of_conduct/ 301
@@ -43,4 +45,3 @@
 
 /advanced/* https://pydantic.dev/docs/httpx2/advanced/:splat 301
 /img/* https://pydantic.dev/docs/httpx2/img/:splat 301
-/* https://pydantic.dev/docs/httpx2/get-started/ 301
