@@ -115,6 +115,15 @@ def test_header_update() -> None:
     }
 
 
+def test_request_headers_are_independent_from_client_headers() -> None:
+    client = httpx2.Client(headers={"X-Test": "client"})
+    request = client.build_request("GET", "https://example.org")
+
+    request.headers["X-Test"] = "request"
+
+    assert client.headers["X-Test"] == "client"
+
+
 def test_header_repeated_items() -> None:
     url = "http://example.org/echo_headers"
     client = httpx2.Client(transport=httpx2.MockTransport(echo_repeated_headers_items))

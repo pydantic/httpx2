@@ -408,6 +408,8 @@ class BaseClient:
         Merge a headers argument together with any headers on the client,
         to create the headers used for the outgoing request.
         """
+        if headers is None:
+            return self.headers
         merged_headers = Headers(self.headers)
         merged_headers.update(headers)
         return merged_headers
