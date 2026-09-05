@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import typing
 
 import pytest
@@ -79,6 +80,9 @@ def test_timeout_extension_must_be_a_mapping() -> None:
 
 @pytest.mark.parametrize("timeout", [{"connect": 5.0}, {"read": 5}, {"connect": None}, {}])
 def test_timeout_extension_accepts_numbers_and_none(timeout: dict[str, float | None]) -> None:
+    # `Request` shallow-copies `extensions`, so the mapping reaching the transport is the
+    # caller's own object. Compare against a snapshot or the assertion is `x == x`.
+    expected = copy.deepcopy(timeout)
     request = httpx2.Client().build_request("GET", "http://127.0.0.1:1/", extensions={"timeout": timeout})
 
-    assert request.extensions["timeout"] == timeout
+    assert request.extensions["timeout"] == expected
