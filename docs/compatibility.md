@@ -201,11 +201,8 @@ Besides, `httpx2.Request()` does not support the `auth`, `timeout`, `follow_redi
 
 ## Mocking
 
-If you need to mock HTTPX the same way that test utilities like `responses` and `requests-mock` does for `requests`, see [RESPX](https://github.com/lundberg/respx).
-
-## Caching
-
-If you use `cachecontrol` or `requests-cache` to add HTTP Caching support to the `requests` library, you can use [Hishel](https://hishel.com) for HTTPX.
+If you need to mock HTTPX2 requests in your tests, see [httpx2-pytest](third_party_packages.md#httpx2-pytest)
+or [pytest-HTTPX2](third_party_packages.md#pytest-httpx2).
 
 ## Networking layer
 

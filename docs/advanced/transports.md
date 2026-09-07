@@ -265,8 +265,8 @@ else:
 client = httpx2.Client(transport=transport)
 ```
 
-For more advanced use-cases you might want to take a look at either [the third-party
-mocking library, RESPX](https://lundberg.github.io/respx/), or the [pytest-httpx2 library](https://github.com/Colin-b/pytest_httpx).
+For more advanced mocking, see [httpx2-pytest](../third_party_packages.md#httpx2-pytest)
+or [pytest-HTTPX2](../third_party_packages.md#pytest-httpx2).
 
 ## Mounting transports
 

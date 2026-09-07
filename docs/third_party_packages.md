@@ -1,28 +1,10 @@
 # Third Party Packages
 
-As HTTPX usage grows, there is an expanding community of developers building tools and libraries that integrate with HTTPX, or depend on HTTPX. Here are some of them.
+These maintained packages integrate with HTTPX2.
 
 <!-- NOTE: Entries are alphabetised. -->
 
 ## Plugins
-
-### Hishel
-
-[GitHub](https://github.com/karpetrosyan/hishel) - [Documentation](https://hishel.com/)
-
-An elegant HTTP Cache implementation for HTTPX and HTTP Core.
-
-### HTTPX-Auth
-
-[GitHub](https://github.com/Colin-b/httpx_auth) - [Documentation](https://colin-b.github.io/httpx_auth/)
-
-Provides authentication classes to be used with HTTPX's [authentication parameter](advanced/authentication.md#custom-authentication-schemes).
-
-### httpx-caching
-
-[Github](https://github.com/johtso/httpx-caching)
-
-This package adds caching functionality to HTTPX
 
 ### httpx-pki
 
@@ -30,42 +12,12 @@ This package adds caching functionality to HTTPX
 
 PKCS#12 / PEM client-certificate (mTLS) sessions, with OS cert-store loading, identity selection, and certificate rotation.
 
-### httpx-secure
-
-[GitHub](https://github.com/Zaczero/httpx-secure)
-
-Drop-in SSRF protection for httpx with DNS caching and custom validation support.
-
-### httpx-socks
-
-[GitHub](https://github.com/romis2012/httpx-socks)
-
-Proxy (HTTP, SOCKS) transports for httpx.
-
-### httpx-sse
-
-[GitHub](https://github.com/florimondmanca/httpx-sse)
-
-Allows consuming Server-Sent Events (SSE) with HTTPX.
-
-### httpx-retries
-
-[GitHub](https://github.com/will-ockmore/httpx-retries) - [Documentation](https://will-ockmore.github.io/httpx-retries/)
-
-A retry layer for HTTPX.
-
-### httpx-ws
-
-[GitHub](https://github.com/frankie567/httpx-ws) - [Documentation](https://frankie567.github.io/httpx-ws/)
-
-WebSocket support for HTTPX.
-
 ### httpx2-pytest
 
 [GitHub](https://github.com/angryfoxx/httpx2-pytest) - [Documentation](https://github.com/angryfoxx/httpx2-pytest#about-httpx2)
 
-Provides a [pytest](https://docs.pytest.org/en/latest/) fixture to mock HTTPX within test cases.
-This package is fork of the [pytest-httpx](https://github.com/Colin-b/pytest_httpx) package that compatible with httpx2
+Provides a [pytest](https://docs.pytest.org/en/latest/) fixture to mock HTTPX2 within test cases.
+This package is a fork of [pytest-httpx](https://github.com/Colin-b/pytest_httpx) for HTTPX2.
 
 ### interlock-cb
 
@@ -73,43 +25,19 @@ This package is fork of the [pytest-httpx](https://github.com/Colin-b/pytest_htt
 
 A circuit breaker transport: keeps one breaker per host, so calls to a failing host fail fast instead of waiting out every timeout. Trips on failure rate over a sliding window and on slow responses.
 
-### pytest-HTTPX
-
-[GitHub](https://github.com/Colin-b/pytest_httpx) - [Documentation](https://colin-b.github.io/pytest_httpx/)
-
-Provides a [pytest](https://docs.pytest.org/en/latest/) fixture to mock HTTPX within test cases.
-
 ### pytest-HTTPX2
 
 [GitHub](https://github.com/lundberg/pytest-httpx2)
 
 A pytest plugin for mocking out HTTPX2 using RESPX.
 
-### RESPX
-
-[GitHub](https://github.com/lundberg/respx) - [Documentation](https://lundberg.github.io/respx/)
-
-A utility for mocking out HTTPX.
-
-### rpc.py
-
-[Github](https://github.com/abersheeran/rpc.py) - [Documentation](https://github.com/abersheeran/rpc.py#rpcpy)
-
-A fast and powerful RPC framework based on ASGI/WSGI. Use HTTPX as the client of the RPC service.
-
-## Libraries with HTTPX support
+## Libraries with HTTPX2 support
 
 ### Authlib
 
-[GitHub](https://github.com/lepture/authlib) - [Documentation](https://docs.authlib.org/en/latest/)
+[GitHub](https://github.com/authlib/authlib) - [Documentation](https://docs.authlib.org/en/latest/)
 
-A python library for building OAuth and OpenID Connect clients and servers. Includes an [OAuth HTTPX client](https://docs.authlib.org/en/latest/client/httpx.html).
-
-### Gidgethub
-
-[GitHub](https://github.com/brettcannon/gidgethub) - [Documentation](https://gidgethub.readthedocs.io/en/latest/index.html)
-
-An asynchronous GitHub API library. Includes [HTTPX support](https://gidgethub.readthedocs.io/en/latest/httpx.html).
+A Python library for building OAuth and OpenID Connect clients and servers. Includes an [OAuth HTTPX2 client](https://docs.authlib.org/en/latest/oauth2/client/http/httpx.html).
 
 ### httpdbg
 
@@ -136,11 +64,3 @@ httpx2_kerberos is a Python library that adds Kerberos/GSSAPI authentication sup
 [GitHub](https://github.com/kevin1024/vcrpy) - [Documentation](https://vcrpy.readthedocs.io/)
 
 Record and repeat requests.
-
-## Gists
-
-### urllib3-transport
-
-[GitHub](https://gist.github.com/florimondmanca/d56764d78d748eb9f73165da388e546e)
-
-This public gist provides an example implementation for a [custom transport](advanced/transports.md#custom-transports) implementation on top of the battle-tested [`urllib3`](https://urllib3.readthedocs.io) library.
