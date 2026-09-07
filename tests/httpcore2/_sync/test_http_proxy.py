@@ -51,6 +51,7 @@ def test_proxy_forwarding() -> None:
         assert info == ["<ForwardHTTPConnection ['http://localhost:8080', HTTP/1.1, IDLE, Request Count: 1]>"]
         assert proxy.connections[0].is_idle()
         assert proxy.connections[0].is_available()
+        assert not proxy.connections[0].can_multiplex()
         assert not proxy.connections[0].is_closed()
 
         # A connection on a forwarding proxy can only handle HTTP requests to the same origin.

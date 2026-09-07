@@ -898,9 +898,6 @@ class RacingConnection(httpcore2.AsyncConnectionInterface):
     async def aclose(self) -> None:
         self.closed = True
 
-    def info(self) -> str:
-        return "racing connection"
-
     def can_handle_request(self, origin: httpcore2.Origin) -> bool:
         return True
 
