@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2.12.0 (August 18th, 2026)
+
+No changes since `2.11.0`. Version bumped to stay in lockstep with `httpx2`.
+
+## 2.11.0 (August 18th, 2026)
+
+### Changed
+
+* Cache sniffio availability instead of importing it on every synchronization call.
+  ([#1132](https://github.com/pydantic/httpx2/pull/1132))
+
+## 2.10.0 (August 9th, 2026)
+
+### Added
+
+* Add support for Python 3.15. ([#1090](https://github.com/pydantic/httpx2/pull/1090))
+
+### Changed
+
+* Avoid quadratic copying when sending large HTTP/2 request bodies. ([#1127](https://github.com/pydantic/httpx2/pull/1127))
+
+### Fixed
+
+* Propagate the original exception instead of raising `KeyError` when an HTTP/2 stream fails. ([#1093](https://github.com/pydantic/httpx2/pull/1093))
+* Start TLS for the `wss` scheme in SOCKS5 proxy connections. ([#1104](https://github.com/pydantic/httpx2/pull/1104))
+
 ## 2.9.1 (July 24th, 2026)
 
 No changes since `2.9.0`. Version bumped to stay in lockstep with `httpx2`.

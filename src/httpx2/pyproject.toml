@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling", "hatch-fancy-pypi-readme", "uv-dynamic-versioning>=0.14.0"]
+requires = ["hatchling", "hatch-fancy-pypi-readme", "uv-dynamic-versioning>=0.14.1"]
 build-backend = "hatchling.build"
 
 [tool.hatch.version]
@@ -45,20 +45,21 @@ dynamic = ["readme", "version", "dependencies"]
 
 [tool.hatch.metadata.hooks.uv-dynamic-versioning]
 dependencies = [
-    "truststore>=0.10",
-    "httpcore2=={{ version }}",
-    "anyio>=4.10",
+    "truststore>=0.10; sys_platform != 'emscripten'",
+    "httpcore2=={{ version }}; sys_platform != 'emscripten'",
+    "anyio>=4.10; sys_platform != 'emscripten'",
+    "httpx2-jsfetch; sys_platform == 'emscripten' and python_version >= '3.12'",
     "idna>=3.18",
     "typing_extensions>=4.5.0; python_version < '3.13'",
 ]
 
 [project.optional-dependencies]
 brotli = [
-    "brotli; platform_python_implementation == 'CPython'",
-    "brotlicffi; platform_python_implementation != 'CPython'",
+    "brotli>=1.2.0; platform_python_implementation == 'CPython'",
+    "brotlicffi>=1.2.0.2; platform_python_implementation != 'CPython'",
 ]
 cli = [
-    "click>=8.4",
+    "click>=8.4.2",
     "pygments==2.*",
     "rich>=10,<16",
 ]
@@ -73,7 +74,7 @@ ws = [
 ]
 # TODO(Marcelo): Remove when Python 3.13 reaches EOL.
 zstd = [
-  "zstandard>=0.18.0; python_version <= '3.13'",
+    "backports.zstd>=1.0.0; python_version <= '3.13'",
 ]
 
 [project.scripts]
@@ -105,7 +106,7 @@ text = "\n## Release Information\n\n"
 
 [[tool.hatch.metadata.hooks.fancy-pypi-readme.fragments]]
 path = "CHANGELOG.md"
-pattern = "\n(###.+?\n)## "
+pattern = "\n(## [0-9].+?)(?=\n## |$)"
 
 [[tool.hatch.metadata.hooks.fancy-pypi-readme.fragments]]
 text = "\n---\n\n[Full changelog](https://github.com/pydantic/httpx2/blob/main/src/httpx2/CHANGELOG.md)\n"

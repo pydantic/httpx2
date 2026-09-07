@@ -1,4 +1,6 @@
 import http.cookiejar
+from http.client import HTTPResponse
+from urllib.request import Request as UrllibRequest
 
 import pytest
 
@@ -50,6 +52,39 @@ def test_cookies_with_domain_and_path() -> None:
     assert len(cookies) == 1
     cookies.delete("name", domain="example.com", path="/subpath/2")
     assert len(cookies) == 0
+
+
+def test_extract_cookies_skips_cookie_jar_without_set_cookie() -> None:
+    class TrackingCookieJar(http.cookiejar.CookieJar):
+        def __init__(self) -> None:
+            super().__init__()
+            self.extract_count = 0
+
+        def extract_cookies(self, response: HTTPResponse, request: UrllibRequest) -> None:
+            self.extract_count += 1
+
+    jar = TrackingCookieJar()
+    request = httpx2.Request("GET", "https://www.example.org")
+    cookies = httpx2.Cookies(jar)
+
+    cookies.extract_cookies(httpx2.Response(200, request=request))
+    assert jar.extract_count == 0
+
+    cookies.extract_cookies(httpx2.Response(200, request=request, headers={"Set-Cookie": "name=value"}))
+    assert jar.extract_count == 1
+
+
+def test_set_cookie2() -> None:
+    policy = http.cookiejar.DefaultCookiePolicy(rfc2965=True)
+    jar = http.cookiejar.CookieJar(policy=policy)
+    headers = [(b"Set-Cookie2", b'customer="WILE_E_COYOTE"; Version="1"; Path="/"')]
+    request = httpx2.Request("GET", "https://www.example.org")
+    response = httpx2.Response(200, request=request, headers=headers)
+
+    cookies = httpx2.Cookies(jar)
+    cookies.extract_cookies(response)
+
+    assert cookies["customer"] == "WILE_E_COYOTE"
 
 
 def test_multiple_set_cookie() -> None:

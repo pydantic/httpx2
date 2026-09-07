@@ -1,6 +1,6 @@
 # Network Backends
 
-The API layer at which `httpcore` interacts with the network is described as the network backend. Various backend implementations are provided, allowing `httpcore` to handle networking in different runtime contexts.
+The API layer at which `httpcore2` interacts with the network is described as the network backend. Various backend implementations are provided, allowing `httpcore2` to handle networking in different runtime contexts.
 
 ## Working with network backends
 
@@ -11,9 +11,9 @@ Typically you won't need to specify a network backend, as a default will automat
 First we're making a standard HTTP request, using a connection pool:
 
 ```python
-import httpcore
+import httpcore2
 
-with httpcore.ConnectionPool() as http:
+with httpcore2.ConnectionPool() as http:
     response = http.request('GET', 'https://www.example.com')
     print(response)
 ```
@@ -21,23 +21,23 @@ with httpcore.ConnectionPool() as http:
 We can also have the same behavior, but be explicit with our selection of the network backend:
 
 ```python
-import httpcore
+import httpcore2
 
-network_backend = httpcore.SyncBackend()
-with httpcore.ConnectionPool(network_backend=network_backend) as http:
+network_backend = httpcore2.SyncBackend()
+with httpcore2.ConnectionPool(network_backend=network_backend) as http:
     response = http.request('GET', 'https://www.example.com')
     print(response)
 ```
 
-The `httpcore.SyncBackend()` implementation handles the opening of TCP connections, and operations on the socket stream, such as reading, writing, and closing the connection.
+The `httpcore2.SyncBackend()` implementation handles the opening of TCP connections, and operations on the socket stream, such as reading, writing, and closing the connection.
 
 We can get a better understanding of this by using a network backend to send a basic HTTP/1.1 request directly:
 
 ```python
-import httpcore
+import httpcore2
 
 # Create an SSL context using 'certifi' for the certificates.
-ssl_context = httpcore.default_ssl_context()
+ssl_context = httpcore2.default_ssl_context()
 
 # A basic HTTP/1.1 request as a plain bytestring.
 request = b'\r\n'.join([
@@ -49,7 +49,7 @@ request = b'\r\n'.join([
 ])
 
 # Open a TCP stream and upgrade it to SSL.
-network_backend = httpcore.SyncBackend()
+network_backend = httpcore2.SyncBackend()
 network_stream = network_backend.connect_tcp("www.example.com", 443)
 network_stream = network_stream.start_tls(ssl_context, server_hostname="www.example.com")
 
@@ -73,32 +73,32 @@ while True:
 
 If we're working with an `async` codebase, then we need to select a different backend.
 
-The `httpcore.AnyIOBackend` is suitable for usage if you're running under `asyncio`. This is a networking backend implemented using [the `anyio` package](https://anyio.readthedocs.io/en/3.x/).
+The `httpcore2.AnyIOBackend` is suitable for usage if you're running under `asyncio`. This is a networking backend implemented using [the `anyio` package](https://anyio.readthedocs.io/en/3.x/).
 
 ```python
-import httpcore
+import httpcore2
 import asyncio
 
 async def main():
-    network_backend = httpcore.AnyIOBackend()
-    async with httpcore.AsyncConnectionPool(network_backend=network_backend) as http:
+    network_backend = httpcore2.AnyIOBackend()
+    async with httpcore2.AsyncConnectionPool(network_backend=network_backend) as http:
         response = await http.request('GET', 'https://www.example.com')
         print(response)
 
 asyncio.run(main())
 ```
 
-The `AnyIOBackend` will work when running under either `asyncio` or `trio`. However, if you're working with async using the [`trio` framework](https://trio.readthedocs.io/en/stable/), then we recommend using the `httpcore.TrioBackend`.
+The `AnyIOBackend` will work when running under either `asyncio` or `trio`. However, if you're working with async using the [`trio` framework](https://trio.readthedocs.io/en/stable/), then we recommend using the `httpcore2.TrioBackend`.
 
 This will give you the same kind of networking behavior you'd have using `AnyIOBackend`, but there will be a little less indirection so it will be marginally more efficient and will present cleaner tracebacks in error cases.
 
 ```python
-import httpcore
+import httpcore2
 import trio
 
 async def main():
-    network_backend = httpcore.TrioBackend()
-    async with httpcore.AsyncConnectionPool(network_backend=network_backend) as http:
+    network_backend = httpcore2.TrioBackend()
+    async with httpcore2.AsyncConnectionPool(network_backend=network_backend) as http:
         response = await http.request('GET', 'https://www.example.com')
         print(response)
 
@@ -113,16 +113,16 @@ These backends accept a list of bytes, and return network stream interfaces that
 Here's an example of mocking a simple HTTP/1.1 response...
 
 ```python
-import httpcore
+import httpcore2
 
-network_backend = httpcore.MockBackend([
+network_backend = httpcore2.MockBackend([
     b"HTTP/1.1 200 OK\r\n",
     b"Content-Type: plain/text\r\n",
     b"Content-Length: 13\r\n",
     b"\r\n",
     b"Hello, world!",
 ])
-with httpcore.ConnectionPool(network_backend=network_backend) as http:
+with httpcore2.ConnectionPool(network_backend=network_backend) as http:
     response = http.request("GET", "https://example.com/")
     print(response.extensions['http_version'])
     print(response.status)
@@ -134,7 +134,7 @@ Mocking a HTTP/2 response is more complex, since it uses a binary format...
 ```python
 import hpack
 import hyperframe.frame
-import httpcore
+import httpcore2
 
 content = [
     hyperframe.frame.SettingsFrame().serialize(),
@@ -155,8 +155,8 @@ content = [
 # Note that we instantiate the mock backend with an `http2=True` argument.
 # This ensures that the mock network stream acts as if the `h2` ALPN flag has been set,
 # and causes the connection pool to interact with the connection using HTTP/2.
-network_backend = httpcore.MockBackend(content, http2=True)
-with httpcore.ConnectionPool(network_backend=network_backend) as http:
+network_backend = httpcore2.MockBackend(content, http2=True)
+with httpcore2.ConnectionPool(network_backend=network_backend) as http:
     response = http.request("GET", "https://example.com/")
     print(response.extensions['http_version'])
     print(response.status)
@@ -176,10 +176,10 @@ You can use this to provide advanced networking functionality such as:
 Here's an example that records the network response to a file on disk:
 
 ```python
-import httpcore
+import httpcore2
 
 
-class RecordingNetworkStream(httpcore.NetworkStream):
+class RecordingNetworkStream(httpcore2.NetworkStream):
     def __init__(self, record_file, stream):
         self.record_file = record_file
         self.stream = stream
@@ -210,13 +210,13 @@ class RecordingNetworkStream(httpcore.NetworkStream):
         return self.stream.get_extra_info(info)
 
 
-class RecordingNetworkBackend(httpcore.NetworkBackend):
+class RecordingNetworkBackend(httpcore2.NetworkBackend):
     """
     A custom network backend that records network responses.
     """
     def __init__(self, record_file):
         self.record_file = record_file
-        self.backend = httpcore.SyncBackend()
+        self.backend = httpcore2.SyncBackend()
 
     def connect_tcp(
         self,
@@ -249,7 +249,7 @@ class RecordingNetworkBackend(httpcore.NetworkBackend):
 # or add `headers={'Accept-Encoding': 'gzip'}` to see HTTP content compression.
 with open("network-recording", "wb") as record_file:
     network_backend = RecordingNetworkBackend(record_file)
-    with httpcore.ConnectionPool(network_backend=network_backend) as http:
+    with httpcore2.ConnectionPool(network_backend=network_backend) as http:
         response = http.request("GET", "https://www.example.com/")
         print(response)
 ```
@@ -260,20 +260,20 @@ with open("network-recording", "wb") as record_file:
 
 ### Networking Backends
 
-* `httpcore.SyncBackend`
-* `httpcore.AnyIOBackend`
-* `httpcore.TrioBackend`
+* `httpcore2.SyncBackend`
+* `httpcore2.AnyIOBackend`
+* `httpcore2.TrioBackend`
 
 ### Mock Backends
 
-* `httpcore.MockBackend`
-* `httpcore.MockStream`
-* `httpcore.AsyncMockBackend`
-* `httpcore.AsyncMockStream`
+* `httpcore2.MockBackend`
+* `httpcore2.MockStream`
+* `httpcore2.AsyncMockBackend`
+* `httpcore2.AsyncMockStream`
 
 ### Base Interface
 
-* `httpcore.NetworkBackend`
-* `httpcore.NetworkStream`
-* `httpcore.AsyncNetworkBackend`
-* `httpcore.AsyncNetworkStream`
+* `httpcore2.NetworkBackend`
+* `httpcore2.NetworkStream`
+* `httpcore2.AsyncNetworkBackend`
+* `httpcore2.AsyncNetworkStream`

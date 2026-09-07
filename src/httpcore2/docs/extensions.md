@@ -1,6 +1,6 @@
 # Extensions
 
-The request/response API used by `httpcore` is kept deliberately simple and explicit.
+The request/response API used by `httpcore2` is kept deliberately simple and explicit.
 
 The `Request` and `Response` models are pretty slim wrappers around this core API:
 
@@ -24,7 +24,7 @@ Well... almost.
 
 There is a maxim in Computer Science that *"All non-trivial abstractions, to some degree, are leaky"*. When an expression is leaky, it's important that it ought to at least leak only in well-defined places.
 
-In order to handle cases that don't otherwise fit inside this core abstraction, `httpcore` requests and responses have 'extensions'. These are a dictionary of optional additional information.
+In order to handle cases that don't otherwise fit inside this core abstraction, `httpcore2` requests and responses have 'extensions'. These are a dictionary of optional additional information.
 
 Let's expand on our request/response abstraction...
 
@@ -49,7 +49,7 @@ Let's expand on our request/response abstraction...
 Several extensions are supported both on the request:
 
 ```python
-r = httpcore.request(
+r = httpcore2.request(
     "GET",
     "https://www.example.com",
     extensions={"timeout": {"connect": 5.0}}
@@ -59,7 +59,7 @@ r = httpcore.request(
 And on the response:
 
 ```python
-r = httpcore.request("GET", "https://www.example.com")
+r = httpcore2.request("GET", "https://www.example.com")
 
 print(r.extensions["http_version"])
 # When using HTTP/1.1 on the client side, the server HTTP response
@@ -79,7 +79,7 @@ For example:
 ```python
 # Timeout if a connection takes more than 5 seconds to established, or if
 # we are blocked waiting on the connection pool for more than 10 seconds.
-r = httpcore.request(
+r = httpcore2.request(
     "GET",
     "https://www.example.com",
     extensions={"timeout": {"connect": 5.0, "pool": 10.0}}
@@ -89,19 +89,19 @@ r = httpcore.request(
 ### `"trace"`
 
 The trace extension allows a callback handler to be installed to monitor the internal
-flow of events within `httpcore`. The simplest way to explain this is with an example:
+flow of events within `httpcore2`. The simplest way to explain this is with an example:
 
 ```python
-import httpcore
+import httpcore2
 
 def log(event_name, info):
     print(event_name, info)
 
-r = httpcore.request("GET", "https://www.example.com/", extensions={"trace": log})
+r = httpcore2.request("GET", "https://www.example.com/", extensions={"trace": log})
 # connection.connect_tcp.started {'host': 'www.example.com', 'port': 443, 'local_address': None, 'timeout': None}
-# connection.connect_tcp.complete {'return_value': <httpcore.backends.sync.SyncStream object at 0x1093f94d0>}
+# connection.connect_tcp.complete {'return_value': <httpcore2._backends.sync.SyncStream object at 0x1093f94d0>}
 # connection.start_tls.started {'ssl_context': <ssl.SSLContext object at 0x1093ee750>, 'server_hostname': b'www.example.com', 'timeout': None}
-# connection.start_tls.complete {'return_value': <httpcore.backends.sync.SyncStream object at 0x1093f9450>}
+# connection.start_tls.complete {'return_value': <httpcore2._backends.sync.SyncStream object at 0x1093f9450>}
 # http11.send_request_headers.started {'request': <Request [b'GET']>}
 # http11.send_request_headers.complete {'return_value': None}
 # http11.send_request_body.started {'request': <Request [b'GET']>}
@@ -120,7 +120,7 @@ The `event_name` and `info` arguments here will be one of the following:
 * `{event_type}.{event_name}.complete`, `{"return_value": <...>}`
 * `{event_type}.{event_name}.failed`, `{"exception": <...>}`
 
-Note that when using the async variant of `httpcore` the handler function passed to `"trace"` must be an `async def ...` function.
+Note that when using the async variant of `httpcore2` the handler function passed to `"trace"` must be an `async def ...` function.
 
 The following event types are currently exposed...
 
@@ -147,7 +147,7 @@ The following event types are currently exposed...
 * `"http2.receive_response_body"`
 * `"http2.response_closed"`
 
-The exact set of trace events may be subject to change across different versions of `httpcore`. If you need to rely on a particular set of events it is recommended that you pin installation of the package to a fixed version.
+The exact set of trace events may be subject to change across different versions of `httpcore2`. If you need to rely on a particular set of events it is recommended that you pin installation of the package to a fixed version.
 
 ### `"sni_hostname"`
 
@@ -158,7 +158,7 @@ For example:
 ``` python
 headers = {"Host": "www.encode.io"}
 extensions = {"sni_hostname": "www.encode.io"}
-response = httpcore.request(
+response = httpcore2.request(
     "GET",
     "https://185.199.108.153",
     headers=headers,
@@ -180,7 +180,7 @@ For example:
 
 ```python
 extensions = {"target": b"www.encode.io:443"}
-response = httpcore.request(
+response = httpcore2.request(
     "CONNECT",
     "http://your-tunnel-proxy.com",
     headers=headers,
@@ -237,19 +237,19 @@ A proxy CONNECT request using the network stream:
 #
 # CONNECT http://www.example.com HTTP/1.1
 url = "http://127.0.0.1:8080"
-extensions = {"target: "http://www.example.com"}
-with httpcore.stream("CONNECT", url, extensions=extensions) as response:
+extensions = {"target": "http://www.example.com"}
+with httpcore2.stream("CONNECT", url, extensions=extensions) as response:
     network_stream = response.extensions["network_stream"]
 
     # Upgrade to an SSL stream...
     network_stream = network_stream.start_tls(
-        ssl_context=httpcore.default_ssl_context(),
+        ssl_context=httpcore2.default_ssl_context(),
         hostname=b"www.example.com",
     )
 
     # Manually send an HTTP request over the network stream, and read the response...
     #
-    # For a more complete example see the httpcore `TunnelHTTPConnection` implementation.
+    # For a more complete example see the httpcore2 `TunnelHTTPConnection` implementation.
     network_stream.write(b"GET / HTTP/1.1\r\nHost: example.com\r\n\r\n")
     data = network_stream.read()
     print(data)
@@ -260,7 +260,7 @@ with httpcore.stream("CONNECT", url, extensions=extensions) as response:
 Using the `wsproto` package to handle a websockets session:
 
 ```python
-import httpcore
+import httpcore2
 import wsproto
 import os
 import base64
@@ -273,7 +273,7 @@ headers = {
     b"Sec-WebSocket-Key": base64.b64encode(os.urandom(16)),
     b"Sec-WebSocket-Version": b"13"
 }
-with httpcore.stream("GET", url, headers=headers) as response:
+with httpcore2.stream("GET", url, headers=headers) as response:
     if response.status != 101:
         raise Exception("Failed to upgrade to websockets", response)
 
@@ -304,7 +304,7 @@ with httpcore.stream("GET", url, headers=headers) as response:
 The network stream abstraction also allows access to various low-level information that may be exposed by the underlying socket:
 
 ```python
-response = httpcore.request("GET", "https://www.example.com")
+response = httpcore2.request("GET", "https://www.example.com")
 network_stream = response.extensions["network_stream"]
 
 client_addr = network_stream.get_extra_info("client_addr")
@@ -316,7 +316,7 @@ print("Server address", server_addr)
 The socket SSL information is also available through this interface, although you need to ensure that the underlying connection is still open, in order to access it...
 
 ```python
-with httpcore.stream("GET", "https://www.example.com") as response:
+with httpcore2.stream("GET", "https://www.example.com") as response:
     network_stream = response.extensions["network_stream"]
 
     ssl_object = network_stream.get_extra_info("ssl_object")

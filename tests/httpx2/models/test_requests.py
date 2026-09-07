@@ -23,6 +23,13 @@ def test_content_length_header() -> None:
     assert request.headers["Content-Length"] == "8"
 
 
+def test_ignore_content_length_header_if_transfer_encoding_exists() -> None:
+    headers = {"Transfer-Encoding": "chunked"}
+    request = httpx2.Request("POST", "http://example.org", content=b"test 123", headers=headers)
+    assert request.headers["Transfer-Encoding"] == "chunked"
+    assert "Content-Length" not in request.headers
+
+
 def test_iterable_content() -> None:
     class Content:
         def __iter__(self) -> typing.Iterator[bytes]:

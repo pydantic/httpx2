@@ -1,21 +1,21 @@
 # Proxies
 
-The `httpcore` package provides support for HTTP proxies, using either "HTTP Forwarding" or "HTTP Tunnelling". Forwarding is a proxy mechanism for sending requests to `http` URLs via an intermediate proxy. Tunnelling is a proxy mechanism for sending requests to `https` URLs via an intermediate proxy.
+The `httpcore2` package provides support for HTTP proxies, using either "HTTP Forwarding" or "HTTP Tunnelling". Forwarding is a proxy mechanism for sending requests to `http` URLs via an intermediate proxy. Tunnelling is a proxy mechanism for sending requests to `https` URLs via an intermediate proxy.
 
 Sending requests via a proxy is very similar to sending requests using a standard connection pool:
 
 ```python
-import httpcore
+import httpcore2
 
-proxy = httpcore.Proxy("http://127.0.0.1:8080/")
-pool = httpcore.ConnectionPool(proxy=proxy)
+proxy = httpcore2.Proxy("http://127.0.0.1:8080/")
+pool = httpcore2.ConnectionPool(proxy=proxy)
 r = proxy.request("GET", "https://www.example.com/")
 
 print(r)
 # <Response [200]>
 ```
 
-You can test the `httpcore` proxy support, using the Python [`proxy.py`](https://pypi.org/project/proxy.py/) tool:
+You can test the `httpcore2` proxy support, using the Python [`proxy.py`](https://pypi.org/project/proxy.py/) tool:
 
 ```shell
 pip install proxy.py
@@ -29,88 +29,88 @@ Requests will automatically use either forwarding or tunnelling, depending on if
 Proxy authentication can be included in the initial configuration:
 
 ```python
-import httpcore
+import httpcore2
 
 # A `Proxy-Authorization` header will be included on the initial proxy connection.
-proxy = httpcore.Proxy(
+proxy = httpcore2.Proxy(
     url="http://127.0.0.1:8080/",
     auth=("<username>", "<password>")
 )
-pool = httpcore.ConnectionPool(proxy=proxy)
+pool = httpcore2.ConnectionPool(proxy=proxy)
 ```
 
 Custom headers can also be included:
 
 ```python
-import httpcore
+import httpcore2
 import base64
 
 # Construct and include a `Proxy-Authorization` header.
 auth = base64.b64encode(b"<username>:<password>")
-proxy = httpcore.Proxy(
+proxy = httpcore2.Proxy(
     url="http://127.0.0.1:8080/",
     headers={"Proxy-Authorization": b"Basic " + auth}
 )
-pool = httpcore.ConnectionPool(proxy=proxy)
+pool = httpcore2.ConnectionPool(proxy=proxy)
 ```
 
 ## Proxy SSL
 
-The `httpcore` package also supports HTTPS proxies for http and https destinations.
+The `httpcore2` package also supports HTTPS proxies for http and https destinations.
 
 HTTPS proxies can be used in the same way that HTTP proxies are.
 
 ```python
-proxy = httpcore.Proxy(url="https://127.0.0.1:8080/")
+proxy = httpcore2.Proxy(url="https://127.0.0.1:8080/")
 ```
 
 Also, when using HTTPS proxies, you may need to configure the SSL context, which you can do with the `ssl_context` argument.
 
 ```python
 import ssl
-import httpcore
+import httpcore2
 
 proxy_ssl_context = ssl.create_default_context()
 proxy_ssl_context.check_hostname = False
 
-proxy = httpcore.Proxy(
+proxy = httpcore2.Proxy(
     url='https://127.0.0.1:8080/',
     ssl_context=proxy_ssl_context
 )
-pool = httpcore.ConnectionPool(proxy=proxy)
+pool = httpcore2.ConnectionPool(proxy=proxy)
 ```
 
 ## HTTP Versions
 
-If you use proxies, keep in mind that the `httpcore` package only supports proxies to HTTP/1.1 servers.
+If you use proxies, keep in mind that the `httpcore2` package only supports proxies to HTTP/1.1 servers.
 
 ## SOCKS proxy support
 
-The `httpcore` package also supports proxies using the SOCKS5 protocol.
+The `httpcore2` package also supports proxies using the SOCKS5 protocol.
 
-Make sure to install the optional dependency using `pip install 'httpcore[socks]'`.
+Make sure to install the optional dependency using `pip install 'httpcore2[socks]'`.
 
 The `SOCKSProxy` class should be using instead of a standard connection pool:
 
 ```python
-import httpcore
+import httpcore2
 
 # Note that the SOCKS port is 1080.
-proxy = httpcore.Proxy(url="socks5://127.0.0.1:1080/")
-pool = httpcore.ConnectionPool(proxy=proxy)
+proxy = httpcore2.Proxy(url="socks5://127.0.0.1:1080/")
+pool = httpcore2.ConnectionPool(proxy=proxy)
 r = pool.request("GET", "https://www.example.com/")
 ```
 
 Authentication via SOCKS is also supported:
 
 ```python
-import httpcore
+import httpcore2
 
-proxy = httpcore.Proxy(
+proxy = httpcore2.Proxy(
     url="socks5://127.0.0.1:1080/",
     auth=("<username>", "<password>"),
 )
-pool = httpcore.ConnectionPool(proxy=proxy)
+pool = httpcore2.ConnectionPool(proxy=proxy)
 r = pool.request("GET", "https://www.example.com/")
 ```
 
@@ -118,9 +118,9 @@ r = pool.request("GET", "https://www.example.com/")
 
 # Reference
 
-## `httpcore.Proxy`
+## `httpcore2.Proxy`
 
-::: httpcore.Proxy
+::: httpcore2.Proxy
     handler: python
     rendering:
         show_source: False

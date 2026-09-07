@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import ipaddress
 import sys
 import typing
+from dataclasses import dataclass
 from urllib.parse import parse_qs, unquote, urlencode
 
 import idna
@@ -16,7 +18,7 @@ from ._types import QueryParamTypes
 from ._urlparse import urlparse
 from ._utils import primitive_value_to_str
 
-__all__ = ["URL", "QueryParams"]
+__all__ = ["URL", "Origin", "QueryParams"]
 
 
 class URL:
@@ -328,6 +330,16 @@ class URL:
         """
         return not self.is_absolute_url
 
+    @property
+    def origin(self) -> Origin:
+        """
+        The URL origin as an immutable, hashable `Origin` value.
+
+        The origin consists of the URL scheme, host, and effective port.
+        User information, path, query, and fragment components are excluded.
+        """
+        return Origin(self)
+
     def copy_with(self, **kwargs: typing.Any) -> URL:
         """
         Copy this URL, returning a new URL with some components altered.
@@ -416,6 +428,51 @@ class URL:
             port=self.port,
             raw_path=self.raw_path,
         )
+
+
+_ORIGIN_DEFAULT_PORTS = {
+    "ftp": 21,
+    "http": 80,
+    "https": 443,
+    "ws": 80,
+    "wss": 443,
+}
+
+
+@dataclass(frozen=True, slots=True, init=False)
+class Origin:
+    """
+    The scheme, host, and effective port of a URL.
+
+    Origins are normalized, immutable, comparable, and hashable.
+
+    See RFC 9110, Section 4.3.1: https://www.rfc-editor.org/rfc/rfc9110.html#name-uri-origin
+    """
+
+    scheme: str
+    host: str
+    port: int | None
+
+    def __init__(self, url: URL | str) -> None:
+        if not isinstance(url, URL):
+            url = URL(url)
+
+        if url.is_relative_url:
+            raise ValueError("URL must be absolute to have an origin")
+
+        host = url.host
+        if b":" in url.raw_host:
+            # IPv6 addresses may have multiple equivalent string forms. Store
+            # their canonical compressed form so origin equality is numeric.
+            host = str(ipaddress.IPv6Address(url.raw_host.decode("ascii")))
+
+        port = url.port
+        if port is None:
+            port = _ORIGIN_DEFAULT_PORTS.get(url.scheme)
+
+        object.__setattr__(self, "scheme", url.scheme)
+        object.__setattr__(self, "host", host)
+        object.__setattr__(self, "port", port)
 
 
 class QueryParams(typing.Mapping[str, str]):

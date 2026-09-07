@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import inspect
 import warnings
-from collections.abc import AsyncIterable, AsyncIterator, Iterable, Iterator, Mapping
+from collections.abc import AsyncGenerator, AsyncIterable, AsyncIterator, Iterable, Iterator, Mapping
 from json import dumps as json_dumps
 from typing import (
     Any,
@@ -79,9 +79,15 @@ class AsyncIteratorByteStream(AsyncByteStream):
                 yield chunk
                 chunk = await self._stream.aread(self.CHUNK_SIZE)
         else:
-            # Otherwise iterate.
-            async for part in self._stream:
-                yield part
+            # Otherwise iterate, making sure the wrapped stream is closed even if the
+            # consumer stops early (e.g. an exception is raised part-way through decoding).
+            stream = self._stream.__aiter__()
+            try:
+                async for part in stream:
+                    yield part
+            finally:
+                if isinstance(stream, AsyncGenerator):
+                    await stream.aclose()
 
 
 class UnattachedStream(AsyncByteStream, SyncByteStream):
@@ -119,7 +125,7 @@ def encode_content(
             headers = {"Transfer-Encoding": "chunked"}
         else:
             headers = {"Content-Length": str(content_length_or_none)}
-        return headers, IteratorByteStream(content)  # type: ignore
+        return headers, IteratorByteStream(content)
 
     elif isinstance(content, AsyncIterable):
         headers = {"Transfer-Encoding": "chunked"}

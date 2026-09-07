@@ -246,10 +246,11 @@ class HTTP2Connection(ConnectionInterface):
         """
         Send a single chunk of data in one or more data frames.
         """
-        while data:
+        position = 0
+        while position < len(data):
             max_flow = self._wait_for_outgoing_flow(request, stream_id)
-            chunk_size = min(len(data), max_flow)
-            chunk, data = data[:chunk_size], data[chunk_size:]
+            chunk = data[position : position + max_flow]
+            position += len(chunk)
             self._h2_state.send_data(stream_id, chunk)
             self._write_outgoing_data(request)
 
@@ -373,9 +374,10 @@ class HTTP2Connection(ConnectionInterface):
                     self._max_streams -= 1
 
     def _response_closed(self, stream_id: int) -> None:
-        self._max_streams_semaphore.release()
         with self._state_lock:
-            del self._events[stream_id]
+            if stream_id in self._events:
+                self._max_streams_semaphore.release()
+                del self._events[stream_id]
             if self._connection_terminated and not self._events:
                 self.close()
 

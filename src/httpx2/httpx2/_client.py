@@ -16,6 +16,7 @@ from ._config import (
     DEFAULT_KEEPALIVE_PING_INTERVAL_SECONDS,
     DEFAULT_KEEPALIVE_PING_TIMEOUT_SECONDS,
     DEFAULT_LIMITS,
+    DEFAULT_MAX_EVENT_SIZE_BYTES,
     DEFAULT_MAX_MESSAGE_SIZE_BYTES,
     DEFAULT_MAX_REDIRECTS,
     DEFAULT_QUEUE_SIZE,
@@ -34,8 +35,8 @@ from ._exceptions import (
 from ._models import Cookies, Headers, Request, Response
 from ._sse import EventSource
 from ._status_codes import codes
+from ._transports import AsyncHTTPTransport, HTTPTransport
 from ._transports.base import AsyncBaseTransport, BaseTransport
-from ._transports.default import AsyncHTTPTransport, HTTPTransport
 from ._types import (
     AsyncByteStream,
     AuthTypes,
@@ -71,28 +72,16 @@ def _is_https_redirect(url: URL, location: URL) -> bool:
     """
     Return 'True' if 'location' is a HTTPS upgrade of 'url'
     """
-    if url.host != location.host:
-        return False
+    origin = url.origin
+    location_origin = location.origin
 
     return (
-        url.scheme == "http"
-        and _port_or_default(url) == 80
-        and location.scheme == "https"
-        and _port_or_default(location) == 443
+        origin.host == location_origin.host
+        and origin.scheme == "http"
+        and origin.port == 80
+        and location_origin.scheme == "https"
+        and location_origin.port == 443
     )
-
-
-def _port_or_default(url: URL) -> int | None:
-    if url.port is not None:
-        return url.port
-    return {"http": 80, "https": 443}.get(url.scheme)
-
-
-def _same_origin(url: URL, other: URL) -> bool:
-    """
-    Return 'True' if the given URLs share the same origin.
-    """
-    return url.scheme == other.scheme and url.host == other.host and _port_or_default(url) == _port_or_default(other)
 
 
 class UseClientDefault:
@@ -171,8 +160,13 @@ class BoundAsyncStream(AsyncByteStream):
         self.elapsed: datetime.timedelta | None = None
 
     async def __aiter__(self) -> typing.AsyncIterator[bytes]:
-        async for chunk in self._stream:
-            yield chunk
+        stream = self._stream.__aiter__()
+        try:
+            async for chunk in stream:
+                yield chunk
+        finally:
+            if isinstance(stream, AsyncGenerator):
+                await stream.aclose()
 
     async def aclose(self) -> None:
         self.elapsed = datetime.timedelta(seconds=time.perf_counter() - self._start)
@@ -533,7 +527,7 @@ class BaseClient:
         """
         headers = Headers(request.headers)
 
-        if not _same_origin(url, request.url):
+        if url.origin != request.url.origin:
             if not _is_https_redirect(request.url, url):
                 # Strip Authorization headers when responses are redirected
                 # away from the origin. (Except for direct HTTP to HTTPS redirects.)
@@ -871,6 +865,7 @@ class Client(BaseClient):
         follow_redirects: bool | UseClientDefault = USE_CLIENT_DEFAULT,
         timeout: TimeoutTypes | UseClientDefault = USE_CLIENT_DEFAULT,
         extensions: RequestExtensions | None = None,
+        max_event_size: int | None = DEFAULT_MAX_EVENT_SIZE_BYTES,
     ) -> Generator[EventSource]:
         """
         Connect to a server-sent events endpoint and yield an `EventSource`.
@@ -894,7 +889,7 @@ class Client(BaseClient):
             timeout=timeout,
             extensions=extensions,
         ) as response:
-            yield EventSource(response)
+            yield EventSource(response, max_event_size=max_event_size)
 
     @contextmanager
     def websocket(
@@ -1708,6 +1703,7 @@ class AsyncClient(BaseClient):
         follow_redirects: bool | UseClientDefault = USE_CLIENT_DEFAULT,
         timeout: TimeoutTypes | UseClientDefault = USE_CLIENT_DEFAULT,
         extensions: RequestExtensions | None = None,
+        max_event_size: int | None = DEFAULT_MAX_EVENT_SIZE_BYTES,
     ) -> AsyncGenerator[EventSource]:
         """
         Connect to a server-sent events endpoint and yield an `EventSource`.
@@ -1731,7 +1727,7 @@ class AsyncClient(BaseClient):
             timeout=timeout,
             extensions=extensions,
         ) as response:
-            yield EventSource(response)
+            yield EventSource(response, max_event_size=max_event_size)
 
     @asynccontextmanager
     async def websocket(

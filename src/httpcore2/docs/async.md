@@ -13,13 +13,13 @@ Launching concurrent async tasks is far more resource efficient than spawning mu
 If you're using async with [Python's stdlib `asyncio` support](https://docs.python.org/3/library/asyncio.html), install the optional dependencies using:
 
 ```shell
-pip install 'httpcore[asyncio]'
+pip install 'httpcore2[asyncio]'
 ```
 
 Alternatively, if you're working with [the Python `trio` package](https://trio.readthedocs.io/en/stable/):
 
 ```shell
-pip install 'httpcore[trio]'
+pip install 'httpcore2[trio]'
 ```
 
 We highly recommend `trio` for async support. The `trio` project [pioneered the principles of structured concurrency](https://en.wikipedia.org/wiki/Structured_concurrency), and has a more carefully constrained API against which to work from.
@@ -29,21 +29,21 @@ We highly recommend `trio` for async support. The `trio` project [pioneered the 
 When using async support, you need make sure to use an async connection pool class:
 
 ```python
-# The async variation of `httpcore.ConnectionPool`
-async with httpcore.AsyncConnectionPool() as http:
+# The async variation of `httpcore2.ConnectionPool`
+async with httpcore2.AsyncConnectionPool() as http:
     ...
 ```
 
 ### Sending requests
 
-Sending requests with the async version of `httpcore` requires the `await` keyword:
+Sending requests with the async version of `httpcore2` requires the `await` keyword:
 
 ```python
 import asyncio
-import httpcore
+import httpcore2
 
 async def main():
-    async with httpcore.AsyncConnectionPool() as http:
+    async with httpcore2.AsyncConnectionPool() as http:
         response = await http.request("GET", "https://www.example.com/")
 
 
@@ -65,11 +65,11 @@ For example:
 
 ```python
 import asyncio
-import httpcore
+import httpcore2
 
 
 async def main():
-    async with httpcore.AsyncConnectionPool() as http:
+    async with httpcore2.AsyncConnectionPool() as http:
         async with http.stream("GET", "https://www.example.com/") as response:
             async for chunk in response.aiter_stream():
                 print(f"Downloaded: {chunk}")
@@ -80,10 +80,10 @@ asyncio.run(main())
 
 ### Pool lifespans
 
-When using `httpcore` in an async environment it is strongly recommended that you instantiate and use connection pools using the context managed style:
+When using `httpcore2` in an async environment it is strongly recommended that you instantiate and use connection pools using the context managed style:
 
 ```python
-async with httpcore.AsyncConnectionPool() as http:
+async with httpcore2.AsyncConnectionPool() as http:
     ...
 ```
 
@@ -93,7 +93,7 @@ If you do want to use a connection pool without this style then you'll need to e
 
 ```python
 try:
-    http = httpcore.AsyncConnectionPool()
+    http = httpcore2.AsyncConnectionPool()
     ...
 finally:
     await http.aclose()
@@ -117,7 +117,7 @@ Let's take a look at sending several outgoing HTTP requests concurrently, using 
 
 ```python
 import asyncio
-import httpcore
+import httpcore2
 import time
 
 
@@ -126,7 +126,7 @@ async def download(http, year):
 
 
 async def main():
-    async with httpcore.AsyncConnectionPool() as http:
+    async with httpcore2.AsyncConnectionPool() as http:
         started = time.time()
         # Here we use `asyncio.gather()` in order to run several tasks concurrently...
         tasks = [download(http, year) for year in range(2000, 2020)]
@@ -146,7 +146,7 @@ asyncio.run(main())
 Trio is [an alternative async library](https://trio.readthedocs.io/en/stable/), designed around the [the principles of structured concurrency](https://en.wikipedia.org/wiki/Structured_concurrency).
 
 ```python
-import httpcore
+import httpcore2
 import trio
 import time
 
@@ -156,7 +156,7 @@ async def download(http, year):
 
 
 async def main():
-    async with httpcore.AsyncConnectionPool() as http:
+    async with httpcore2.AsyncConnectionPool() as http:
         started = time.time()
         async with trio.open_nursery() as nursery:
             for year in range(2000, 2020):
@@ -178,7 +178,7 @@ AnyIO is an [asynchronous networking and concurrency library](https://anyio.read
 The `anyio` library is designed around the [the principles of structured concurrency](https://en.wikipedia.org/wiki/Structured_concurrency), and brings many of the same correctness and usability benefits that Trio provides, while interoperating with existing `asyncio` libraries.
 
 ```python
-import httpcore
+import httpcore2
 import anyio
 import time
 
@@ -188,7 +188,7 @@ async def download(http, year):
 
 
 async def main():
-    async with httpcore.AsyncConnectionPool() as http:
+    async with httpcore2.AsyncConnectionPool() as http:
         started = time.time()
         async with anyio.create_task_group() as task_group:
             for year in range(2000, 2020):
@@ -207,9 +207,9 @@ anyio.run(main)
 
 # Reference
 
-## `httpcore.AsyncConnectionPool`
+## `httpcore2.AsyncConnectionPool`
 
-::: httpcore.AsyncConnectionPool
+::: httpcore2.AsyncConnectionPool
     handler: python
     rendering:
         show_source: False

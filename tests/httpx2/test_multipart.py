@@ -205,6 +205,29 @@ def test_multipart_headers_include_content_type() -> None:
     )
 
 
+@pytest.mark.parametrize(
+    ("content_type", "file_headers"),
+    [
+        ("text/plain\r", {}),
+        (None, {"X-Test\t": "value"}),
+        (None, {"X-Test": "value\n"}),
+    ],
+)
+def test_multipart_rejects_invalid_file_headers(content_type: str | None, file_headers: dict[str, str]) -> None:
+    files = {"file": ("test.txt", b"<file content>", content_type, file_headers)}
+
+    with pytest.raises(ValueError, match="Invalid .*multipart header"):
+        httpx2.Request("POST", "https://www.example.com/", files=files)
+
+
+@pytest.mark.parametrize("control_character", ["\x00", "\x01", "\x08", "\x1f", "\x7f"])
+def test_multipart_rejects_control_characters_in_file_header_values(control_character: str) -> None:
+    files = {"file": ("test.txt", b"<file content>", None, {"X-Test": f"value{control_character}"})}
+
+    with pytest.raises(ValueError, match="Invalid control character in multipart header value"):
+        httpx2.Request("POST", "https://www.example.com/", files=files)
+
+
 def test_multipart_encode(tmp_path: typing.Any) -> None:
     path = str(tmp_path / "name.txt")
     with open(path, "wb") as f:

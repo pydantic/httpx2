@@ -201,17 +201,14 @@ Besides, `httpx2.Request()` does not support the `auth`, `timeout`, `follow_redi
 
 ## Mocking
 
-If you need to mock HTTPX the same way that test utilities like `responses` and `requests-mock` does for `requests`, see [RESPX](https://github.com/lundberg/respx).
-
-## Caching
-
-If you use `cachecontrol` or `requests-cache` to add HTTP Caching support to the `requests` library, you can use [Hishel](https://hishel.com) for HTTPX.
+If you need to mock HTTPX2 requests in your tests, see [httpx2-pytest](third_party_packages.md#httpx2-pytest)
+or [pytest-HTTPX2](third_party_packages.md#pytest-httpx2).
 
 ## Networking layer
 
 `requests` defers most of its HTTP networking code to the excellent [`urllib3` library](https://urllib3.readthedocs.io/en/latest/).
 
-On the other hand, HTTPX uses [HTTPCore](https://github.com/encode/httpcore) as its core HTTP networking layer, which is a different project than `urllib3`.
+On the other hand, HTTPX2 uses [`httpcore2`](https://github.com/pydantic/httpx2/tree/main/src/httpcore2) as its core HTTP networking layer, which is a different project than `urllib3`.
 
 ## Query Parameters
 
@@ -229,4 +226,4 @@ If you are looking for more control, consider checking out [Custom Transports](a
 
 ## Exceptions and Errors
 
-`requests` exception hierarchy is slightly different to the `httpx2` exception hierarchy. `requests` exposes a top level `RequestException`, where as `httpx2` exposes a top level `HTTPError`. see the exceptions exposes in requests [here](https://requests.readthedocs.io/en/latest/_modules/requests/exceptions/). See the `httpx2` error hierarchy [here](https://httpx2.pydantic.dev/exceptions/).
+`requests` exception hierarchy is slightly different to the `httpx2` exception hierarchy. `requests` exposes a top level `RequestException`, where as `httpx2` exposes a top level `HTTPError`. see the exceptions exposes in requests [here](https://requests.readthedocs.io/en/latest/_modules/requests/exceptions/). See the `httpx2` error hierarchy [here](https://pydantic.dev/docs/httpx2/api/exceptions/).

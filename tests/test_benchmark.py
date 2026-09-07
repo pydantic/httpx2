@@ -84,7 +84,7 @@ def test_bench_queryparams_merge(benchmark: BenchmarkFixture) -> None:
 def test_bench_gzip_decode(benchmark: BenchmarkFixture) -> None:
     def decode() -> bytes:
         decoder = GZipDecoder()
-        return decoder.decode(GZIP_BODY) + decoder.flush()
+        return b"".join(decoder.decode(GZIP_BODY)) + b"".join(decoder.flush())
 
     benchmark(decode)
 
@@ -97,6 +97,23 @@ def test_bench_line_decoder(benchmark: BenchmarkFixture) -> None:
         return decoder.decode(text) + decoder.flush()
 
     benchmark(split)
+
+
+def test_bench_sse_many_chunks_without_line_separator(benchmark: BenchmarkFixture) -> None:
+    chunks = [b"data: ", *([b"A" * 16] * 10_000), b"\n\n"]
+    request = httpx2.Request("GET", "https://example.org/sse")
+
+    def decode() -> int:
+        response = httpx2.Response(
+            200,
+            content=iter(chunks),
+            headers={"content-type": "text/event-stream"},
+            request=request,
+        )
+        (event,) = list(httpx2.EventSource(response, max_event_size=None))
+        return len(event.data)
+
+    assert benchmark(decode) == 10_000 * 16
 
 
 def test_bench_extract_cookies(benchmark: BenchmarkFixture) -> None:

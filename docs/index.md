@@ -1,21 +1,12 @@
-<h1 align="center" style="font-size: 3rem; margin: -15px 0">
-HTTPX2
-</h1>
-
+---
+title: HTTPX2
 ---
 
-<div align="center">
-<p>
-<a href="https://github.com/pydantic/httpx2/actions">
-    <img src="https://github.com/pydantic/httpx2/workflows/Test%20Suite/badge.svg" alt="Test Suite">
-</a>
-<a href="https://pypi.org/project/httpx2/">
-    <img src="https://badge.fury.io/py/httpx2.svg" alt="Package version">
-</a>
-</p>
+[![Test Suite](https://github.com/pydantic/httpx2/workflows/Test%20Suite/badge.svg)](https://github.com/pydantic/httpx2/actions)
+[![Package version](https://badge.fury.io/py/httpx2.svg)](https://pypi.org/project/httpx2/)
+[![Join Slack](https://img.shields.io/badge/Slack-Join%20Slack-4A154B?logo=slack)](https://pydantic.dev/docs/logfire/join-slack/)
 
-<em>A next-generation HTTP client for Python.</em>
-</div>
+*A next-generation HTTP client for Python.*
 
 HTTPX2 is a fully featured HTTP client for Python, which provides sync and async APIs, and support for both HTTP/1.1 and HTTP/2.
 
@@ -119,7 +110,7 @@ As well as these optional installs:
 * `rich` - Rich terminal support. *(Optional, with `httpx2[cli]`)*
 * `click` - Command line client support. *(Optional, with `httpx2[cli]`)*
 * `brotli` or `brotlicffi` - Decoding for "brotli" compressed responses. *(Optional, with `httpx2[brotli]`)*
-* `zstandard` - Decoding for "zstd" compressed responses on Python 3.13 and below. *(Optional, with `httpx2[zstd]`. On Python 3.14+, `zstd` is supported via the stdlib [`compression.zstd`][] module when it is available; the `httpx2[zstd]` extra installs nothing there, so decoding falls back to `zstandard` only on 3.13 and below.)*
+* `backports.zstd` - Decoding for "zstd" compressed responses on Python 3.13 and below. *(Optional, with `httpx2[zstd]`. On Python 3.14+, `zstd` is supported via the stdlib [`compression.zstd`][] module when it is available, and the `httpx2[zstd]` extra installs nothing.)*
 
 A huge amount of credit is due to `requests` for the API layout that
 much of this work follows, as well as to `urllib3` for plenty of design

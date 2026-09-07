@@ -7,6 +7,7 @@ from types import TracebackType
 
 import anyio
 import wsproto
+from anyio.streams.stapled import StapledObjectStream
 from wsproto.frame_protocol import CloseReason
 
 from .._models import Request, Response
@@ -45,12 +46,8 @@ class ASGIWebSocketAsyncNetworkStream:
     ) -> None:
         self.app = app
         self.scope = scope
-        self._receive_queue = anyio.streams.stapled.StapledObjectStream(
-            *anyio.create_memory_object_stream[Message](max_buffer_size=math.inf)
-        )
-        self._send_queue = anyio.streams.stapled.StapledObjectStream(
-            *anyio.create_memory_object_stream[Message](max_buffer_size=math.inf)
-        )
+        self._receive_queue = StapledObjectStream(*anyio.create_memory_object_stream[Message](max_buffer_size=math.inf))
+        self._send_queue = StapledObjectStream(*anyio.create_memory_object_stream[Message](max_buffer_size=math.inf))
         self._task_group = task_group
         self._initial_receive_timeout = initial_receive_timeout
         self.connection = wsproto.WSConnection(wsproto.ConnectionType.SERVER)

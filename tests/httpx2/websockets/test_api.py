@@ -581,6 +581,60 @@ class TestReceivePing:
             wsproto.events.CloseConnection(1000, ""),
         ]
 
+    async def test_receive_unsolicited_pong(self) -> None:
+        class MockNetworkStream(NetworkStream):
+            def __init__(self) -> None:
+                self.connection = wsproto.connection.Connection(wsproto.connection.ConnectionType.SERVER)
+                self.events_to_send = [
+                    wsproto.events.Pong(b"UNSOLICITED"),
+                    wsproto.events.TextMessage("SERVER_MESSAGE"),
+                    wsproto.events.CloseConnection(1000),
+                ]
+
+            def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
+                try:
+                    event = self.events_to_send.pop(0)
+                    return self.connection.send(event)
+                except IndexError:  # pragma: no cover
+                    raise httpcore.ReadError()
+
+            def write(self, buffer: bytes, timeout: float | None = None) -> None:
+                self.connection.receive_data(buffer)
+
+            def close(self) -> None:
+                pass
+
+        stream = MockNetworkStream()
+        with WebSocketSession(stream) as session:
+            assert session.receive_text(timeout=1) == "SERVER_MESSAGE"
+
+    async def test_async_receive_unsolicited_pong(self) -> None:
+        class MockAsyncNetworkStream(AsyncNetworkStream):
+            def __init__(self) -> None:
+                self.connection = wsproto.connection.Connection(wsproto.connection.ConnectionType.SERVER)
+                self.events_to_send = [
+                    wsproto.events.Pong(b"UNSOLICITED"),
+                    wsproto.events.TextMessage("SERVER_MESSAGE"),
+                    wsproto.events.CloseConnection(1000),
+                ]
+
+            async def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
+                try:
+                    event = self.events_to_send.pop(0)
+                    return self.connection.send(event)
+                except IndexError:  # pragma: no cover
+                    raise httpcore.ReadError()
+
+            async def write(self, buffer: bytes, timeout: float | None = None) -> None:
+                self.connection.receive_data(buffer)
+
+            async def aclose(self) -> None:
+                pass
+
+        stream = MockAsyncNetworkStream()
+        async with AsyncWebSocketSession(stream) as session:
+            assert await session.receive_text(timeout=1) == "SERVER_MESSAGE"
+
 
 @pytest.mark.anyio
 class TestKeepalivePing:

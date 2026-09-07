@@ -102,7 +102,7 @@ Any `gzip` and `deflate` HTTP response encodings will automatically
 be decoded for you. If `brotlipy` is installed, then the `brotli` response
 encoding will be supported. The `zstd` response encoding is supported
 on Python 3.14+ via the stdlib [`compression.zstd`][] module when it is
-available; on Python 3.13 and below it requires the `zstandard` package.
+available; on Python 3.13 and below it requires the `backports.zstd` package.
 
 For example, to create an image from binary data returned by a request, you can use the following code:
 
@@ -287,9 +287,10 @@ We can raise an exception for any responses which are not a 2xx success code:
 404
 >>> not_found.raise_for_status()
 Traceback (most recent call last):
-  File "/Users/tomchristie/GitHub/encode/httpcore/httpx2/models.py", line 837, in raise_for_status
-    raise HTTPStatusError(message, response=self)
-httpx2._exceptions.HTTPStatusError: 404 Client Error: Not Found for url: https://httpbin.org/status/404
+  File "<stdin>", line 1, in <module>
+  File "/path/to/site-packages/httpx2/_models.py", line 815, in raise_for_status
+    raise HTTPStatusError(message, request=request, response=self)
+httpx2.HTTPStatusError: Client error '404 Not Found' for url 'https://httpbin.org/status/404'
 For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404
 ```
 

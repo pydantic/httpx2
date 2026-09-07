@@ -1,0 +1,139 @@
+{% extends "main.html" %}
+{% block styles %}
+  {{ super() }}
+  <link
+    href="https://cdn.jsdelivr.net/npm/ace-builds@1.36.2/css/ace.css"
+    rel="stylesheet"
+    integrity="sha384-ufydNiMif57Clv54md4N4sdAsM4gsJXYuGcZ+7v6fqHDlQ7JWICGt3eW00qaw2l5"
+    crossorigin="anonymous"
+    referrerpolicy="no-referrer"
+  />
+  <style>
+  #pyodide_editor {
+    width: 100%;
+    height: 14em;
+    font-size: 0.8rem;
+    box-sizing: border-box;
+  }
+  #pyodide_editor .ace_gutter,
+  #pyodide_editor .ace_content,
+  #pyodide_editor .ace_text-layer {
+    font-size: 0.8rem;
+  }
+  #pyodide_output {
+    width: 100%;
+    height: 20em;
+    white-space: pre-wrap;
+    background-color: #1e1e1e;
+    color: #e6e6e6;
+    font-family: "Courier New", monospace;
+    font-size: 0.8rem;
+    overflow-y: scroll;
+    padding: 0.5em;
+    box-sizing: border-box;
+    border-radius: 4px;
+  }
+
+  #pyodide_output span {
+    display: block;
+  }
+  .pyodide_error {
+    color: #ff6b6b;
+  }
+  </style>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script
+  src="https://cdn.jsdelivr.net/npm/ace-builds@1.36.2/src-noconflict/ace.js"
+  integrity="sha384-KXFed0LStIAv8N+BF2J6AQ1Jt83vq4cc/pWqaHh3JxE6nWxwkWZ2gSYqIBSy3tHq"
+  crossorigin="anonymous"
+  referrerpolicy="no-referrer"
+></script>
+<script
+  src="https://cdn.jsdelivr.net/pyodide/v0.29.3/full/pyodide.js"
+  integrity="sha384-Hcsv6LxK5rH9vVB+a/+cLJZR3kIIM2Y851r6waxy+9JInvSROiD1bTMk748pYdat"
+  crossorigin="anonymous"
+  referrerpolicy="no-referrer"
+></script>
+<script language="javascript">
+  const editor = ace.edit("pyodide_editor");
+  editor.setTheme("ace/theme/monokai");
+  editor.session.setMode("ace/mode/python");
+  editor.setOptions({
+    fontSize: "0.8rem",
+    vScrollBarAlwaysVisible: true,
+  });
+  const outputDiv = document.getElementById("pyodide_output");
+  outputDiv.innerText = "Loading python in your browser";
+
+  function stdoutLine(line) {
+    const content = document.createElement("span");
+    content.textContent = line;
+    outputDiv.appendChild(content);
+  }
+
+  function stderrLine(line) {
+    const content = document.createElement("span");
+    content.className = "pyodide_error";
+    content.textContent = line;
+    outputDiv.appendChild(content);
+  }
+
+  async function initPyodide() {
+    const pyodide = await loadPyodide();
+    pyodide.setStdout({ batched: stdoutLine });
+    pyodide.setStderr({ batched: stderrLine });
+    if (
+      document.location.origin.startsWith("http://127.0.0.1") ||
+      document.location.origin.startsWith("http://0.0.0.0") ||
+      document.location.origin.startsWith("http://localhost")
+    ) {
+      // If we are on a development machine, use the wheel from the dist folder
+      await pyodide.loadPackage(["micropip",  "ssl", "idna", "certifi"]);
+      await pyodide.runPythonAsync("import micropip; await micropip.install('httpx2-jsfetch')");
+      await pyodide.loadPackage(["/test.whl"]);
+    } else {
+      // Otherwise load it from PyPI
+      // (once a Pyodide-supporting version is on there)
+      await pyodide.loadPackage("micropip");
+      await pyodide.runPythonAsync("import micropip; await micropip.install('httpx2')");
+    }
+    outputDiv.innerText = "Python runtime ready...\n";
+    return pyodide;
+  }
+
+  const loadPromise = initPyodide();
+
+  async function runCode() {
+    const pyodide = await loadPromise;
+    const code = editor.getValue();
+    await pyodide.loadPackagesFromImports(code);
+    try {
+      await pyodide.runPythonAsync(code);
+    } catch (e) {
+      stderrLine(e.message);
+    }
+  }
+
+  function clearOutput() {
+    outputDiv.innerHTML = "";
+  }
+
+  const run_button = document.createElement("button");
+  run_button.className = "md-button";
+  run_button.onclick = runCode;
+  run_button.innerText = "Run";
+  const clear_button = document.createElement("button");
+  clear_button.className = "md-button";
+  clear_button.onclick = clearOutput;
+  clear_button.innerText = "Clear output";
+  clear_button.style = "float:right";
+  const buttonDiv = document.getElementById("pyodide_buttons");
+  buttonDiv.appendChild(run_button);
+  buttonDiv.appendChild(clear_button);
+
+  globalThis.runCode = runCode;
+</script>
+{% endblock %}

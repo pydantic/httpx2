@@ -2,7 +2,7 @@
 
 Request and response extensions provide a untyped space where additional information may be added.
 
-Extensions should be used for features that may not be available on all transports, and that do not fit neatly into [the simplified request/response model](https://www.encode.io/httpcore/extensions/) that the underlying `httpcore` package uses as its API.
+Extensions should be used for features that may not be available on all transports, and that do not fit neatly into [the simplified request/response model](https://www.encode.io/httpcore/extensions/) that the underlying `httpcore2` package inherits from upstream `httpcore` and uses as its API.
 
 Several extensions are supported on the request:
 
@@ -34,7 +34,7 @@ print(response.extensions["http_version"])  # b"HTTP/1.1"
 ### `"trace"`
 
 The trace extension allows a callback handler to be installed to monitor the internal
-flow of events within the underlying `httpcore` transport.
+flow of events within the underlying `httpcore2` transport.
 
 The simplest way to explain this is with an example:
 
@@ -46,10 +46,10 @@ def log(event_name, info):
 
 client = httpx2.Client()
 response = client.get("https://www.example.com/", extensions={"trace": log})
-# connection.connect_tcp.started {'host': 'www.example.com', 'port': 443, 'local_address': None, 'timeout': None}
-# connection.connect_tcp.complete {'return_value': <httpcore.backends.sync.SyncStream object at 0x1093f94d0>}
-# connection.start_tls.started {'ssl_context': <ssl.SSLContext object at 0x1093ee750>, 'server_hostname': b'www.example.com', 'timeout': None}
-# connection.start_tls.complete {'return_value': <httpcore.backends.sync.SyncStream object at 0x1093f9450>}
+# connection.connect_tcp.started {'host': 'www.example.com', 'port': 443, 'local_address': None, 'timeout': 5.0, 'socket_options': None}
+# connection.connect_tcp.complete {'return_value': <httpcore2._backends.sync.SyncStream object at 0x1093f94d0>}
+# connection.start_tls.started {'ssl_context': <truststore._api.SSLContext object at 0x1093ee750>, 'server_hostname': 'www.example.com', 'timeout': 5.0}
+# connection.start_tls.complete {'return_value': <httpcore2._backends.sync.SyncStream object at 0x1093f9450>}
 # http11.send_request_headers.started {'request': <Request [b'GET']>}
 # http11.send_request_headers.complete {'return_value': None}
 # http11.send_request_body.started {'request': <Request [b'GET']>}
@@ -95,7 +95,7 @@ The following event types are currently exposed...
 * `"http2.receive_response_body"`
 * `"http2.response_closed"`
 
-The exact set of trace events may be subject to change across different versions of `httpcore`. If you need to rely on a particular set of events it is recommended that you pin installation of the package to a fixed version.
+The exact set of trace events may be subject to change across different versions of `httpcore2`. If you need to rely on a particular set of events it is recommended that you pin installation of the package to a fixed version.
 
 ### `"sni_hostname"`
 

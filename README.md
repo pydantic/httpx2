@@ -5,6 +5,7 @@
 <p align="center">
 <a href="https://github.com/pydantic/httpx2/actions"><img src="https://github.com/pydantic/httpx2/workflows/Test%20Suite/badge.svg" alt="Test Suite"></a>
 <a href="https://pypi.org/project/httpx2/"><img src="https://badge.fury.io/py/httpx2.svg" alt="Package version"></a>
+<a href="https://pydantic.dev/docs/logfire/join-slack/"><img src="https://img.shields.io/badge/Slack-Join%20Slack-4A154B?logo=slack" alt="Join Slack"></a>
 </p>
 
 HTTPX2 is a fully featured HTTP client library for Python. It includes **an integrated command line client**, has support for both **HTTP/1.1 and HTTP/2**, and provides both **sync and async APIs**.
@@ -53,11 +54,11 @@ httpx2 --help
 
 HTTPX2 builds on the well-established usability of `requests`, and gives you:
 
-* A broadly [requests-compatible API](https://httpx2.pydantic.dev/compatibility/).
+* A broadly [requests-compatible API](https://pydantic.dev/docs/httpx2/guides/compatibility/).
 * An integrated command-line client.
-* HTTP/1.1 [and HTTP/2 support](https://httpx2.pydantic.dev/http2/).
-* Standard synchronous interface, but with [async support if you need it](https://httpx2.pydantic.dev/async/).
-* Ability to make requests directly to [WSGI applications](https://httpx2.pydantic.dev/advanced/transports/#wsgi-transport) or [ASGI applications](https://httpx2.pydantic.dev/advanced/transports/#asgi-transport).
+* HTTP/1.1 [and HTTP/2 support](https://pydantic.dev/docs/httpx2/guides/http2/).
+* Standard synchronous interface, but with [async support if you need it](https://pydantic.dev/docs/httpx2/guides/async/).
+* Ability to make requests directly to [WSGI applications](https://pydantic.dev/docs/httpx2/advanced/transports/#wsgi-transport) or [ASGI applications](https://pydantic.dev/docs/httpx2/advanced/transports/#asgi-transport).
 * Strict timeouts everywhere.
 * Fully type annotated.
 * 100% test coverage.
@@ -96,19 +97,41 @@ pip install httpx2[http2]
 
 ## Documentation
 
-Project documentation is available at [https://httpx2.pydantic.dev/](https://httpx2.pydantic.dev/).
+Project documentation is available at [https://pydantic.dev/docs/httpx2/](https://pydantic.dev/docs/httpx2/).
 
-For a run-through of all the basics, head over to the [QuickStart](https://httpx2.pydantic.dev/quickstart/).
+For a run-through of all the basics, head over to the [QuickStart](https://pydantic.dev/docs/httpx2/get-started/quickstart/).
 
-For more advanced topics, see the [Advanced Usage](https://httpx2.pydantic.dev/advanced/) section, the [async support](https://httpx2.pydantic.dev/async/) section, or the [HTTP/2](https://httpx2.pydantic.dev/http2/) section.
+For more advanced topics, see the [Advanced Usage](https://pydantic.dev/docs/httpx2/advanced/clients/) section, the [async support](https://pydantic.dev/docs/httpx2/guides/async/) section, or the [HTTP/2](https://pydantic.dev/docs/httpx2/guides/http2/) section.
 
-The [Developer Interface](https://httpx2.pydantic.dev/api/) provides a comprehensive API reference.
+The [Developer Interface](https://pydantic.dev/docs/httpx2/api/api/) provides a comprehensive API reference.
 
-To find out about tools that integrate with HTTPX, see [Third Party Packages](https://httpx2.pydantic.dev/third_party_packages/).
+To find out about tools that integrate with HTTPX, see [Third Party Packages](https://pydantic.dev/docs/httpx2/community/third_party_packages/).
+
+## Observability with Pydantic Logfire
+
+Install Logfire with HTTPX instrumentation support:
+
+```shell
+pip install 'logfire[httpx]'
+```
+
+HTTPX2 works out of the box with [Pydantic Logfire](https://pydantic.dev/logfire), our observability platform built on OpenTelemetry. One line instruments every request, giving you traces, timings, and status codes with no other changes:
+
+```python
+import logfire
+import httpx2
+
+logfire.configure()
+logfire.instrument_httpx()
+
+httpx2.get("https://pydantic.dev/")
+```
+
+This works the same way for explicit `httpx2.Client()` and `httpx2.AsyncClient()` instances, and you can scope instrumentation to a single client by passing it in: `logfire.instrument_httpx(client)`. Pass `capture_all=True` to also record headers and bodies. See the [Logfire HTTPX docs](https://logfire.pydantic.dev/docs/integrations/http-clients/httpx/) for the full set of options.
 
 ## Contribute
 
-If you want to contribute with HTTPX2 check out the [Contributing Guide](https://httpx2.pydantic.dev/contributing/) to learn how to start.
+If you want to contribute with HTTPX2 check out the [Contributing Guide](https://pydantic.dev/docs/httpx2/community/contributing/) to learn how to start.
 
 ## Dependencies
 
@@ -127,7 +150,7 @@ As well as these optional installs:
 * `rich` - Rich terminal support. *(Optional, with `httpx2[cli]`)*
 * `click` - Command line client support. *(Optional, with `httpx2[cli]`)*
 * `brotli` or `brotlicffi` - Decoding for "brotli" compressed responses. *(Optional, with `httpx2[brotli]`)*
-* `zstandard` - Decoding for "zstd" compressed responses on Python 3.13 and below. *(Optional, with `httpx2[zstd]`. On Python 3.14+, `zstd` is supported via the stdlib [`compression.zstd`](https://docs.python.org/3/library/compression.zstd.html) module when it is available; the `httpx2[zstd]` extra installs nothing there, so decoding falls back to `zstandard` only on 3.13 and below.)*
+* `backports.zstd` - Decoding for "zstd" compressed responses on Python 3.13 and below. *(Optional, with `httpx2[zstd]`. On Python 3.14+, `zstd` is supported via the stdlib [`compression.zstd`](https://docs.python.org/3/library/compression.zstd.html) module when it is available, and the `httpx2[zstd]` extra installs nothing.)*
 
 A huge amount of credit is due to `requests` for the API layout that
 much of this work follows, as well as to `urllib3` for plenty of design
