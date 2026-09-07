@@ -51,7 +51,6 @@ async def test_proxy_forwarding() -> None:
         assert info == ["<AsyncForwardHTTPConnection ['http://localhost:8080', HTTP/1.1, IDLE, Request Count: 1]>"]
         assert proxy.connections[0].is_idle()
         assert proxy.connections[0].is_available()
-        assert not proxy.connections[0].can_multiplex()
         assert not proxy.connections[0].is_closed()
 
         # A connection on a forwarding proxy can only handle HTTP requests to the same origin.
@@ -175,7 +174,6 @@ async def test_proxy_tunneling_http2() -> None:
         assert info == ["<AsyncTunnelHTTPConnection ['https://example.com:443', HTTP/2, IDLE, Request Count: 1]>"]
         assert proxy.connections[0].is_idle()
         assert proxy.connections[0].is_available()
-        assert proxy.connections[0].can_multiplex()
         assert not proxy.connections[0].is_closed()
 
         # A connection on a tunneled proxy can only handle HTTPS requests to the same origin.

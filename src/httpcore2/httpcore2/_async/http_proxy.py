@@ -216,9 +216,6 @@ class AsyncForwardHTTPConnection(AsyncConnectionInterface):
     def is_idle(self) -> bool:
         return self._connection.is_idle()
 
-    def can_multiplex(self) -> bool:
-        return self._connection.can_multiplex()
-
     def is_closed(self) -> bool:
         return self._connection.is_closed()
 
@@ -347,9 +344,6 @@ class AsyncTunnelHTTPConnection(AsyncConnectionInterface):
 
     def is_idle(self) -> bool:
         return self._connection.is_idle()
-
-    def can_multiplex(self) -> bool:
-        return self._connection.can_multiplex()
 
     def is_closed(self) -> bool:
         return self._connection.is_closed()
