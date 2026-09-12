@@ -452,6 +452,52 @@ def test_url_non_printing_character_in_component() -> None:
     assert str(exc.value) == ("Invalid non-printable ASCII character in URL path component, '\\n' at position 1.")
 
 
+# The limits of the control character ranges (0x00, 0x1f, 0x7f), and CR, which
+# a URL must not contain.
+CONTROL_CHARACTERS = [0x00, 0x0D, 0x1F, 0x7F]
+
+
+@pytest.mark.parametrize("code", CONTROL_CHARACTERS)
+def test_url_ascii_control_character_in_url(code: int) -> None:
+    char = chr(code)
+    with pytest.raises(httpx2.InvalidURL) as exc:
+        httpx2.URL("https://www.example.com/" + char)
+    assert str(exc.value) == (f"Invalid non-printable ASCII character in URL, {char!r} at position 24.")
+
+
+@pytest.mark.parametrize("code", CONTROL_CHARACTERS)
+def test_url_ascii_control_character_in_component(code: int) -> None:
+    char = chr(code)
+    with pytest.raises(httpx2.InvalidURL) as exc:
+        httpx2.URL("https://www.example.com", path="/" + char)
+    assert str(exc.value) == (f"Invalid non-printable ASCII character in URL path component, {char!r} at position 1.")
+
+
+@pytest.mark.parametrize(("code", "expected"), [(0x20, "%20"), (0x7E, "~")])
+def test_url_printable_ascii_next_to_control_range_is_allowed(code: int, expected: str) -> None:
+    # Space (0x20) and '~' (0x7e) are adjacent to the control character ranges.
+    # The parser must not reject them.
+    char = chr(code)
+    assert char.isprintable()
+    assert str(httpx2.URL("https://www.example.com/" + char)) == "https://www.example.com/" + expected
+
+
+@pytest.mark.parametrize("code", [0x85, 0xA0, 0x200B])
+def test_url_non_printing_character_outside_ascii_is_allowed(code: int) -> None:
+    # These characters are not printable, but they are also not ASCII.
+    # The parser applies percent-encoding to them and does not reject them.
+    char = chr(code)
+    assert not char.isprintable() and not char.isascii()
+    percent_encoded = "".join(f"%{byte:02X}" for byte in char.encode("utf-8"))
+    assert str(httpx2.URL("https://www.example.com/" + char)) == "https://www.example.com/" + percent_encoded
+
+
+def test_url_reports_first_control_character_position() -> None:
+    with pytest.raises(httpx2.InvalidURL) as exc:
+        httpx2.URL("https://www.example.com/a\tb\nc")
+    assert str(exc.value) == ("Invalid non-printable ASCII character in URL, '\\t' at position 25.")
+
+
 # Test for url components
 
 

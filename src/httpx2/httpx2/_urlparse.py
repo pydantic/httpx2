@@ -34,6 +34,10 @@ SUB_DELIMS = "!$&'()*+,;="
 
 PERCENT_ENCODED_REGEX = re.compile("%[A-Fa-f0-9]{2}")
 
+# These are the ASCII characters that are not printable: the C0 control
+# characters and DEL. One regex search is faster than a test of each character.
+NON_PRINTABLE_ASCII_REGEX = re.compile("[\x00-\x1f\x7f]")
+
 # https://url.spec.whatwg.org/#percent-encoded-bytes
 
 # The fragment percent-encode set is the C0 control percent-encode set
@@ -208,9 +212,9 @@ def urlparse(url: str = "", **kwargs: str | None) -> ParseResult:
 
     # If a URL includes any ASCII control characters including \t, \r, \n,
     # then treat it as invalid.
-    if any(char.isascii() and not char.isprintable() for char in url):
-        char = next(char for char in url if char.isascii() and not char.isprintable())
-        idx = url.find(char)
+    if (match := NON_PRINTABLE_ASCII_REGEX.search(url)) is not None:
+        char = match.group()
+        idx = match.start()
         error = f"Invalid non-printable ASCII character in URL, {char!r} at position {idx}."
         raise InvalidURL(error)
 
@@ -256,9 +260,9 @@ def urlparse(url: str = "", **kwargs: str | None) -> ParseResult:
 
             # If a component includes any ASCII control characters including \t, \r, \n,
             # then treat it as invalid.
-            if any(char.isascii() and not char.isprintable() for char in value):
-                char = next(char for char in value if char.isascii() and not char.isprintable())
-                idx = value.find(char)
+            if (match := NON_PRINTABLE_ASCII_REGEX.search(value)) is not None:
+                char = match.group()
+                idx = match.start()
                 error = f"Invalid non-printable ASCII character in URL {key} component, {char!r} at position {idx}."
                 raise InvalidURL(error)
 
@@ -480,9 +484,13 @@ def quote(string: str, safe: str) -> str:
         need to be escaped. Unreserved characters are always treated as safe.
         See: https://www.rfc-editor.org/rfc/rfc3986#section-2.3
     """
+    # Fast path for strings that contain no '%xx' escape sequence.
+    if "%" not in string:
+        return percent_encoded(string, safe=safe)
+
     parts: list[str] = []
     current_position = 0
-    for match in re.finditer(PERCENT_ENCODED_REGEX, string):
+    for match in PERCENT_ENCODED_REGEX.finditer(string):
         start_position, end_position = match.start(), match.end()
         matched_text = match.group(0)
         # Add any text up to the '%xx' escape sequence.

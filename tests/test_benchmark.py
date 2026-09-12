@@ -16,6 +16,11 @@ pytestmark = pytest.mark.benchmark
 
 TYPICAL_URL = "https://www.example.org:8443/path/to/resource?key=value&other=1#frag"
 
+# The cost to parse a URL increases with its length. These constants give a long
+# URL and a URL that contains '%xx' escape sequences.
+LONG_QUERY_URL = "https://www.example.org/search?" + "&".join(f"field{i}=value{i}" for i in range(60))
+PERCENT_ENCODED_URL = "https://www.example.org/path%2Fto%2Fresource?key=a%20value&other=%C3%A9"
+
 HEADERS: list[tuple[str, str]] = [
     ("host", "example.org"),
     ("user-agent", "httpx2-bench/1.0"),
@@ -51,6 +56,14 @@ DIGEST_CHALLENGE = 'Digest realm="httpx@example.org", qop="auth", nonce="abc123n
 
 def test_bench_url_parse(benchmark: BenchmarkFixture) -> None:
     benchmark(httpx2.URL, TYPICAL_URL)
+
+
+def test_bench_url_parse_long_query(benchmark: BenchmarkFixture) -> None:
+    benchmark(httpx2.URL, LONG_QUERY_URL)
+
+
+def test_bench_url_parse_percent_encoded(benchmark: BenchmarkFixture) -> None:
+    benchmark(httpx2.URL, PERCENT_ENCODED_URL)
 
 
 def test_bench_url_join(benchmark: BenchmarkFixture) -> None:
