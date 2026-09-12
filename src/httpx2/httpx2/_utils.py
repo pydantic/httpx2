@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import ipaddress
 import os
 import re
@@ -113,6 +114,36 @@ def peek_filelike_length(stream: typing.Any) -> int | None:
             return None
 
     return length
+
+
+def peek_async_filelike_length(stream: typing.Any) -> int | None:
+    """
+    Given an async file-like stream object, return its length in number of bytes
+    without reading it into memory.
+
+    Async file wrappers expose a synchronous `fileno()`, so the underlying
+    descriptor can be stat'ed. There is no `tell()`/`seek()` fallback as in the
+    sync case, because those would have to be awaited.
+    """
+    seekable = getattr(stream, "seekable", None)
+    if callable(seekable) and not inspect.iscoroutinefunction(seekable):
+        try:
+            rewindable = seekable()
+        except OSError:
+            return None
+        if not rewindable:
+            # We rewind before sending, so for a stream that can't be rewound the
+            # descriptor size wouldn't match the bytes we'd actually upload.
+            return None
+
+    fileno = getattr(stream, "fileno", None)
+    if not callable(fileno) or inspect.iscoroutinefunction(fileno):
+        return None
+
+    try:
+        return os.fstat(fileno()).st_size
+    except (OSError, TypeError):
+        return None
 
 
 class URLPattern:
