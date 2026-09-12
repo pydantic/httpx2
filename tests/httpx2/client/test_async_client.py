@@ -258,6 +258,50 @@ async def test_context_managed_transport_and_mount() -> None:
     ]
 
 
+@pytest.mark.anyio
+async def test_aclose_still_closes_mount_when_transport_raises() -> None:
+    class RaisingTransport(httpx2.AsyncBaseTransport):
+        async def aclose(self) -> None:
+            raise RuntimeError("boom")
+
+    class Transport(httpx2.AsyncBaseTransport):
+        def __init__(self) -> None:
+            self.closed = False
+
+        async def aclose(self) -> None:
+            self.closed = True
+
+    mounted = Transport()
+    client = httpx2.AsyncClient(transport=RaisingTransport(), mounts={"http://www.example.org": mounted})
+
+    with pytest.raises(RuntimeError):
+        await client.aclose()
+
+    assert mounted.closed
+
+
+@pytest.mark.anyio
+async def test_aexit_still_closes_mount_when_transport_raises() -> None:
+    class RaisingTransport(httpx2.AsyncBaseTransport):
+        async def aclose(self) -> None:
+            raise RuntimeError("boom")
+
+    class Transport(httpx2.AsyncBaseTransport):
+        def __init__(self) -> None:
+            self.closed = False
+
+        async def aclose(self) -> None:
+            self.closed = True
+
+    mounted = Transport()
+
+    with pytest.raises(RuntimeError):
+        async with httpx2.AsyncClient(transport=RaisingTransport(), mounts={"http://www.example.org": mounted}):
+            pass
+
+    assert mounted.closed
+
+
 def hello_world(request: httpx2.Request) -> httpx2.Response:
     return httpx2.Response(200, text="Hello, world!")
 
