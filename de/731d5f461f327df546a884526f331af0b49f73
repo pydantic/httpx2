@@ -1,0 +1,21 @@
+src/httpx2/pyproject.toml
+  s_905bd6ce12d640::t_6b7972a2c3715c 19
+src/httpcore2/pyproject.toml
+  s_905bd6ce12d640::t_6b7972a2c3715c 24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "de731d5f461f327df546a884526f331af0b49f73",
+  "prompts": {},
+  "sessions": {
+    "s_905bd6ce12d640": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "00538494-c740-4527-b814-a36ac1d72292",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Samuel Colvin <s@muelcolvin.com>"
+    }
+  }
+}
