@@ -8,12 +8,10 @@ import trio
 from .._exceptions import (
     ConnectError,
     ConnectTimeout,
-    ExceptionMapping,
     ReadError,
     ReadTimeout,
     WriteError,
     WriteTimeout,
-    map_exceptions,
 )
 from .base import SOCKET_OPTION, AsyncNetworkBackend, AsyncNetworkStream
 
@@ -24,29 +22,33 @@ class TrioStream(AsyncNetworkStream):
 
     async def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
         timeout_or_inf = float("inf") if timeout is None else timeout
-        exc_map: ExceptionMapping = {
-            trio.TooSlowError: ReadTimeout,
-            trio.BrokenResourceError: ReadError,
-            trio.ClosedResourceError: ReadError,
-        }
-        with map_exceptions(exc_map):
+        try:
             with trio.fail_after(timeout_or_inf):
                 data: bytes = await self._stream.receive_some(max_bytes=max_bytes)
                 return data
+        except trio.TooSlowError as exc:  # pragma: no cover
+            raise ReadTimeout(exc) from exc
+        except (
+            trio.BrokenResourceError,
+            trio.ClosedResourceError,
+        ) as exc:  # pragma: no cover
+            raise ReadError(exc) from exc
 
     async def write(self, buffer: bytes, timeout: float | None = None) -> None:
         if not buffer:
             return
 
         timeout_or_inf = float("inf") if timeout is None else timeout
-        exc_map: ExceptionMapping = {
-            trio.TooSlowError: WriteTimeout,
-            trio.BrokenResourceError: WriteError,
-            trio.ClosedResourceError: WriteError,
-        }
-        with map_exceptions(exc_map):
+        try:
             with trio.fail_after(timeout_or_inf):
                 await self._stream.send_all(data=buffer)
+        except trio.TooSlowError as exc:  # pragma: no cover
+            raise WriteTimeout(exc) from exc
+        except (
+            trio.BrokenResourceError,
+            trio.ClosedResourceError,
+        ) as exc:  # pragma: no cover
+            raise WriteError(exc) from exc
 
     async def aclose(self) -> None:
         await self._stream.aclose()
@@ -58,10 +60,6 @@ class TrioStream(AsyncNetworkStream):
         timeout: float | None = None,
     ) -> AsyncNetworkStream:
         timeout_or_inf = float("inf") if timeout is None else timeout
-        exc_map: ExceptionMapping = {
-            trio.TooSlowError: ConnectTimeout,
-            trio.BrokenResourceError: ConnectError,
-        }
         ssl_stream = trio.SSLStream(
             self._stream,
             ssl_context=ssl_context,
@@ -69,13 +67,17 @@ class TrioStream(AsyncNetworkStream):
             https_compatible=True,
             server_side=False,
         )
-        with map_exceptions(exc_map):
+        try:
             try:
                 with trio.fail_after(timeout_or_inf):
                     await ssl_stream.do_handshake()
             except Exception as exc:  # pragma: no cover
                 await self.aclose()
                 raise exc
+        except trio.TooSlowError as exc:  # pragma: no cover
+            raise ConnectTimeout(exc) from exc
+        except trio.BrokenResourceError as exc:  # pragma: no cover
+            raise ConnectError(exc) from exc
         return TrioStream(ssl_stream)
 
     def get_extra_info(self, info: str) -> typing.Any:
@@ -120,16 +122,15 @@ class TrioBackend(AsyncNetworkBackend):
         if socket_options is None:
             socket_options = []  # pragma: no cover
         timeout_or_inf = float("inf") if timeout is None else timeout
-        exc_map: ExceptionMapping = {
-            trio.TooSlowError: ConnectTimeout,
-            trio.BrokenResourceError: ConnectError,
-            OSError: ConnectError,
-        }
-        with map_exceptions(exc_map):
+        try:
             with trio.fail_after(timeout_or_inf):
                 stream: trio.abc.Stream = await trio.open_tcp_stream(host=host, port=port, local_address=local_address)
                 for option in socket_options:
                     stream.setsockopt(*option)  # type: ignore[attr-defined] # pragma: no cover
+        except trio.TooSlowError as exc:  # pragma: no cover
+            raise ConnectTimeout(exc) from exc
+        except (trio.BrokenResourceError, OSError) as exc:  # pragma: no cover
+            raise ConnectError(exc) from exc
         return TrioStream(stream)
 
     async def connect_unix_socket(
@@ -141,16 +142,15 @@ class TrioBackend(AsyncNetworkBackend):
         if socket_options is None:
             socket_options = []
         timeout_or_inf = float("inf") if timeout is None else timeout
-        exc_map: ExceptionMapping = {
-            trio.TooSlowError: ConnectTimeout,
-            trio.BrokenResourceError: ConnectError,
-            OSError: ConnectError,
-        }
-        with map_exceptions(exc_map):
+        try:
             with trio.fail_after(timeout_or_inf):
                 stream: trio.abc.Stream = await trio.open_unix_socket(path)
                 for option in socket_options:
                     stream.setsockopt(*option)  # type: ignore[attr-defined] # pragma: no cover
+        except trio.TooSlowError as exc:
+            raise ConnectTimeout(exc) from exc
+        except (trio.BrokenResourceError, OSError) as exc:
+            raise ConnectError(exc) from exc
         return TrioStream(stream)
 
     async def sleep(self, seconds: float) -> None:
