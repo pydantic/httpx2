@@ -219,7 +219,7 @@ class AsyncSocks5Connection(AsyncConnectionInterface):
                 try:
                     # Connect to the proxy
                     kwargs = {
-                        "host": self._proxy_origin.host.decode("ascii"),
+                        "host": self._proxy_origin.normalized_host,
                         "port": self._proxy_origin.port,
                         "timeout": timeout,
                     }
@@ -230,7 +230,7 @@ class AsyncSocks5Connection(AsyncConnectionInterface):
                     # Connect to the remote host using socks5
                     kwargs = {
                         "stream": stream,
-                        "host": self._remote_origin.host.decode("ascii"),
+                        "host": self._remote_origin.normalized_host,
                         "port": self._remote_origin.port,
                         "auth": self._proxy_auth,
                         "timeouts": timeouts,
@@ -247,7 +247,7 @@ class AsyncSocks5Connection(AsyncConnectionInterface):
 
                         kwargs = {
                             "ssl_context": ssl_context,
-                            "server_hostname": sni_hostname or self._remote_origin.host.decode("ascii"),
+                            "server_hostname": sni_hostname or self._remote_origin.normalized_host,
                             "timeout": timeout,
                         }
                         async with Trace("start_tls", logger, request, kwargs) as trace:
