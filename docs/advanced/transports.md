@@ -35,6 +35,11 @@ connecting via a Unix Domain Socket that is only available via this low-level AP
 {"ID": "...", "Containers": 4, "Images": 74, ...}
 ```
 
+These options also apply when the transport is configured with a `proxy`, in
+which case they affect how the connection to the proxy server is established.
+For SOCKS proxies only `retries` is supported; `uds`, `local_address` and
+`socket_options` are not available.
+
 ## WSGI Transport
 
 You can configure an `httpx2` client to call directly into a Python web application using the WSGI protocol.

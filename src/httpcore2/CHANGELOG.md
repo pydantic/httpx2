@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## Unreleased
+
+### Fixed
+
+* Honor `retries`, `local_address` and `uds` when connecting via an HTTP proxy, and `retries` when connecting via a SOCKS proxy. Previously these options were accepted but silently ignored for proxied connections, both on `ConnectionPool(proxy=...)` and on the `HTTPProxy` and `SOCKSProxy` pools.
+  ([#1160](https://github.com/pydantic/httpx2/discussions/1160))
+
 ## 2.12.0 (August 18th, 2026)
 
 No changes since `2.11.0`. Version bumped to stay in lockstep with `httpx2`.

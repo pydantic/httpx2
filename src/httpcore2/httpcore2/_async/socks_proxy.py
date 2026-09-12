@@ -2,16 +2,18 @@ from __future__ import annotations
 
 import logging
 import ssl
+import typing
 
 import socksio
 
 from .._backends.auto import AutoBackend
 from .._backends.base import AsyncNetworkBackend, AsyncNetworkStream
-from .._exceptions import ConnectionNotAvailable, ProxyError
+from .._exceptions import ConnectError, ConnectionNotAvailable, ConnectTimeout, ProxyError
 from .._models import URL, Origin, Request, Response, enforce_bytes, enforce_url
 from .._ssl import default_ssl_context
 from .._synchronization import AsyncLock
 from .._trace import Trace
+from .connection import RETRIES_BACKOFF_FACTOR, exponential_backoff
 from .connection_pool import AsyncConnectionPool
 from .http11 import AsyncHTTP11Connection
 from .interfaces import AsyncConnectionInterface
@@ -139,13 +141,7 @@ class AsyncSOCKSProxy(AsyncConnectionPool):  # pragma: no cover
             http2: A boolean indicating if HTTP/2 requests should be supported by
                 the connection pool. Defaults to False.
             retries: The maximum number of retries when trying to establish
-                a connection.
-            local_address: Local address to connect from. Can also be used to
-                connect using a particular address family. Using
-                `local_address="0.0.0.0"` will connect using an `AF_INET` address
-                (IPv4), while using `local_address="::"` will connect using an
-                `AF_INET6` address (IPv6).
-            uds: Path to a Unix Domain Socket to use instead of TCP sockets.
+                a connection to the proxy server.
             network_backend: A backend instance to use for handling network I/O.
         """
         super().__init__(
@@ -180,6 +176,7 @@ class AsyncSOCKSProxy(AsyncConnectionPool):  # pragma: no cover
             keepalive_expiry=self._keepalive_expiry,
             http1=self._http1,
             http2=self._http2,
+            retries=self._retries,
             network_backend=self._network_backend,
         )
 
@@ -194,6 +191,7 @@ class AsyncSocks5Connection(AsyncConnectionInterface):
         keepalive_expiry: float | None = None,
         http1: bool = True,
         http2: bool = False,
+        retries: int = 0,
         network_backend: AsyncNetworkBackend | None = None,
     ) -> None:
         self._proxy_origin = proxy_origin
@@ -203,6 +201,7 @@ class AsyncSocks5Connection(AsyncConnectionInterface):
         self._keepalive_expiry = keepalive_expiry
         self._http1 = http1
         self._http2 = http2
+        self._retries = retries
 
         self._network_backend: AsyncNetworkBackend = AutoBackend() if network_backend is None else network_backend
         self._connect_lock = AsyncLock()
@@ -218,14 +217,7 @@ class AsyncSocks5Connection(AsyncConnectionInterface):
             if self._connection is None:
                 try:
                     # Connect to the proxy
-                    kwargs = {
-                        "host": self._proxy_origin.host.decode("ascii"),
-                        "port": self._proxy_origin.port,
-                        "timeout": timeout,
-                    }
-                    async with Trace("connect_tcp", logger, request, kwargs) as trace:
-                        stream = await self._network_backend.connect_tcp(**kwargs)
-                        trace.return_value = stream
+                    stream = await self._connect_to_proxy(request, timeout)
 
                     # Connect to the remote host using socks5
                     kwargs = {
@@ -280,6 +272,29 @@ class AsyncSocks5Connection(AsyncConnectionInterface):
                 raise ConnectionNotAvailable()
 
         return await self._connection.handle_async_request(request)
+
+    async def _connect_to_proxy(self, request: Request, timeout: float | None) -> AsyncNetworkStream:
+        retries_left = self._retries
+        delays = exponential_backoff(factor=RETRIES_BACKOFF_FACTOR)
+
+        while True:
+            kwargs: dict[str, typing.Any] = {
+                "host": self._proxy_origin.host.decode("ascii"),
+                "port": self._proxy_origin.port,
+                "timeout": timeout,
+            }
+            try:
+                async with Trace("connect_tcp", logger, request, kwargs) as trace:
+                    stream = await self._network_backend.connect_tcp(**kwargs)
+                    trace.return_value = stream
+                return stream
+            except (ConnectError, ConnectTimeout):
+                if retries_left <= 0:
+                    raise
+                retries_left -= 1
+                delay = next(delays)
+                async with Trace("retry", logger, request, kwargs) as trace:
+                    await self._network_backend.sleep(delay)
 
     def can_handle_request(self, origin: Origin) -> bool:
         return origin == self._remote_origin

@@ -273,3 +273,31 @@ def test_proxy_with_mounts() -> None:
 
     transport = client._transport_for_url(httpx2.URL("http://example.com"))
     assert transport == proxy_transport
+
+
+def test_transport_options_forwarded_to_http_proxy_pool() -> None:
+    for transport in (
+        httpx2.HTTPTransport(
+            proxy="http://127.0.0.1",
+            uds="/tmp/socket.uds",
+            local_address="0.0.0.0",
+            retries=3,
+        ),
+        httpx2.AsyncHTTPTransport(
+            proxy="http://127.0.0.1",
+            uds="/tmp/socket.uds",
+            local_address="0.0.0.0",
+            retries=3,
+        ),
+    ):
+        assert transport._pool._uds == "/tmp/socket.uds"
+        assert transport._pool._local_address == "0.0.0.0"
+        assert transport._pool._retries == 3
+
+
+def test_transport_retries_forwarded_to_socks_proxy_pool() -> None:
+    for transport in (
+        httpx2.HTTPTransport(proxy="socks5://127.0.0.1", retries=3),
+        httpx2.AsyncHTTPTransport(proxy="socks5://127.0.0.1", retries=3),
+    ):
+        assert transport._pool._retries == 3

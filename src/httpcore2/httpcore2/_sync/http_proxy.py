@@ -140,7 +140,11 @@ class HTTPProxy(ConnectionPool):  # pragma: no cover
                 proxy_headers=self._proxy_headers,
                 remote_origin=origin,
                 keepalive_expiry=self._keepalive_expiry,
+                retries=self._retries,
+                local_address=self._local_address,
+                uds=self._uds,
                 network_backend=self._network_backend,
+                socket_options=self._socket_options,
                 proxy_ssl_context=self._proxy_ssl_context,
             )
         return TunnelHTTPConnection(
@@ -152,7 +156,11 @@ class HTTPProxy(ConnectionPool):  # pragma: no cover
             keepalive_expiry=self._keepalive_expiry,
             http1=self._http1,
             http2=self._http2,
+            retries=self._retries,
+            local_address=self._local_address,
+            uds=self._uds,
             network_backend=self._network_backend,
+            socket_options=self._socket_options,
         )
 
 
@@ -163,6 +171,9 @@ class ForwardHTTPConnection(ConnectionInterface):
         remote_origin: Origin,
         proxy_headers: HeadersAsMapping | HeadersAsSequence | None = None,
         keepalive_expiry: float | None = None,
+        retries: int = 0,
+        local_address: str | None = None,
+        uds: str | None = None,
         network_backend: NetworkBackend | None = None,
         socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
         proxy_ssl_context: ssl.SSLContext | None = None,
@@ -170,6 +181,9 @@ class ForwardHTTPConnection(ConnectionInterface):
         self._connection = HTTPConnection(
             origin=proxy_origin,
             keepalive_expiry=keepalive_expiry,
+            retries=retries,
+            local_address=local_address,
+            uds=uds,
             network_backend=network_backend,
             socket_options=socket_options,
             ssl_context=proxy_ssl_context,
@@ -234,12 +248,18 @@ class TunnelHTTPConnection(ConnectionInterface):
         keepalive_expiry: float | None = None,
         http1: bool = True,
         http2: bool = False,
+        retries: int = 0,
+        local_address: str | None = None,
+        uds: str | None = None,
         network_backend: NetworkBackend | None = None,
         socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
     ) -> None:
         self._connection: ConnectionInterface = HTTPConnection(
             origin=proxy_origin,
             keepalive_expiry=keepalive_expiry,
+            retries=retries,
+            local_address=local_address,
+            uds=uds,
             network_backend=network_backend,
             socket_options=socket_options,
             ssl_context=proxy_ssl_context,
