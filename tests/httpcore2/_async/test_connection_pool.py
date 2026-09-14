@@ -1,6 +1,8 @@
 import logging
+import time
 import typing
 
+import anyio
 import hpack
 import hyperframe.frame
 import pytest
@@ -884,3 +886,328 @@ async def test_connection_pool_multiplexes_idle_http2_connection_within_a_pass()
                 nursery.start_soon(fetch, pool)
 
     assert QueueObservingPool.max_queued_after_pass == 0
+
+
+@pytest.mark.anyio
+async def test_connection_pool_discards_idle_connection_closed_by_server() -> None:
+    """
+    An idle connection that the server has closed is discarded when a request
+    would otherwise reuse it, and a new connection is opened instead.
+    """
+
+    class ServerClosingBackend(httpcore2.AsyncMockBackend):
+        server_closed = False
+
+        async def connect_tcp(
+            self,
+            host: str,
+            port: int,
+            timeout: float | None = None,
+            local_address: str | None = None,
+            socket_options: typing.Iterable[httpcore2.SOCKET_OPTION] | None = None,
+        ) -> httpcore2.AsyncNetworkStream:
+            backend = self
+
+            class ServerClosingStream(httpcore2.AsyncMockStream):
+                def get_extra_info(self, info: str) -> typing.Any:
+                    # A readable idle socket means the server sent a FIN.
+                    if info == "is_readable":
+                        return backend.server_closed
+                    return super().get_extra_info(info)
+
+            return ServerClosingStream(list(self._buffer))
+
+    network_backend = ServerClosingBackend(
+        [
+            b"HTTP/1.1 200 OK\r\n",
+            b"Content-Type: plain/text\r\n",
+            b"Content-Length: 13\r\n",
+            b"\r\n",
+            b"Hello, world!",
+        ]
+    )
+
+    async with httpcore2.AsyncConnectionPool(network_backend=network_backend) as pool:
+        response = await pool.request("GET", "https://example.com/")
+        assert response.status == 200
+        info = [repr(c) for c in pool.connections]
+        assert info == ["<AsyncHTTPConnection ['https://example.com:443', HTTP/1.1, IDLE, Request Count: 1]>"]
+
+        network_backend.server_closed = True
+        response = await pool.request("GET", "https://example.com/")
+        assert response.status == 200
+        info = [repr(c) for c in pool.connections]
+        assert info == ["<AsyncHTTPConnection ['https://example.com:443', HTTP/1.1, IDLE, Request Count: 1]>"]
+
+
+class FakeClock:
+    """
+    A monotonic clock the test can advance, so keepalive expiry
+    does not depend on real time.
+    """
+
+    def __init__(self) -> None:
+        self._real = time.monotonic
+        self._offset = 0.0
+
+    def __call__(self) -> float:
+        return self._real() + self._offset
+
+    def advance(self, seconds: float) -> None:
+        self._offset += seconds
+
+
+@pytest.mark.anyio
+async def test_connection_pool_expires_only_the_idle_connections_past_keepalive(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Once the oldest idle connection passes its keepalive expiry, it is closed
+    while younger idle connections are kept.
+    """
+    clock = FakeClock()
+    monkeypatch.setattr(time, "monotonic", clock)
+    network_backend = httpcore2.AsyncMockBackend(
+        [
+            b"HTTP/1.1 200 OK\r\n",
+            b"Content-Type: plain/text\r\n",
+            b"Content-Length: 13\r\n",
+            b"\r\n",
+            b"Hello, world!",
+        ]
+    )
+
+    async with httpcore2.AsyncConnectionPool(network_backend=network_backend, keepalive_expiry=10.0) as pool:
+        await pool.request("GET", "https://a.com/")
+        clock.advance(6.0)
+        await pool.request("GET", "https://b.com/")
+        clock.advance(6.0)
+
+        # The a.com connection has expired, the b.com connection has not.
+        await pool.request("GET", "https://c.com/")
+        info = [repr(c) for c in pool.connections]
+        assert info == [
+            "<AsyncHTTPConnection ['https://b.com:443', HTTP/1.1, IDLE, Request Count: 1]>",
+            "<AsyncHTTPConnection ['https://c.com:443', HTTP/1.1, IDLE, Request Count: 1]>",
+        ]
+
+
+def http2_response_buffer(stream_id: int = 1) -> list[bytes]:
+    return [
+        hyperframe.frame.SettingsFrame().serialize(),
+        hyperframe.frame.HeadersFrame(
+            stream_id=stream_id,
+            data=hpack.Encoder().encode([(b":status", b"200")]),
+            flags=["END_HEADERS"],
+        ).serialize(),
+        hyperframe.frame.DataFrame(stream_id=stream_id, data=b"Hello, world!", flags=["END_STREAM"]).serialize(),
+    ]
+
+
+@pytest.mark.anyio
+async def test_connection_pool_expires_idle_http2_connections_past_keepalive(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Idle HTTP/2 connections are subject to the keepalive expiry too, with
+    younger idle connections kept.
+    """
+    clock = FakeClock()
+    monkeypatch.setattr(time, "monotonic", clock)
+    network_backend = httpcore2.AsyncMockBackend(buffer=http2_response_buffer(), http2=True)
+
+    async with httpcore2.AsyncConnectionPool(network_backend=network_backend, keepalive_expiry=10.0) as pool:
+        await pool.request("GET", "https://a.com/")
+        clock.advance(6.0)
+        await pool.request("GET", "https://b.com/")
+        info = [repr(c) for c in pool.connections]
+        assert info == [
+            "<AsyncHTTPConnection ['https://a.com:443', HTTP/2, IDLE, Request Count: 1]>",
+            "<AsyncHTTPConnection ['https://b.com:443', HTTP/2, IDLE, Request Count: 1]>",
+        ]
+        clock.advance(6.0)
+
+        # The a.com connection has expired, the b.com connection has not.
+        await pool.request("GET", "https://c.com/")
+        info = [repr(c) for c in pool.connections]
+        assert info == [
+            "<AsyncHTTPConnection ['https://b.com:443', HTTP/2, IDLE, Request Count: 1]>",
+            "<AsyncHTTPConnection ['https://c.com:443', HTTP/2, IDLE, Request Count: 1]>",
+        ]
+
+        # Left long enough, the remaining connections expire as well.
+        clock.advance(11.0)
+        await pool.request("GET", "https://a.com/")
+        info = [repr(c) for c in pool.connections]
+        assert info == ["<AsyncHTTPConnection ['https://a.com:443', HTTP/2, IDLE, Request Count: 1]>"]
+
+
+@pytest.mark.anyio
+async def test_connection_pool_discards_externally_closed_http2_connection() -> None:
+    """
+    An HTTP/2 connection closed outside of a request is discarded rather than
+    handed to the next request for that origin.
+    """
+    network_backend = httpcore2.AsyncMockBackend(buffer=http2_response_buffer(), http2=True)
+
+    async with httpcore2.AsyncConnectionPool(network_backend=network_backend) as pool:
+        await pool.request("GET", "https://example.com/")
+        await pool.connections[0].aclose()
+
+        response = await pool.request("GET", "https://example.com/")
+        assert response.status == 200
+        info = [repr(c) for c in pool.connections]
+        assert info == ["<AsyncHTTPConnection ['https://example.com:443', HTTP/2, IDLE, Request Count: 1]>"]
+
+
+@pytest.mark.anyio
+async def test_connection_pool_keepalive_limit_applies_to_http2_connections() -> None:
+    """
+    Idle HTTP/2 connections count towards `max_keepalive_connections`.
+    """
+    network_backend = httpcore2.AsyncMockBackend(buffer=http2_response_buffer(), http2=True)
+
+    async with httpcore2.AsyncConnectionPool(network_backend=network_backend, max_keepalive_connections=0) as pool:
+        response = await pool.request("GET", "https://example.com/")
+        assert response.status == 200
+        assert pool.connections == []
+
+
+@pytest.mark.anyio
+async def test_connection_pool_closes_idle_http2_connection_for_different_origin() -> None:
+    """
+    When the pool is full, an idle HTTP/2 connection to another origin is
+    closed to make room, just like an idle HTTP/1.1 connection.
+    """
+    network_backend = httpcore2.AsyncMockBackend(buffer=http2_response_buffer(), http2=True)
+
+    async with httpcore2.AsyncConnectionPool(network_backend=network_backend, max_connections=1) as pool:
+        await pool.request("GET", "https://a.com/")
+        info = [repr(c) for c in pool.connections]
+        assert info == ["<AsyncHTTPConnection ['https://a.com:443', HTTP/2, IDLE, Request Count: 1]>"]
+
+        response = await pool.request("GET", "https://b.com/")
+        assert response.status == 200
+        info = [repr(c) for c in pool.connections]
+        assert info == ["<AsyncHTTPConnection ['https://b.com:443', HTTP/2, IDLE, Request Count: 1]>"]
+
+
+@pytest.mark.anyio
+async def test_connection_pool_with_negative_keepalive_limit() -> None:
+    """
+    A negative `max_keepalive_connections` behaves like zero.
+    """
+    network_backend = httpcore2.AsyncMockBackend(
+        [
+            b"HTTP/1.1 200 OK\r\n",
+            b"Content-Type: plain/text\r\n",
+            b"Content-Length: 13\r\n",
+            b"\r\n",
+            b"Hello, world!",
+        ]
+    )
+
+    async with httpcore2.AsyncConnectionPool(max_keepalive_connections=-1, network_backend=network_backend) as pool:
+        response = await pool.request("GET", "https://example.com/")
+        assert response.status == 200
+        assert pool.connections == []
+
+
+@pytest.mark.anyio
+async def test_connection_pool_with_unhashable_connections() -> None:
+    """
+    Connections returned by an overridden `create_connection` need not be hashable.
+    """
+
+    class UnhashableConnection(httpcore2.AsyncHTTPConnection):
+        __hash__ = None  # type: ignore[assignment]
+
+    class CustomPool(httpcore2.AsyncConnectionPool):
+        def create_connection(self, origin: httpcore2.Origin) -> httpcore2.AsyncConnectionInterface:
+            return UnhashableConnection(origin=origin, network_backend=self._network_backend)
+
+    network_backend = httpcore2.AsyncMockBackend(
+        [
+            b"HTTP/1.1 200 OK\r\n",
+            b"Content-Type: plain/text\r\n",
+            b"Content-Length: 13\r\n",
+            b"\r\n",
+            b"Hello, world!",
+        ]
+        * 2
+    )
+
+    async with CustomPool(network_backend=network_backend) as pool:
+        for _ in range(2):
+            response = await pool.request("GET", "https://example.com/")
+            assert response.status == 200
+        info = [repr(c) for c in pool.connections]
+        assert info == ["<UnhashableConnection ['https://example.com:443', HTTP/1.1, IDLE, Request Count: 2]>"]
+
+
+@pytest.mark.anyio
+async def test_connection_pool_replaces_http2_connection_closed_while_held() -> None:
+    """
+    An HTTP/2 connection that closes while a response still holds it is
+    replaced immediately, rather than counting against `max_connections`
+    until that response is closed.
+    """
+    network_backend = httpcore2.AsyncMockBackend(buffer=http2_response_buffer(), http2=True)
+
+    async with httpcore2.AsyncConnectionPool(network_backend=network_backend, max_connections=1, http2=True) as pool:
+        async with pool.stream("GET", "https://example.com/") as response:
+            await pool.connections[0].aclose()
+
+            timeout = {"timeout": {"pool": 1.0}}
+            second = await pool.request("GET", "https://example.com/", extensions=timeout)
+            assert second.status == 200
+            info = [repr(c) for c in pool.connections]
+            assert info == ["<AsyncHTTPConnection ['https://example.com:443', HTTP/2, IDLE, Request Count: 1]>"]
+
+        assert response.status == 200
+
+
+@pytest.mark.trio
+async def test_connection_pool_stops_sharing_http11_connection_still_held_speculatively() -> None:
+    """
+    With HTTP/2 enabled, requests may be assigned to a connection before it
+    has negotiated a protocol. Once it turns out to be HTTP/1.1 and its first
+    request completes while another is still waiting to send on it, it must
+    not be handed to any further request.
+    """
+
+    class YieldingBackend(httpcore2.AsyncMockBackend):
+        async def connect_tcp(
+            self,
+            host: str,
+            port: int,
+            timeout: float | None = None,
+            local_address: str | None = None,
+            socket_options: typing.Iterable[httpcore2.SOCKET_OPTION] | None = None,
+        ) -> httpcore2.AsyncNetworkStream:
+            # Let other requests be queued while this connection is being established.
+            await anyio.sleep(0)
+            return await super().connect_tcp(host, port, timeout, local_address, socket_options)
+
+    network_backend = YieldingBackend(
+        [
+            b"HTTP/1.1 200 OK\r\n",
+            b"Content-Type: plain/text\r\n",
+            b"Content-Length: 13\r\n",
+            b"\r\n",
+            b"Hello, world!",
+        ]
+        * 3
+    )
+
+    async def fetch(pool: httpcore2.AsyncConnectionPool) -> None:
+        response = await pool.request("GET", "https://example.com/")
+        assert response.status == 200
+
+    async with httpcore2.AsyncConnectionPool(network_backend=network_backend, max_connections=1, http2=True) as pool:
+        async with concurrency.open_nursery() as nursery:
+            for _ in range(3):
+                nursery.start_soon(fetch, pool)
+
+        info = [repr(c) for c in pool.connections]
+        assert info == ["<AsyncHTTPConnection ['https://example.com:443', HTTP/1.1, IDLE, Request Count: 3]>"]
