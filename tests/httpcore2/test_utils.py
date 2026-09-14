@@ -31,9 +31,9 @@ async def test_safe_async_iterate_out_of_order_finalization() -> None:
     finally:
         sys.set_asyncgen_hooks(*hooks)
 
-    # Runtime shutdown can finalize inner generators before their consumers.
-    for generator in reversed(generators):
-        await generator.aclose()
+        # Runtime shutdown can finalize inner generators before their consumers.
+        for generator in reversed(generators):
+            await generator.aclose()
 
 
 @pytest.mark.anyio
