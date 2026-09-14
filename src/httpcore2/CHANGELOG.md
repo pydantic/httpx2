@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2.13.0 (September 14th, 2026)
+
+### Fixed
+
+* Avoid nested async generator finalization errors when streamed responses are abandoned early.
+  ([#1204](https://github.com/pydantic/httpx2/pull/1204))
+
 ## 2.12.0 (August 18th, 2026)
 
 No changes since `2.11.0`. Version bumped to stay in lockstep with `httpx2`.

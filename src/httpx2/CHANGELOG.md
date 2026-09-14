@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2.13.0 (September 14th, 2026)
+
+### Fixed
+
+* Make the `--no-verify` CLI flag disable TLS certificate verification and add an explicit `--verify` counterpart.
+  ([#1140](https://github.com/pydantic/httpx2/pull/1140),
+  [#1186](https://github.com/pydantic/httpx2/pull/1186))
+* Avoid nested async generator finalization errors when streamed responses are abandoned early.
+  ([#1204](https://github.com/pydantic/httpx2/pull/1204))
+
 ## 2.12.0 (August 18th, 2026)
 
 ### Changed
