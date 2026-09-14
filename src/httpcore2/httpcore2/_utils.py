@@ -5,7 +5,6 @@ import socket
 import sys
 import typing
 from collections.abc import (
-    AsyncGenerator,
     AsyncIterable,
     AsyncIterator,
     Generator,
@@ -13,6 +12,7 @@ from collections.abc import (
     Iterator,
 )
 from contextlib import AbstractAsyncContextManager, aclosing, contextmanager, nullcontext
+from types import AsyncGeneratorType
 
 T = typing.TypeVar("T")
 
@@ -53,7 +53,7 @@ def safe_async_iterate(
     iterator = (
         iterable_or_iterator if isinstance(iterable_or_iterator, AsyncIterator) else iterable_or_iterator.__aiter__()
     )
-    if isinstance(iterator, AsyncGenerator):
+    if isinstance(iterator, AsyncGeneratorType):
         return aclosing(iterator)
     return nullcontext(iterator)
 
