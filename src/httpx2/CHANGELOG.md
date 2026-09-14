@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## 2.13.0 (September 14th, 2026)
 
+### Changed
+
+* Require `brotlicffi` 1.2.0.2 or later for the `brotli` extra on non-CPython implementations.
+  ([#1179](https://github.com/pydantic/httpx2/pull/1179))
+
 ### Fixed
 
 * Make the `--no-verify` CLI flag disable TLS certificate verification and add an explicit `--verify` counterpart.

@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## 2.13.0 (September 14th, 2026)
 
+### Changed
+
+* Require Trio 0.34.0 or later for the `trio` extra.
+  ([#1179](https://github.com/pydantic/httpx2/pull/1179))
+
 ### Fixed
 
 * Avoid nested async generator finalization errors when streamed responses are abandoned early.
