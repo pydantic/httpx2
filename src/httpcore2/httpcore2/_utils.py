@@ -54,7 +54,6 @@ def safe_async_iterate(
     iterator = (
         iterable_or_iterator if isinstance(iterable_or_iterator, AsyncIterator) else iterable_or_iterator.__aiter__()
     )
-    # ponytail: Stdlib contexts avoid an extra async generator during shutdown.
     if isasyncgen(iterator):
         return aclosing(typing.cast(AsyncGenerator[T, None], iterator))
     return nullcontext(iterator)
