@@ -91,6 +91,8 @@ def test_abandon_streamed_response() -> None:
         writer.write(b"HTTP/1.1 200 OK\r\nContent-Length: %d\r\n\r\n" % len(body))
         writer.write(body)
         await writer.drain()
+        writer.close()
+        await writer.wait_closed()
 
     async def request() -> None:
         server = await asyncio.start_server(handle, "127.0.0.1", 0)
