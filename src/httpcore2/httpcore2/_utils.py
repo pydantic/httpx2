@@ -12,7 +12,7 @@ from collections.abc import (
     Iterable,
     Iterator,
 )
-from contextlib import asynccontextmanager, contextmanager
+from contextlib import AbstractAsyncContextManager, aclosing, contextmanager, nullcontext
 from inspect import isasyncgen
 
 T = typing.TypeVar("T")
@@ -48,18 +48,16 @@ def is_socket_readable(sock: socket.socket | None) -> bool:
     return bool(p.poll(0))
 
 
-@asynccontextmanager
-async def safe_async_iterate(
+def safe_async_iterate(
     iterable_or_iterator: AsyncIterable[T] | AsyncIterator[T], /
-) -> AsyncGenerator[AsyncIterator[T]]:
+) -> AbstractAsyncContextManager[AsyncIterator[T]]:
     iterator = (
         iterable_or_iterator if isinstance(iterable_or_iterator, AsyncIterator) else iterable_or_iterator.__aiter__()
     )
-    try:
-        yield iterator
-    finally:
-        if isasyncgen(iterator):
-            await iterator.aclose()
+    # ponytail: Stdlib contexts avoid an extra async generator during shutdown.
+    if isasyncgen(iterator):
+        return aclosing(typing.cast(AsyncGenerator[T, None], iterator))
+    return nullcontext(iterator)
 
 
 @contextmanager
