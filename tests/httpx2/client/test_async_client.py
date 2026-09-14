@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import sys
 import typing
+from contextlib import suppress
 from datetime import timedelta
 
 import pytest
@@ -87,12 +88,16 @@ def test_abandon_streamed_response() -> None:
     body = b"".join(b"data: %d\r\n" % index for index in range(20000))
 
     async def handle(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
-        await reader.readuntil(b"\r\n\r\n")
-        writer.write(b"HTTP/1.1 200 OK\r\nContent-Length: %d\r\n\r\n" % len(body))
-        writer.write(body)
-        await writer.drain()
-        writer.close()
-        await writer.wait_closed()
+        try:
+            with suppress(BrokenPipeError, ConnectionResetError):
+                await reader.readuntil(b"\r\n\r\n")
+                writer.write(b"HTTP/1.1 200 OK\r\nContent-Length: %d\r\n\r\n" % len(body))
+                writer.write(body)
+                await writer.drain()
+        finally:
+            writer.close()
+            with suppress(BrokenPipeError, ConnectionResetError):
+                await writer.wait_closed()
 
     async def request() -> None:
         server = await asyncio.start_server(handle, "127.0.0.1", 0)
