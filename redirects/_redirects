@@ -31,8 +31,8 @@
 /advanced/timeouts/ https://pydantic.dev/docs/httpx2/advanced/timeouts/ 301
 /advanced/transports https://pydantic.dev/docs/httpx2/advanced/transports/ 301
 /advanced/transports/ https://pydantic.dev/docs/httpx2/advanced/transports/ 301
-/advanced/emscripten https://pydantic.dev/docs/httpx2/advanced/clients/ 301
-/advanced/emscripten/ https://pydantic.dev/docs/httpx2/advanced/clients/ 301
+/advanced/emscripten https://pydantic.dev/docs/httpx2/advanced/emscripten/ 301
+/advanced/emscripten/ https://pydantic.dev/docs/httpx2/advanced/emscripten/ 301
 
 /async https://pydantic.dev/docs/httpx2/guides/async/ 301
 /async/ https://pydantic.dev/docs/httpx2/guides/async/ 301
