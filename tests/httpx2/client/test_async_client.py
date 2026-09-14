@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import sys
 import typing
-from contextlib import suppress
 from datetime import timedelta
 
 import pytest
@@ -84,26 +83,10 @@ async def test_stream_response(server: TestServer) -> None:
     assert response.content == b"Hello, world!"
 
 
-def test_abandon_streamed_response() -> None:
-    body = b"".join(b"data: %d\r\n" % index for index in range(20000))
-
-    async def handle(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
-        try:
-            with suppress(BrokenPipeError, ConnectionResetError):
-                await reader.readuntil(b"\r\n\r\n")
-                writer.write(b"HTTP/1.1 200 OK\r\nContent-Length: %d\r\n\r\n" % len(body))
-                writer.write(body)
-                await writer.drain()
-        finally:
-            writer.close()
-            with suppress(BrokenPipeError, ConnectionResetError):
-                await writer.wait_closed()
-
+def test_abandon_streamed_response(server: TestServer) -> None:
     async def request() -> None:
-        server = await asyncio.start_server(handle, "127.0.0.1", 0)
-        port = server.sockets[0].getsockname()[1]
         client = httpx2.AsyncClient()
-        request = client.build_request("GET", f"http://127.0.0.1:{port}/")
+        request = client.build_request("GET", server.url.copy_with(path="/stream_response"))
         response = await client.send(request, stream=True)
         generators: list[typing.AsyncGenerator[object, None]] = []
         hooks = sys.get_asyncgen_hooks()
@@ -125,8 +108,6 @@ def test_abandon_streamed_response() -> None:
             finally:
                 await response.aclose()
                 await client.aclose()
-                server.close()
-                await server.wait_closed()
 
     asyncio.run(request())
 
