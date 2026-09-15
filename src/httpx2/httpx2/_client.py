@@ -1085,7 +1085,7 @@ class Client(BaseClient):
         logger.info(
             'HTTP Request: %s %s "%s %d %s"',
             request.method,
-            request.url,
+            request.url._masked_str(),
             response.http_version,
             response.status_code,
             response.reason_phrase,
@@ -1923,7 +1923,7 @@ class AsyncClient(BaseClient):
         logger.info(
             'HTTP Request: %s %s "%s %d %s"',
             request.method,
-            request.url,
+            request.url._masked_str(),
             response.http_version,
             response.status_code,
             response.reason_phrase,

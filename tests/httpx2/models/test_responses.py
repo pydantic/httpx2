@@ -149,6 +149,46 @@ def test_raise_for_status() -> None:
         response.raise_for_status()
 
 
+def test_raise_for_status_does_not_leak_url_credentials() -> None:
+    request = httpx2.Request("GET", "https://user:s3kr3t@example.org")
+
+    response = httpx2.Response(404, request=request)
+    with pytest.raises(httpx2.HTTPStatusError) as exc_info:
+        response.raise_for_status()
+    assert "s3kr3t" not in str(exc_info.value)
+    assert "user:[secure]@example.org" in str(exc_info.value)
+
+    headers = {"location": "https://other.org"}
+    response = httpx2.Response(303, headers=headers, request=request)
+    with pytest.raises(httpx2.HTTPStatusError) as exc_info:
+        response.raise_for_status()
+    assert "s3kr3t" not in str(exc_info.value)
+    assert "user:[secure]@example.org" in str(exc_info.value)
+
+    # Credentials in the redirect *target* must be masked too, not just the
+    # original request URL.
+    headers = {"location": "https://redirect-user:redirect-pass@other.org"}
+    response = httpx2.Response(303, headers=headers, request=request)
+    with pytest.raises(httpx2.HTTPStatusError) as exc_info:
+        response.raise_for_status()
+    assert "redirect-pass" not in str(exc_info.value)
+    assert "redirect-user:[secure]@other.org" in str(exc_info.value)
+
+    # A relative or malformed 'Location' header has no credentials to mask and
+    # must still render without raising.
+    headers = {"location": "/relative/path"}
+    response = httpx2.Response(303, headers=headers, request=request)
+    with pytest.raises(httpx2.HTTPStatusError) as exc_info:
+        response.raise_for_status()
+    assert "Redirect location: '/relative/path'" in str(exc_info.value)
+
+    headers = {"location": "http://[::gggg]/path"}
+    response = httpx2.Response(303, headers=headers, request=request)
+    with pytest.raises(httpx2.HTTPStatusError) as exc_info:
+        response.raise_for_status()
+    assert "Redirect location: 'http://[::gggg]/path'" in str(exc_info.value)
+
+
 def test_response_repr() -> None:
     response = httpx2.Response(
         200,
