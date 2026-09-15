@@ -152,15 +152,14 @@ class Headers(typing.MutableMapping[str, str]):
 
         if isinstance(headers, Headers):
             self._list = list(headers._list)
-        elif isinstance(headers, Mapping):
-            for k, v in headers.items():
-                bytes_key = _normalize_header_key(k, encoding)
-                bytes_value = _normalize_header_value(v, encoding)
-                self._list.append((bytes_key, bytes_key.lower(), bytes_value))
         elif headers is not None:
-            for k, v in headers:
+            header_items = headers.items() if isinstance(headers, Mapping) else headers
+            for k, v in header_items:
                 bytes_key = _normalize_header_key(k, encoding)
-                bytes_value = _normalize_header_value(v, encoding)
+                try:
+                    bytes_value = _normalize_header_value(v, encoding)
+                except UnicodeEncodeError as exc:
+                    raise ValueError(f"Unable to encode header value for {k!r}") from exc
                 self._list.append((bytes_key, bytes_key.lower(), bytes_value))
 
         self._encoding = encoding

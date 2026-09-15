@@ -36,6 +36,22 @@ def test_headers() -> None:
     assert repr(h) == "Headers({'a': '123', 'b': '789'})"
 
 
+@pytest.mark.parametrize(
+    "headers",
+    [
+        {"auth": "שלום"},
+        [("auth", "שלום")],
+    ],
+)
+def test_header_value_encoding_error_includes_header_name(
+    headers: dict[str, str] | list[tuple[str, str]],
+) -> None:
+    with pytest.raises(ValueError, match="auth") as exc_info:
+        httpx2.Headers(headers)
+
+    assert isinstance(exc_info.value.__cause__, UnicodeEncodeError)
+
+
 def test_header_mutations() -> None:
     h = httpx2.Headers()
     assert dict(h) == {}
