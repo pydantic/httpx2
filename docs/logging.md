@@ -20,6 +20,8 @@ httpx2.get("https://www.example.com")
 Will send debug level output to the console, or wherever `stdout` is directed too...
 
 ```
+DEBUG [2024-09-28 17:27:40] httpcore2.connection_pool - wait_for_connection.started timeout=5.0
+DEBUG [2024-09-28 17:27:40] httpcore2.connection_pool - wait_for_connection.complete return_value=<HTTPConnection [CONNECTING]>
 DEBUG [2024-09-28 17:27:40] httpcore2.connection - connect_tcp.started host='www.example.com' port=443 local_address=None timeout=5.0 socket_options=None
 DEBUG [2024-09-28 17:27:41] httpcore2.connection - connect_tcp.complete return_value=<httpcore2._backends.sync.SyncStream object at 0x101f1e8e0>
 DEBUG [2024-09-28 17:27:41] httpcore2.connection - start_tls.started ssl_context=<truststore._api.SSLContext object at 0x101f1e9a0> server_hostname='www.example.com' timeout=5.0
@@ -41,7 +43,7 @@ DEBUG [2024-09-28 17:27:41] httpcore2.connection - close.complete
 
 Logging output includes information from both the high-level `httpx2` logger, and the network-level `httpcore2` loggers, which can be configured separately.
 
-The network-level loggers are named under the `httpcore2` namespace, such as `httpcore2.connection`, `httpcore2.http11`, and `httpcore2.http2`. Configuring the parent `httpcore2` logger captures the output of all of them.
+The network-level loggers are named under the `httpcore2` namespace, such as `httpcore2.connection_pool`, `httpcore2.connection`, `httpcore2.http11`, and `httpcore2.http2`. Configuring the parent `httpcore2` logger captures the output of all of them.
 
 For handling more complex logging configurations you might want to use the dictionary configuration style...
 
