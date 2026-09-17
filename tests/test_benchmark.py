@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import asyncio
 import gzip
+import io
 import json
+import tempfile
+from collections.abc import AsyncIterable, AsyncIterator, Iterator
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -184,3 +188,80 @@ def _json_handler(request: httpx2.Request) -> httpx2.Response:
 def test_bench_client_post_json(benchmark: BenchmarkFixture) -> None:
     with httpx2.Client(transport=httpx2.MockTransport(_json_handler)) as client:
         benchmark(lambda: client.post(TYPICAL_URL, json=MEDIUM_JSON).json())
+
+
+# --- Async file uploads -----------------------------------------------------------
+
+
+class AsyncFile:
+    """
+    Emulates the file interface returned by `anyio`, `trio` and `aiofiles`, which
+    reads with `await`, iterates a line at a time, and exposes a synchronous
+    `fileno()` so the upload length can be determined upfront.
+    """
+
+    def __init__(self, content: bytes, fileno: int) -> None:
+        self._buffer = io.BytesIO(content)
+        self._fileno = fileno
+
+    def fileno(self) -> int:
+        return self._fileno
+
+    def seekable(self) -> bool:
+        return True
+
+    async def read(self, size: int = -1) -> bytes:
+        return self._buffer.read(size)
+
+    async def seek(self, offset: int, whence: int = io.SEEK_SET) -> int:
+        return self._buffer.seek(offset, whence)
+
+    async def __aiter__(self) -> AsyncIterator[bytes]:
+        for line in self._buffer:
+            yield line
+
+
+# Short lines, so that iterating rather than reading in chunks is markedly slower.
+UPLOAD_BODY = b"".join([b"x" * 63 + b"\n"] * (64 * 1024))
+
+
+@pytest.fixture(scope="module")
+def upload_fd() -> Iterator[int]:
+    """A descriptor whose `st_size` matches `UPLOAD_BODY`, so `Content-Length` applies."""
+    with tempfile.TemporaryFile() as file:
+        file.write(UPLOAD_BODY)
+        file.flush()
+        yield file.fileno()
+
+
+async def _drain(request: httpx2.Request) -> int:
+    assert isinstance(request.stream, AsyncIterable)
+    return sum([len(chunk) async for chunk in request.stream])
+
+
+def test_bench_async_file_upload(benchmark: BenchmarkFixture, upload_fd: int) -> None:
+    def build() -> httpx2.Request:
+        return httpx2.Request("POST", TYPICAL_URL, content=AsyncFile(UPLOAD_BODY, upload_fd))
+
+    assert build().headers["Content-Length"] == str(len(UPLOAD_BODY))
+
+    # A single loop, reused across samples, so that loop bootstrap isn't measured.
+    loop = asyncio.new_event_loop()
+    try:
+        assert benchmark(lambda: loop.run_until_complete(_drain(build()))) == len(UPLOAD_BODY)
+    finally:
+        loop.close()
+
+
+def test_bench_async_file_multipart_upload(benchmark: BenchmarkFixture, upload_fd: int) -> None:
+    def build() -> httpx2.Request:
+        files = {"upload": ("upload.bin", AsyncFile(UPLOAD_BODY, upload_fd))}
+        return httpx2.Request("POST", TYPICAL_URL, files=files)
+
+    assert "Content-Length" in build().headers
+
+    loop = asyncio.new_event_loop()
+    try:
+        assert benchmark(lambda: loop.run_until_complete(_drain(build()))) > len(UPLOAD_BODY)
+    finally:
+        loop.close()
