@@ -314,7 +314,12 @@ class HTTP2Connection(ConnectionInterface):
             raise RemoteProtocolError(event)
         return event
 
-    def _receive_events(self, request: Request, stream_id: int | None = None) -> None:
+    def _receive_events(
+        self,
+        request: Request,
+        stream_id: int | None = None,
+        awaiting_flow_on: int | None = None,
+    ) -> None:
         """
         Read some data from the network until we see one or more events
         for a given stream ID.
@@ -326,6 +331,11 @@ class HTTP2Connection(ConnectionInterface):
                     self._request_count -= 1
                     raise ConnectionNotAvailable()
                 raise RemoteProtocolError(self._connection_terminated)
+
+            # Another task may have received the WINDOW_UPDATE while this task
+            # was queued for the read lock. Avoid blocking on a redundant read.
+            if awaiting_flow_on is not None and self._h2_state.local_flow_control_window(awaiting_flow_on) > 0:
+                return
 
             # This conditional is a bit icky. We don't want to block reading if we've
             # actually got an event to return for a given stream. We need to do that
@@ -465,7 +475,7 @@ class HTTP2Connection(ConnectionInterface):
         max_frame_size: int = self._h2_state.max_outbound_frame_size
         flow = min(local_flow, max_frame_size)
         while flow <= 0:
-            self._receive_events(request)
+            self._receive_events(request, awaiting_flow_on=stream_id)
             local_flow = self._h2_state.local_flow_control_window(stream_id)
             max_frame_size = self._h2_state.max_outbound_frame_size
             flow = min(local_flow, max_frame_size)

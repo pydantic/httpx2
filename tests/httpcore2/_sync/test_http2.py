@@ -1,8 +1,28 @@
 import hpack
 import hyperframe.frame
 import pytest
+from h2.connection import H2Connection
 
 import httpcore2
+
+
+class FlowControlLock:
+    def __init__(self, h2_state: H2Connection, amount: int) -> None:
+        self._h2_state = h2_state
+        self._amount = amount
+
+    def __enter__(self) -> "FlowControlLock":
+        window_update = hyperframe.frame.WindowUpdateFrame(stream_id=0, window_increment=self._amount)
+        self._h2_state.receive_data(window_update.serialize())
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: object | None,
+    ) -> None:
+        pass
 
 
 
@@ -312,6 +332,46 @@ def test_http2_connection_with_flow_control() -> None:
         )
         assert response.status == 200
         assert response.content == b"100,000 bytes received"
+
+
+
+def test_http2_connection_rechecks_flow_after_acquiring_read_lock() -> None:
+    origin = httpcore2.Origin(b"https", b"example.com", 443)
+    stream = httpcore2.MockStream([])
+    request = httpcore2.Request("POST", "https://example.com/")
+    conn = httpcore2.HTTP2Connection(origin=origin, stream=stream)
+
+    conn._h2_state.initiate_connection()
+    conn._h2_state.send_headers(
+        stream_id=1,
+        headers=[
+            (b":method", b"POST"),
+            (b":scheme", b"https"),
+            (b":authority", b"example.com"),
+            (b":path", b"/"),
+        ],
+    )
+    conn._h2_state.send_headers(
+        stream_id=3,
+        headers=[
+            (b":method", b"POST"),
+            (b":scheme", b"https"),
+            (b":authority", b"example.com"),
+            (b":path", b"/"),
+        ],
+    )
+    while conn._h2_state.local_flow_control_window(stream_id=1) > 0:
+        amount = min(
+            conn._h2_state.local_flow_control_window(stream_id=1),
+            conn._h2_state.max_outbound_frame_size,
+        )
+        conn._h2_state.send_data(stream_id=1, data=b"x" * amount)
+
+    # Simulate another task replenishing the connection window while this task
+    # is queued for the read lock. There is no further network data to read.
+    conn._read_lock = FlowControlLock(conn._h2_state, amount=1)  # type: ignore[assignment]
+
+    assert conn._wait_for_outgoing_flow(request, stream_id=3) == 1
 
 
 
