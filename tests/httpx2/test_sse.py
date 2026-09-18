@@ -1,7 +1,10 @@
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncGenerator, AsyncIterator, Iterator
+from contextlib import aclosing
+from typing import cast
 
+import anyio
 import pytest
 
 import httpx2
@@ -34,6 +37,66 @@ async def test_sse_async() -> None:
         httpx2.ServerSentEvent(event="ping", data="hello", id="1", retry=500),
         httpx2.ServerSentEvent(event="message", data="first\nsecond", id="1"),
     ]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("stop", ["close", "cancel", "parser-error"])
+async def test_stopping_sse_iteration_closes_the_body_in_the_callers_task(stop: str) -> None:
+    closed_in: list[int] = []
+    owner = anyio.get_current_task().id
+
+    async def body() -> AsyncGenerator[bytes, None]:
+        try:
+            yield b"data: first\n\n"
+        finally:
+            closed_in.append(anyio.get_current_task().id)
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(200, content=body(), headers={"Content-Type": "text/event-stream"})
+
+    async with httpx2.AsyncClient(transport=httpx2.MockTransport(handler)) as client:
+        async with client.sse("http://testserver/sse", max_event_size=1 if stop == "parser-error" else None) as source:
+            with anyio.CancelScope() as scope:
+                async with aclosing(cast(AsyncGenerator[httpx2.ServerSentEvent, None], aiter(source))) as events:
+                    if stop == "parser-error":
+                        with pytest.raises(httpx2.SSEError):
+                            await anext(events)
+                    else:
+                        assert await anext(events) == httpx2.ServerSentEvent(data="first")
+                        if stop == "cancel":
+                            scope.cancel()
+                            await anyio.lowlevel.checkpoint()
+            assert closed_in == [owner]
+            assert source.response.is_closed
+
+
+@pytest.mark.anyio
+async def test_sse_accepts_a_plain_text_iterator_override() -> None:
+    class TextIterator:
+        def __init__(self) -> None:
+            self.chunks = ["data: first\n\n", "data: second\n\n"]
+
+        def __aiter__(self) -> TextIterator:
+            return self
+
+        async def __anext__(self) -> str:
+            if self.chunks:
+                return self.chunks.pop(0)
+            raise StopAsyncIteration
+
+    class TextResponse(httpx2.Response):
+        def aiter_text(self, chunk_size: int | None = None) -> AsyncIterator[str]:
+            return TextIterator()
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return TextResponse(200, headers={"Content-Type": "text/event-stream"})
+
+    async with httpx2.AsyncClient(transport=httpx2.MockTransport(handler)) as client:
+        async with client.sse("http://testserver/sse") as source:
+            assert [event async for event in source] == [
+                httpx2.ServerSentEvent(data="first"),
+                httpx2.ServerSentEvent(data="second"),
+            ]
 
 
 def test_default_event_is_message() -> None:

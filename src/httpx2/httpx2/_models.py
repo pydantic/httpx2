@@ -1009,10 +1009,15 @@ class Response:
         decoder = TextDecoder(encoding=self.encoding or "utf-8")
         chunker = TextChunker(chunk_size=chunk_size)
         with request_context(request=self._request):
-            async for byte_content in self.aiter_bytes():
-                text_content = decoder.decode(byte_content)
-                for chunk in chunker.decode(text_content):
-                    yield chunk
+            byte_stream = self.aiter_bytes()
+            try:
+                async for byte_content in byte_stream:
+                    text_content = decoder.decode(byte_content)
+                    for chunk in chunker.decode(text_content):
+                        yield chunk
+            finally:
+                if isinstance(byte_stream, AsyncGenerator):
+                    await byte_stream.aclose()
             text_content = decoder.flush()
             for chunk in chunker.decode(text_content):
                 yield chunk  # pragma: no cover
@@ -1022,9 +1027,14 @@ class Response:
     async def aiter_lines(self) -> typing.AsyncIterator[str]:
         decoder = LineDecoder()
         with request_context(request=self._request):
-            async for text in self.aiter_text():
-                for line in decoder.decode(text):
-                    yield line
+            text_stream = self.aiter_text()
+            try:
+                async for text in text_stream:
+                    for line in decoder.decode(text):
+                        yield line
+            finally:
+                if isinstance(text_stream, AsyncGenerator):
+                    await text_stream.aclose()
             for line in decoder.flush():
                 yield line
 

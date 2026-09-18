@@ -3,9 +3,13 @@ from __future__ import annotations
 import asyncio
 import sys
 import typing
+from contextlib import aclosing
 from datetime import timedelta
 
+import anyio
 import pytest
+from anyio.abc import SocketAttribute, SocketStream
+from anyio.streams.buffered import BufferedByteReceiveStream
 
 import httpx2
 
@@ -81,6 +85,42 @@ async def test_stream_response(server: TestServer) -> None:
     assert response.status_code == 200
     assert body == b"Hello, world!"
     assert response.content == b"Hello, world!"
+
+
+@pytest.mark.anyio
+async def test_closing_response_iterator_closes_network_body_in_same_task() -> None:
+    disconnected = anyio.Event()
+    body_events: list[tuple[str, int]] = []
+
+    async def serve(stream: SocketStream) -> None:
+        async with stream:
+            await BufferedByteReceiveStream(stream).receive_until(b"\r\n\r\n", max_bytes=65536)
+            await stream.send(b"HTTP/1.1 200 OK\r\nContent-Length: 10\r\n\r\nHello")
+            with pytest.raises(anyio.EndOfStream):
+                await stream.receive()
+            disconnected.set()
+
+    async def trace(name: str, info: dict[str, typing.Any]) -> None:
+        if name.startswith("http11.receive_response_body."):
+            body_events.append((name, anyio.get_current_task().id))
+
+    with anyio.fail_after(5):
+        listener = await anyio.create_tcp_listener(local_host="127.0.0.1")
+        async with listener, anyio.create_task_group() as tasks:
+            tasks.start_soon(listener.serve, serve)
+            url = f"http://127.0.0.1:{listener.extra(SocketAttribute.local_port)}"
+            async with httpx2.AsyncClient(transport=httpx2.AsyncHTTPTransport()) as client:
+                async with client.stream("GET", url, extensions={"trace": trace}) as response:
+                    async with aclosing(response.aiter_bytes(chunk_size=5)) as parts:
+                        assert await anext(parts) == b"Hello"
+                        assert not response.is_closed
+                    assert response.is_closed
+                    assert body_events == [
+                        ("http11.receive_response_body.started", anyio.get_current_task().id),
+                        ("http11.receive_response_body.failed", anyio.get_current_task().id),
+                    ]
+                await disconnected.wait()
+            tasks.cancel_scope.cancel()
 
 
 def test_abandon_streamed_response(server: TestServer) -> None:

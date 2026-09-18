@@ -29,7 +29,7 @@ SOFTWARE.
 from __future__ import annotations
 
 import json as jsonlib
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncGenerator, AsyncIterator, Iterator
 from dataclasses import dataclass
 
 from ._config import DEFAULT_MAX_EVENT_SIZE_BYTES
@@ -219,8 +219,13 @@ class EventSource:
         with request_context(request=self._response.request):
             self._check_content_type()
             parser = _SSEParser(self._max_event_size)
-            async for chunk in self._response.aiter_text():
-                for sse in parser.decode(chunk):
-                    yield sse
+            text_stream = self._response.aiter_text()
+            try:
+                async for chunk in text_stream:
+                    for sse in parser.decode(chunk):
+                        yield sse
+            finally:
+                if isinstance(text_stream, AsyncGenerator):
+                    await text_stream.aclose()
             for sse in parser.flush():
                 yield sse

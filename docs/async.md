@@ -105,6 +105,31 @@ async def home(request):
 !!! warning
     When using this "manual streaming mode", it is your duty as a developer to make sure that `Response.aclose()` is called eventually. Failing to do so would leave connections open, most likely resulting in resource leaks down the line.
 
+#### Stopping iteration early
+
+```python
+from contextlib import aclosing
+
+import anyio
+import httpx2
+
+
+async def first_chunk(url: str) -> bytes:
+    async with httpx2.AsyncClient() as client:
+        async with client.stream("GET", url) as response:
+            response.raise_for_status()
+            async with aclosing(response.aiter_bytes()) as chunks:
+                return await anext(chunks, b"")
+
+
+anyio.run(first_chunk, "https://www.example.com/")
+```
+
+Use `aclosing()` when you stop consuming an async response iterator before it is exhausted.
+It closes the iterator in the consuming task, including the nested decoder and network iterators.
+A `break` or `return` alone does not close an async iterator. Closing the response releases the
+connection, but does not finalize an abandoned iterator object.
+
 ### Streaming requests
 
 When sending a streaming request body with an `AsyncClient` instance, you should use an async bytes generator instead of a bytes generator:

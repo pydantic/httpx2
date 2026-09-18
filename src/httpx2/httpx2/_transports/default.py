@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import contextlib
 import typing
-from collections.abc import Generator
+from collections.abc import AsyncGenerator, Generator
 from types import TracebackType
 
 if typing.TYPE_CHECKING:  # pragma: no cover
@@ -263,8 +263,13 @@ class AsyncResponseStream(AsyncByteStream):
 
     async def __aiter__(self) -> typing.AsyncIterator[bytes]:
         with map_httpcore_exceptions():
-            async for part in self._httpcore_stream:
-                yield part
+            stream = self._httpcore_stream.__aiter__()
+            try:
+                async for part in stream:
+                    yield part
+            finally:
+                if isinstance(stream, AsyncGenerator):
+                    await stream.aclose()
 
     async def aclose(self) -> None:
         if hasattr(self._httpcore_stream, "aclose"):
