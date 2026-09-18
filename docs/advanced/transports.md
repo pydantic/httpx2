@@ -182,15 +182,20 @@ class HTTPSRedirect(httpx2.BaseTransport):
     """
     A transport that always redirects to HTTPS.
     """
+
     def handle_request(self, request):
         url = request.url.copy_with(scheme="https")
         return httpx2.Response(303, headers={"Location": str(url)})
 
+
 # A client where any `http` requests are always redirected to `https`
-client = httpx2.Client(mounts={
-    'http://': HTTPSRedirect(),
-    'https://': httpx2.HTTPTransport(),
-}, follow_redirects=True)
+client = httpx2.Client(
+    mounts={
+        "http://": HTTPSRedirect(),
+        "https://": httpx2.HTTPTransport(),
+    },
+    follow_redirects=True,
+)
 ```
 
 A useful pattern here is custom transport classes that wrap the default HTTP implementation. For example...
