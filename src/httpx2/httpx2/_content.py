@@ -19,7 +19,7 @@ from ._types import (
     ResponseContent,
     SyncByteStream,
 )
-from ._utils import peek_filelike_length, primitive_value_to_str
+from ._utils import peek_filelike_remaining_length, primitive_value_to_str
 
 __all__ = ["ByteStream"]
 
@@ -119,7 +119,7 @@ def encode_content(
         # catches a case that's easy for users to make in error, and would
         # otherwise pass through here, like any other bytes-iterable,
         # because `dict` happens to be iterable. See issue #2491.
-        content_length_or_none = peek_filelike_length(content)
+        content_length_or_none = peek_filelike_remaining_length(content)
 
         if content_length_or_none is None:
             headers = {"Transfer-Encoding": "chunked"}
