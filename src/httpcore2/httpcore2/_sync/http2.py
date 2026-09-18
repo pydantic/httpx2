@@ -105,6 +105,10 @@ class HTTP2Connection(ConnectionInterface):
                 # its max_concurrent_streams value
                 self._max_streams = 1
 
+                # Permits revoked by a MAX_CONCURRENT_STREAMS decrease that were
+                # still held by in-flight streams, retired in `_response_closed`.
+                self._max_streams_deficit = 0
+
                 local_settings_max_streams = self._h2_state.local_settings.max_concurrent_streams
                 self._max_streams_semaphore = Semaphore(local_settings_max_streams)
 
@@ -366,17 +370,33 @@ class HTTP2Connection(ConnectionInterface):
                 self._h2_state.local_settings.max_concurrent_streams,
             )
             if new_max_streams and new_max_streams != self._max_streams:
-                while new_max_streams > self._max_streams:
-                    self._max_streams_semaphore.release()
-                    self._max_streams += 1
-                while new_max_streams < self._max_streams:
-                    self._max_streams_semaphore.acquire()
-                    self._max_streams -= 1
+                # We're currently holding the read lock, and permits are only
+                # released once a response has been closed, which requires the
+                # read lock. So blocking on an acquire here deadlocks whenever
+                # more streams are in flight than the new limit allows. Instead
+                # we take only the permits that are immediately available, and
+                # book the rest as a deficit that `_response_closed` retires.
+                # The state lock keeps the deficit accounting consistent with
+                # `_response_closed`.
+                with self._state_lock:
+                    while new_max_streams > self._max_streams:
+                        if self._max_streams_deficit > 0:
+                            self._max_streams_deficit -= 1
+                        else:
+                            self._max_streams_semaphore.release()
+                        self._max_streams += 1
+                    while new_max_streams < self._max_streams:
+                        if not self._max_streams_semaphore.acquire_if_available():
+                            self._max_streams_deficit += 1
+                        self._max_streams -= 1
 
     def _response_closed(self, stream_id: int) -> None:
         with self._state_lock:
             if stream_id in self._events:
-                self._max_streams_semaphore.release()
+                if self._max_streams_deficit > 0:
+                    self._max_streams_deficit -= 1
+                else:
+                    self._max_streams_semaphore.release()
                 del self._events[stream_id]
             if self._connection_terminated and not self._events:
                 self.close()
