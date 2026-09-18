@@ -1,0 +1,19 @@
+docs/advanced/transports.md
+  s_2452050846ef63::t_7f17f38026202e 178,190-192
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "ca441538393597e9e53da650e10e3d52263d765f",
+  "prompts": {},
+  "sessions": {
+    "s_2452050846ef63": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fb9bb43b-2f7e-4940-bd10-a36423761150",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Samuel Colvin <s@muelcolvin.com>"
+    }
+  }
+}
