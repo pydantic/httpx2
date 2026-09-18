@@ -190,7 +190,7 @@ class HTTPSRedirect(httpx2.BaseTransport):
 client = httpx2.Client(mounts={
     'http://': HTTPSRedirect(),
     'https://': httpx2.HTTPTransport(),
-})
+}, follow_redirects=True)
 ```
 
 A useful pattern here is custom transport classes that wrap the default HTTP implementation. For example...
