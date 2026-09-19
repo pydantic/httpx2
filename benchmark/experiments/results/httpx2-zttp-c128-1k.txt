@@ -1,0 +1,87 @@
+
+  _     ._   __/__   _ _  _  _ _/_   Recorded: 16:53:14  Samples:  2158
+ /_//_/// /_\ / //_// / //_'/ //     Duration: 2.163     CPU time: 2.015
+/   _/                      v5.1.3
+
+Profile at /Users/marcelotryle/.codex/worktrees/b5ff/httpx2/benchmark/client.py:243
+
+2.162 _UnixSelectorEventLoop._run_once  asyncio/base_events.py:1966
+└─ 2.152 Handle._run  asyncio/events.py:92
+   └─ 2.128 worker  client.py:211
+      └─ 2.112 read_one  client.py:95
+         └─ 2.102 AsyncClient.request  httpx2/_client.py:1580
+            ├─ 1.960 AsyncClient.send  httpx2/_client.py:1787
+            │  ├─ 1.128 AsyncClient._send_handling_auth  httpx2/_client.py:1834
+            │  │  └─ 1.112 AsyncClient._send_handling_redirects  httpx2/_client.py:1868
+            │  │     └─ 1.097 AsyncClient._send_single_request  httpx2/_client.py:1904
+            │  │        └─ 1.059 AsyncHTTPTransport.handle_async_request  httpx2/_transports/default.py:368
+            │  │           ├─ 0.999 AsyncConnectionPool.handle_async_request  httpcore2/_async/connection_pool.py:191
+            │  │           │  ├─ 0.658 AsyncConnectionPool._assign_requests_to_connections  httpcore2/_async/connection_pool.py:254
+            │  │           │  │  ├─ 0.187 AsyncHTTPConnection.has_expired  httpcore2/_async/connection.py:170
+            │  │           │  │  │  └─ 0.186 AsyncHTTP11Connection.has_expired  httpcore2/_async/http11.py:258
+            │  │           │  │  │     └─ 0.178 AnyIOStream.get_extra_info  httpcore2/_backends/anyio.py:84
+            │  │           │  │  │        ├─ 0.116 is_socket_readable  httpcore2/_utils.py:20
+            │  │           │  │  │        │  └─ 0.108 poll.poll  <built-in>
+            │  │           │  │  │        └─ 0.056 SocketStream.extra  anyio/_core/_typedattr.py:58
+            │  │           │  │  │           └─ 0.045 SocketStream.extra_attributes  anyio/abc/_sockets.py:141
+            │  │           │  │  ├─ 0.142 [self]  httpcore2/_async/connection_pool.py
+            │  │           │  │  ├─ 0.109 <genexpr>  httpcore2/_async/connection_pool.py:294
+            │  │           │  │  │  ├─ 0.067 AsyncHTTPConnection.is_idle  httpcore2/_async/connection.py:175
+            │  │           │  │  │  │  ├─ 0.037 [self]  httpcore2/_async/connection.py
+            │  │           │  │  │  │  └─ 0.030 AsyncHTTP11Connection.is_idle  httpcore2/_async/http11.py:274
+            │  │           │  │  │  └─ 0.042 [self]  httpcore2/_async/connection_pool.py
+            │  │           │  │  ├─ 0.084 AsyncHTTPConnection.is_connected  httpcore2/_async/connection.py:159
+            │  │           │  │  │  └─ 0.064 AsyncHTTP11Connection.is_connected  httpcore2/_async/http11.py:248
+            │  │           │  │  ├─ 0.045 AsyncHTTPConnection.is_closed  httpcore2/_async/connection.py:183
+            │  │           │  │  └─ 0.041 AsyncHTTPConnection.is_available  httpcore2/_async/connection.py:162
+            │  │           │  └─ 0.297 AsyncHTTPConnection.handle_async_request  httpcore2/_async/connection.py:67
+            │  │           │     └─ 0.273 AsyncHTTP11Connection.handle_async_request  httpcore2/_async/http11.py:63
+            │  │           │        ├─ 0.116 AsyncHTTP11Connection._receive_response_headers  httpcore2/_async/http11.py:154
+            │  │           │        │  └─ 0.106 AsyncHTTP11Connection._receive_event  httpcore2/_async/http11.py:194
+            │  │           │        │     └─ 0.086 AnyIOStream.read  httpcore2/_backends/anyio.py:27
+            │  │           │        │        ├─ 0.037 SocketStream.receive  anyio/_backends/_asyncio.py:1326
+            │  │           │        │        └─ 0.022 _GeneratorContextManager.__enter__  contextlib.py:136
+            │  │           │        │           └─ 0.022 fail_after  anyio/_core/_tasks.py:129
+            │  │           │        ├─ 0.079 AsyncHTTP11Connection._send_request_headers  httpcore2/_async/http11.py:129
+            │  │           │        │  └─ 0.061 AnyIOStream.write  httpcore2/_backends/anyio.py:41
+            │  │           │        │     └─ 0.026 SocketStream.send  anyio/_backends/_asyncio.py:1364
+            │  │           │        └─ 0.037 [self]  httpcore2/_async/http11.py
+            │  │           └─ 0.024 [self]  httpx2/_transports/default.py
+            │  └─ 0.817 Response.aread  httpx2/_models.py:970
+            │     └─ 0.806 Response.aiter_bytes  httpx2/_models.py:979
+            │        └─ 0.779 Response.aiter_raw  httpx2/_models.py:1031
+            │           ├─ 0.705 Response.aclose  httpx2/_models.py:1061
+            │           │  └─ 0.695 BoundAsyncStream.aclose  httpx2/_client.py:171
+            │           │     └─ 0.689 AsyncResponseStream.aclose  httpx2/_transports/default.py:269
+            │           │        └─ 0.686 PoolByteStream.aclose  httpcore2/_async/connection_pool.py:429
+            │           │           ├─ 0.615 AsyncConnectionPool._assign_requests_to_connections  httpcore2/_async/connection_pool.py:254
+            │           │           │  ├─ 0.174 AsyncHTTPConnection.has_expired  httpcore2/_async/connection.py:170
+            │           │           │  │  └─ 0.173 AsyncHTTP11Connection.has_expired  httpcore2/_async/http11.py:258
+            │           │           │  │     └─ 0.171 AnyIOStream.get_extra_info  httpcore2/_backends/anyio.py:84
+            │           │           │  │        ├─ 0.100 is_socket_readable  httpcore2/_utils.py:20
+            │           │           │  │        │  └─ 0.084 poll.poll  <built-in>
+            │           │           │  │        └─ 0.067 SocketStream.extra  anyio/_core/_typedattr.py:58
+            │           │           │  │           └─ 0.058 SocketStream.extra_attributes  anyio/abc/_sockets.py:141
+            │           │           │  ├─ 0.137 [self]  httpcore2/_async/connection_pool.py
+            │           │           │  ├─ 0.093 AsyncHTTPConnection.is_connected  httpcore2/_async/connection.py:159
+            │           │           │  │  ├─ 0.053 AsyncHTTP11Connection.is_connected  httpcore2/_async/http11.py:248
+            │           │           │  │  └─ 0.040 [self]  httpcore2/_async/connection.py
+            │           │           │  ├─ 0.072 <genexpr>  httpcore2/_async/connection_pool.py:294
+            │           │           │  │  ├─ 0.039 AsyncHTTPConnection.is_idle  httpcore2/_async/connection.py:175
+            │           │           │  │  └─ 0.033 [self]  httpcore2/_async/connection_pool.py
+            │           │           │  ├─ 0.055 AsyncHTTPConnection.is_available  httpcore2/_async/connection.py:162
+            │           │           │  │  ├─ 0.029 [self]  httpcore2/_async/connection.py
+            │           │           │  │  └─ 0.026 AsyncHTTP11Connection.is_available  httpcore2/_async/http11.py:251
+            │           │           │  └─ 0.053 AsyncHTTPConnection.is_closed  httpcore2/_async/connection.py:183
+            │           │           └─ 0.034 HTTP11ConnectionByteStream.aclose  httpcore2/_async/http11.py:325
+            │           └─ 0.058 BoundAsyncStream.__aiter__  httpx2/_client.py:162
+            │              └─ 0.054 AsyncResponseStream.__aiter__  httpx2/_transports/default.py:264
+            │                 └─ 0.040 PoolByteStream.__aiter__  httpcore2/_async/connection_pool.py:424
+            │                    └─ 0.030 HTTP11ConnectionByteStream.__aiter__  httpcore2/_async/http11.py:310
+            └─ 0.132 AsyncClient.build_request  httpx2/_client.py:326
+               ├─ 0.068 AsyncClient._merge_url  httpx2/_client.py:373
+               │  └─ 0.066 URL.__init__  httpx2/_urls.py:86
+               │     └─ 0.060 urlparse  httpx2/_urlparse.py:201
+               └─ 0.045 Request.__init__  httpx2/_models.py:398
+                  └─ 0.026 Request._prepare  httpx2/_models.py:454
+
