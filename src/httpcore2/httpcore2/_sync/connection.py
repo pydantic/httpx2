@@ -107,7 +107,7 @@ class HTTPConnection(ConnectionInterface):
             try:
                 if self._uds is None:
                     kwargs = {
-                        "host": self._origin.host.decode("ascii"),
+                        "host": self._origin.normalized_host,
                         "port": self._origin.port,
                         "local_address": self._local_address,
                         "timeout": timeout,
@@ -133,7 +133,7 @@ class HTTPConnection(ConnectionInterface):
 
                     kwargs = {
                         "ssl_context": ssl_context,
-                        "server_hostname": sni_hostname or self._origin.host.decode("ascii"),
+                        "server_hostname": sni_hostname or self._origin.normalized_host,
                         "timeout": timeout,
                     }
                     with Trace("start_tls", logger, request, kwargs) as trace:
