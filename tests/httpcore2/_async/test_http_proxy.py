@@ -240,3 +240,48 @@ def test_proxy_headers() -> None:
         auth=("username", "password"),
     )
     assert proxy.headers == [(b"Proxy-Authorization", b"Basic dXNlcm5hbWU6cGFzc3dvcmQ=")]
+
+
+class BrokenTLSStream(AsyncMockStream):
+    async def start_tls(
+        self,
+        ssl_context: ssl.SSLContext,
+        server_hostname: typing.Optional[str] = None,
+        timeout: typing.Optional[float] = None,
+    ) -> AsyncNetworkStream:
+        raise OSError("TLS Failure")
+
+
+class BrokenTLSBackend(AsyncMockBackend):
+    async def connect_tcp(
+        self,
+        host: str,
+        port: int,
+        timeout: typing.Optional[float] = None,
+        local_address: typing.Optional[str] = None,
+        socket_options: typing.Optional[typing.Iterable[SOCKET_OPTION]] = None,
+    ) -> AsyncNetworkStream:
+        return BrokenTLSStream(list(self._buffer))
+
+
+@pytest.mark.anyio
+async def test_proxy_tunneling_tls_error() -> None:
+    """
+    Send an HTTPS request via a proxy where the TLS handshake fails after the
+    CONNECT tunnel is established. The CONNECT connection must be closed so it
+    doesn't leak from the pool.
+    """
+    network_backend = BrokenTLSBackend(
+        [
+            b"HTTP/1.1 200 OK\r\n\r\n",
+        ]
+    )
+
+    async with AsyncConnectionPool(
+        proxy=Proxy("http://localhost:8080/"),
+        network_backend=network_backend,
+    ) as proxy:
+        with pytest.raises(OSError, match="TLS Failure"):
+            await proxy.request("GET", "https://example.com/")
+
+        assert not proxy.connections
