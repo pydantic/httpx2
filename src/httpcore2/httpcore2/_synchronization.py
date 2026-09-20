@@ -175,6 +175,24 @@ class AsyncSemaphore:
         elif self._backend == "asyncio":
             await self._anyio_semaphore.acquire()
 
+    def acquire_nowait(self) -> bool:
+        """
+        Acquire a slot without blocking, returning whether it was acquired.
+        """
+        if self._backend == "trio":
+            try:
+                self._trio_semaphore.acquire_nowait()
+            except trio.WouldBlock:
+                return False
+            return True
+        elif self._backend == "asyncio":
+            try:
+                self._anyio_semaphore.acquire_nowait()
+            except anyio.WouldBlock:
+                return False
+            return True
+        return False  # pragma: no cover
+
     async def release(self) -> None:
         if self._backend == "trio":
             self._trio_semaphore.release()
@@ -292,6 +310,12 @@ class Semaphore:
 
     def acquire(self) -> None:
         self._semaphore.acquire()
+
+    def acquire_nowait(self) -> bool:
+        """
+        Acquire a slot without blocking, returning whether it was acquired.
+        """
+        return self._semaphore.acquire(blocking=False)
 
     def release(self) -> None:
         self._semaphore.release()

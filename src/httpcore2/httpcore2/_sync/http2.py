@@ -104,6 +104,10 @@ class HTTP2Connection(ConnectionInterface):
                 # Initially start with just 1 until the remote server provides
                 # its max_concurrent_streams value
                 self._max_streams = 1
+                # Streams that are still in flight beyond a limit the peer has
+                # since lowered. Their permits are withheld as they complete.
+                # See `_receive_remote_settings_change`.
+                self._excess_streams = 0
 
                 local_settings_max_streams = self._h2_state.local_settings.max_concurrent_streams
                 self._max_streams_semaphore = Semaphore(local_settings_max_streams)
@@ -366,17 +370,39 @@ class HTTP2Connection(ConnectionInterface):
                 self._h2_state.local_settings.max_concurrent_streams,
             )
             if new_max_streams and new_max_streams != self._max_streams:
-                while new_max_streams > self._max_streams:
-                    self._max_streams_semaphore.release()
-                    self._max_streams += 1
-                while new_max_streams < self._max_streams:
-                    self._max_streams_semaphore.acquire()
-                    self._max_streams -= 1
+                # The permit pool is shared with `_response_closed`, which returns
+                # permits as streams complete. Waiting for one here is not an
+                # option: this runs from `_receive_events`, holding the read lock
+                # that those in-flight streams need in order to read their
+                # responses and complete at all.
+                with self._state_lock:
+                    increase = new_max_streams - self._max_streams
+                    self._max_streams = new_max_streams
+                    if increase > 0:
+                        # Streams in excess of an earlier, lower limit are the
+                        # first to receive the extra permits.
+                        recovered = min(self._excess_streams, increase)
+                        self._excess_streams -= recovered
+                        for _ in range(increase - recovered):
+                            self._max_streams_semaphore.release()
+                    else:
+                        # A lowered limit only applies to streams opened from now
+                        # on; streams that are already in flight are unaffected.
+                        # Take back the permits that are free right now, and
+                        # withhold the rest as those streams complete.
+                        for _ in range(-increase):
+                            if not self._max_streams_semaphore.acquire_nowait():
+                                self._excess_streams += 1
 
     def _response_closed(self, stream_id: int) -> None:
         with self._state_lock:
             if stream_id in self._events:
-                self._max_streams_semaphore.release()
+                if self._excess_streams:
+                    # Completed while in excess of a lowered limit, so its
+                    # permit is withheld rather than returned to the pool.
+                    self._excess_streams -= 1
+                else:
+                    self._max_streams_semaphore.release()
                 del self._events[stream_id]
             if self._connection_terminated and not self._events:
                 self.close()
