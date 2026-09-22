@@ -109,7 +109,7 @@ class AsyncConnectionPool(AsyncRequestInterface):
 
         # The mutable state on a connection pool is the queue of incoming requests,
         # and the set of connections that are servicing those requests.
-        self._connections: dict[AsyncConnectionInterface, str | None] = {}
+        self._connections: dict[int, tuple[AsyncConnectionInterface, str | None]] = {}
         self._requests: list[AsyncPoolRequest] = []
 
         # We only mutate the state of the connection pool within an 'optional_thread_lock'
@@ -186,7 +186,7 @@ class AsyncConnectionPool(AsyncRequestInterface):
         ]
         ```
         """
-        return list(self._connections)
+        return [connection for connection, _ in self._connections.values()]
 
     async def handle_async_request(self, request: Request) -> Response:
         """
@@ -262,19 +262,19 @@ class AsyncConnectionPool(AsyncRequestInterface):
         those connections to be handled separately.
         """
         closing_connections: list[AsyncConnectionInterface] = []
-        retained_connections: dict[AsyncConnectionInterface, str | None] = {}
+        retained_connections: dict[int, tuple[AsyncConnectionInterface, str | None]] = {}
 
         # Connections currently referenced by an in-flight request, including
         # connections that are in the process of being established and idle
         # connections reserved by an assigned-but-not-yet-sent request.
-        request_connections = {r.connection for r in self._requests}
+        request_connections = {id(r.connection) for r in self._requests if r.connection is not None}
 
         # First we handle cleaning up any connections that are closed
         # or have expired their keep-alive, in a single pass. Reserved
         # connections skip the expiry check: they were checked when assigned,
         # and `has_expired()` on an idle connection probes the socket.
-        for connection, sni_hostname in self._connections.items():
-            reserved = connection in request_connections
+        for connection_id, (connection, sni_hostname) in self._connections.items():
+            reserved = connection_id in request_connections
             if connection.is_closed():
                 continue
             elif not (connection.is_connected() or reserved):
@@ -285,23 +285,26 @@ class AsyncConnectionPool(AsyncRequestInterface):
             elif not reserved and connection.has_expired():
                 closing_connections.append(connection)
             else:
-                retained_connections[connection] = sni_hostname
+                retained_connections[connection_id] = (connection, sni_hostname)
 
         # Then we close any surplus idle connections, to enforce the
         # max_keepalive_connections setting. Reserved connections are not
         # surplus: a request is about to be sent on them.
         idle_surplus = (
-            sum(connection.is_idle() and connection not in request_connections for connection in retained_connections)
+            sum(
+                connection.is_idle() and connection_id not in request_connections
+                for connection_id, (connection, _) in retained_connections.items()
+            )
             - self._max_keepalive_connections
         )
         if idle_surplus > 0:
-            kept: dict[AsyncConnectionInterface, str | None] = {}
-            for connection, sni_hostname in retained_connections.items():
-                if idle_surplus > 0 and connection.is_idle() and connection not in request_connections:
+            kept: dict[int, tuple[AsyncConnectionInterface, str | None]] = {}
+            for connection_id, (connection, sni_hostname) in retained_connections.items():
+                if idle_surplus > 0 and connection.is_idle() and connection_id not in request_connections:
                     closing_connections.append(connection)
                     idle_surplus -= 1
                 else:
-                    kept[connection] = sni_hostname
+                    kept[connection_id] = (connection, sni_hostname)
             retained_connections = kept
 
         self._connections = retained_connections
@@ -316,10 +319,10 @@ class AsyncConnectionPool(AsyncRequestInterface):
         # loser would churn through `ConnectionNotAvailable`. Multiplexing
         # connections are exempt: they can take further requests while idle.
         available_connections = [
-            connection
-            for connection in self._connections
+            (connection, sni_hostname)
+            for connection, sni_hostname in self._connections.values()
             if connection.is_available()
-            and not (connection.is_idle() and connection in request_connections and not connection.can_multiplex())
+            and not (connection.is_idle() and id(connection) in request_connections and not connection.can_multiplex())
         ]
         new_connection_budget = self._max_connections - len(self._connections)
 
@@ -341,10 +344,10 @@ class AsyncConnectionPool(AsyncRequestInterface):
             # 2. We can create a new connection to handle the request.
             # 3. We can close an idle connection and then create a new connection
             #    to handle the request.
-            for idx, connection in enumerate(available_connections):
-                if connection.can_handle_request(origin) and self._connections[connection] == sni_hostname:
+            for idx, (connection, connection_sni_hostname) in enumerate(available_connections):
+                if connection.can_handle_request(origin) and connection_sni_hostname == sni_hostname:
                     pool_request.assign_to_connection(connection)
-                    request_connections.add(connection)
+                    request_connections.add(id(connection))
                     if connection.is_idle() and not connection.can_multiplex():
                         # An idle HTTP/1.1 connection can only take this
                         # single request until it is released.
@@ -353,17 +356,17 @@ class AsyncConnectionPool(AsyncRequestInterface):
             else:
                 if new_connection_budget > 0:
                     connection = self.create_connection(origin)
-                    self._connections[connection] = sni_hostname
+                    self._connections[id(connection)] = (connection, sni_hostname)
                     pool_request.assign_to_connection(connection)
                     new_connection_budget -= 1
                     continue
-                for idx, connection in enumerate(available_connections):
-                    if connection.is_idle() and connection not in request_connections:
+                for idx, (connection, _) in enumerate(available_connections):
+                    if connection.is_idle() and id(connection) not in request_connections:
                         del available_connections[idx]
-                        del self._connections[connection]
+                        del self._connections[id(connection)]
                         closing_connections.append(connection)
                         connection = self.create_connection(origin)
-                        self._connections[connection] = sni_hostname
+                        self._connections[id(connection)] = (connection, sni_hostname)
                         pool_request.assign_to_connection(connection)
                         break
 
@@ -379,7 +382,7 @@ class AsyncConnectionPool(AsyncRequestInterface):
         # Explicitly close the connection pool.
         # Clears all existing requests and connections.
         with self._optional_thread_lock:
-            closing_connections = list(self._connections)
+            closing_connections = [connection for connection, _ in self._connections.values()]
             self._connections = {}
         await self._close_connections(closing_connections)
 
@@ -398,7 +401,7 @@ class AsyncConnectionPool(AsyncRequestInterface):
         class_name = self.__class__.__name__
         with self._optional_thread_lock:
             request_is_queued = [request.is_queued() for request in self._requests]
-            connection_is_idle = [connection.is_idle() for connection in self._connections]
+            connection_is_idle = [connection.is_idle() for connection, _ in self._connections.values()]
 
             num_active_requests = request_is_queued.count(False)
             num_queued_requests = request_is_queued.count(True)

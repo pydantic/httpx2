@@ -1061,3 +1061,65 @@ def test_connection_pool_reserves_http2_connection_for_sni_hostname(warm_connect
         )
         assert response.status == 200
         assert len(pool.connections) == 1
+
+
+
+@pytest.mark.parametrize("hashable", [False, True])
+def test_connection_pool_tracks_custom_connections_by_identity(hashable: bool) -> None:
+    network_backend = httpcore2.MockBackend([b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK"] * 2)
+
+    class EqualConnection(httpcore2.HTTPConnection):
+        def __eq__(self, other: object) -> bool:
+            return isinstance(other, EqualConnection)
+
+        def __hash__(self) -> int:
+            return 0
+
+    class UnhashableConnection(httpcore2.HTTPConnection):
+        def __eq__(self, other: object) -> bool:
+            return self is other
+
+    connection_class = EqualConnection if hashable else UnhashableConnection
+
+    class CustomConnectionPool(httpcore2.ConnectionPool):
+        def create_connection(self, origin: httpcore2.Origin) -> httpcore2.ConnectionInterface:
+            return connection_class(origin, network_backend=network_backend)
+
+    with CustomConnectionPool(max_connections=2) as pool:
+        with (
+            pool.stream("GET", "https://192.0.2.1/", extensions={"sni_hostname": "first.example"}) as first,
+            pool.stream("GET", "https://192.0.2.1/", extensions={"sni_hostname": "second.example"}) as second,
+        ):
+            assert len(pool.connections) == 2
+            first_connection, second_connection = pool.connections
+            assert first_connection is not second_connection
+            if hashable:
+                assert first_connection == second_connection
+                assert hash(first_connection) == hash(second_connection)
+            else:
+                assert first_connection != second_connection
+                with pytest.raises(TypeError):
+                    hash(first_connection)
+            with pytest.raises(httpcore2.PoolTimeout):
+                pool.request(
+                    "GET",
+                    "https://192.0.2.1/",
+                    extensions={"sni_hostname": "third.example", "timeout": {"pool": 0}},
+                )
+            first.read()
+            second.read()
+            assert first.content == second.content == b"OK"
+
+        for hostname, previous in [("first.example", first), ("second.example", second)]:
+            response = pool.request("GET", "https://192.0.2.1/", extensions={"sni_hostname": hostname})
+            assert response.content == b"OK"
+            assert response.extensions["network_stream"] is previous.extensions["network_stream"]
+
+        response = pool.request("GET", "https://192.0.2.1/", extensions={"sni_hostname": "third.example"})
+        assert response.content == b"OK"
+        assert len(pool.connections) == 2
+        assert first_connection.is_closed()
+        assert not second_connection.is_closed()
+        assert pool.connections[0] is second_connection
+
+    assert pool.connections == []
