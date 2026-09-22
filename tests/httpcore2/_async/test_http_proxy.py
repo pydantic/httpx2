@@ -247,12 +247,16 @@ def test_proxy_headers() -> None:
 @pytest.mark.parametrize("scheme", ["http", "https"])
 async def test_proxy_respects_sni_hostname(sni_hostname: str | None, scheme: str) -> None:
     expected_hostnames = ["localhost"]
+    written = bytearray()
     buffer = [b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK"]
     if scheme == "https":
         expected_hostnames.append(sni_hostname or "192.0.2.1")
         buffer.insert(0, b"HTTP/1.1 200 Connection established\r\n\r\n")
 
     class TLSIdentityStream(AsyncMockStream):
+        async def write(self, buffer: bytes, timeout: float | None = None) -> None:
+            written.extend(buffer)
+
         async def start_tls(
             self,
             ssl_context: ssl.SSLContext,
@@ -272,6 +276,7 @@ async def test_proxy_respects_sni_hostname(sni_hostname: str | None, scheme: str
             local_address: str | None = None,
             socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
         ) -> AsyncNetworkStream:
+            assert (host, port) == ("localhost", 8080)
             return TLSIdentityStream(buffer.copy())
 
     async with AsyncConnectionPool(
@@ -286,3 +291,11 @@ async def test_proxy_respects_sni_hostname(sni_hostname: str | None, scheme: str
         assert response.content == b"OK"
         assert expected_hostnames == []
         assert extensions == expected_extensions
+
+    if scheme == "https":
+        assert written.startswith(b"CONNECT 192.0.2.1:443 HTTP/1.1\r\n")
+        assert b"\r\nhost: 192.0.2.1:443\r\n" in written.lower()
+        assert b"\r\n\r\nGET / HTTP/1.1\r\n" in written
+    else:
+        assert written.startswith(b"GET http://192.0.2.1/ HTTP/1.1\r\n")
+    assert b"\r\nhost: 192.0.2.1\r\n" in written.lower()
