@@ -244,8 +244,13 @@ def test_proxy_headers() -> None:
 
 @pytest.mark.anyio
 @pytest.mark.parametrize("sni_hostname", [None, "example.com"])
-async def test_proxy_tunnel_respects_sni_hostname(sni_hostname: str | None) -> None:
-    expected_hostnames = ["localhost", sni_hostname or "192.0.2.1"]
+@pytest.mark.parametrize("scheme", ["http", "https"])
+async def test_proxy_respects_sni_hostname(sni_hostname: str | None, scheme: str) -> None:
+    expected_hostnames = ["localhost"]
+    buffer = [b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK"]
+    if scheme == "https":
+        expected_hostnames.append(sni_hostname or "192.0.2.1")
+        buffer.insert(0, b"HTTP/1.1 200 Connection established\r\n\r\n")
 
     class TLSIdentityStream(AsyncMockStream):
         async def start_tls(
@@ -255,6 +260,7 @@ async def test_proxy_tunnel_respects_sni_hostname(sni_hostname: str | None) -> N
             timeout: float | None = None,
         ) -> AsyncNetworkStream:
             assert server_hostname == expected_hostnames.pop(0)
+            assert timeout == 5
             return self
 
     class TLSIdentityBackend(AsyncMockBackend):
@@ -266,19 +272,16 @@ async def test_proxy_tunnel_respects_sni_hostname(sni_hostname: str | None) -> N
             local_address: str | None = None,
             socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
         ) -> AsyncNetworkStream:
-            return TLSIdentityStream(
-                [
-                    b"HTTP/1.1 200 Connection established\r\n\r\n",
-                    b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK",
-                ]
-            )
+            return TLSIdentityStream(buffer.copy())
 
     async with AsyncConnectionPool(
         proxy=Proxy("https://localhost:8080"), network_backend=TLSIdentityBackend([])
     ) as pool:
-        extensions = {} if sni_hostname is None else {"sni_hostname": sni_hostname}
+        extensions: dict[str, typing.Any] = {"timeout": {"connect": 5}}
+        if sni_hostname is not None:
+            extensions["sni_hostname"] = sni_hostname
         expected_extensions = extensions.copy()
-        response = await pool.request("GET", "https://192.0.2.1/", extensions=extensions)
+        response = await pool.request("GET", f"{scheme}://192.0.2.1/", extensions=extensions)
         assert response.status == 200
         assert response.content == b"OK"
         assert expected_hostnames == []

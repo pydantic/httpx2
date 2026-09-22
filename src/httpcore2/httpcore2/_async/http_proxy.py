@@ -191,7 +191,7 @@ class AsyncForwardHTTPConnection(AsyncConnectionInterface):
             url=url,
             headers=headers,
             content=request.stream,
-            extensions=request.extensions,
+            extensions={key: value for key, value in request.extensions.items() if key != "sni_hostname"},
         )
         return await self._connection.handle_async_request(proxy_request)
 
