@@ -94,6 +94,44 @@ def test_logging_redirect_chain(server: TestServer, caplog: pytest.LogCaptureFix
     ]
 
 
+def test_logging_request_does_not_leak_url_credentials(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.INFO)
+    transport = httpx2.MockTransport(lambda request: httpx2.Response(200))
+    with httpx2.Client(transport=transport) as client:
+        client.get("https://user:s3kr3t@example.org/path")
+
+    httpx2_records = [r for r in caplog.record_tuples if r[0] == "httpx2"]
+    assert httpx2_records == [
+        (
+            "httpx2",
+            logging.INFO,
+            'HTTP Request: GET https://user:[secure]@example.org/path "HTTP/1.1 200 OK"',
+        )
+    ]
+
+
+@pytest.mark.anyio
+async def test_async_logging_request_does_not_leak_url_credentials(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.INFO)
+    transport = httpx2.MockTransport(lambda request: httpx2.Response(200))
+    async with httpx2.AsyncClient(transport=transport) as client:
+        await client.get("https://user:s3kr3t@example.org/path")
+
+    httpx2_records = [r for r in caplog.record_tuples if r[0] == "httpx2"]
+    assert httpx2_records == [
+        (
+            "httpx2",
+            logging.INFO,
+            'HTTP Request: GET https://user:[secure]@example.org/path "HTTP/1.1 200 OK"',
+        )
+    ]
+
+
+def test_request_repr_does_not_leak_url_credentials() -> None:
+    request = httpx2.Request("GET", "https://user:s3kr3t@example.org/")
+    assert repr(request) == "<Request('GET', 'https://user:[secure]@example.org/')>"
+
+
 @pytest.mark.parametrize(
     ["environment", "proxies"],
     [

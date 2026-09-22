@@ -390,7 +390,13 @@ class URL:
     def __str__(self) -> str:
         return str(self._uri_reference)
 
-    def __repr__(self) -> str:
+    def _masked_str(self) -> str:
+        """
+        The URL as a string, with any password component replaced by "[secure]".
+
+        Used for logging and `repr`, so that credentials embedded in a URL are not
+        written out. Use `str(url)` when the unredacted value is required.
+        """
         scheme, userinfo, host, port, path, query, fragment = self._uri_reference
 
         if ":" in userinfo:
@@ -404,7 +410,7 @@ class URL:
                 f":{port}" if port is not None else "",
             ]
         )
-        url = "".join(
+        return "".join(
             [
                 f"{self.scheme}:" if scheme else "",
                 f"//{authority}" if authority else "",
@@ -414,7 +420,8 @@ class URL:
             ]
         )
 
-        return f"{self.__class__.__name__}({url!r})"
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}({self._masked_str()!r})"
 
     @property
     @deprecated("URL.raw is deprecated.", category=HTTPXDeprecationWarning)
