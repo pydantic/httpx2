@@ -166,6 +166,8 @@ response = httpcore2.request(
 )
 ```
 
+If you change `sni_hostname`, the pool uses a separate connection. This prevents reuse of a TLS connection established with a different hostname override.
+
 ### `"target"`
 
 The target that is used as [the HTTP target instead of the URL path](https://datatracker.ietf.org/doc/html/rfc2616#section-5.1.2).

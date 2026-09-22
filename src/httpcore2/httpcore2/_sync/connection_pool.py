@@ -109,7 +109,7 @@ class ConnectionPool(RequestInterface):
 
         # The mutable state on a connection pool is the queue of incoming requests,
         # and the set of connections that are servicing those requests.
-        self._connections: list[ConnectionInterface] = []
+        self._connections: dict[ConnectionInterface, str | None] = {}
         self._requests: list[PoolRequest] = []
 
         # We only mutate the state of the connection pool within an 'optional_thread_lock'
@@ -262,7 +262,7 @@ class ConnectionPool(RequestInterface):
         those connections to be handled separately.
         """
         closing_connections: list[ConnectionInterface] = []
-        retained_connections: list[ConnectionInterface] = []
+        retained_connections: dict[ConnectionInterface, str | None] = {}
 
         # Connections currently referenced by an in-flight request, including
         # connections that are in the process of being established and idle
@@ -273,7 +273,7 @@ class ConnectionPool(RequestInterface):
         # or have expired their keep-alive, in a single pass. Reserved
         # connections skip the expiry check: they were checked when assigned,
         # and `has_expired()` on an idle connection probes the socket.
-        for connection in self._connections:
+        for connection, sni_hostname in self._connections.items():
             reserved = connection in request_connections
             if connection.is_closed():
                 continue
@@ -285,7 +285,7 @@ class ConnectionPool(RequestInterface):
             elif not reserved and connection.has_expired():
                 closing_connections.append(connection)
             else:
-                retained_connections.append(connection)
+                retained_connections[connection] = sni_hostname
 
         # Then we close any surplus idle connections, to enforce the
         # max_keepalive_connections setting. Reserved connections are not
@@ -295,13 +295,13 @@ class ConnectionPool(RequestInterface):
             - self._max_keepalive_connections
         )
         if idle_surplus > 0:
-            kept: list[ConnectionInterface] = []
-            for connection in retained_connections:
+            kept: dict[ConnectionInterface, str | None] = {}
+            for connection, sni_hostname in retained_connections.items():
                 if idle_surplus > 0 and connection.is_idle() and connection not in request_connections:
                     closing_connections.append(connection)
                     idle_surplus -= 1
                 else:
-                    kept.append(connection)
+                    kept[connection] = sni_hostname
             retained_connections = kept
 
         self._connections = retained_connections
@@ -333,6 +333,7 @@ class ConnectionPool(RequestInterface):
             if not pool_request.is_queued():
                 continue
             origin = pool_request.request.url.origin
+            sni_hostname = pool_request.request.extensions.get("sni_hostname")
 
             # There are three cases for how we may be able to handle the request:
             #
@@ -341,8 +342,9 @@ class ConnectionPool(RequestInterface):
             # 3. We can close an idle connection and then create a new connection
             #    to handle the request.
             for idx, connection in enumerate(available_connections):
-                if connection.can_handle_request(origin):
+                if connection.can_handle_request(origin) and self._connections[connection] == sni_hostname:
                     pool_request.assign_to_connection(connection)
+                    request_connections.add(connection)
                     if connection.is_idle() and not connection.can_multiplex():
                         # An idle HTTP/1.1 connection can only take this
                         # single request until it is released.
@@ -351,17 +353,17 @@ class ConnectionPool(RequestInterface):
             else:
                 if new_connection_budget > 0:
                     connection = self.create_connection(origin)
-                    self._connections.append(connection)
+                    self._connections[connection] = sni_hostname
                     pool_request.assign_to_connection(connection)
                     new_connection_budget -= 1
                     continue
                 for idx, connection in enumerate(available_connections):
-                    if connection.is_idle():
+                    if connection.is_idle() and connection not in request_connections:
                         del available_connections[idx]
-                        self._connections.remove(connection)
+                        del self._connections[connection]
                         closing_connections.append(connection)
                         connection = self.create_connection(origin)
-                        self._connections.append(connection)
+                        self._connections[connection] = sni_hostname
                         pool_request.assign_to_connection(connection)
                         break
 
@@ -378,7 +380,7 @@ class ConnectionPool(RequestInterface):
         # Clears all existing requests and connections.
         with self._optional_thread_lock:
             closing_connections = list(self._connections)
-            self._connections = []
+            self._connections = {}
         self._close_connections(closing_connections)
 
     def __enter__(self) -> ConnectionPool:
