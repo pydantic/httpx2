@@ -254,8 +254,7 @@ def test_proxy_tunnel_respects_sni_hostname(sni_hostname: str | None) -> None:
             server_hostname: str | None = None,
             timeout: float | None = None,
         ) -> NetworkStream:
-            if server_hostname != expected_hostnames.pop(0):
-                raise ssl.SSLCertVerificationError("The TLS hostname does not match the certificate")
+            assert server_hostname == expected_hostnames.pop(0)
             return self
 
     class TLSIdentityBackend(MockBackend):
