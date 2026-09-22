@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import ssl
 import sys
 import types
@@ -201,6 +202,10 @@ class ConnectionPool(RequestInterface):
 
         This is the core implementation that is called into by `.request()` or `.stream()`.
         """
+        # Keep the pool key and handshake tied to the same routing snapshot.
+        request = copy.copy(request)
+        request.url = copy.copy(request.url)
+        request.extensions = dict(request.extensions)
         scheme = request.url.scheme.decode()
         if scheme == "":
             raise UnsupportedProtocol("Request URL is missing an 'http://' or 'https://' protocol.")

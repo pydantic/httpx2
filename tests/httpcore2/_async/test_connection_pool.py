@@ -1125,3 +1125,64 @@ async def test_connection_pool_tracks_custom_connections_by_identity(hashable: b
         assert pool.connections[0] is second_connection
 
     assert pool.connections == []
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("mutation", ["extensions", "url", "request"])
+async def test_connection_pool_snapshots_connection_settings(mutation: str) -> None:
+    network_backend = httpcore2.AsyncMockBackend([b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK"] * 2)
+    destinations: list[tuple[str, int]] = []
+    hostnames: list[str] = []
+    sent_requests: list[httpcore2.Request] = []
+
+    async def trace(name: str, info: dict[str, typing.Any]) -> None:
+        if name == "connection.connect_tcp.started":
+            destinations.append((info["host"], info["port"]))
+        elif name == "connection.start_tls.started":
+            hostnames.append(info["server_hostname"])
+        elif name == "http11.send_request_headers.started":
+            sent_requests.append(info["request"])
+
+    class CustomRequest(httpcore2.Request):
+        context: str
+
+    request = CustomRequest(
+        "POST",
+        "https://192.0.2.1/",
+        headers={"Host": "first.example", "Content-Length": "4"},
+        content=b"body",
+        extensions={"sni_hostname": "first.example", "trace": trace},
+    )
+    request.context = "caller"
+
+    class MutatingPool(httpcore2.AsyncConnectionPool):
+        def create_connection(self, origin: httpcore2.Origin) -> httpcore2.AsyncConnectionInterface:
+            if mutation == "extensions":
+                request.extensions["sni_hostname"] = "second.example"
+            elif mutation == "url":
+                request.url.host = b"changed.example"
+                request.url.port = 8443
+            else:
+                request.url = httpcore2.URL("https://changed.example:8443/")
+            return super().create_connection(origin)
+
+    async with MutatingPool(network_backend=network_backend) as pool:
+        first = await pool.handle_async_request(request)
+        await first.aread()
+        await first.aclose()
+        assert first.content == b"OK"
+
+        second = await pool.request(
+            "GET", "https://192.0.2.1/", extensions={"sni_hostname": "first.example", "trace": trace}
+        )
+        assert second.content == b"OK"
+        assert second.extensions["network_stream"] is first.extensions["network_stream"]
+
+    assert destinations == [("192.0.2.1", 443)]
+    assert hostnames == ["first.example"]
+    sent_request = sent_requests[0]
+    assert isinstance(sent_request, CustomRequest)
+    assert sent_request.context == "caller"
+    assert sent_request.stream is request.stream
+    assert sent_request.extensions["sni_hostname"] == "first.example"
+    assert sent_request.url == httpcore2.URL("https://192.0.2.1/")

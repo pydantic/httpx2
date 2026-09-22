@@ -168,6 +168,8 @@ response = httpcore2.request(
 
 The pool only reuses connections with matching `sni_hostname` overrides. This prevents reuse of a TLS connection established with a different hostname override. An empty string, `None`, and an omitted override are treated as equivalent.
 
+The pool snapshots the URL and `sni_hostname` when you submit a request. Later changes to those inputs do not alter the queued request's connection settings.
+
 ### `"target"`
 
 The target that is used as [the HTTP target instead of the URL path](https://datatracker.ietf.org/doc/html/rfc2616#section-5.1.2).
