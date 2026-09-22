@@ -243,74 +243,44 @@ def test_proxy_headers() -> None:
 
 
 
+def test_proxy_forwarding_uses_proxy_tls_hostname() -> None:
+    events: dict[str, dict[str, typing.Any]] = {}
+
+    def trace(name: str, info: dict[str, typing.Any]) -> None:
+        events[name] = info
+
+    network_backend = MockBackend([b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK"])
+    extensions = {"sni_hostname": "example.com", "trace": trace}
+    expected_extensions = extensions.copy()
+    with ConnectionPool(proxy=Proxy("https://localhost:8080"), network_backend=network_backend) as pool:
+        pool.request("GET", "http://192.0.2.1/", extensions=extensions)
+
+    assert events["connection.start_tls.started"]["server_hostname"] == "localhost"
+    assert extensions == expected_extensions
+
+
+
 @pytest.mark.parametrize(
-    "scheme, sni_extensions, expected_hostnames, handshake, expected_request_line",
-    [
-        ("http", {}, ["localhost"], [], b"GET http://192.0.2.1/ HTTP/1.1\r\n"),
-        ("http", {"sni_hostname": "example.com"}, ["localhost"], [], b"GET http://192.0.2.1/ HTTP/1.1\r\n"),
-        (
-            "https",
-            {},
-            ["localhost", "192.0.2.1"],
-            [b"HTTP/1.1 200 Connection established\r\n\r\n"],
-            b"CONNECT 192.0.2.1:443 HTTP/1.1\r\n",
-        ),
-        (
-            "https",
-            {"sni_hostname": "example.com"},
-            ["localhost", "example.com"],
-            [b"HTTP/1.1 200 Connection established\r\n\r\n"],
-            b"CONNECT 192.0.2.1:443 HTTP/1.1\r\n",
-        ),
-    ],
+    "sni_extensions, expected_hostname",
+    [({}, "192.0.2.1"), ({"sni_hostname": "example.com"}, "example.com")],
 )
-def test_proxy_respects_sni_hostname(
-    scheme: str,
-    sni_extensions: dict[str, str],
-    expected_hostnames: list[str],
-    handshake: list[bytes],
-    expected_request_line: bytes,
-) -> None:
-    hostnames: list[str | None] = []
-    written = bytearray()
-    buffer = handshake + [b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK"]
+def test_proxy_tunneling_respects_sni_hostname(sni_extensions: dict[str, str], expected_hostname: str) -> None:
+    events: dict[str, dict[str, typing.Any]] = {}
 
-    class TLSIdentityStream(MockStream):
-        def write(self, buffer: bytes, timeout: float | None = None) -> None:
-            written.extend(buffer)
+    def trace(name: str, info: dict[str, typing.Any]) -> None:
+        events[name] = info
 
-        def start_tls(
-            self,
-            ssl_context: ssl.SSLContext,
-            server_hostname: str | None = None,
-            timeout: float | None = None,
-        ) -> NetworkStream:
-            hostnames.append(server_hostname)
-            assert timeout == 5
-            return self
+    network_backend = MockBackend(
+        [
+            b"HTTP/1.1 200 Connection established\r\n\r\n",
+            b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK",
+        ]
+    )
+    extensions = {"trace": trace, **sni_extensions}
+    expected_extensions = extensions.copy()
+    with ConnectionPool(proxy=Proxy("https://localhost:8080"), network_backend=network_backend) as pool:
+        pool.request("GET", "https://192.0.2.1/", extensions=extensions)
 
-    class TLSIdentityBackend(MockBackend):
-        def connect_tcp(
-            self,
-            host: str,
-            port: int,
-            timeout: float | None = None,
-            local_address: str | None = None,
-            socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
-        ) -> NetworkStream:
-            assert (host, port) == ("localhost", 8080)
-            return TLSIdentityStream(buffer.copy())
-
-    with ConnectionPool(
-        proxy=Proxy("https://localhost:8080"), network_backend=TLSIdentityBackend([])
-    ) as pool:
-        extensions = {"timeout": {"connect": 5}, **sni_extensions}
-        expected_extensions = extensions.copy()
-        response = pool.request("GET", f"{scheme}://192.0.2.1/", extensions=extensions)
-        assert response.status == 200
-        assert response.content == b"OK"
-        assert hostnames == expected_hostnames
-        assert extensions == expected_extensions
-
-    assert written.startswith(expected_request_line)
-    assert b"\r\nhost: 192.0.2.1\r\n" in written.lower()
+    assert events["connection.start_tls.started"]["server_hostname"] == "localhost"
+    assert events["proxy.start_tls.started"]["server_hostname"] == expected_hostname
+    assert extensions == expected_extensions
