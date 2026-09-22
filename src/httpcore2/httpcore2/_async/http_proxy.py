@@ -274,7 +274,7 @@ class AsyncTunnelHTTPConnection(AsyncConnectionInterface):
                     method=b"CONNECT",
                     url=connect_url,
                     headers=connect_headers,
-                    extensions=request.extensions,
+                    extensions={key: value for key, value in request.extensions.items() if key != "sni_hostname"},
                 )
                 connect_response = await self._connection.handle_async_request(connect_request)
 
@@ -294,7 +294,8 @@ class AsyncTunnelHTTPConnection(AsyncConnectionInterface):
 
                 kwargs = {
                     "ssl_context": ssl_context,
-                    "server_hostname": self._remote_origin.host.decode("ascii"),
+                    "server_hostname": request.extensions.get("sni_hostname")
+                    or self._remote_origin.host.decode("ascii"),
                     "timeout": timeout,
                 }
                 async with Trace("start_tls", logger, request, kwargs) as trace:

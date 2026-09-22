@@ -274,7 +274,7 @@ class TunnelHTTPConnection(ConnectionInterface):
                     method=b"CONNECT",
                     url=connect_url,
                     headers=connect_headers,
-                    extensions=request.extensions,
+                    extensions={key: value for key, value in request.extensions.items() if key != "sni_hostname"},
                 )
                 connect_response = self._connection.handle_request(connect_request)
 
@@ -294,7 +294,8 @@ class TunnelHTTPConnection(ConnectionInterface):
 
                 kwargs = {
                     "ssl_context": ssl_context,
-                    "server_hostname": self._remote_origin.host.decode("ascii"),
+                    "server_hostname": request.extensions.get("sni_hostname")
+                    or self._remote_origin.host.decode("ascii"),
                     "timeout": timeout,
                 }
                 with Trace("start_tls", logger, request, kwargs) as trace:

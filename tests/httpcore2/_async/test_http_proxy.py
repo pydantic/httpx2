@@ -240,3 +240,45 @@ def test_proxy_headers() -> None:
         auth=("username", "password"),
     )
     assert proxy.headers == [(b"Proxy-Authorization", b"Basic dXNlcm5hbWU6cGFzc3dvcmQ=")]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("sni_hostname", [None, "example.com"])
+async def test_proxy_tunnel_respects_sni_hostname(sni_hostname: str | None) -> None:
+    expected_hostnames = ["localhost", sni_hostname or "192.0.2.1"]
+
+    class TLSIdentityStream(AsyncMockStream):
+        async def start_tls(
+            self,
+            ssl_context: ssl.SSLContext,
+            server_hostname: str | None = None,
+            timeout: float | None = None,
+        ) -> AsyncNetworkStream:
+            if server_hostname != expected_hostnames.pop(0):
+                raise ssl.SSLCertVerificationError("The TLS hostname does not match the certificate")
+            return self
+
+    class TLSIdentityBackend(AsyncMockBackend):
+        async def connect_tcp(
+            self,
+            host: str,
+            port: int,
+            timeout: float | None = None,
+            local_address: str | None = None,
+            socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
+        ) -> AsyncNetworkStream:
+            return TLSIdentityStream(
+                [
+                    b"HTTP/1.1 200 Connection established\r\n\r\n",
+                    b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK",
+                ]
+            )
+
+    async with AsyncConnectionPool(
+        proxy=Proxy("https://localhost:8080"), network_backend=TLSIdentityBackend([])
+    ) as pool:
+        extensions = {} if sni_hostname is None else {"sni_hostname": sni_hostname}
+        response = await pool.request("GET", "https://192.0.2.1/", extensions=extensions)
+        assert response.status == 200
+        assert response.content == b"OK"
+        assert expected_hostnames == []
