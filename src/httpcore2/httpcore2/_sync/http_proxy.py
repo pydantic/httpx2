@@ -191,7 +191,7 @@ class ForwardHTTPConnection(ConnectionInterface):
             url=url,
             headers=headers,
             content=request.stream,
-            extensions=request.extensions,
+            extensions={key: value for key, value in request.extensions.items() if key != "sni_hostname"},
         )
         return self._connection.handle_request(proxy_request)
 
@@ -274,7 +274,7 @@ class TunnelHTTPConnection(ConnectionInterface):
                     method=b"CONNECT",
                     url=connect_url,
                     headers=connect_headers,
-                    extensions=request.extensions,
+                    extensions={key: value for key, value in request.extensions.items() if key != "sni_hostname"},
                 )
                 connect_response = self._connection.handle_request(connect_request)
 
@@ -292,9 +292,10 @@ class TunnelHTTPConnection(ConnectionInterface):
                 alpn_protocols = (["h2", "http/1.1"] if self._http1 else ["h2"]) if self._http2 else ["http/1.1"]
                 ssl_context.set_alpn_protocols(alpn_protocols)
 
+                server_hostname = request.extensions.get("sni_hostname") or self._remote_origin.host.decode("ascii")
                 kwargs = {
                     "ssl_context": ssl_context,
-                    "server_hostname": self._remote_origin.host.decode("ascii"),
+                    "server_hostname": server_hostname,
                     "timeout": timeout,
                 }
                 with Trace("start_tls", logger, request, kwargs) as trace:

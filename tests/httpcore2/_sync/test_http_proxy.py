@@ -240,3 +240,47 @@ def test_proxy_headers() -> None:
         auth=("username", "password"),
     )
     assert proxy.headers == [(b"Proxy-Authorization", b"Basic dXNlcm5hbWU6cGFzc3dvcmQ=")]
+
+
+
+def test_proxy_forwarding_uses_proxy_tls_hostname() -> None:
+    events: dict[str, dict[str, typing.Any]] = {}
+
+    def trace(name: str, info: dict[str, typing.Any]) -> None:
+        events[name] = info
+
+    network_backend = MockBackend([b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK"])
+    extensions = {"sni_hostname": "example.com", "trace": trace}
+    expected_extensions = extensions.copy()
+    with ConnectionPool(proxy=Proxy("https://localhost:8080"), network_backend=network_backend) as pool:
+        pool.request("GET", "http://192.0.2.1/", extensions=extensions)
+
+    assert events["connection.start_tls.started"]["server_hostname"] == "localhost"
+    assert extensions == expected_extensions
+
+
+
+@pytest.mark.parametrize(
+    "sni_extensions, expected_hostname",
+    [({}, "192.0.2.1"), ({"sni_hostname": "example.com"}, "example.com")],
+)
+def test_proxy_tunneling_respects_sni_hostname(sni_extensions: dict[str, str], expected_hostname: str) -> None:
+    events: dict[str, dict[str, typing.Any]] = {}
+
+    def trace(name: str, info: dict[str, typing.Any]) -> None:
+        events[name] = info
+
+    network_backend = MockBackend(
+        [
+            b"HTTP/1.1 200 Connection established\r\n\r\n",
+            b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK",
+        ]
+    )
+    extensions = {"trace": trace, **sni_extensions}
+    expected_extensions = extensions.copy()
+    with ConnectionPool(proxy=Proxy("https://localhost:8080"), network_backend=network_backend) as pool:
+        pool.request("GET", "https://192.0.2.1/", extensions=extensions)
+
+    assert events["connection.start_tls.started"]["server_hostname"] == "localhost"
+    assert events["proxy.start_tls.started"]["server_hostname"] == expected_hostname
+    assert extensions == expected_extensions
