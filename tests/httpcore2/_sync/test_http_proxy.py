@@ -17,6 +17,7 @@ from httpcore2 import (
 )
 
 
+
 def test_proxy_forwarding() -> None:
     """
     Send an HTTP request via a proxy.
@@ -239,6 +240,7 @@ def test_proxy_headers() -> None:
         auth=("username", "password"),
     )
     assert proxy.headers == [(b"Proxy-Authorization", b"Basic dXNlcm5hbWU6cGFzc3dvcmQ=")]
+
 
 
 @pytest.mark.parametrize("sni_hostname", [None, "example.com"])
