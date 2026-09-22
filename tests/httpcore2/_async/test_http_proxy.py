@@ -277,7 +277,9 @@ async def test_proxy_tunnel_respects_sni_hostname(sni_hostname: str | None) -> N
         proxy=Proxy("https://localhost:8080"), network_backend=TLSIdentityBackend([])
     ) as pool:
         extensions = {} if sni_hostname is None else {"sni_hostname": sni_hostname}
+        expected_extensions = extensions.copy()
         response = await pool.request("GET", "https://192.0.2.1/", extensions=extensions)
         assert response.status == 200
         assert response.content == b"OK"
         assert expected_hostnames == []
+        assert extensions == expected_extensions
