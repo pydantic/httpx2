@@ -160,8 +160,13 @@ class BoundAsyncStream(AsyncByteStream):
         self.elapsed: datetime.timedelta | None = None
 
     async def __aiter__(self) -> typing.AsyncIterator[bytes]:
-        async for chunk in self._stream:
-            yield chunk
+        stream = self._stream.__aiter__()
+        try:
+            async for chunk in stream:
+                yield chunk
+        finally:
+            if isinstance(stream, AsyncGenerator):
+                await stream.aclose()
 
     async def aclose(self) -> None:
         self.elapsed = datetime.timedelta(seconds=time.perf_counter() - self._start)
@@ -257,7 +262,7 @@ class BaseClient:
 
         See also [Authentication][0].
 
-        [0]: /quickstart/#authentication
+        [0]: quickstart.md#authentication
         """
         return self._auth
 
@@ -342,7 +347,7 @@ class BaseClient:
 
         See also: [Request instances][0]
 
-        [0]: /advanced/clients/#request-instances
+        [0]: advanced/clients.md#request-instances
         """
         url = self._merge_url(url)
         headers = self._merge_headers(headers)
@@ -766,7 +771,7 @@ class Client(BaseClient):
         [Merging of configuration][0] for how the various parameters
         are merged with client-level configuration.
 
-        [0]: /advanced/clients/#merging-of-configuration
+        [0]: advanced/clients.md#merging-of-configuration
         """
         if cookies is not None:
             message = (
@@ -817,7 +822,7 @@ class Client(BaseClient):
 
         See also: [Streaming Responses][0]
 
-        [0]: /quickstart#streaming-responses
+        [0]: quickstart.md#streaming-responses
         """
         request = self.build_request(
             method=method,
@@ -960,7 +965,7 @@ class Client(BaseClient):
 
         See also: [Request instances][0]
 
-        [0]: /advanced/clients/#request-instances
+        [0]: advanced/clients.md#request-instances
         """
         if self._state == ClientState.CLOSED:
             raise RuntimeError("Cannot send a request, as the client has been closed.")
@@ -1603,7 +1608,7 @@ class AsyncClient(BaseClient):
         and [Merging of configuration][0] for how the various parameters
         are merged with client-level configuration.
 
-        [0]: /advanced/clients/#merging-of-configuration
+        [0]: advanced/clients.md#merging-of-configuration
         """
 
         if cookies is not None:  # pragma: no cover
@@ -1655,7 +1660,7 @@ class AsyncClient(BaseClient):
 
         See also: [Streaming Responses][0]
 
-        [0]: /quickstart#streaming-responses
+        [0]: quickstart.md#streaming-responses
         """
         request = self.build_request(
             method=method,
@@ -1798,7 +1803,7 @@ class AsyncClient(BaseClient):
 
         See also: [Request instances][0]
 
-        [0]: /advanced/clients/#request-instances
+        [0]: advanced/clients.md#request-instances
         """
         if self._state == ClientState.CLOSED:
             raise RuntimeError("Cannot send a request, as the client has been closed.")

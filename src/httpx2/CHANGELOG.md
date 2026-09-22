@@ -4,7 +4,34 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## Unreleased
+## 2.13.0 (September 14th, 2026)
+
+### Changed
+
+* Require `brotlicffi` 1.2.0.2 or later for the `brotli` extra on non-CPython implementations.
+  ([#1179](https://github.com/pydantic/httpx2/pull/1179))
+
+### Fixed
+
+* Make the `--no-verify` CLI flag disable TLS certificate verification and add an explicit `--verify` counterpart.
+  ([#1140](https://github.com/pydantic/httpx2/pull/1140),
+  [#1186](https://github.com/pydantic/httpx2/pull/1186))
+* Avoid nested async generator finalization errors when streamed responses are abandoned early.
+  ([#1204](https://github.com/pydantic/httpx2/pull/1204))
+
+## 2.12.0 (August 18th, 2026)
+
+### Changed
+
+* Use `backports.zstd` for Zstandard decoding on Python 3.13 and earlier.
+  ([#1146](https://github.com/pydantic/httpx2/pull/1146))
+
+### Fixed
+
+* Bound peak memory while streaming compressed responses and close response streams when decoding fails.
+  ([#1126](https://github.com/pydantic/httpx2/pull/1126))
+
+## 2.11.0 (August 18th, 2026)
 
 ### Added
 
@@ -22,6 +49,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * Raise `TypeError` instead of looping indefinitely when a multipart upload from an
   async file object is sent with a sync `Client`.
   ([#1145](https://github.com/pydantic/httpx2/pull/1145))
+
+### Changed
+
+* Require Brotli 1.2.0 or later for the `brotli` extra. ([#1141](https://github.com/pydantic/httpx2/pull/1141))
+
+### Fixed
+
+* Restore deprecated status code aliases. ([#1135](https://github.com/pydantic/httpx2/pull/1135))
+* Extract HTTP/2 release notes from changelog headings correctly. ([#1136](https://github.com/pydantic/httpx2/pull/1136))
+* Respect explicit `Transfer-Encoding` headers and expose buffered request body lengths to WSGI applications.
+  ([#1137](https://github.com/pydantic/httpx2/pull/1137))
+* Validate multipart part header names and values before serialization.
+  ([#1142](https://github.com/pydantic/httpx2/pull/1142))
 
 ## 2.10.0 (August 9th, 2026)
 

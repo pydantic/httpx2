@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import inspect
 import warnings
-from collections.abc import AsyncIterable, AsyncIterator, Iterable, Iterator, Mapping
+from collections.abc import AsyncGenerator, AsyncIterable, AsyncIterator, Iterable, Iterator, Mapping
 from json import dumps as json_dumps
 from typing import (
     Any,
@@ -20,7 +20,7 @@ from ._types import (
     SyncByteStream,
     is_async_readable_file,
 )
-from ._utils import peek_async_filelike_length, peek_filelike_length, primitive_value_to_str
+from ._utils import peek_async_filelike_length, peek_filelike_remaining_length, primitive_value_to_str
 
 __all__ = ["ByteStream"]
 
@@ -91,9 +91,15 @@ class AsyncIteratorByteStream(AsyncByteStream):
                 yield chunk
                 chunk = await self._stream.read(self.CHUNK_SIZE)
         else:
-            # Otherwise iterate.
-            async for part in self._stream:
-                yield part
+            # Otherwise iterate, making sure the wrapped stream is closed even if the
+            # consumer stops early (e.g. an exception is raised part-way through decoding).
+            stream = self._stream.__aiter__()
+            try:
+                async for part in stream:
+                    yield part
+            finally:
+                if isinstance(stream, AsyncGenerator):
+                    await stream.aclose()
 
 
 class UnattachedStream(AsyncByteStream, SyncByteStream):
@@ -125,7 +131,7 @@ def encode_content(
         # catches a case that's easy for users to make in error, and would
         # otherwise pass through here, like any other bytes-iterable,
         # because `dict` happens to be iterable. See issue #2491.
-        content_length_or_none = peek_filelike_length(content)
+        content_length_or_none = peek_filelike_remaining_length(content)
 
         if content_length_or_none is None:
             headers = {"Transfer-Encoding": "chunked"}
