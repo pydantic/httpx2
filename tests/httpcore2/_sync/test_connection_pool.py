@@ -1065,8 +1065,9 @@ def test_connection_pool_reserves_http2_connection_for_sni_hostname(warm_connect
 
 
 @pytest.mark.parametrize("hashable", [False, True])
-def test_connection_pool_tracks_custom_connections_by_identity(hashable: bool) -> None:
-    network_backend = httpcore2.MockBackend([b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK"] * 2)
+@pytest.mark.parametrize("second_hostname", ["first.example", "second.example"])
+def test_connection_pool_tracks_custom_connections_by_identity(hashable: bool, second_hostname: str) -> None:
+    network_backend = httpcore2.MockBackend([b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK"] * 3)
 
     class EqualConnection(httpcore2.HTTPConnection):
         def __eq__(self, other: object) -> bool:
@@ -1088,7 +1089,7 @@ def test_connection_pool_tracks_custom_connections_by_identity(hashable: bool) -
     with CustomConnectionPool(max_connections=2) as pool:
         with (
             pool.stream("GET", "https://192.0.2.1/", extensions={"sni_hostname": "first.example"}) as first,
-            pool.stream("GET", "https://192.0.2.1/", extensions={"sni_hostname": "second.example"}) as second,
+            pool.stream("GET", "https://192.0.2.1/", extensions={"sni_hostname": second_hostname}) as second,
         ):
             assert len(pool.connections) == 2
             first_connection, second_connection = pool.connections
@@ -1110,7 +1111,8 @@ def test_connection_pool_tracks_custom_connections_by_identity(hashable: bool) -
             second.read()
             assert first.content == second.content == b"OK"
 
-        for hostname, previous in [("first.example", first), ("second.example", second)]:
+        second_reused = first if second_hostname == "first.example" else second
+        for hostname, previous in [("first.example", first), (second_hostname, second_reused)]:
             response = pool.request("GET", "https://192.0.2.1/", extensions={"sni_hostname": hostname})
             assert response.content == b"OK"
             assert response.extensions["network_stream"] is previous.extensions["network_stream"]

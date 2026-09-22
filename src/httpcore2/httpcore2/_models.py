@@ -5,6 +5,7 @@ import ssl
 import typing
 import urllib.parse
 from collections.abc import AsyncGenerator
+from dataclasses import dataclass
 
 from ._utils import safe_async_iterate
 
@@ -153,6 +154,14 @@ class ByteStream:
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} [{len(self._content)} bytes]>"
+
+
+@dataclass(frozen=True)
+class ConnectionKey:
+    scheme: bytes
+    host: bytes
+    port: int
+    sni_hostname: str | None
 
 
 class Origin:
