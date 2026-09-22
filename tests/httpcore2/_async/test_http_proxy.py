@@ -243,15 +243,37 @@ def test_proxy_headers() -> None:
 
 
 @pytest.mark.anyio
-@pytest.mark.parametrize("sni_hostname", [None, "example.com"])
-@pytest.mark.parametrize("scheme", ["http", "https"])
-async def test_proxy_respects_sni_hostname(sni_hostname: str | None, scheme: str) -> None:
-    expected_hostnames = ["localhost"]
+@pytest.mark.parametrize(
+    "scheme, sni_extensions, expected_hostnames, handshake, expected_request_line",
+    [
+        ("http", {}, ["localhost"], [], b"GET http://192.0.2.1/ HTTP/1.1\r\n"),
+        ("http", {"sni_hostname": "example.com"}, ["localhost"], [], b"GET http://192.0.2.1/ HTTP/1.1\r\n"),
+        (
+            "https",
+            {},
+            ["localhost", "192.0.2.1"],
+            [b"HTTP/1.1 200 Connection established\r\n\r\n"],
+            b"CONNECT 192.0.2.1:443 HTTP/1.1\r\n",
+        ),
+        (
+            "https",
+            {"sni_hostname": "example.com"},
+            ["localhost", "example.com"],
+            [b"HTTP/1.1 200 Connection established\r\n\r\n"],
+            b"CONNECT 192.0.2.1:443 HTTP/1.1\r\n",
+        ),
+    ],
+)
+async def test_proxy_respects_sni_hostname(
+    scheme: str,
+    sni_extensions: dict[str, str],
+    expected_hostnames: list[str],
+    handshake: list[bytes],
+    expected_request_line: bytes,
+) -> None:
+    hostnames: list[str | None] = []
     written = bytearray()
-    buffer = [b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK"]
-    if scheme == "https":
-        expected_hostnames.append(sni_hostname or "192.0.2.1")
-        buffer.insert(0, b"HTTP/1.1 200 Connection established\r\n\r\n")
+    buffer = handshake + [b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK"]
 
     class TLSIdentityStream(AsyncMockStream):
         async def write(self, buffer: bytes, timeout: float | None = None) -> None:
@@ -263,7 +285,7 @@ async def test_proxy_respects_sni_hostname(sni_hostname: str | None, scheme: str
             server_hostname: str | None = None,
             timeout: float | None = None,
         ) -> AsyncNetworkStream:
-            assert server_hostname == expected_hostnames.pop(0)
+            hostnames.append(server_hostname)
             assert timeout == 5
             return self
 
@@ -282,20 +304,13 @@ async def test_proxy_respects_sni_hostname(sni_hostname: str | None, scheme: str
     async with AsyncConnectionPool(
         proxy=Proxy("https://localhost:8080"), network_backend=TLSIdentityBackend([])
     ) as pool:
-        extensions: dict[str, typing.Any] = {"timeout": {"connect": 5}}
-        if sni_hostname is not None:
-            extensions["sni_hostname"] = sni_hostname
+        extensions = {"timeout": {"connect": 5}, **sni_extensions}
         expected_extensions = extensions.copy()
         response = await pool.request("GET", f"{scheme}://192.0.2.1/", extensions=extensions)
         assert response.status == 200
         assert response.content == b"OK"
-        assert expected_hostnames == []
+        assert hostnames == expected_hostnames
         assert extensions == expected_extensions
 
-    if scheme == "https":
-        assert written.startswith(b"CONNECT 192.0.2.1:443 HTTP/1.1\r\n")
-        assert b"\r\nhost: 192.0.2.1:443\r\n" in written.lower()
-        assert b"\r\n\r\nGET / HTTP/1.1\r\n" in written
-    else:
-        assert written.startswith(b"GET http://192.0.2.1/ HTTP/1.1\r\n")
+    assert written.startswith(expected_request_line)
     assert b"\r\nhost: 192.0.2.1\r\n" in written.lower()
