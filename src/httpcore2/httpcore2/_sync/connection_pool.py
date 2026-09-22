@@ -333,7 +333,7 @@ class ConnectionPool(RequestInterface):
             if not pool_request.is_queued():
                 continue
             origin = pool_request.request.url.origin
-            sni_hostname = pool_request.request.extensions.get("sni_hostname")
+            sni_hostname = pool_request.request.extensions.get("sni_hostname") or None
 
             # There are three cases for how we may be able to handle the request:
             #

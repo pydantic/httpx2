@@ -166,7 +166,7 @@ response = httpcore2.request(
 )
 ```
 
-If you change `sni_hostname`, the pool uses a separate connection. This prevents reuse of a TLS connection established with a different hostname override.
+The pool only reuses connections with matching `sni_hostname` overrides. This prevents reuse of a TLS connection established with a different hostname override. An empty string, `None`, and an omitted override are treated as equivalent.
 
 ### `"target"`
 
