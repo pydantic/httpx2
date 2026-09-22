@@ -4,7 +4,10 @@ import datetime
 import json
 import pickle
 import typing
+from collections.abc import AsyncGenerator, AsyncIterator, Callable
+from contextlib import aclosing
 
+import anyio
 import chardet
 import pytest
 
@@ -25,6 +28,76 @@ def streaming_body() -> typing.Iterator[bytes]:
 async def async_streaming_body() -> typing.AsyncIterator[bytes]:
     yield b"Hello, "
     yield b"world!"
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("iterate", "expected"),
+    [(httpx2.Response.aiter_text, "first\n"), (httpx2.Response.aiter_lines, "first")],
+    ids=["text", "lines"],
+)
+async def test_closing_text_iteration_closes_the_body_in_the_callers_task(
+    iterate: Callable[[httpx2.Response], AsyncIterator[str]], expected: str
+) -> None:
+    closed_in: list[int] = []
+    owner = anyio.get_current_task().id
+
+    async def body() -> AsyncGenerator[bytes, None]:
+        try:
+            yield b"first\n"
+        finally:
+            closed_in.append(anyio.get_current_task().id)
+
+    response = httpx2.Response(200, content=body())
+    async with aclosing(typing.cast(AsyncGenerator[str, None], iterate(response))) as chunks:
+        assert await anext(chunks) == expected
+
+    assert closed_in == [owner]
+    assert response.is_closed
+
+
+@pytest.mark.anyio
+async def test_text_iteration_accepts_a_plain_byte_iterator_override(monkeypatch: pytest.MonkeyPatch) -> None:
+    class ByteIterator:
+        def __init__(self) -> None:
+            self.chunks = [b"first", b"second"]
+
+        def __aiter__(self) -> ByteIterator:
+            return self
+
+        async def __anext__(self) -> bytes:
+            if self.chunks:
+                return self.chunks.pop(0)
+            raise StopAsyncIteration
+
+    def iterate(chunk_size: int | None = None) -> AsyncIterator[bytes]:
+        return ByteIterator()
+
+    response = httpx2.Response(200)
+    monkeypatch.setattr(response, "aiter_bytes", iterate)
+    assert [text async for text in response.aiter_text()] == ["first", "second"]
+
+
+@pytest.mark.anyio
+async def test_line_iteration_accepts_a_plain_text_iterator_override() -> None:
+    class TextIterator:
+        def __init__(self) -> None:
+            self.chunks = ["first\nsec", "ond\n"]
+
+        def __aiter__(self) -> TextIterator:
+            return self
+
+        async def __anext__(self) -> str:
+            if self.chunks:
+                return self.chunks.pop(0)
+            raise StopAsyncIteration
+
+    class TextResponse(httpx2.Response):
+        def aiter_text(self, chunk_size: int | None = None) -> AsyncIterator[str]:
+            return TextIterator()
+
+    response = TextResponse(200)
+    assert [line async for line in response.aiter_lines()] == ["first", "second"]
 
 
 def autodetect(content: bytes) -> str | None:
