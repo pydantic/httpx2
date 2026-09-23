@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2.14.0 (September 23rd, 2026)
+
+### Fixed
+
+* Honor the `sni_hostname` extension for TLS inside HTTP proxy tunnels without applying it to the proxy's TLS connection.
+  ([#1223](https://github.com/pydantic/httpx2/pull/1223))
+* Prefer HTTP/2 during TLS protocol negotiation when enabled, and stop advertising HTTP/1.1 when it is disabled.
+  ([#1155](https://github.com/pydantic/httpx2/pull/1155))
+
 ## 2.13.0 (September 14th, 2026)
 
 ### Changed
