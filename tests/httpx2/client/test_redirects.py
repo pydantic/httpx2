@@ -208,6 +208,17 @@ def test_invalid_redirect() -> None:
         client.get("http://example.org/invalid_redirect", follow_redirects=True)
 
 
+def test_invalid_redirect_not_followed() -> None:
+    # A malformed 'Location' must not discard the response when we are not
+    # following redirects: the response and its headers are returned as-is,
+    # with next_request left as None.
+    client = httpx2.Client(transport=httpx2.MockTransport(redirects))
+    response = client.get("http://example.org/invalid_redirect", follow_redirects=False)
+    assert response.status_code == httpx2.codes.SEE_OTHER
+    assert response.headers["location"] == "https://😇/"
+    assert response.next_request is None
+
+
 def test_no_scheme_redirect() -> None:
     client = httpx2.Client(transport=httpx2.MockTransport(redirects))
     response = client.get("https://example.org/no_scheme_redirect", follow_redirects=True)
@@ -458,3 +469,12 @@ async def test_async_invalid_redirect() -> None:
     async with httpx2.AsyncClient(transport=httpx2.MockTransport(redirects)) as client:
         with pytest.raises(httpx2.RemoteProtocolError):
             await client.get("http://example.org/invalid_redirect", follow_redirects=True)
+
+
+@pytest.mark.anyio
+async def test_async_invalid_redirect_not_followed() -> None:
+    async with httpx2.AsyncClient(transport=httpx2.MockTransport(redirects)) as client:
+        response = await client.get("http://example.org/invalid_redirect", follow_redirects=False)
+        assert response.status_code == httpx2.codes.SEE_OTHER
+        assert response.headers["location"] == "https://😇/"
+        assert response.next_request is None
