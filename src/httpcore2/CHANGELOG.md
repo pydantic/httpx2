@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## 2.14.0 (September 23rd, 2026)
+## 2.13.1 (September 23rd, 2026)
 
 ### Fixed
 
