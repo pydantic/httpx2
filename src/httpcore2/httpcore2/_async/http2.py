@@ -492,7 +492,10 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
         # Read `_expire_at` once into a local: on free-threaded builds another
         # thread may reset it to `None` between the check and the comparison.
         expire_at = self._expire_at
-        return expire_at is not None and now > expire_at
+        keepalive_expired = expire_at is not None and now > expire_at
+        # ponytail: idle control frames also retire connections; add a nonblocking drain if reuse suffers.
+        idle_readable = self._state == HTTPConnectionState.IDLE and self._network_stream.get_extra_info("is_readable")
+        return keepalive_expired or bool(idle_readable)
 
     def is_idle(self) -> bool:
         return self._state == HTTPConnectionState.IDLE
