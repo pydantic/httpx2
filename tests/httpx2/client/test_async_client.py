@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import select
+import ssl
 import sys
 import typing
 from datetime import timedelta
@@ -31,23 +32,40 @@ async def test_get(server: TestServer) -> None:
 
 
 @pytest.mark.anyio
-@pytest.mark.parametrize("mode", ["tls", "tcp", "ping", "open"])
+@pytest.mark.parametrize(
+    "mode", ["tls", "buffered_tls", "tcp", "goaway", "invalid", "ping", "settings", "partial", "partial_tls", "open"]
+)
 @pytest.mark.parametrize("keepalive_expiry", [None, 100])
-async def test_http2_keepalive(mode: str, localhost_cert: trustme.LeafCert, keepalive_expiry: float | None) -> None:
-    with http2_peer(mode, localhost_cert) as (url, response_read, peer_ready, close):
+@pytest.mark.parametrize("proxy", [False, True])
+async def test_http2_keepalive(
+    mode: str, localhost_cert: trustme.LeafCert, cert_authority: trustme.CA, keepalive_expiry: float | None, proxy: bool
+) -> None:
+    async def body(content: bytes) -> typing.AsyncIterator[bytes]:
+        yield content
+
+    context = ssl.create_default_context()
+    cert_authority.configure_trust(context)
+    with http2_peer(mode, localhost_cert, proxy=proxy) as (url, response_read, peer_ready, close):
+        proxy_config = httpx2.Proxy(url, ssl_context=context) if proxy else None
         async with httpx2.AsyncClient(
-            http2=True, verify=False, limits=httpx2.Limits(keepalive_expiry=keepalive_expiry)
+            http2=True, verify=context, proxy=proxy_config, limits=httpx2.Limits(keepalive_expiry=keepalive_expiry)
         ) as client:
-            first = await client.post(url, content=b"first")
+            first = await client.post(url, content=body(b"first"))
             assert first.http_version == "HTTP/2"
             assert first.content == b"first"
+            stream = first.extensions["network_stream"]
+            assert stream.get_extra_info("ssl_object").selected_alpn_protocol() == "h2"
+            assert stream.get_extra_info("client_addr")[0] == "127.0.0.1"
+            assert stream.get_extra_info("server_addr")[1] == httpx2.URL(url).port
+            assert stream.get_extra_info("invalid") is None
+            stream.get_extra_info("is_readable")
             response_read.set()
             assert await anyio.to_thread.run_sync(peer_ready.wait, 5)
-            if close:
+            if mode not in ("buffered_tls", "open"):
                 sock = first.extensions["network_stream"].get_extra_info("socket")
                 readable, _, _ = await anyio.to_thread.run_sync(select.select, [sock], [], [], 5)
                 assert readable
-            second = await client.post(url, content=b"second")
+            second = await client.post(url, content=body(b"second"))
             assert second.content == b"second"
             assert (first.extensions["network_stream"] is not second.extensions["network_stream"]) == close
 

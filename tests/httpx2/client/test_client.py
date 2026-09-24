@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import select
+import ssl
 import typing
 from datetime import timedelta
 
@@ -36,22 +37,51 @@ def test_get(server: TestServer) -> None:
     assert response.elapsed > timedelta(0)
 
 
-@pytest.mark.parametrize("mode", ["tls", "tcp", "ping", "open"])
+@pytest.mark.parametrize(
+    "mode", ["tls", "buffered_tls", "tcp", "goaway", "invalid", "ping", "settings", "partial", "partial_tls", "open"]
+)
 @pytest.mark.parametrize("keepalive_expiry", [None, 100])
-def test_http2_keepalive(mode: str, localhost_cert: trustme.LeafCert, keepalive_expiry: float | None) -> None:
-    with http2_peer(mode, localhost_cert) as (url, response_read, peer_ready, close):
-        with httpx2.Client(http2=True, verify=False, limits=httpx2.Limits(keepalive_expiry=keepalive_expiry)) as client:
+@pytest.mark.parametrize("proxy", [False, True])
+def test_http2_keepalive(
+    mode: str, localhost_cert: trustme.LeafCert, cert_authority: trustme.CA, keepalive_expiry: float | None, proxy: bool
+) -> None:
+    context = ssl.create_default_context()
+    cert_authority.configure_trust(context)
+    with http2_peer(mode, localhost_cert, proxy=proxy) as (url, response_read, peer_ready, close):
+        proxy_config = httpx2.Proxy(url, ssl_context=context) if proxy else None
+        with httpx2.Client(
+            http2=True, verify=context, proxy=proxy_config, limits=httpx2.Limits(keepalive_expiry=keepalive_expiry)
+        ) as client:
             first = client.post(url, content=iter([b"first"]))
             assert first.http_version == "HTTP/2"
             assert first.content == b"first"
+            stream = first.extensions["network_stream"]
+            with pytest.raises(ValueError, match="max_bytes"):
+                stream.get_extra_info("read_available")(0)
+            assert stream.get_extra_info("ssl_object").selected_alpn_protocol() == "h2"
+            assert stream.get_extra_info("client_addr")[0] == "127.0.0.1"
+            assert stream.get_extra_info("server_addr")[1] == httpx2.URL(url).port
+            assert stream.get_extra_info("invalid") is None
+            stream.get_extra_info("is_readable")
             response_read.set()
             assert peer_ready.wait(5)
-            if close:
+            if mode not in ("buffered_tls", "open"):
                 sock = first.extensions["network_stream"].get_extra_info("socket")
                 assert select.select([sock], [], [], 5)[0]
             second = client.post(url, content=iter([b"second"]))
             assert second.content == b"second"
             assert (first.extensions["network_stream"] is not second.extensions["network_stream"]) == close
+
+
+def test_http2_incomplete_response_through_https_proxy(
+    localhost_cert: trustme.LeafCert, cert_authority: trustme.CA
+) -> None:
+    context = ssl.create_default_context()
+    cert_authority.configure_trust(context)
+    with pytest.raises(httpx2.ReadError):
+        with http2_peer("incomplete", localhost_cert, proxy=True) as (url, _, _, _):
+            with httpx2.Client(http2=True, verify=context, proxy=httpx2.Proxy(url, ssl_context=context)) as client:
+                client.post(url, content=b"first")
 
 
 @pytest.mark.parametrize("mode", ["tls", "tcp", "ping", "open"])

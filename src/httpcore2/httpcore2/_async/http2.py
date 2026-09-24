@@ -14,7 +14,13 @@ import h2.exceptions
 import h2.settings
 
 from .._backends.base import AsyncNetworkStream
-from .._exceptions import ConnectionNotAvailable, LocalProtocolError, RemoteProtocolError
+from .._exceptions import (
+    ConnectionNotAvailable,
+    LocalProtocolError,
+    ReadError,
+    RemoteProtocolError,
+    WriteError,
+)
 from .._models import Origin, Request, Response
 from .._synchronization import AsyncLock, AsyncSemaphore, AsyncShieldCancellation
 from .._trace import Trace
@@ -81,6 +87,18 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
             raise RuntimeError(f"Attempted to send request to {request.url.origin} on connection to {self._origin}")
 
         async with self._state_lock:
+            # Probe before sending headers or consuming a body that cannot be replayed.
+            if self._state == HTTPConnectionState.IDLE and self._sent_connection_init:
+                try:
+                    while await self._receive_events(request, read_available=True):
+                        pass
+                except BaseException as exc:
+                    with AsyncShieldCancellation():
+                        await self.aclose()
+                    if isinstance(exc, (ReadError, RemoteProtocolError, WriteError, h2.exceptions.ProtocolError)):
+                        raise ConnectionNotAvailable() from None
+                    raise
+
             if self._state in (HTTPConnectionState.ACTIVE, HTTPConnectionState.IDLE):
                 self._request_count += 1
                 self._expire_at = None
@@ -314,7 +332,9 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
             raise RemoteProtocolError(event)
         return event
 
-    async def _receive_events(self, request: Request, stream_id: int | None = None) -> None:
+    async def _receive_events(
+        self, request: Request, stream_id: int | None = None, *, read_available: bool = False
+    ) -> bool:
         """
         Read some data from the network until we see one or more events
         for a given stream ID.
@@ -334,7 +354,19 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
             # block until we've available flow control, event when we have events
             # pending for the stream ID we're attempting to send on.
             if stream_id is None or not self._events.get(stream_id):
-                events = await self._read_incoming_data(request)
+                if read_available:
+                    read = self._network_stream.get_extra_info("read_available")
+                    if read is None:
+                        return False
+                    timeout = request.extensions.get("timeout", {}).get("read")
+                    data = await read(self.READ_NUM_BYTES, timeout)
+                    if data is None:
+                        return False
+                    if not data:
+                        raise RemoteProtocolError("Server disconnected")
+                    events = self._h2_state.receive_data(data)
+                else:
+                    events = await self._read_incoming_data(request)
                 for event in events:
                     if isinstance(event, h2.events.RemoteSettingsChanged):
                         async with Trace("receive_remote_settings", logger, request) as trace:
@@ -357,6 +389,7 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
                         self._connection_terminated = event
 
         await self._write_outgoing_data(request)
+        return True
 
     async def _receive_remote_settings_change(self, event: h2.events.RemoteSettingsChanged) -> None:
         max_concurrent_streams = event.changed_settings.get(h2.settings.SettingCodes.MAX_CONCURRENT_STREAMS)
@@ -492,10 +525,7 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
         # Read `_expire_at` once into a local: on free-threaded builds another
         # thread may reset it to `None` between the check and the comparison.
         expire_at = self._expire_at
-        keepalive_expired = expire_at is not None and now > expire_at
-        # Pending bytes may be a TLS close notification or control frames; retire idle connections conservatively.
-        idle_readable = self._state == HTTPConnectionState.IDLE and self._network_stream.get_extra_info("is_readable")
-        return keepalive_expired or bool(idle_readable)
+        return expire_at is not None and now > expire_at
 
     def is_idle(self) -> bool:
         return self._state == HTTPConnectionState.IDLE
