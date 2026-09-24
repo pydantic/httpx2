@@ -493,7 +493,7 @@ class HTTP2Connection(ConnectionInterface):
         # thread may reset it to `None` between the check and the comparison.
         expire_at = self._expire_at
         keepalive_expired = expire_at is not None and now > expire_at
-        # ponytail: idle control frames also retire connections; add a nonblocking drain if reuse suffers.
+        # Pending bytes may be a TLS close notification or control frames; retire idle connections conservatively.
         idle_readable = self._state == HTTPConnectionState.IDLE and self._network_stream.get_extra_info("is_readable")
         return keepalive_expired or bool(idle_readable)
 

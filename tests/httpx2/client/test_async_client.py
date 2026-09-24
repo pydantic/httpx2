@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 import asyncio
+import select
 import sys
 import typing
 from datetime import timedelta
 
+import anyio
 import pytest
+import trustme
 
 import httpx2
+from tests.httpx2.common import http2_peer
 
 if typing.TYPE_CHECKING:
     from conftest import TestServer
@@ -24,6 +28,28 @@ async def test_get(server: TestServer) -> None:
     assert response.headers
     assert repr(response) == "<Response [200 OK]>"
     assert response.elapsed > timedelta(seconds=0)
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("mode", ["tls", "tcp", "ping", "open"])
+@pytest.mark.parametrize("keepalive_expiry", [None, 100])
+async def test_http2_keepalive(mode: str, localhost_cert: trustme.LeafCert, keepalive_expiry: float | None) -> None:
+    with http2_peer(mode, localhost_cert) as (url, response_read, peer_ready, close):
+        async with httpx2.AsyncClient(
+            http2=True, verify=False, limits=httpx2.Limits(keepalive_expiry=keepalive_expiry)
+        ) as client:
+            first = await client.post(url, content=b"first")
+            assert first.http_version == "HTTP/2"
+            assert first.content == b"first"
+            response_read.set()
+            assert await anyio.to_thread.run_sync(peer_ready.wait, 5)
+            if close:
+                sock = first.extensions["network_stream"].get_extra_info("socket")
+                readable, _, _ = await anyio.to_thread.run_sync(select.select, [sock], [], [], 5)
+                assert readable
+            second = await client.post(url, content=b"second")
+            assert second.content == b"second"
+            assert (first.extensions["network_stream"] is not second.extensions["network_stream"]) == close
 
 
 @pytest.mark.parametrize(
