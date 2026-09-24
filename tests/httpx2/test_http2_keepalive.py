@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import select
 import socket
 import ssl
 import threading
@@ -101,6 +102,9 @@ def test_http2_keepalive(
         assert first.content == b"first"
         response_read.set()
         assert peer_ready.wait(5)
+        if close:
+            sock = first.extensions["network_stream"].get_extra_info("socket")
+            assert select.select([sock], [], [], 5)[0]
         second = client.post(url, content=iter([b"second"]))
         assert second.content == b"second"
         assert (first.extensions["network_stream"] is not second.extensions["network_stream"]) == close
@@ -120,6 +124,10 @@ async def test_async_http2_keepalive(
         assert first.content == b"first"
         response_read.set()
         assert await anyio.to_thread.run_sync(peer_ready.wait, 5)
+        if close:
+            sock = first.extensions["network_stream"].get_extra_info("socket")
+            readable, _, _ = await anyio.to_thread.run_sync(select.select, [sock], [], [], 5)
+            assert readable
         second = await client.post(url, content=b"second")
         assert second.content == b"second"
         assert (first.extensions["network_stream"] is not second.extensions["network_stream"]) == close
