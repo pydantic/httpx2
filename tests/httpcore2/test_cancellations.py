@@ -190,6 +190,42 @@ async def test_h11_timeout_during_response() -> None:
 
 
 @pytest.mark.anyio
+async def test_h2_cancellation_during_idle_probe() -> None:
+    async def read_available(max_bytes: int, timeout: float | None = None) -> None:
+        scope.cancel()
+        await anyio.sleep_forever()
+
+    class Stream(httpcore2.AsyncMockStream):
+        def get_extra_info(self, info: str) -> typing.Any:
+            assert info == "read_available"
+            return read_available
+
+        async def aclose(self) -> None:
+            await anyio.sleep(0)
+            await super().aclose()
+
+    stream = Stream(
+        [
+            hyperframe.frame.SettingsFrame().serialize(),
+            hyperframe.frame.HeadersFrame(
+                stream_id=1,
+                data=hpack.Encoder().encode([(b":status", b"200")]),
+                flags=["END_HEADERS", "END_STREAM"],
+            ).serialize(),
+        ]
+    )
+    origin = httpcore2.Origin(b"https", b"example.com", 443)
+    async with httpcore2.AsyncHTTP2Connection(origin, stream) as connection:
+        assert (await connection.request("GET", "https://example.com/")).status == 200
+        with anyio.CancelScope() as scope:
+            await connection.request("GET", "https://example.com/")
+        assert scope.cancel_called
+        assert connection.is_closed()
+        with pytest.raises(httpcore2.ReadError, match="Connection closed"):
+            await stream.read(1)
+
+
+@pytest.mark.anyio
 async def test_h2_timeout_during_handshake() -> None:
     """
     An async timeout on an HTTP/2 during the initial handshake
