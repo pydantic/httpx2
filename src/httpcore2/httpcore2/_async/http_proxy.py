@@ -15,6 +15,7 @@ from .._models import (
     enforce_bytes,
     enforce_headers,
     enforce_url,
+    format_host,
 )
 from .._ssl import default_ssl_context
 from .._synchronization import AsyncLock
@@ -261,7 +262,7 @@ class AsyncTunnelHTTPConnection(AsyncConnectionInterface):
 
         async with self._connect_lock:
             if not self._connected:
-                target = b"%b:%d" % (self._remote_origin.host, self._remote_origin.port)
+                target = b"%b:%d" % (format_host(self._remote_origin.host), self._remote_origin.port)
 
                 connect_url = URL(
                     scheme=self._proxy_origin.scheme,
