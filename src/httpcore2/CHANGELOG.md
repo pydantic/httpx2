@@ -10,6 +10,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 * Serialize access to the `h2` state machine so that a single HTTP/2 connection can be safely shared across threads. ([#1153](https://github.com/pydantic/httpx2/pull/1153))
 
+## 2.13.1 (September 23rd, 2026)
+
+### Fixed
+
+* Honor the `sni_hostname` extension for TLS inside HTTP proxy tunnels without applying it to the proxy's TLS connection.
+  ([#1223](https://github.com/pydantic/httpx2/pull/1223))
+* Prefer HTTP/2 during TLS protocol negotiation when enabled, and stop advertising HTTP/1.1 when it is disabled.
+  ([#1155](https://github.com/pydantic/httpx2/pull/1155))
+
+## 2.13.0 (September 14th, 2026)
+
+### Changed
+
+* Require Trio 0.34.0 or later for the `trio` extra.
+  ([#1179](https://github.com/pydantic/httpx2/pull/1179))
+
+### Fixed
+
+* Avoid nested async generator finalization errors when streamed responses are abandoned early.
+  ([#1204](https://github.com/pydantic/httpx2/pull/1204))
+
 ## 2.12.0 (August 18th, 2026)
 
 No changes since `2.11.0`. Version bumped to stay in lockstep with `httpx2`.

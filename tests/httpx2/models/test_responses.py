@@ -250,10 +250,11 @@ def test_response_no_charset_with_cp_1252_content() -> None:
     A response with Windows 1252 encoded content should decode correctly,
     even with no charset specified, if autodetect is enabled.
     """
-    content = "Euro Currency: € abcdefghijklmnopqrstuzwxyz".encode("cp1252")
+    text = "Non-seulement Despréaux ne se trompait pas — mais de tous les écrivains que la France a produits."
+    content = text.encode("cp1252")
     headers = {"Content-Type": "text/plain"}
     response = httpx2.Response(200, content=content, headers=headers, default_encoding=autodetect)
-    assert response.text == "Euro Currency: € abcdefghijklmnopqrstuzwxyz"
+    assert response.text == text
     assert response.charset_encoding is None
 
 
@@ -1014,7 +1015,7 @@ def test_response_decode_text_using_autodetect() -> None:
 
     assert response.status_code == 200
     assert response.reason_phrase == "OK"
-    assert response.encoding == "WINDOWS-1252"
+    assert response.encoding == "Windows-1252"
     assert response.text == text
 
 
