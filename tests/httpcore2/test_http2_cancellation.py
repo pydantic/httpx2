@@ -97,6 +97,60 @@ async def test_cancelled_reader_preserves_other_stream_response() -> None:
 
 
 @pytest.mark.anyio
+async def test_response_read_progresses_while_write_is_blocked() -> None:
+    writer_blocked = anyio.Event()
+    second_read = anyio.Event()
+    peer = h2.connection.H2Connection(h2.config.H2Configuration(client_side=False))
+    peer.initiate_connection()
+    stream_ids: list[int] = []
+    reading_bodies = False
+    bodies_read = 0
+
+    class BackpressureStream(httpcore2.AsyncNetworkStream):
+        async def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
+            nonlocal bodies_read
+            if reading_bodies:
+                peer.send_data(stream_ids[bodies_read], (b"one", b"two")[bodies_read], end_stream=True)
+                if bodies_read == 0:
+                    peer.ping(b"12345678")
+                else:
+                    second_read.set()
+                bodies_read += 1
+            return peer.data_to_send()
+
+        async def write(self, buffer: bytes, timeout: float | None = None) -> None:
+            if reading_bodies and not second_read.is_set():
+                assert buffer
+                writer_blocked.set()
+                await second_read.wait()
+            for event in peer.receive_data(buffer):
+                if isinstance(event, h2.events.RequestReceived):
+                    stream_ids.append(event.stream_id)
+                    peer.send_headers(event.stream_id, [(b":status", b"200")])
+
+        async def aclose(self) -> None:
+            pass
+
+    async def read_body(response: httpcore2.Response, expected: bytes) -> None:
+        assert await response.aread() == expected
+
+    origin = httpcore2.Origin(b"https", b"example.com", 443)
+    with anyio.fail_after(5):
+        async with httpcore2.AsyncHTTP2Connection(origin, BackpressureStream()) as connection:
+            async with (
+                connection.stream("GET", "https://example.com/one") as first,
+                connection.stream("GET", "https://example.com/two") as second,
+            ):
+                reading_bodies = True
+                async with anyio.create_task_group() as group:
+                    group.start_soon(read_body, first, b"one")
+                    await writer_blocked.wait()
+                    group.start_soon(read_body, second, b"two")
+            assert bodies_read == 2
+            assert connection.is_idle()
+
+
+@pytest.mark.anyio
 @pytest.mark.parametrize("stage", ["started", "complete"])
 @pytest.mark.parametrize(
     "error", [RuntimeError, httpcore2.ConnectionNotAvailable, h2.exceptions.NoAvailableStreamIDError]

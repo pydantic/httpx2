@@ -396,7 +396,7 @@ class HTTP2Connection(ConnectionInterface):
                         self._receive_remote_settings_change(settings_change)
                         trace.return_value = settings_change
 
-                self._write_outgoing_data(request)
+        self._write_outgoing_data(request)
 
     def _receive_remote_settings_change(self, event: h2.events.RemoteSettingsChanged) -> None:
         max_concurrent_streams = event.changed_settings.get(h2.settings.SettingCodes.MAX_CONCURRENT_STREAMS)
