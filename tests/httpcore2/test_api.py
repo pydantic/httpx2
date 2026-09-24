@@ -257,8 +257,6 @@ async def test_read_during_blocked_write(
 
     async def serve(peer: anyio.abc.SocketStream) -> None:
         stream: anyio.abc.ByteStream = peer
-        sock = peer.extra(anyio.abc.SocketAttribute.raw_socket)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 16384)
         async with peer:
             for _ in range(layers):
                 stream = await anyio.streams.tls.TLSStream.wrap(
@@ -268,7 +266,6 @@ async def test_read_during_blocked_write(
             await send_response.wait()
             await stream.send(b"ready")
             await read_request.wait()
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 1024 * 1024)
             received = 0
             while received < len(body):
                 data = await stream.receive()
