@@ -5,8 +5,16 @@ import anyio
 import hpack
 import hyperframe.frame
 import pytest
+from trio.testing import MockClock
 
 import httpcore2
+
+
+@pytest.fixture(params=["asyncio", "trio"])
+def anyio_backend(request: pytest.FixtureRequest) -> str | tuple[str, dict[str, MockClock]]:
+    if request.param == "trio":
+        return "trio", {"clock": MockClock(autojump_threshold=0)}
+    return "asyncio"
 
 
 class SlowWriteStream(httpcore2.AsyncNetworkStream):
