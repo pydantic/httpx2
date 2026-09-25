@@ -26,9 +26,8 @@ client = httpx2.Client(transport=transport)
 
 from __future__ import annotations
 
-import contextlib
 import typing
-from collections.abc import Generator
+from functools import cache
 from types import TracebackType
 
 if typing.TYPE_CHECKING:  # pragma: no cover
@@ -65,9 +64,8 @@ SOCKET_OPTION = tuple[int, int, int] | tuple[int, int, bytes | bytearray] | tupl
 
 __all__ = ["AsyncHTTPTransport", "HTTPTransport"]
 
-HTTPCORE_EXC_MAP: dict[type[Exception], type[httpx2.HTTPError]] = {}
 
-
+@cache
 def _load_httpcore_exceptions() -> dict[type[Exception], type[httpx2.HTTPError]]:
     import httpcore2
 
@@ -89,30 +87,30 @@ def _load_httpcore_exceptions() -> dict[type[Exception], type[httpx2.HTTPError]]
     }
 
 
-@contextlib.contextmanager
-def map_httpcore_exceptions() -> Generator[None]:
-    global HTTPCORE_EXC_MAP
-    if len(HTTPCORE_EXC_MAP) == 0:
-        HTTPCORE_EXC_MAP = _load_httpcore_exceptions()
-    try:
-        yield
-    except Exception as exc:
-        mapped_exc = None
+@cache
+def _get_httpcore_exception_types() -> tuple[type[Exception], ...]:
+    return tuple(_load_httpcore_exceptions())
 
-        for from_exc, to_exc in HTTPCORE_EXC_MAP.items():
-            if not isinstance(exc, from_exc):
-                continue
-            # We want to map to the most specific exception we can find.
-            # Eg if `exc` is an `httpcore2.ReadTimeout`, we want to map to
-            # `httpx2.ReadTimeout`, not just `httpx2.TimeoutException`.
-            if mapped_exc is None or issubclass(to_exc, mapped_exc):
-                mapped_exc = to_exc
 
-        if mapped_exc is None:  # pragma: no cover
-            raise
+def _map_httpcore_exception(exc: Exception) -> httpx2.HTTPError:
+    """
+    Map the given httpcore exception to the corresponding HTTPX exception,
+    and return it. If there is no equivalence, raise immediately.
+    """
+    mapped_exc = None
+    for from_exc, to_exc in _load_httpcore_exceptions().items():
+        if not isinstance(exc, from_exc):
+            continue
+        # We want to map to the most specific exception we can find.
+        # Eg if `exc` is an `httpcore2.ReadTimeout`, we want to map to
+        # `httpx2.ReadTimeout`, not just `httpx2.TimeoutException`.
+        if mapped_exc is None or issubclass(to_exc, mapped_exc):
+            mapped_exc = to_exc
 
-        message = str(exc)
-        raise mapped_exc(message) from exc
+    if mapped_exc is None:  # pragma: no cover
+        raise
+
+    return mapped_exc(str(exc))
 
 
 class ResponseStream(SyncByteStream):
@@ -120,8 +118,10 @@ class ResponseStream(SyncByteStream):
         self._httpcore_stream = httpcore_stream
 
     def __iter__(self) -> typing.Iterator[bytes]:
-        with map_httpcore_exceptions():
+        try:
             yield from self._httpcore_stream
+        except _get_httpcore_exception_types() as exc:
+            raise _map_httpcore_exception(exc) from exc
 
     def close(self) -> None:
         if hasattr(self._httpcore_stream, "close"):
@@ -219,8 +219,10 @@ class HTTPTransport(BaseTransport):
         exc_value: BaseException | None = None,
         traceback: TracebackType | None = None,
     ) -> None:
-        with map_httpcore_exceptions():
+        try:
             self._pool.__exit__(exc_type, exc_value, traceback)
+        except _get_httpcore_exception_types() as exc:  # pragma: no cover
+            raise _map_httpcore_exception(exc) from exc
 
     def handle_request(
         self,
@@ -241,8 +243,10 @@ class HTTPTransport(BaseTransport):
             content=request.stream,
             extensions=request.extensions,
         )
-        with map_httpcore_exceptions():
+        try:
             resp = self._pool.handle_request(req)
+        except _get_httpcore_exception_types() as exc:
+            raise _map_httpcore_exception(exc) from exc
 
         assert isinstance(resp.stream, typing.Iterable)
 
@@ -262,9 +266,11 @@ class AsyncResponseStream(AsyncByteStream):
         self._httpcore_stream = httpcore_stream
 
     async def __aiter__(self) -> typing.AsyncIterator[bytes]:
-        with map_httpcore_exceptions():
+        try:
             async for part in self._httpcore_stream:
                 yield part
+        except _get_httpcore_exception_types() as exc:  # pragma: no cover
+            raise _map_httpcore_exception(exc) from exc
 
     async def aclose(self) -> None:
         if hasattr(self._httpcore_stream, "aclose"):
@@ -362,8 +368,10 @@ class AsyncHTTPTransport(AsyncBaseTransport):
         exc_value: BaseException | None = None,
         traceback: TracebackType | None = None,
     ) -> None:
-        with map_httpcore_exceptions():
+        try:
             await self._pool.__aexit__(exc_type, exc_value, traceback)
+        except _get_httpcore_exception_types() as exc:  # pragma: no cover
+            raise _map_httpcore_exception(exc) from exc
 
     async def handle_async_request(
         self,
@@ -384,8 +392,10 @@ class AsyncHTTPTransport(AsyncBaseTransport):
             content=request.stream,
             extensions=request.extensions,
         )
-        with map_httpcore_exceptions():
+        try:
             resp = await self._pool.handle_async_request(req)
+        except _get_httpcore_exception_types() as exc:
+            raise _map_httpcore_exception(exc) from exc
 
         assert isinstance(resp.stream, typing.AsyncIterable)
 
