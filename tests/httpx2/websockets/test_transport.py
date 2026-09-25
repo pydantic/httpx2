@@ -15,7 +15,9 @@ from starlette.responses import PlainTextResponse
 from starlette.routing import Route, WebSocketRoute
 from starlette.websockets import WebSocket
 
+import httpcore2 as httpcore
 import httpx2 as httpx
+from httpx2.websockets import AsyncWebSocketSession
 from httpx2.websockets._api import aconnect_ws
 from httpx2.websockets._exceptions import WebSocketDisconnect, WebSocketUpgradeError
 from httpx2.websockets._transport import (
@@ -133,6 +135,30 @@ class TestASGIWebSocketAsyncNetworkStream:
             wsproto.events.BytesMessage(bytearray(b"SERVER_MESSAGE")),
             wsproto.events.CloseConnection(1000, ""),
         ]
+
+    async def test_read_during_and_after_close(self, scope: Scope) -> None:
+        async def app(scope: Scope, receive: Receive, send: Send) -> None:
+            await receive()
+            await send({"type": "websocket.accept"})
+            await receive()
+
+        received: list[bytes] = []
+        with anyio.fail_after(5):
+            async with (
+                create_task_group() as tg,
+                ASGIWebSocketAsyncNetworkStream(app, scope, tg) as (stream, _),
+            ):
+
+                async def read() -> None:
+                    received.append(await stream.read(4096))
+
+                tg.start_soon(read)
+                await anyio.wait_all_tasks_blocked()
+                await stream.aclose()
+                with pytest.raises(httpcore.ReadError):
+                    await stream.read(4096)
+
+        assert received == [b""]
 
     async def test_read_unhandled_asgi_message(self, scope: Scope) -> None:
         async def app(scope: Scope, receive: Receive, send: Send) -> None:
@@ -371,6 +397,30 @@ async def test_cancel_scope_integrity() -> None:
         with CancelScope():
             async with aconnect_ws("ws://localhost:8000/ws", client):
                 pass
+
+
+@pytest.mark.anyio
+async def test_close_session_from_another_task() -> None:
+    async def websocket_endpoint(websocket: WebSocket) -> None:
+        await websocket.accept()
+        await websocket.receive()
+
+    app = Starlette(routes=[WebSocketRoute("/ws", endpoint=websocket_endpoint)])
+    exit_requested = anyio.Event()
+    with anyio.fail_after(5):
+        async with httpx.AsyncClient(transport=ASGIWebSocketTransport(app), base_url="http://test") as client:
+
+            async def connection(*, task_status: anyio.abc.TaskStatus[AsyncWebSocketSession]) -> None:
+                async with client.websocket("/ws") as websocket:
+                    task_status.started(websocket)
+                    await exit_requested.wait()
+
+            async with create_task_group() as task_group:
+                websocket = await task_group.start(connection)
+                await anyio.wait_all_tasks_blocked()
+                await websocket.close()
+                await anyio.wait_all_tasks_blocked()
+                exit_requested.set()
 
 
 @pytest.mark.anyio
