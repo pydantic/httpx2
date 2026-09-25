@@ -46,6 +46,8 @@ def log(event_name, info):
 
 client = httpx2.Client()
 response = client.get("https://www.example.com/", extensions={"trace": log})
+# connection_pool.wait_for_connection.started {'timeout': 5.0}
+# connection_pool.wait_for_connection.complete {'return_value': <HTTPConnection [CONNECTING]>}
 # connection.connect_tcp.started {'host': 'www.example.com', 'port': 443, 'local_address': None, 'timeout': 5.0, 'socket_options': None}
 # connection.connect_tcp.complete {'return_value': <httpcore2._backends.sync.SyncStream object at 0x1093f94d0>}
 # connection.start_tls.started {'ssl_context': <truststore._api.SSLContext object at 0x1093ee750>, 'server_hostname': 'www.example.com', 'timeout': 5.0}
@@ -72,6 +74,10 @@ Note that when using async code the handler function passed to `"trace"` must be
 
 The following event types are currently exposed...
 
+**Acquiring a connection from the pool**
+
+* `"connection_pool.wait_for_connection"`
+
 **Establishing the connection**
 
 * `"connection.connect_tcp"`
@@ -96,6 +102,30 @@ The following event types are currently exposed...
 * `"http2.response_closed"`
 
 The exact set of trace events may be subject to change across different versions of `httpcore2`. If you need to rely on a particular set of events it is recommended that you pin installation of the package to a fixed version.
+
+#### Tracing every request
+
+The `"trace"` extension is set per-request, and there is no client-level default for it. To instrument every request that a client makes — for example, to record how long requests spend waiting for a connection from a saturated pool — install the callback from a transport subclass...
+
+```python
+import httpx2
+
+async def log(event_name, info):
+    print(event_name, info)
+
+class TracingTransport(httpx2.AsyncHTTPTransport):
+    def __init__(self, trace, **kwargs):
+        super().__init__(**kwargs)
+        self._trace = trace
+
+    async def handle_async_request(self, request):
+        request.extensions = {"trace": self._trace, **request.extensions}
+        return await super().handle_async_request(request)
+
+client = httpx2.AsyncClient(transport=TracingTransport(trace=log))
+```
+
+A `"trace"` passed on an individual request still takes precedence over the transport's default. The sync equivalent subclasses `httpx2.HTTPTransport`, overrides `handle_request`, and uses a plain `def log(...)` callback.
 
 ### `"sni_hostname"`
 

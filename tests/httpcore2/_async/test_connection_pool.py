@@ -239,6 +239,8 @@ async def test_trace_request() -> None:
         await pool.request("GET", "https://example.com/", extensions={"trace": trace})
 
     assert called == [
+        "connection_pool.wait_for_connection.started",
+        "connection_pool.wait_for_connection.complete",
         "connection.connect_tcp.started",
         "connection.connect_tcp.complete",
         "connection.start_tls.started",
@@ -278,6 +280,16 @@ async def test_debug_request(caplog: pytest.LogCaptureFixture) -> None:
         await pool.request("GET", "http://example.com/")
 
     assert caplog.record_tuples == [
+        (
+            "httpcore2.connection_pool",
+            logging.DEBUG,
+            "wait_for_connection.started timeout=None",
+        ),
+        (
+            "httpcore2.connection_pool",
+            logging.DEBUG,
+            "wait_for_connection.complete return_value=<AsyncHTTPConnection [CONNECTING]>",
+        ),
         (
             "httpcore2.connection",
             logging.DEBUG,
@@ -324,6 +336,66 @@ async def test_debug_request(caplog: pytest.LogCaptureFixture) -> None:
     ]
 
 
+@pytest.mark.trio
+async def test_trace_queued_request() -> None:
+    """
+    A request that has to wait for a connection to become available emits
+    `wait_for_connection` trace events that span the wait.
+    """
+    network_backend = httpcore2.AsyncMockBackend(
+        [
+            b"HTTP/1.1 200 OK\r\n",
+            b"Content-Type: plain/text\r\n",
+            b"Content-Length: 13\r\n",
+            b"\r\n",
+            b"Hello, world!",
+        ]
+        * 2
+    )
+
+    called: list[str] = []
+    connection_held = concurrency.Event()
+
+    async def trace(name: str, kwargs: dict[str, typing.Any]) -> None:
+        called.append(name)
+
+    async def hold_connection(pool: httpcore2.AsyncConnectionPool) -> None:
+        # Occupy the pool's only connection until the other request has queued.
+        async with pool.stream("GET", "https://example.com/") as response:
+            await response.aread()
+            connection_held.set()
+            while "Requests: 1 active, 1 queued" not in repr(pool):
+                await concurrency.sleep(0.001)
+            called.append("connection released")
+
+    async def send_queued_request(pool: httpcore2.AsyncConnectionPool) -> None:
+        await connection_held.wait()
+        response = await pool.request("GET", "https://example.com/", extensions={"trace": trace})
+        assert response.status == 200
+
+    async with httpcore2.AsyncConnectionPool(network_backend=network_backend, max_connections=1) as pool:
+        async with concurrency.open_nursery() as nursery:
+            nursery.start_soon(hold_connection, pool)
+            nursery.start_soon(send_queued_request, pool)
+
+    # The wait is only complete once the held connection has been released.
+    assert called == [
+        "connection_pool.wait_for_connection.started",
+        "connection released",
+        "connection_pool.wait_for_connection.complete",
+        "http11.send_request_headers.started",
+        "http11.send_request_headers.complete",
+        "http11.send_request_body.started",
+        "http11.send_request_body.complete",
+        "http11.receive_response_headers.started",
+        "http11.receive_response_headers.complete",
+        "http11.receive_response_body.started",
+        "http11.receive_response_body.complete",
+        "http11.response_closed.started",
+        "http11.response_closed.complete",
+    ]
+
+
 @pytest.mark.anyio
 async def test_connection_pool_with_http_exception() -> None:
     """
@@ -346,6 +418,8 @@ async def test_connection_pool_with_http_exception() -> None:
         assert info == []
 
     assert called == [
+        "connection_pool.wait_for_connection.started",
+        "connection_pool.wait_for_connection.complete",
         "connection.connect_tcp.started",
         "connection.connect_tcp.complete",
         "connection.start_tls.started",
@@ -395,6 +469,8 @@ async def test_connection_pool_with_connect_exception() -> None:
         assert info == []
 
     assert called == [
+        "connection_pool.wait_for_connection.started",
+        "connection_pool.wait_for_connection.complete",
         "connection.connect_tcp.started",
         "connection.connect_tcp.failed",
     ]
@@ -776,6 +852,8 @@ async def test_http11_upgrade_connection() -> None:
             assert content == b"..."
 
     assert called == [
+        "connection_pool.wait_for_connection.started",
+        "connection_pool.wait_for_connection.complete",
         "connection.connect_tcp.started",
         "connection.connect_tcp.complete",
         "connection.start_tls.started",
