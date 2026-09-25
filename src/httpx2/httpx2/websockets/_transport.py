@@ -110,6 +110,10 @@ class ASGIWebSocketAsyncNetworkStream:
             message: Message = await self.receive(timeout=timeout)
         except anyio.EndOfStream:
             return b""
+        except anyio.ClosedResourceError as exc:
+            import httpcore2
+
+            raise httpcore2.ReadError() from exc
         type = message["type"]
 
         if type not in {"websocket.send", "websocket.close"}:

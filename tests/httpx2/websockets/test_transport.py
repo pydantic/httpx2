@@ -15,6 +15,7 @@ from starlette.responses import PlainTextResponse
 from starlette.routing import Route, WebSocketRoute
 from starlette.websockets import WebSocket
 
+import httpcore2 as httpcore
 import httpx2 as httpx
 from httpx2.websockets import AsyncWebSocketSession
 from httpx2.websockets._api import aconnect_ws
@@ -135,7 +136,7 @@ class TestASGIWebSocketAsyncNetworkStream:
             wsproto.events.CloseConnection(1000, ""),
         ]
 
-    async def test_pending_read_returns_eof_on_close(self, scope: Scope) -> None:
+    async def test_read_during_and_after_close(self, scope: Scope) -> None:
         async def app(scope: Scope, receive: Receive, send: Send) -> None:
             await receive()
             await send({"type": "websocket.accept"})
@@ -154,6 +155,8 @@ class TestASGIWebSocketAsyncNetworkStream:
                 tg.start_soon(read)
                 await anyio.wait_all_tasks_blocked()
                 await stream.aclose()
+                with pytest.raises(httpcore.ReadError):
+                    await stream.read(4096)
 
         assert received == [b""]
 
