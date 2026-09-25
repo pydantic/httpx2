@@ -407,3 +407,138 @@ def test_http2_remote_max_streams_update() -> None:
                         conn._h2_state.local_settings.max_concurrent_streams,
                     )
                 i += 1
+
+
+
+def test_http2_remote_max_streams_lowered_below_in_flight_streams() -> None:
+    """
+    A lowered MAX_CONCURRENT_STREAMS must be applied without blocking, even when
+    it is lowered below the number of streams that are already in flight.
+
+    Streams that are already open are unaffected by the new limit, so their
+    permits can only be taken back as they complete. Waiting for them to do so
+    inside the read path deadlocks the connection, since it is the read path
+    that delivers their responses.
+    See https://github.com/pydantic/httpx2/issues/1216
+    """
+    origin = httpcore2.Origin(b"https", b"example.com", 443)
+    stream = httpcore2.MockStream(
+        [
+            hyperframe.frame.SettingsFrame(
+                settings={hyperframe.frame.SettingsFrame.MAX_CONCURRENT_STREAMS: 3}
+            ).serialize(),
+            hyperframe.frame.HeadersFrame(
+                stream_id=1,
+                data=hpack.Encoder().encode(
+                    [
+                        (b":status", b"200"),
+                        (b"content-type", b"plain/text"),
+                    ]
+                ),
+                flags=["END_HEADERS"],
+            ).serialize()
+            + hyperframe.frame.DataFrame(stream_id=1, data=b"Hello, ").serialize(),
+            hyperframe.frame.HeadersFrame(
+                stream_id=3,
+                data=hpack.Encoder().encode(
+                    [
+                        (b":status", b"200"),
+                        (b"content-type", b"plain/text"),
+                    ]
+                ),
+                flags=["END_HEADERS"],
+            ).serialize()
+            + hyperframe.frame.DataFrame(stream_id=3, data=b"Bonjour, ").serialize(),
+            hyperframe.frame.SettingsFrame(
+                settings={hyperframe.frame.SettingsFrame.MAX_CONCURRENT_STREAMS: 1}
+            ).serialize(),
+            hyperframe.frame.DataFrame(stream_id=1, data=b"world!", flags=["END_STREAM"]).serialize(),
+            hyperframe.frame.DataFrame(stream_id=3, data=b"monde!", flags=["END_STREAM"]).serialize(),
+        ]
+    )
+    with httpcore2.HTTP2Connection(origin=origin, stream=stream) as conn:
+        with conn.stream("GET", "https://example.com/") as response_1:
+            with conn.stream("GET", "https://example.com/") as response_2:
+                # Both streams are in flight at the point the peer lowers its
+                # limit below that number.
+                assert conn._max_streams == 3
+
+                assert response_1.read() == b"Hello, world!"
+                assert conn._max_streams == 1
+                # Stream 3 is still in flight, so the permit that stream 1
+                # released was withheld rather than handed to a new stream.
+                assert not conn._max_streams_semaphore.acquire_nowait()
+
+                assert response_2.read() == b"Bonjour, monde!"
+
+        # Both streams have completed, so the withheld permit has been reclaimed,
+        # and the pool holds no more than the lowered limit.
+        assert conn._max_streams_semaphore.acquire_nowait()
+        assert not conn._max_streams_semaphore.acquire_nowait()
+
+
+
+def test_http2_remote_max_streams_raised_while_streams_are_in_excess() -> None:
+    """
+    Raising MAX_CONCURRENT_STREAMS again while streams are still in excess of an
+    earlier, lower limit must not hand their permits back twice.
+
+    Each of those streams still holds a permit, so the raise can only add the
+    permits that are genuinely free.
+    """
+    origin = httpcore2.Origin(b"https", b"example.com", 443)
+    stream = httpcore2.MockStream(
+        [
+            hyperframe.frame.SettingsFrame(
+                settings={hyperframe.frame.SettingsFrame.MAX_CONCURRENT_STREAMS: 3}
+            ).serialize(),
+            hyperframe.frame.HeadersFrame(
+                stream_id=1,
+                data=hpack.Encoder().encode(
+                    [
+                        (b":status", b"200"),
+                        (b"content-type", b"plain/text"),
+                    ]
+                ),
+                flags=["END_HEADERS"],
+            ).serialize()
+            + hyperframe.frame.DataFrame(stream_id=1, data=b"Hello, ").serialize(),
+            hyperframe.frame.HeadersFrame(
+                stream_id=3,
+                data=hpack.Encoder().encode(
+                    [
+                        (b":status", b"200"),
+                        (b"content-type", b"plain/text"),
+                    ]
+                ),
+                flags=["END_HEADERS"],
+            ).serialize()
+            + hyperframe.frame.DataFrame(stream_id=3, data=b"Bonjour, ").serialize(),
+            hyperframe.frame.SettingsFrame(
+                settings={hyperframe.frame.SettingsFrame.MAX_CONCURRENT_STREAMS: 1}
+            ).serialize(),
+            hyperframe.frame.SettingsFrame(
+                settings={hyperframe.frame.SettingsFrame.MAX_CONCURRENT_STREAMS: 5}
+            ).serialize(),
+            hyperframe.frame.DataFrame(stream_id=1, data=b"world!", flags=["END_STREAM"]).serialize(),
+            hyperframe.frame.DataFrame(stream_id=3, data=b"monde!", flags=["END_STREAM"]).serialize(),
+        ]
+    )
+    with httpcore2.HTTP2Connection(origin=origin, stream=stream) as conn:
+        with conn.stream("GET", "https://example.com/") as response_1:
+            with conn.stream("GET", "https://example.com/") as response_2:
+                assert conn._max_streams == 3
+
+                # The limit was lowered to 1 and raised to 5 while both streams
+                # were still in flight.
+                assert response_1.read() == b"Hello, world!"
+                assert conn._max_streams == 5
+
+                # Stream 3 is still in flight, and the excess of stream 1 has
+                # been cancelled by the raise, so three permits are free.
+                assert conn._max_streams_semaphore.acquire_nowait()
+                assert conn._max_streams_semaphore.acquire_nowait()
+                assert conn._max_streams_semaphore.acquire_nowait()
+                assert not conn._max_streams_semaphore.acquire_nowait()
+
+                assert response_2.read() == b"Bonjour, monde!"
