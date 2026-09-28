@@ -106,14 +106,15 @@ class ASGIWebSocketAsyncNetworkStream:
         return await self._exit_stack.__aexit__(exc_type, exc_val, exc_tb)
 
     async def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
-        try:
-            message: Message = await self.receive(timeout=timeout)
-        except anyio.EndOfStream:
-            return b""
-        except anyio.ClosedResourceError as exc:
-            import httpcore2
+        import httpcore2
+        from httpcore2._exceptions import map_exceptions
 
-            raise httpcore2.ReadError() from exc
+        exc_map: dict[type[Exception], type[Exception]] = {anyio.ClosedResourceError: httpcore2.ReadError}
+        with map_exceptions(exc_map):
+            try:
+                message: Message = await self.receive(timeout=timeout)
+            except anyio.EndOfStream:
+                return b""
         type = message["type"]
 
         if type not in {"websocket.send", "websocket.close"}:
