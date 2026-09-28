@@ -74,6 +74,17 @@ def test_extract_cookies_skips_cookie_jar_without_set_cookie() -> None:
     assert jar.extract_count == 1
 
 
+def test_cookies_copy_preserves_policy() -> None:
+    policy = http.cookiejar.DefaultCookiePolicy(blocked_domains=["example.org"])
+    cookies = httpx2.Cookies(http.cookiejar.CookieJar(policy=policy))
+    cookies.set("name", "value", domain="example.org")
+
+    request = httpx2.Request("GET", "https://example.org")
+    httpx2.Cookies(cookies).set_cookie_header(request)
+
+    assert "cookie" not in request.headers
+
+
 def test_set_cookie2() -> None:
     policy = http.cookiejar.DefaultCookiePolicy(rfc2965=True)
     jar = http.cookiejar.CookieJar(policy=policy)
