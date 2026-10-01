@@ -247,6 +247,37 @@ def test_proxies_environ(
 
 
 @pytest.mark.parametrize(
+    ["no_proxy", "url", "bypasses"],
+    [
+        ("[::1]", "http://[::1]/", True),
+        ("[::1]", "http://[::1]:8080/", True),
+        ("[::1]", "http://[::2]/", False),
+        ("[::1]:8080", "http://[::1]:8080/", True),
+        ("[::1]:8080", "http://[::1]:9999/", False),
+        ("::1,[::1]", "http://[::1]:8080/", True),
+    ],
+)
+@pytest.mark.parametrize("client_class", [httpx2.Client, httpx2.AsyncClient])
+def test_bracketed_ipv6_in_no_proxy(
+    monkeypatch: pytest.MonkeyPatch,
+    client_class: type[typing.Any],
+    no_proxy: str,
+    url: str,
+    bypasses: bool,
+) -> None:
+    # `NO_PROXY` entries may spell an IPv6 address the way a URL does, in
+    # brackets. That spelling used to fall through to the host-wildcard branch
+    # and abort construction, so no client could be built at all.
+    monkeypatch.setenv("HTTP_PROXY", "http://127.0.0.1")
+    monkeypatch.setenv("NO_PROXY", no_proxy)
+
+    client = client_class()
+    transport = client._transport_for_url(httpx2.URL(url))
+
+    assert (transport == client._transport) == bypasses
+
+
+@pytest.mark.parametrize(
     ["proxies", "is_valid"],
     [
         ({"http": "http://127.0.0.1"}, False),
