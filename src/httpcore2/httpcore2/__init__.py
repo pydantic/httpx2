@@ -31,6 +31,7 @@ from ._exceptions import (
     ReadError,
     ReadTimeout,
     RemoteProtocolError,
+    SSLError,
     TimeoutException,
     UnsupportedProtocol,
     WriteError,
@@ -127,6 +128,7 @@ __all__ = [
     "WriteTimeout",
     "NetworkError",
     "ConnectError",
+    "SSLError",
     "ReadError",
     "WriteError",
 ]

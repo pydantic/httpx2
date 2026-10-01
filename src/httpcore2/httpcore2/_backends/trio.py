@@ -11,6 +11,7 @@ from .._exceptions import (
     ExceptionMapping,
     ReadError,
     ReadTimeout,
+    SSLError,
     WriteError,
     WriteTimeout,
     map_exceptions,
@@ -60,6 +61,7 @@ class TrioStream(AsyncNetworkStream):
         timeout_or_inf = float("inf") if timeout is None else timeout
         exc_map: ExceptionMapping = {
             trio.TooSlowError: ConnectTimeout,
+            ssl.SSLError: SSLError,
             trio.BrokenResourceError: ConnectError,
         }
         ssl_stream = trio.SSLStream(
@@ -73,9 +75,17 @@ class TrioStream(AsyncNetworkStream):
             try:
                 with trio.fail_after(timeout_or_inf):
                     await ssl_stream.do_handshake()
-            except Exception as exc:  # pragma: no cover
+            except Exception as exc:
                 await self.aclose()
-                raise exc
+                # `trio` reports a failed handshake as `BrokenResourceError`, which
+                # carries no message of its own. Raise `SSLError` with the message
+                # from the underlying `ssl.SSLError` so the reason isn't lost.
+                # Note we raise a new exception rather than re-raising the cause,
+                # which `trio` already back-references and would make cyclic.
+                cause = exc.__cause__
+                if isinstance(exc, trio.BrokenResourceError) and isinstance(cause, ssl.SSLError):
+                    raise SSLError(str(cause)) from exc
+                raise exc  # pragma: no cover
         return TrioStream(ssl_stream)
 
     def get_extra_info(self, info: str) -> typing.Any:

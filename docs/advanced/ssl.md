@@ -6,7 +6,7 @@ By default httpx2 will verify HTTPS connections, and raise an error for invalid 
 
 ```pycon
 >>> httpx2.get("https://expired.badssl.com/")
-httpx2.ConnectError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:997)
+httpx2.SSLError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:997)
 ```
 
 You can disable SSL verification completely and allow insecure requests...

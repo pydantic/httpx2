@@ -16,6 +16,7 @@ For an overview of how to work with HTTPX exceptions, see [Exceptions (Quickstar
                 * PoolTimeout
             * NetworkError
                 * ConnectError
+                    * SSLError
                 * ReadError
                 * WriteError
                 * CloseError
@@ -59,6 +60,8 @@ For an overview of how to work with HTTPX exceptions, see [Exceptions (Quickstar
 ::: httpx2.NetworkError
 
 ::: httpx2.ConnectError
+
+::: httpx2.SSLError
 
 ::: httpx2.ReadError
 

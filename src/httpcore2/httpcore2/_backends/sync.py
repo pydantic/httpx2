@@ -12,6 +12,7 @@ from .._exceptions import (
     ExceptionMapping,
     ReadError,
     ReadTimeout,
+    SSLError,
     WriteError,
     WriteTimeout,
     map_exceptions,
@@ -149,6 +150,9 @@ class SyncStream(NetworkStream):
     ) -> NetworkStream:
         exc_map: ExceptionMapping = {
             socket.timeout: ConnectTimeout,
+            # `ssl.SSLError` is a subclass of `OSError`, and `map_exceptions`
+            # uses the first matching entry, so it must be listed first.
+            ssl.SSLError: SSLError,
             OSError: ConnectError,
         }
         with map_exceptions(exc_map):
