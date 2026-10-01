@@ -322,8 +322,15 @@ class HTTP11ConnectionByteStream:
     async def aclose(self) -> None:
         if not self._closed:
             self._closed = True
-            async with Trace("response_closed", logger, self._request):
-                await self._connection._response_closed()
+            try:
+                async with Trace("response_closed", logger, self._request):
+                    await self._connection._response_closed()
+            except BaseException:
+                # If response cleanup is interrupted, do not leave an ACTIVE connection.
+                # Make the connection terminal before the pool releases its request.
+                with AsyncShieldCancellation():
+                    await self._connection.aclose()
+                raise
 
 
 class AsyncHTTP11UpgradeStream(AsyncNetworkStream):

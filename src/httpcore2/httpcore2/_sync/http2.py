@@ -555,5 +555,12 @@ class HTTP2ConnectionByteStream:
         if not self._closed:
             self._closed = True
             kwargs = {"stream_id": self._stream_id}
-            with Trace("response_closed", logger, self._request, kwargs):
-                self._connection._response_closed(stream_id=self._stream_id)
+            try:
+                with Trace("response_closed", logger, self._request, kwargs):
+                    self._connection._response_closed(stream_id=self._stream_id)
+            except BaseException:
+                # Failed stream cleanup may leave a stream permit held.
+                # Do not let the pool reuse a connection in that state.
+                with ShieldCancellation():
+                    self._connection.close()
+                raise
