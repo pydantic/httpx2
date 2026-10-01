@@ -1,0 +1,222 @@
+--- a/httpx2/_client.py
++++ b/httpx2/_client.py
+@@ -408,6 +408,8 @@
+         Merge a headers argument together with any headers on the client,
+         to create the headers used for the outgoing request.
+         """
++        if headers is None:
++            return self.headers
+         merged_headers = Headers(self.headers)
+         merged_headers.update(headers)
+         return merged_headers
+@@ -1082,14 +1084,15 @@
+         self.cookies.extract_cookies(response)
+         response.default_encoding = self._default_encoding
+ 
+-        logger.info(
+-            'HTTP Request: %s %s "%s %d %s"',
+-            request.method,
+-            request.url,
+-            response.http_version,
+-            response.status_code,
+-            response.reason_phrase,
+-        )
++        if logger.isEnabledFor(logging.INFO):
++            logger.info(
++                'HTTP Request: %s %s "%s %d %s"',
++                request.method,
++                request.url,
++                response.http_version,
++                response.status_code,
++                response.reason_phrase,
++            )
+ 
+         return response
+ 
+@@ -1814,6 +1817,9 @@
+         self._set_timeout(request)
+ 
+         auth = self._build_request_auth(request, auth)
++        request.extensions["httpx2_buffer_response"] = (
++            not stream and type(auth) is Auth and not self._event_hooks["response"]
++        )
+ 
+         response = await self._send_handling_auth(
+             request,
+@@ -1838,6 +1844,8 @@
+         follow_redirects: bool,
+         history: list[Response],
+     ) -> Response:
++        if type(auth) is Auth:
++            return await self._send_handling_redirects(request, follow_redirects=follow_redirects, history=history)
+         auth_flow = auth.async_auth_flow(request)
+         try:
+             request = await auth_flow.__anext__()
+@@ -1916,18 +1924,20 @@
+ 
+         assert isinstance(response.stream, AsyncByteStream)
+         response.request = request
+-        response.stream = BoundAsyncStream(response.stream, start=start)
++        if not response.is_closed:
++            response.stream = BoundAsyncStream(response.stream, start=start)
+         self.cookies.extract_cookies(response)
+         response.default_encoding = self._default_encoding
+ 
+-        logger.info(
+-            'HTTP Request: %s %s "%s %d %s"',
+-            request.method,
+-            request.url,
+-            response.http_version,
+-            response.status_code,
+-            response.reason_phrase,
+-        )
++        if logger.isEnabledFor(logging.INFO):
++            logger.info(
++                'HTTP Request: %s %s "%s %d %s"',
++                request.method,
++                request.url,
++                response.http_version,
++                response.status_code,
++                response.reason_phrase,
++            )
+ 
+         return response
+ 
+--- a/httpx2/_models.py
++++ b/httpx2/_models.py
+@@ -173,7 +173,7 @@
+         """
+         if self._encoding is None:
+             for encoding in ["ascii", "utf-8"]:
+-                for key, value in self.raw:
++                for key, _, value in self._list:
+                     try:
+                         key.decode(encoding)
+                         value.decode(encoding)
+@@ -249,10 +249,16 @@
+         Return a header value. If multiple occurrences of the header occur
+         then concatenate them together with commas.
+         """
+-        try:
+-            return self[key]
+-        except KeyError:
++        if type(self) is not Headers:
++            try:
++                return self[key]
++            except KeyError:
++                return default
++        normalized_key = key.lower().encode(self.encoding)
++        values = [value for _, name, value in self._list if name == normalized_key]
++        if not values:
+             return default
++        return ", ".join(value.decode(self.encoding) for value in values)
+ 
+     def get_list(self, key: str, split_commas: bool = False) -> list[str]:
+         """
+@@ -359,8 +365,13 @@
+             del self._list[idx]
+ 
+     def __contains__(self, key: typing.Any) -> bool:
+-        header_key = key.lower().encode(self.encoding)
+-        return header_key in [key for _, key, _ in self._list]
++        lowered = key.lower()
++        encoding = self._encoding or ("ascii" if lowered.isascii() else self.encoding)
++        header_key = lowered.encode(encoding)
++        for _, candidate, _ in self._list:
++            if candidate == header_key:
++                return True
++        return False
+ 
+     def __iter__(self) -> typing.Iterator[typing.Any]:
+         return iter(self.keys())
+@@ -471,7 +482,8 @@
+         if not has_content_length and self.method in ("POST", "PUT", "PATCH", "QUERY"):
+             auto_headers.append((b"Content-Length", b"0"))
+ 
+-        self.headers = Headers(auto_headers + self.headers.raw)
++        if auto_headers:
++            self.headers._list[:0] = [(key, key.lower(), value) for key, value in auto_headers]
+ 
+     @property
+     def content(self) -> bytes:
+@@ -484,6 +496,9 @@
+         Read and return the request content.
+         """
+         if not hasattr(self, "_content"):
++            if type(self.stream) is ByteStream:
++                self._content = self.stream._stream
++                return self._content
+             assert isinstance(self.stream, typing.Iterable)
+             self._content = b"".join(self.stream)
+             if not isinstance(self.stream, ByteStream):
+@@ -498,6 +513,9 @@
+         Read and return the request content.
+         """
+         if not hasattr(self, "_content"):
++            if type(self.stream) is ByteStream:
++                self._content = self.stream._stream
++                return self._content
+             assert isinstance(self.stream, typing.AsyncIterable)
+             self._content = b"".join([part async for part in self.stream])
+             if not isinstance(self.stream, ByteStream):
+@@ -773,22 +791,7 @@
+         Returns True for 3xx responses with a properly formed URL redirection,
+         `False` otherwise.
+         """
+-        return (
+-            self.status_code
+-            in (
+-                # 301 (Cacheable redirect. Method may change to GET.)
+-                codes.MOVED_PERMANENTLY,
+-                # 302 (Uncacheable redirect. Method may change to GET.)
+-                codes.FOUND,
+-                # 303 (Client should make a GET or HEAD request.)
+-                codes.SEE_OTHER,
+-                # 307 (Equiv. 302, but retain method)
+-                codes.TEMPORARY_REDIRECT,
+-                # 308 (Equiv. 301, but retain method)
+-                codes.PERMANENT_REDIRECT,
+-            )
+-            and "Location" in self.headers
+-        )
++        return self.status_code in (301, 302, 303, 307, 308) and "Location" in self.headers
+ 
+     def raise_for_status(self) -> Response:
+         """
+@@ -873,7 +876,17 @@
+         Read and return the response content.
+         """
+         if not hasattr(self, "_content"):
+-            self._content = b"".join(self.iter_bytes())
++            if type(self.stream) is ByteStream and "content-encoding" not in self.headers:
++                if self.is_stream_consumed:
++                    raise StreamConsumed()
++                if self.is_closed:
++                    raise StreamClosed()
++                self._content = self.stream._stream
++                self._num_bytes_downloaded = len(self._content)
++                self.is_stream_consumed = True
++                self.close()
++            else:
++                self._content = b"".join(self.iter_bytes())
+         return self._content
+ 
+     def iter_bytes(self, chunk_size: int | None = None) -> typing.Iterator[bytes]:
+--- a/httpx2/_urlparse.py
++++ b/httpx2/_urlparse.py
+@@ -20,6 +20,7 @@
+ 
+ import ipaddress
+ import re
++from functools import lru_cache
+ import typing
+ 
+ import idna
+@@ -198,6 +199,7 @@
+         )
+ 
+ 
++@lru_cache(maxsize=128)
+ def urlparse(url: str = "", **kwargs: str | None) -> ParseResult:
+     # Initial basic checks on allowable URLs.
+     # ---------------------------------------

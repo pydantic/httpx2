@@ -1,0 +1,154 @@
+{
+  "c16/1k origin-asyncio-url": [
+    {
+      "lib": "origin-asyncio-url",
+      "mode": "read",
+      "concurrency": 16,
+      "size": 1024,
+      "post": false,
+      "requests": 21240,
+      "seconds": 2.001,
+      "rps": 10615.8,
+      "p50_ms": 1.5,
+      "p99_ms": 1.82,
+      "max_ms": 2.14,
+      "cpu_us": 94.0,
+      "python": "3.14.3",
+      "gil": true,
+      "zuvloop": false
+    }
+  ],
+  "c16/1k origin-asyncio-url-buffered": [
+    {
+      "lib": "origin-asyncio-url-buffered",
+      "mode": "read",
+      "concurrency": 16,
+      "size": 1024,
+      "post": false,
+      "requests": 20861,
+      "seconds": 2.001,
+      "rps": 10426.8,
+      "p50_ms": 1.53,
+      "p99_ms": 1.82,
+      "max_ms": 2.16,
+      "cpu_us": 95.7,
+      "python": "3.14.3",
+      "gil": true,
+      "zuvloop": false
+    }
+  ],
+  "c16/1k origin-asyncio-url-buffered-minimal": [
+    {
+      "lib": "origin-asyncio-url-buffered-minimal",
+      "mode": "read",
+      "concurrency": 16,
+      "size": 1024,
+      "post": false,
+      "requests": 23095,
+      "seconds": 2.001,
+      "rps": 11543.7,
+      "p50_ms": 1.36,
+      "p99_ms": 1.6,
+      "max_ms": 15.0,
+      "cpu_us": 85.4,
+      "python": "3.14.3",
+      "gil": true,
+      "zuvloop": false
+    }
+  ],
+  "c16/1k aiohttp": [
+    {
+      "lib": "aiohttp",
+      "mode": "read",
+      "concurrency": 16,
+      "size": 1024,
+      "post": false,
+      "requests": 47854,
+      "seconds": 2.0,
+      "rps": 23922.5,
+      "p50_ms": 0.67,
+      "p99_ms": 0.91,
+      "max_ms": 1.16,
+      "cpu_us": 41.7,
+      "python": "3.14.3",
+      "gil": true,
+      "zuvloop": false
+    }
+  ],
+  "c64/100k origin-asyncio-url": [
+    {
+      "lib": "origin-asyncio-url",
+      "mode": "read",
+      "concurrency": 64,
+      "size": 102400,
+      "post": false,
+      "requests": 16789,
+      "seconds": 2.003,
+      "rps": 8380.3,
+      "p50_ms": 7.61,
+      "p99_ms": 8.29,
+      "max_ms": 8.62,
+      "cpu_us": 118.7,
+      "python": "3.14.3",
+      "gil": true,
+      "zuvloop": false
+    }
+  ],
+  "c64/100k origin-asyncio-url-buffered": [
+    {
+      "lib": "origin-asyncio-url-buffered",
+      "mode": "read",
+      "concurrency": 64,
+      "size": 102400,
+      "post": false,
+      "requests": 16384,
+      "seconds": 2.004,
+      "rps": 8177.6,
+      "p50_ms": 7.82,
+      "p99_ms": 8.56,
+      "max_ms": 8.95,
+      "cpu_us": 121.8,
+      "python": "3.14.3",
+      "gil": true,
+      "zuvloop": false
+    }
+  ],
+  "c64/100k origin-asyncio-url-buffered-minimal": [
+    {
+      "lib": "origin-asyncio-url-buffered-minimal",
+      "mode": "read",
+      "concurrency": 64,
+      "size": 102400,
+      "post": false,
+      "requests": 17676,
+      "seconds": 2.004,
+      "rps": 8819.7,
+      "p50_ms": 7.12,
+      "p99_ms": 9.28,
+      "max_ms": 28.5,
+      "cpu_us": 111.6,
+      "python": "3.14.3",
+      "gil": true,
+      "zuvloop": false
+    }
+  ],
+  "c64/100k aiohttp": [
+    {
+      "lib": "aiohttp",
+      "mode": "read",
+      "concurrency": 64,
+      "size": 102400,
+      "post": false,
+      "requests": 41478,
+      "seconds": 2.001,
+      "rps": 20730.6,
+      "p50_ms": 3.05,
+      "p99_ms": 3.87,
+      "max_ms": 4.58,
+      "cpu_us": 48.1,
+      "python": "3.14.3",
+      "gil": true,
+      "zuvloop": false
+    }
+  ]
+}

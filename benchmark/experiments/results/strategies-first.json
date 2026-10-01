@@ -1,0 +1,192 @@
+{
+  "c16/1k core": [
+    {
+      "lib": "core",
+      "mode": "read",
+      "concurrency": 16,
+      "size": 1024,
+      "post": false,
+      "requests": 11105,
+      "seconds": 2.003,
+      "rps": 5544.4,
+      "p50_ms": 2.83,
+      "p99_ms": 3.49,
+      "max_ms": 4.74,
+      "cpu_us": 161.2,
+      "python": "3.14.3",
+      "gil": true,
+      "zuvloop": false
+    }
+  ],
+  "c16/1k asyncio": [
+    {
+      "lib": "asyncio",
+      "mode": "read",
+      "concurrency": 16,
+      "size": 1024,
+      "post": false,
+      "requests": 14546,
+      "seconds": 2.001,
+      "rps": 7268.5,
+      "p50_ms": 2.17,
+      "p99_ms": 2.66,
+      "max_ms": 2.95,
+      "cpu_us": 137.3,
+      "python": "3.14.3",
+      "gil": true,
+      "zuvloop": false
+    }
+  ],
+  "c16/1k origin": [
+    {
+      "lib": "origin",
+      "mode": "read",
+      "concurrency": 16,
+      "size": 1024,
+      "post": false,
+      "requests": 14376,
+      "seconds": 2.006,
+      "rps": 7168.1,
+      "p50_ms": 2.14,
+      "p99_ms": 2.81,
+      "max_ms": 32.85,
+      "cpu_us": 126.7,
+      "python": "3.14.3",
+      "gil": true,
+      "zuvloop": false
+    }
+  ],
+  "c16/1k origin-asyncio": [
+    {
+      "lib": "origin-asyncio",
+      "mode": "read",
+      "concurrency": 16,
+      "size": 1024,
+      "post": false,
+      "requests": 19060,
+      "seconds": 2.001,
+      "rps": 9525.9,
+      "p50_ms": 1.66,
+      "p99_ms": 2.09,
+      "max_ms": 2.37,
+      "cpu_us": 104.7,
+      "python": "3.14.3",
+      "gil": true,
+      "zuvloop": false
+    }
+  ],
+  "c16/1k origin-asyncio-url": [
+    {
+      "lib": "origin-asyncio-url",
+      "mode": "read",
+      "concurrency": 16,
+      "size": 1024,
+      "post": false,
+      "requests": 21809,
+      "seconds": 2.001,
+      "rps": 10899.9,
+      "p50_ms": 1.44,
+      "p99_ms": 1.81,
+      "max_ms": 2.02,
+      "cpu_us": 91.4,
+      "python": "3.14.3",
+      "gil": true,
+      "zuvloop": false
+    }
+  ],
+  "c128/1k core": [
+    {
+      "lib": "core",
+      "mode": "read",
+      "concurrency": 128,
+      "size": 1024,
+      "post": false,
+      "requests": 7611,
+      "seconds": 2.101,
+      "rps": 3621.9,
+      "p50_ms": 32.3,
+      "p99_ms": 63.73,
+      "max_ms": 105.25,
+      "cpu_us": 245.0,
+      "python": "3.14.3",
+      "gil": true,
+      "zuvloop": false
+    }
+  ],
+  "c128/1k asyncio": [
+    {
+      "lib": "asyncio",
+      "mode": "read",
+      "concurrency": 128,
+      "size": 1024,
+      "post": false,
+      "requests": 9472,
+      "seconds": 2.015,
+      "rps": 4701.6,
+      "p50_ms": 26.81,
+      "p99_ms": 40.21,
+      "max_ms": 44.12,
+      "cpu_us": 210.8,
+      "python": "3.14.3",
+      "gil": true,
+      "zuvloop": false
+    }
+  ],
+  "c128/1k origin": [
+    {
+      "lib": "origin",
+      "mode": "read",
+      "concurrency": 128,
+      "size": 1024,
+      "post": false,
+      "requests": 15526,
+      "seconds": 2.006,
+      "rps": 7741.3,
+      "p50_ms": 16.09,
+      "p99_ms": 22.63,
+      "max_ms": 27.26,
+      "cpu_us": 119.8,
+      "python": "3.14.3",
+      "gil": true,
+      "zuvloop": false
+    }
+  ],
+  "c128/1k origin-asyncio": [
+    {
+      "lib": "origin-asyncio",
+      "mode": "read",
+      "concurrency": 128,
+      "size": 1024,
+      "post": false,
+      "requests": 18944,
+      "seconds": 2.004,
+      "rps": 9452.6,
+      "p50_ms": 13.44,
+      "p99_ms": 14.67,
+      "max_ms": 15.15,
+      "cpu_us": 105.6,
+      "python": "3.14.3",
+      "gil": true,
+      "zuvloop": false
+    }
+  ],
+  "c128/1k origin-asyncio-url": [
+    {
+      "lib": "origin-asyncio-url",
+      "mode": "read",
+      "concurrency": 128,
+      "size": 1024,
+      "post": false,
+      "requests": 21734,
+      "seconds": 2.004,
+      "rps": 10844.1,
+      "p50_ms": 11.82,
+      "p99_ms": 12.16,
+      "max_ms": 12.31,
+      "cpu_us": 92.1,
+      "python": "3.14.3",
+      "gil": true,
+      "zuvloop": false
+    }
+  ]
+}
