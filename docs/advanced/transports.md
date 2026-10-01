@@ -140,6 +140,20 @@ async with httpx2.AsyncClient(transport=transport, base_url="http://testserver")
 
 See [the ASGI documentation](https://asgi.readthedocs.io/en/latest/specs/www.html#connection-scope) for more details on the `client` and `root_path` keys.
 
+### Streaming responses
+
+The ASGI transport streams response bodies. The app runs in a separate task, and a response is returned as soon as the app sends the response start, which generally happens before the app has fully run. This makes it possible to test streaming endpoints, such as server-sent events, by iterating over the response:
+
+```python
+transport = httpx2.ASGITransport(app=app)
+async with httpx2.AsyncClient(transport=transport, base_url="http://testserver") as client:
+    async with client.stream("GET", "/sse") as response:
+        async for chunk in response.aiter_text():
+            ...
+```
+
+Because the app runs in a separate task, context variables set within the app are not visible to the caller.
+
 ### ASGI startup and shutdown
 
 It is not in the scope of HTTPX to trigger ASGI lifespan events of your app.

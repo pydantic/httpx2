@@ -1,6 +1,7 @@
 import json
 import typing
 
+import anyio
 import pytest
 
 import httpx2
@@ -9,6 +10,15 @@ Message = typing.MutableMapping[str, typing.Any]
 Receive = typing.Callable[[], typing.Awaitable[Message]]
 Send = typing.Callable[[typing.MutableMapping[str, typing.Any]], typing.Awaitable[None]]
 Scope = typing.MutableMapping[str, typing.Any]
+ASGIApp = typing.Callable[[Scope, Receive, Send], typing.Awaitable[None]]
+
+
+def run_in_task_group(app: ASGIApp) -> ASGIApp:
+    async def wrapped_app(scope: Scope, receive: Receive, send: Send) -> None:
+        async with anyio.create_task_group() as task_group:
+            task_group.start_soon(app, scope, receive, send)
+
+    return wrapped_app
 
 
 async def hello_world(scope: Scope, receive: Receive, send: Send) -> None:
@@ -61,6 +71,15 @@ async def echo_headers(scope: Scope, receive: Receive, send: Send) -> None:
 
 
 async def raise_exc(scope: Scope, receive: Receive, send: Send) -> None:
+    raise RuntimeError()
+
+
+async def raise_exc_after_response_start(scope: Scope, receive: Receive, send: Send) -> None:
+    status = 200
+    output = b"Hello, World!"
+    headers = [(b"content-type", "text/plain"), (b"content-length", str(len(output)))]
+
+    await send({"type": "http.response.start", "status": status, "headers": headers})
     raise RuntimeError()
 
 
@@ -177,6 +196,14 @@ async def test_asgi_exc() -> None:
 
 
 @pytest.mark.anyio
+async def test_asgi_exc_after_response_start() -> None:
+    transport = httpx2.ASGITransport(app=raise_exc_after_response_start)
+    async with httpx2.AsyncClient(transport=transport) as client:
+        with pytest.raises(RuntimeError):
+            await client.get("http://www.example.org/")
+
+
+@pytest.mark.anyio
 async def test_asgi_exc_after_response() -> None:
     transport = httpx2.ASGITransport(app=raise_exc_after_response)
     async with httpx2.AsyncClient(transport=transport) as client:
@@ -224,3 +251,93 @@ async def test_asgi_exc_no_raise() -> None:
         response = await client.get("http://www.example.org/")
 
         assert response.status_code == 500
+
+
+@pytest.mark.anyio
+async def test_asgi_exc_no_raise_after_response_start() -> None:
+    transport = httpx2.ASGITransport(app=raise_exc_after_response_start, raise_app_exceptions=False)
+    async with httpx2.AsyncClient(transport=transport) as client:
+        response = await client.get("http://www.example.org/")
+
+        assert response.status_code == 200
+
+
+@pytest.mark.anyio
+async def test_asgi_exc_no_raise_after_response() -> None:
+    transport = httpx2.ASGITransport(app=raise_exc_after_response, raise_app_exceptions=False)
+    async with httpx2.AsyncClient(transport=transport) as client:
+        response = await client.get("http://www.example.org/")
+
+        assert response.status_code == 200
+
+
+@pytest.mark.parametrize(
+    "send_in_sub_task", [pytest.param(False, id="no_sub_task"), pytest.param(True, id="with_sub_task")]
+)
+@pytest.mark.anyio
+async def test_asgi_stream_returns_before_waiting_for_body(send_in_sub_task: bool) -> None:
+    start_response_body = anyio.Event()
+
+    async def send_response_body_after_event(scope: Scope, receive: Receive, send: Send) -> None:
+        status = 200
+        headers = [(b"content-type", b"text/plain")]
+        await send({"type": "http.response.start", "status": status, "headers": headers})
+        await start_response_body.wait()
+        await send({"type": "http.response.body", "body": b"body", "more_body": False})
+
+    app = run_in_task_group(send_response_body_after_event) if send_in_sub_task else send_response_body_after_event
+
+    transport = httpx2.ASGITransport(app=app)
+    async with httpx2.AsyncClient(transport=transport) as client:
+        with anyio.fail_after(1):
+            async with client.stream("GET", "http://www.example.org/") as response:
+                assert response.status_code == 200
+                start_response_body.set()
+                await response.aread()
+                assert response.text == "body"
+
+
+@pytest.mark.parametrize(
+    "send_in_sub_task", [pytest.param(False, id="no_sub_task"), pytest.param(True, id="with_sub_task")]
+)
+@pytest.mark.anyio
+async def test_asgi_stream_allows_iterative_streaming(send_in_sub_task: bool) -> None:
+    stream_events = [anyio.Event() for _ in range(4)]
+
+    async def send_response_body_after_event(scope: Scope, receive: Receive, send: Send) -> None:
+        status = 200
+        headers = [(b"content-type", b"text/plain")]
+        await send({"type": "http.response.start", "status": status, "headers": headers})
+        for event in stream_events:
+            await event.wait()
+            await send({"type": "http.response.body", "body": b"chunk", "more_body": event is not stream_events[-1]})
+
+    app = run_in_task_group(send_response_body_after_event) if send_in_sub_task else send_response_body_after_event
+
+    transport = httpx2.ASGITransport(app=app)
+    async with httpx2.AsyncClient(transport=transport) as client:
+        with anyio.fail_after(1):
+            async with client.stream("GET", "http://www.example.org/") as response:
+                assert response.status_code == 200
+                iterator = response.aiter_raw()
+                for event in stream_events:
+                    event.set()
+                    assert await iterator.__anext__() == b"chunk"
+                with pytest.raises(StopAsyncIteration):
+                    await iterator.__anext__()
+
+
+@pytest.mark.anyio
+async def test_asgi_stream_early_close() -> None:
+    async def stream_forever(scope: Scope, receive: Receive, send: Send) -> None:
+        status = 200
+        headers = [(b"content-type", b"text/plain")]
+        await send({"type": "http.response.start", "status": status, "headers": headers})
+        while True:
+            await send({"type": "http.response.body", "body": b"chunk", "more_body": True})
+
+    transport = httpx2.ASGITransport(app=stream_forever)
+    async with httpx2.AsyncClient(transport=transport) as client:
+        with anyio.fail_after(1):
+            async with client.stream("GET", "http://www.example.org/") as response:
+                assert response.status_code == 200
