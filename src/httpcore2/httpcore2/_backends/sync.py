@@ -20,7 +20,7 @@ from .._utils import is_socket_readable
 from .base import SOCKET_OPTION, NetworkBackend, NetworkStream
 
 
-class TLSinTLSStream(NetworkStream):  # pragma: no cover
+class TLSinTLSStream(NetworkStream):
     """
     Because the standard `SSLContext.wrap_socket` method does
     not work for `SSLSocket` objects, we need this class
@@ -41,6 +41,7 @@ class TLSinTLSStream(NetworkStream):  # pragma: no cover
         self._sock = sock
         self._incoming = ssl.MemoryBIO()
         self._outgoing = ssl.MemoryBIO()
+        self._pending_output = b""
 
         self.ssl_obj = ssl_context.wrap_bio(
             incoming=self._incoming,
@@ -64,7 +65,9 @@ class TLSinTLSStream(NetworkStream):  # pragma: no cover
             except (ssl.SSLWantReadError, ssl.SSLWantWriteError) as e:
                 errno = e.errno
 
-            self._sock.sendall(self._outgoing.read())
+            output = self._pending_output + self._outgoing.read()
+            self._pending_output = b""
+            self._sock.sendall(output)
 
             if errno == ssl.SSL_ERROR_WANT_READ:
                 buf = self._sock.recv(self.TLS_RECORD_SIZE)
@@ -81,6 +84,30 @@ class TLSinTLSStream(NetworkStream):  # pragma: no cover
         with map_exceptions(exc_map):
             self._sock.settimeout(timeout)
             return typing.cast(bytes, self._perform_io(functools.partial(self.ssl_obj.read, max_bytes)))
+
+    def read_available(self, max_bytes: int, timeout: float | None = None) -> bytes | None:
+        if max_bytes < 1:
+            raise ValueError("max_bytes must be a positive integer")
+        previous_timeout = self._sock.gettimeout()
+        self._sock.setblocking(False)
+        try:
+            with map_exceptions({OSError: ReadError}):
+                try:
+                    while True:
+                        try:
+                            return self.ssl_obj.read(max_bytes)
+                        except ssl.SSLWantReadError:
+                            data = self._sock.recv(self.TLS_RECORD_SIZE)
+                            if data:
+                                self._incoming.write(data)
+                            else:
+                                self._incoming.write_eof()
+                except (BlockingIOError, ssl.SSLWantReadError, ssl.SSLWantWriteError):
+                    return None
+        finally:
+            # Keep TLS control records in wire order until normal I/O can flush them.
+            self._pending_output += self._outgoing.read()
+            self._sock.settimeout(previous_timeout)
 
     def write(self, buffer: bytes, timeout: float | None = None) -> None:
         exc_map: ExceptionMapping = {socket.timeout: WriteTimeout, OSError: WriteError}
@@ -103,6 +130,8 @@ class TLSinTLSStream(NetworkStream):  # pragma: no cover
         raise NotImplementedError()
 
     def get_extra_info(self, info: str) -> typing.Any:
+        if info == "read_available":
+            return self.read_available
         if info == "ssl_object":
             return self.ssl_obj
         if info == "client_addr":
@@ -125,6 +154,20 @@ class SyncStream(NetworkStream):
         with map_exceptions(exc_map):
             self._sock.settimeout(timeout)
             return self._sock.recv(max_bytes)
+
+    def read_available(self, max_bytes: int, timeout: float | None = None) -> bytes | None:
+        if max_bytes < 1:
+            raise ValueError("max_bytes must be a positive integer")
+        previous_timeout = self._sock.gettimeout()
+        self._sock.setblocking(False)
+        try:
+            with map_exceptions({OSError: ReadError}):
+                try:
+                    return self._sock.recv(max_bytes)
+                except (BlockingIOError, ssl.SSLWantReadError, ssl.SSLWantWriteError):
+                    return None
+        finally:
+            self._sock.settimeout(previous_timeout)
 
     def write(self, buffer: bytes, timeout: float | None = None) -> None:
         if not buffer:
@@ -153,7 +196,7 @@ class SyncStream(NetworkStream):
         }
         with map_exceptions(exc_map):
             try:
-                if isinstance(self._sock, ssl.SSLSocket):  # pragma: no cover
+                if isinstance(self._sock, ssl.SSLSocket):
                     # If the underlying socket has already been upgraded
                     # to the TLS layer (i.e. is an instance of SSLSocket),
                     # we need some additional smarts to support TLS-in-TLS.
@@ -167,6 +210,8 @@ class SyncStream(NetworkStream):
         return SyncStream(sock)
 
     def get_extra_info(self, info: str) -> typing.Any:
+        if info == "read_available":
+            return self.read_available
         if info == "ssl_object" and isinstance(self._sock, ssl.SSLSocket):
             return self._sock._sslobj  # type: ignore
         if info == "client_addr":

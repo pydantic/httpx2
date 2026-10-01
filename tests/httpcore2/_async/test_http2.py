@@ -1,3 +1,5 @@
+import typing
+
 import hpack
 import hyperframe.frame
 import pytest
@@ -97,6 +99,36 @@ async def test_http2_response_closed_twice() -> None:
 
         # The stream was closed when the response completed.
         await conn._response_closed(stream_id=1)
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("error", [httpcore2.ReadError, httpcore2.WriteError, httpcore2.ReadTimeout, RuntimeError])
+async def test_http2_idle_probe_failure(error: type[Exception]) -> None:
+    async def read_available(max_bytes: int, timeout: float | None = None) -> bytes | None:
+        raise error("Probe failed")
+
+    class Stream(httpcore2.AsyncMockStream):
+        def get_extra_info(self, info: str) -> typing.Any:
+            assert info == "read_available"
+            return read_available
+
+    stream = Stream(
+        [
+            hyperframe.frame.SettingsFrame().serialize(),
+            hyperframe.frame.HeadersFrame(
+                stream_id=1,
+                data=hpack.Encoder().encode([(b":status", b"200")]),
+                flags=["END_HEADERS", "END_STREAM"],
+            ).serialize(),
+        ]
+    )
+    origin = httpcore2.Origin(b"https", b"example.com", 443)
+    expected = httpcore2.ConnectionNotAvailable if error in (httpcore2.ReadError, httpcore2.WriteError) else error
+    async with httpcore2.AsyncHTTP2Connection(origin, stream) as connection:
+        assert (await connection.request("GET", "https://example.com/")).status == 200
+        with pytest.raises(expected):
+            await connection.request("GET", "https://example.com/")
+        assert connection.is_closed()
 
 
 @pytest.mark.anyio
