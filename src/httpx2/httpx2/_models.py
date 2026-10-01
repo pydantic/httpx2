@@ -987,6 +987,13 @@ class Response:
                 yield self._content[i : i + chunk_size]
         else:
             decoder = self._get_content_decoder()
+            if chunk_size is None and type(decoder) is IdentityDecoder:
+                with request_context(request=self._request):
+                    async with contextlib.aclosing(self.aiter_raw()) as raw_stream:
+                        async for raw_bytes in raw_stream:
+                            if raw_bytes:
+                                yield raw_bytes
+                return
             chunker = ByteChunker(chunk_size=chunk_size)
             with request_context(request=self._request):
                 async with contextlib.aclosing(self.aiter_raw()) as raw_stream:
@@ -1041,18 +1048,25 @@ class Response:
 
         self.is_stream_consumed = True
         self._num_bytes_downloaded = 0
-        chunker = ByteChunker(chunk_size=chunk_size)
+        chunker = None if chunk_size is None else ByteChunker(chunk_size=chunk_size)
 
         stream = self.stream.__aiter__()
         try:
             with request_context(request=self._request):
-                async for raw_stream_bytes in stream:
-                    self._num_bytes_downloaded += len(raw_stream_bytes)
-                    for chunk in chunker.decode(raw_stream_bytes):
-                        yield chunk
+                if chunker is None:
+                    async for raw_stream_bytes in stream:
+                        self._num_bytes_downloaded += len(raw_stream_bytes)
+                        if raw_stream_bytes:
+                            yield raw_stream_bytes
+                else:
+                    async for raw_stream_bytes in stream:
+                        self._num_bytes_downloaded += len(raw_stream_bytes)
+                        for chunk in chunker.decode(raw_stream_bytes):
+                            yield chunk
 
-            for chunk in chunker.flush():
-                yield chunk
+            if chunker is not None:
+                for chunk in chunker.flush():
+                    yield chunk
         finally:
             if isinstance(stream, AsyncGenerator):
                 await stream.aclose()

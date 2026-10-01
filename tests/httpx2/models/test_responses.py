@@ -476,6 +476,47 @@ async def test_aiter_raw() -> None:
 
 
 @pytest.mark.anyio
+async def test_aiter_raw_and_bytes_dont_return_empty_chunks() -> None:
+    async def body() -> typing.AsyncIterator[bytes]:
+        yield b"Hello, "
+        yield b""
+        yield b"world!"
+
+    response = httpx2.Response(200, content=body())
+    assert [part async for part in response.aiter_raw()] == [b"Hello, ", b"world!"]
+    assert response.num_bytes_downloaded == 13
+    assert response.is_closed
+
+    response = httpx2.Response(200, headers={"Content-Encoding": "identity"}, content=body())
+    assert [part async for part in response.aiter_bytes()] == [b"Hello, ", b"world!"]
+    assert response.num_bytes_downloaded == 13
+    assert response.is_closed
+
+
+@pytest.mark.anyio
+async def test_aiter_bytes_closes_stream_when_closed_early() -> None:
+    close_count = 0
+
+    async def body() -> typing.AsyncIterator[bytes]:
+        nonlocal close_count
+        try:
+            yield b"Hello, "
+        finally:
+            close_count += 1
+
+    response = httpx2.Response(200, content=body())
+    parts = response.aiter_bytes()
+    try:
+        assert await anext(parts) == b"Hello, "
+        assert response.num_bytes_downloaded == 7
+    finally:
+        await parts.aclose()
+
+    assert close_count == 1
+    assert response.is_closed
+
+
+@pytest.mark.anyio
 async def test_aiter_raw_with_chunksize() -> None:
     response = httpx2.Response(200, content=async_streaming_body())
 
