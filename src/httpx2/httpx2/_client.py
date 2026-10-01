@@ -113,6 +113,19 @@ USER_AGENT = f"python-httpx2/{__version__}"
 ACCEPT_ENCODING = ", ".join([key for key in SUPPORTED_DECODERS.keys() if key != "identity"])
 
 
+def _validate_timeout_extension(timeout: typing.Any) -> None:
+    # A caller-supplied `extensions["timeout"]` reaches the transport unchanged, and its
+    # values are passed to `socket.settimeout()`, which only accepts numbers.
+    if not isinstance(timeout, typing.Mapping):
+        raise TypeError(
+            f"extensions['timeout'] must be a mapping, got {type(timeout).__name__}. "
+            "Use `Timeout(...).as_dict()` to build one."
+        )
+    for name, value in timeout.items():
+        if value is not None and not isinstance(value, (int, float)):
+            raise TypeError(f"extensions['timeout'][{name!r}] must be a number or None, got {type(value).__name__}.")
+
+
 class ClientState(enum.Enum):
     # UNOPENED:
     #   The client has been instantiated, but has not been used to send a request,
@@ -357,6 +370,8 @@ class BaseClient:
         if "timeout" not in extensions:
             timeout = self.timeout if isinstance(timeout, UseClientDefault) else Timeout(timeout)
             extensions = dict(**extensions, timeout=timeout.as_dict())
+        else:
+            _validate_timeout_extension(extensions["timeout"])
         return Request(
             method,
             url,
@@ -561,6 +576,8 @@ class BaseClient:
         if "timeout" not in request.extensions:
             timeout = self.timeout if isinstance(self.timeout, UseClientDefault) else Timeout(self.timeout)
             request.extensions = dict(**request.extensions, timeout=timeout.as_dict())
+        else:
+            _validate_timeout_extension(request.extensions["timeout"])
 
 
 class Client(BaseClient):
