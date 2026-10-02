@@ -56,6 +56,9 @@ class Decompressor(typing.Protocol):
     @property
     def unconsumed_tail(self) -> bytes: ...
 
+    @property
+    def eof(self) -> bool: ...
+
     def decompress(self, data: bytes, max_length: int) -> bytes: ...
 
     def flush(self) -> bytes: ...
@@ -78,6 +81,10 @@ class ZlibDecompressor:
 
     def flush(self) -> bytes:
         return self.decompressor.flush()
+
+    @property
+    def eof(self) -> bool:
+        return self.decompressor.eof
 
 
 class ContentDecoder:
@@ -110,8 +117,12 @@ class DeflateDecoder(ContentDecoder):
     def __init__(self) -> None:
         self.first_attempt = True
         self.decompressor = ZlibDecompressor(zlib.decompressobj())
+        self.seen_data = False
 
     def decode(self, data: bytes) -> typing.Iterator[bytes]:
+        if not data:
+            return
+        self.seen_data = True
         was_first_attempt = self.first_attempt
         self.first_attempt = False
         try:
@@ -124,10 +135,14 @@ class DeflateDecoder(ContentDecoder):
                 raise DecodingError(str(exc)) from exc
 
     def flush(self) -> typing.Iterator[bytes]:
+        if not self.seen_data:
+            return
         try:
             yield self.decompressor.flush()
         except zlib.error as exc:  # pragma: no cover
             raise DecodingError(str(exc)) from exc
+        if not self.decompressor.eof:
+            raise DecodingError("Truncated deflate data")
 
 
 class GZipDecoder(ContentDecoder):
@@ -139,18 +154,26 @@ class GZipDecoder(ContentDecoder):
 
     def __init__(self) -> None:
         self.decompressor = ZlibDecompressor(zlib.decompressobj(zlib.MAX_WBITS | 16))
+        self.seen_data = False
 
     def decode(self, data: bytes) -> typing.Iterator[bytes]:
+        if not data:
+            return
+        self.seen_data = True
         try:
             yield from self.decompressor.decompress(data)
         except zlib.error as exc:
             raise DecodingError(str(exc)) from exc
 
     def flush(self) -> typing.Iterator[bytes]:
+        if not self.seen_data:
+            return
         try:
             yield self.decompressor.flush()
         except zlib.error as exc:  # pragma: no cover
             raise DecodingError(str(exc)) from exc
+        if not self.decompressor.eof:
+            raise DecodingError("Truncated gzip data")
 
 
 class BrotliDecoder(ContentDecoder):
@@ -198,16 +221,8 @@ class BrotliDecoder(ContentDecoder):
     def flush(self) -> typing.Iterator[bytes]:
         if not self.seen_data:
             return
-        try:
-            if hasattr(self.decompressor, "finish"):
-                # Only available in the 'brotlicffi' package.
-
-                # As the decompressor decompresses eagerly, this
-                # will never actually emit any data. However, it will potentially throw
-                # errors if a truncated or damaged data stream has been used.
-                self.decompressor.finish()  # pragma: no cover
-        except brotli.error as exc:  # pragma: no cover
-            raise DecodingError(str(exc)) from exc
+        if not self.decompressor.is_finished():
+            raise DecodingError("Truncated brotli data")
         yield from ()
 
 
@@ -253,7 +268,7 @@ class ZStandardDecoder(ContentDecoder):
         if not self.seen_data:
             return
         if not self.decompressor.eof:
-            raise DecodingError("Zstandard data is incomplete")  # pragma: no cover
+            raise DecodingError("Truncated Zstandard data")
         yield from ()
 
 
