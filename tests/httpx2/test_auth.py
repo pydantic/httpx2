@@ -9,6 +9,7 @@ from urllib.request import parse_keqv_list
 import pytest
 
 import httpx2
+from httpx2._auth import _build_algorithm_map
 
 
 def test_basic_auth() -> None:
@@ -273,3 +274,41 @@ def test_digest_auth_empty_realm() -> None:
     request = flow.send(response)
 
     assert request.headers["Authorization"].startswith('Digest username="user", realm="", nonce="..."')
+
+
+def test_digest_auth_algorithm_map_without_hashlib_md5(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Simulate a FIPS-enforced Python build that strips hashlib.md5 entirely.
+    monkeypatch.delattr("hashlib.md5", raising=False)
+
+    algorithms = _build_algorithm_map()
+
+    assert "MD5" not in algorithms
+    assert "MD5-SESS" not in algorithms
+    assert "SHA-256" in algorithms
+
+
+def test_digest_auth_algorithm_map_with_blocked_hashlib_md5(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Simulate a FIPS-enforced Python build that keeps hashlib.md5 but blocks it at call time.
+    def fips_blocked_md5(*args: object, **kwargs: object) -> None:
+        raise ValueError("[digital envelope routines] disabled for FIPS")
+
+    monkeypatch.setattr("hashlib.md5", fips_blocked_md5)
+
+    algorithms = _build_algorithm_map()
+
+    assert "MD5" not in algorithms
+    assert "MD5-SESS" not in algorithms
+    assert "SHA-256" in algorithms
+
+
+def test_digest_auth_unsupported_algorithm() -> None:
+    auth = httpx2.DigestAuth(username="user", password="pass")
+    request = httpx2.Request("GET", "https://www.example.com")
+
+    flow = auth.sync_auth_flow(request)
+    request = next(flow)
+
+    headers = {"WWW-Authenticate": 'Digest realm="test", qop="auth", algorithm=UNKNOWN, nonce="abc", opaque="xyz"'}
+    response = httpx2.Response(content=b"Auth required", status_code=401, headers=headers, request=request)
+    with pytest.raises(httpx2.ProtocolError, match="Unsupported or unavailable digest auth algorithm"):
+        flow.send(response)
