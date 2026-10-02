@@ -105,6 +105,90 @@ def test_proxy_tunneling() -> None:
         assert not proxy.connections[0].can_handle_request(Origin(b"https", b"other.com", 443))
 
 
+class RecordingStream(MockStream):
+    """A mock stream that keeps everything written to it."""
+
+    def __init__(self, buffer: list[bytes], http2: bool = False) -> None:
+        super().__init__(buffer, http2)
+        self.written = b""
+
+    def write(self, buffer: bytes, timeout: float | None = None) -> None:
+        self.written += buffer
+
+
+class RecordingBackend(MockBackend):
+    def __init__(self, buffer: list[bytes], http2: bool = False) -> None:
+        super().__init__(buffer, http2)
+        self.stream = RecordingStream(list(buffer), http2=http2)
+
+    def connect_tcp(
+        self,
+        host: str,
+        port: int,
+        timeout: float | None = None,
+        local_address: str | None = None,
+        socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
+    ) -> MockStream:
+        return self.stream
+
+
+
+def test_proxy_forwarding_to_ipv6_host() -> None:
+    """
+    Send an HTTP request for an IPv6 address literal via a proxy.
+
+    The absolute-form request target is a URI, so the address is bracketed.
+    """
+    network_backend = RecordingBackend(
+        [
+            b"HTTP/1.1 200 OK\r\n",
+            b"Content-Length: 0\r\n",
+            b"\r\n",
+        ]
+    )
+
+    with ConnectionPool(
+        proxy=Proxy("http://localhost:8080/"),
+        network_backend=network_backend,
+    ) as proxy:
+        response = proxy.request("GET", "http://[::1]:1234/")
+        assert response.status == 200
+
+    request_line = network_backend.stream.written.split(b"\r\n")[0]
+    assert request_line == b"GET http://[::1]:1234/ HTTP/1.1"
+    assert b"\r\nHost: [::1]:1234\r\n" in network_backend.stream.written
+
+
+
+def test_proxy_tunneling_to_ipv6_host() -> None:
+    """
+    Send an HTTPS request for an IPv6 address literal via a proxy.
+
+    The CONNECT target is in authority-form, so the address is bracketed.
+    """
+    network_backend = RecordingBackend(
+        [
+            # The initial response to the proxy CONNECT
+            b"HTTP/1.1 200 OK\r\n\r\n",
+            # The actual response from the remote server
+            b"HTTP/1.1 200 OK\r\n",
+            b"Content-Length: 0\r\n",
+            b"\r\n",
+        ]
+    )
+
+    with ConnectionPool(
+        proxy=Proxy("http://localhost:8080/"),
+        network_backend=network_backend,
+    ) as proxy:
+        response = proxy.request("GET", "https://[::1]:8443/")
+        assert response.status == 200
+
+    request_line = network_backend.stream.written.split(b"\r\n")[0]
+    assert request_line == b"CONNECT [::1]:8443 HTTP/1.1"
+    assert b"\r\nHost: [::1]:8443\r\n" in network_backend.stream.written
+
+
 # We need to adapt the mock backend here slightly in order to deal
 # with the proxy case. We do not want the initial connection to the proxy
 # to indicate an HTTP/2 connection, but we do want it to indicate HTTP/2
