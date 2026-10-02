@@ -17,7 +17,7 @@ from .._models import (
     enforce_url,
 )
 from .._ssl import default_ssl_context
-from .._synchronization import Lock
+from .._synchronization import Lock, ShieldCancellation
 from .._trace import Trace
 from .connection import HTTPConnection
 from .connection_pool import ConnectionPool
@@ -299,7 +299,28 @@ class TunnelHTTPConnection(ConnectionInterface):
                     "timeout": timeout,
                 }
                 with Trace("start_tls", logger, request, kwargs) as trace:
-                    stream = stream.start_tls(**kwargs)
+                    try:
+                        stream = stream.start_tls(**kwargs)
+                    except BaseException:
+                        # The CONNECT tunnel's underlying connection succeeded
+                        # and is otherwise indistinguishable from a live,
+                        # in-use connection to the pool. If the TLS upgrade
+                        # fails, close it explicitly so it doesn't linger in
+                        # the pool as a stale ACTIVE connection and leak a
+                        # connection-pool slot on every failure.
+                        #
+                        # Shielded from cancellation, same as the other
+                        # exception-path cleanups in this codebase, so a
+                        # Trio cancellation can't interrupt the close and
+                        # leave the TLS socket open. Any failure from the
+                        # close itself is swallowed so it can't mask the
+                        # TLS error callers are expecting.
+                        with ShieldCancellation():
+                            try:
+                                self._connection.close()
+                            except BaseException:
+                                pass
+                        raise
                     trace.return_value = stream
 
                 # Determine if we should be using HTTP/1.1 or HTTP/2
