@@ -546,4 +546,9 @@ except httpx2.HTTPStatusError as exc:
     print(f"Error response {exc.response.status_code} while requesting {exc.request.url!r}.")
 ```
 
+Note that `.request` and `.response` carry the full request/response, including headers and body,
+which may contain sensitive data such as auth tokens or PII — avoid logging them directly with a
+structured logger. Pickling or copying one of these exceptions drops the attached request/response
+to avoid carrying that data into a serialized form.
+
 For a full list of available exceptions, see [Exceptions (API Reference)](exceptions.md).

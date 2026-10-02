@@ -82,6 +82,12 @@ class HTTPXDeprecationWarning(UserWarning):
     """
 
 
+def _reconstruct_http_error(cls: type[HTTPError], args: tuple[typing.Any, ...]) -> HTTPError:
+    exc = cls.__new__(cls)
+    BaseException.__init__(exc, *args)
+    return exc
+
+
 class HTTPError(Exception):
     """
     Base class for `RequestError` and `HTTPStatusError`.
@@ -98,6 +104,15 @@ class HTTPError(Exception):
     except httpx2.HTTPError as exc:
         print(f"HTTP Exception for {exc.request.url} - {exc}")
     ```
+
+    The `.request` (and, for `HTTPStatusError`, `.response`) attribute holds the full
+    request/response, including headers and body, which may contain sensitive data
+    such as credentials or PII. Avoid logging these attributes directly, or a
+    structured logger that serializes arbitrary object attributes (rather than just
+    `str(exc)`) may end up recording them. Pickling or copying one of these
+    exceptions (e.g. for a `multiprocessing`/`ProcessPoolExecutor` result, or a
+    Celery result backend) deliberately drops the attached request/response so
+    that persisted or transmitted exceptions don't carry that data along with them.
     """
 
     def __init__(self, message: str) -> None:
@@ -113,6 +128,19 @@ class HTTPError(Exception):
     @request.setter
     def request(self, request: Request) -> None:
         self._request = request
+
+    def __reduce__(
+        self,
+    ) -> tuple[
+        typing.Callable[[type[HTTPError], tuple[typing.Any, ...]], HTTPError],
+        tuple[typing.Any, ...],
+        dict[str, typing.Any],
+    ]:
+        # Drop any attached request/response when pickling or copying, since they may
+        # carry sensitive data (auth headers, cookies, request/response bodies).
+        sensitive_keys = ("_request", "_response")
+        state = {key: (None if key in sensitive_keys else value) for key, value in self.__dict__.items()}
+        return (_reconstruct_http_error, (self.__class__, self.args), state)
 
 
 class RequestError(HTTPError):
@@ -276,7 +304,13 @@ class HTTPStatusError(HTTPError):
     def __init__(self, message: str, *, request: Request, response: Response) -> None:
         super().__init__(message)
         self.request = request
-        self.response = response
+        self._response: Response | None = response
+
+    @property
+    def response(self) -> Response:
+        if self._response is None:
+            raise RuntimeError("The .response property has not been set.")
+        return self._response
 
 
 class InvalidURL(Exception):
