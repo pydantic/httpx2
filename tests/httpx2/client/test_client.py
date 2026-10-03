@@ -308,6 +308,48 @@ def test_context_managed_transport_and_mount() -> None:
     ]
 
 
+def test_close_still_closes_mount_when_transport_raises() -> None:
+    class RaisingTransport(httpx2.BaseTransport):
+        def close(self) -> None:
+            raise RuntimeError("boom")
+
+    class Transport(httpx2.BaseTransport):
+        def __init__(self) -> None:
+            self.closed = False
+
+        def close(self) -> None:
+            self.closed = True
+
+    mounted = Transport()
+    client = httpx2.Client(transport=RaisingTransport(), mounts={"http://www.example.org": mounted})
+
+    with pytest.raises(RuntimeError):
+        client.close()
+
+    assert mounted.closed
+
+
+def test_exit_still_closes_mount_when_transport_raises() -> None:
+    class RaisingTransport(httpx2.BaseTransport):
+        def close(self) -> None:
+            raise RuntimeError("boom")
+
+    class Transport(httpx2.BaseTransport):
+        def __init__(self) -> None:
+            self.closed = False
+
+        def close(self) -> None:
+            self.closed = True
+
+    mounted = Transport()
+
+    with pytest.raises(RuntimeError):
+        with httpx2.Client(transport=RaisingTransport(), mounts={"http://www.example.org": mounted}):
+            pass
+
+    assert mounted.closed
+
+
 def hello_world(request: httpx2.Request) -> httpx2.Response:
     return httpx2.Response(200, text="Hello, world!")
 
