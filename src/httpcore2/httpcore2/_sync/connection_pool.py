@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import ssl
 import sys
 import types
@@ -11,9 +12,12 @@ from .._backends.base import SOCKET_OPTION, NetworkBackend
 from .._exceptions import ConnectionNotAvailable, UnsupportedProtocol
 from .._models import Origin, Proxy, Request, Response
 from .._synchronization import Event, ShieldCancellation, ThreadLock
+from .._trace import Trace
 from .._utils import safe_iterate
 from .connection import HTTPConnection
 from .interfaces import ConnectionInterface, RequestInterface
+
+logger = logging.getLogger("httpcore2.connection_pool")
 
 
 class PoolRequest:
@@ -217,7 +221,9 @@ class ConnectionPool(RequestInterface):
                 self._close_connections(closing)
 
                 # Wait until this request has an assigned connection.
-                connection = pool_request.wait_for_connection(timeout=timeout)
+                with Trace("wait_for_connection", logger, request, {"timeout": timeout}) as trace:
+                    connection = pool_request.wait_for_connection(timeout=timeout)
+                    trace.return_value = connection
 
                 try:
                     # Send the request on the assigned connection.

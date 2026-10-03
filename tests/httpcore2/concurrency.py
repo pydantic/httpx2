@@ -10,6 +10,7 @@ children, because we don't need that for our use-case.
 """
 
 import threading
+import time
 from collections.abc import Callable
 from types import TracebackType
 from typing import Any
@@ -40,3 +41,9 @@ class Nursery:
 
 def open_nursery() -> Nursery:
     return Nursery()
+
+
+# The threading equivalents of `trio.Event` and `trio.sleep`, for tests that
+# need to order events between branches of flow control.
+Event = threading.Event
+sleep = time.sleep
