@@ -46,6 +46,7 @@ def test_urlparse(test_case: dict[str, typing.Any]) -> None:
     assert protocol == test_case["protocol"]
     assert hostname.lower() == test_case["hostname"].lower()
     assert port == test_case["port"]
-    assert path == test_case["pathname"]
+    # HTTPX also encodes pipes for RFC3986 compatibility; WHATWG preserves them.
+    assert path == test_case["pathname"].replace("|", "%7C")
     assert search == test_case["search"]
     assert hash == test_case["hash"]
