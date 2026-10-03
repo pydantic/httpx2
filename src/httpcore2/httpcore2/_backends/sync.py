@@ -9,12 +9,10 @@ import typing
 from .._exceptions import (
     ConnectError,
     ConnectTimeout,
-    ExceptionMapping,
     ReadError,
     ReadTimeout,
     WriteError,
     WriteTimeout,
-    map_exceptions,
 )
 from .._utils import is_socket_readable
 from .base import SOCKET_OPTION, NetworkBackend, NetworkStream
@@ -77,19 +75,25 @@ class TLSinTLSStream(NetworkStream):  # pragma: no cover
                 return ret
 
     def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
-        exc_map: ExceptionMapping = {socket.timeout: ReadTimeout, OSError: ReadError}
-        with map_exceptions(exc_map):
+        try:
             self._sock.settimeout(timeout)
             return typing.cast(bytes, self._perform_io(functools.partial(self.ssl_obj.read, max_bytes)))
+        except TimeoutError as exc:
+            raise ReadTimeout(exc) from exc
+        except OSError as exc:
+            raise ReadError(exc) from exc
 
     def write(self, buffer: bytes, timeout: float | None = None) -> None:
-        exc_map: ExceptionMapping = {socket.timeout: WriteTimeout, OSError: WriteError}
-        with map_exceptions(exc_map):
+        try:
             self._sock.settimeout(timeout)
             view = memoryview(buffer)  # zero-copy slicing; avoids copies
             while view:
                 nsent = self._perform_io(functools.partial(self.ssl_obj.write, view))
                 view = view[nsent:]
+        except TimeoutError as exc:
+            raise WriteTimeout(exc) from exc
+        except OSError as exc:
+            raise WriteError(exc) from exc
 
     def close(self) -> None:
         self._sock.close()
@@ -121,22 +125,28 @@ class SyncStream(NetworkStream):
         self._sock = sock
 
     def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
-        exc_map: ExceptionMapping = {socket.timeout: ReadTimeout, OSError: ReadError}
-        with map_exceptions(exc_map):
+        try:
             self._sock.settimeout(timeout)
             return self._sock.recv(max_bytes)
+        except TimeoutError as exc:  # pragma: no cover
+            raise ReadTimeout(exc) from exc
+        except OSError as exc:  # pragma: no cover
+            raise ReadError(exc) from exc
 
     def write(self, buffer: bytes, timeout: float | None = None) -> None:
         if not buffer:
             return
 
-        exc_map: ExceptionMapping = {socket.timeout: WriteTimeout, OSError: WriteError}
-        with map_exceptions(exc_map):
+        try:
             view = memoryview(buffer)  # zero-copy slicing; avoids copies
             while view:
                 self._sock.settimeout(timeout)
                 n = self._sock.send(view)
                 view = view[n:]
+        except TimeoutError as exc:  # pragma: no cover
+            raise WriteTimeout(exc) from exc
+        except OSError as exc:  # pragma: no cover
+            raise WriteError(exc) from exc
 
     def close(self) -> None:
         self._sock.close()
@@ -147,11 +157,7 @@ class SyncStream(NetworkStream):
         server_hostname: str | None = None,
         timeout: float | None = None,
     ) -> NetworkStream:
-        exc_map: ExceptionMapping = {
-            socket.timeout: ConnectTimeout,
-            OSError: ConnectError,
-        }
-        with map_exceptions(exc_map):
+        try:
             try:
                 if isinstance(self._sock, ssl.SSLSocket):  # pragma: no cover
                     # If the underlying socket has already been upgraded
@@ -164,6 +170,10 @@ class SyncStream(NetworkStream):
             except Exception as exc:  # pragma: no cover
                 self.close()
                 raise exc
+        except TimeoutError as exc:  # pragma: no cover
+            raise ConnectTimeout(exc) from exc
+        except OSError as exc:  # pragma: no cover
+            raise ConnectError(exc) from exc
         return SyncStream(sock)
 
     def get_extra_info(self, info: str) -> typing.Any:
@@ -195,12 +205,8 @@ class SyncBackend(NetworkBackend):
             socket_options = []  # pragma: no cover
         address = (host, port)
         source_address = None if local_address is None else (local_address, 0)
-        exc_map: ExceptionMapping = {
-            socket.timeout: ConnectTimeout,
-            OSError: ConnectError,
-        }
 
-        with map_exceptions(exc_map):
+        try:
             sock = socket.create_connection(
                 address,
                 timeout,
@@ -209,6 +215,10 @@ class SyncBackend(NetworkBackend):
             for option in socket_options:
                 sock.setsockopt(*option)  # pragma: no cover
             sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        except TimeoutError as exc:  # pragma: no cover
+            raise ConnectTimeout(exc) from exc
+        except OSError as exc:  # pragma: no cover
+            raise ConnectError(exc) from exc
         return SyncStream(sock)
 
     def connect_unix_socket(
@@ -222,14 +232,14 @@ class SyncBackend(NetworkBackend):
         if socket_options is None:
             socket_options = []
 
-        exc_map: ExceptionMapping = {
-            socket.timeout: ConnectTimeout,
-            OSError: ConnectError,
-        }
-        with map_exceptions(exc_map):
+        try:
             sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
             for option in socket_options:
                 sock.setsockopt(*option)
             sock.settimeout(timeout)
             sock.connect(path)
+        except TimeoutError as exc:
+            raise ConnectTimeout(exc) from exc
+        except OSError as exc:
+            raise ConnectError(exc) from exc
         return SyncStream(sock)
