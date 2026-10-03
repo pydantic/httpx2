@@ -30,7 +30,12 @@ from ._exceptions import (
     StreamConsumed,
     request_context,
 )
-from ._multipart import get_multipart_boundary_from_content_type
+from ._multipart import (
+    MultipartStream,
+    append_boundary_to_content_type,
+    get_multipart_boundary_from_content_type,
+    is_multipart_form_data_content_type,
+)
 from ._status_codes import codes
 from ._types import (
     AsyncByteStream,
@@ -420,15 +425,27 @@ class Request:
 
         if stream is None:
             content_type: str | None = self.headers.get("content-type")
+            boundary = get_multipart_boundary_from_content_type(
+                content_type=content_type.encode(self.headers.encoding) if content_type else None
+            )
             headers, stream = encode_request(
                 content=content,
                 data=data,
                 files=files,
                 json=json,
-                boundary=get_multipart_boundary_from_content_type(
-                    content_type=content_type.encode(self.headers.encoding) if content_type else None
-                ),
+                boundary=boundary,
             )
+            # If the user supplied a `multipart/form-data` content-type without an
+            # explicit boundary, inject the generated boundary so that the header
+            # matches the boundary actually used in the request body.
+            if (
+                boundary is None
+                and content_type is not None
+                and is_multipart_form_data_content_type(content_type)
+                and isinstance(stream, MultipartStream)
+            ):
+                generated = stream.boundary.decode("ascii")
+                self.headers["content-type"] = append_boundary_to_content_type(content_type, generated)
             self._prepare(headers)
             self.stream = stream
             # Load the request body, except for streaming content.
