@@ -73,6 +73,38 @@ while True:
 
 If we're working with an `async` codebase, then we need to select a different backend.
 
+`httpcore2.AutoBackend` automatically selects a backend for the current async
+runtime. This is the default used by `AsyncConnectionPool`. It selects
+`AnyIOBackend` for `asyncio` and `TrioBackend` for `trio` when the first network
+operation runs. Install the corresponding `httpcore2[asyncio]` or
+`httpcore2[trio]` extra before using that runtime.
+
+You can explicitly select it or subclass it to customize networking without
+writing your own runtime selector:
+
+```python
+import asyncio
+import httpcore2
+
+
+async def main():
+    network_backend = httpcore2.AutoBackend()
+    async with httpcore2.AsyncConnectionPool(network_backend=network_backend) as http:
+        response = await http.request('GET', 'https://www.example.com')
+        print(response)
+
+
+asyncio.run(main())
+```
+
+For example, a subclass can override `connect_tcp()` to choose a different
+socket destination, then pass the replacement host and port to
+`super().connect_tcp()` for the connection.
+The request URL supplies the default HTTP `Host` header and TLS server name.
+Passing a `Host` header overrides the former; the `sni_hostname` request
+extension overrides the latter. Validate any destination mapping in your
+application.
+
 The `httpcore2.AnyIOBackend` is suitable for usage if you're running under `asyncio`. This is a networking backend implemented using [the `anyio` package](https://anyio.readthedocs.io/en/3.x/).
 
 ```python
@@ -261,6 +293,7 @@ with open("network-recording", "wb") as record_file:
 ### Networking Backends
 
 * `httpcore2.SyncBackend`
+* `httpcore2.AutoBackend`
 * `httpcore2.AnyIOBackend`
 * `httpcore2.TrioBackend`
 
