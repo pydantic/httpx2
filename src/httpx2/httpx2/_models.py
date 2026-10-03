@@ -45,7 +45,7 @@ from ._types import (
     ResponseExtensions,
     SyncByteStream,
 )
-from ._urls import URL
+from ._urls import URL, _url_to_host_header
 from ._utils import to_bytes_or_str, to_str
 
 __all__ = ["Cookies", "Headers", "Request", "Response"]
@@ -467,7 +467,7 @@ class Request:
         has_content_length = "Content-Length" in self.headers or "Transfer-Encoding" in self.headers
 
         if not has_host and self.url.host:
-            auto_headers.append((b"Host", self.url.netloc))
+            auto_headers.append((b"Host", _url_to_host_header(self.url)))
         if not has_content_length and self.method in ("POST", "PUT", "PATCH", "QUERY"):
             auto_headers.append((b"Content-Length", b"0"))
 
