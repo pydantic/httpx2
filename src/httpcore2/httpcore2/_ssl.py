@@ -29,8 +29,9 @@ def default_ssl_context(trust_env: bool = True) -> ssl.SSLContext:
     paths = ssl.get_default_verify_paths()
     cafile = paths.openssl_cafile if os.path.isfile(paths.openssl_cafile) else None
     capath = paths.openssl_capath if os.path.isdir(paths.openssl_capath) else None
-    if capath and not any(re.fullmatch(r"[0-9a-fA-F]{8}\.\d", f) for f in os.listdir(capath)):  # pragma: no cover
-        capath = None
+    if capath and not cafile:  # pragma: no cover
+        if not any(re.fullmatch(r"[0-9a-fA-F]{8}\.\d", f) for f in os.listdir(capath)):
+            capath = None
     if not cafile and not capath:  # pragma: no cover
         cafile = next(filter(os.path.isfile, CA_FILE_CANDIDATES), None)
     if cafile or capath:
