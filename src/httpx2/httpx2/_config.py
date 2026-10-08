@@ -29,16 +29,10 @@ def create_ssl_context(
     import ssl
     import warnings
 
-    import truststore
+    from httpcore2._ssl import default_ssl_context, system_ssl_context
 
     if verify is True:
-        if trust_env and os.environ.get("SSL_CERT_FILE"):  # pragma: no cover
-            ctx = ssl.create_default_context(cafile=os.environ["SSL_CERT_FILE"])
-        elif trust_env and os.environ.get("SSL_CERT_DIR"):  # pragma: no cover
-            ctx = ssl.create_default_context(capath=os.environ["SSL_CERT_DIR"])
-        else:
-            # Default case: rely on the system trust store via `truststore`.
-            ctx = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        ctx = default_ssl_context() if trust_env else system_ssl_context()
     elif verify is False:
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         ctx.check_hostname = False
