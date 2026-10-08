@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import ssl
+import sys
 import typing
+from pathlib import Path
 
 import pytest
+import trustme
 
 import httpx2
 
@@ -58,6 +61,21 @@ def test_load_ssl_config_no_verify() -> None:
     context = httpx2.create_ssl_context(verify=False)
     assert context.verify_mode == ssl.VerifyMode.CERT_NONE
     assert context.check_hostname is False
+
+
+@pytest.mark.skipif(sys.platform in ("win32", "darwin"), reason="`truststore` does not implement `get_ca_certs()`")
+@pytest.mark.parametrize("trust_env", [True, False])
+def test_create_ssl_context_trust_env(
+    trust_env: bool, cert_authority: trustme.CA, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ca_file = tmp_path / "ca.pem"
+    cert_authority.cert_pem.write_to_path(str(ca_file))
+    monkeypatch.setenv("SSL_CERT_FILE", str(ca_file))
+
+    context = httpx2.create_ssl_context(trust_env=trust_env)
+
+    ca_der = ssl.PEM_cert_to_DER_cert(cert_authority.cert_pem.bytes().decode())
+    assert (ca_der in context.get_ca_certs(binary_form=True)) is trust_env
 
 
 def test_create_ssl_context_verify_str(cert_pem_file: str) -> None:
