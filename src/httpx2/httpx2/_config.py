@@ -29,10 +29,10 @@ def create_ssl_context(
     import ssl
     import warnings
 
-    from httpcore2._ssl import default_ssl_context, system_ssl_context
+    import httpcore2
 
     if verify is True:
-        ctx = default_ssl_context() if trust_env else system_ssl_context()
+        ctx = httpcore2.default_ssl_context(trust_env=trust_env)
     elif verify is False:
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         ctx.check_hostname = False

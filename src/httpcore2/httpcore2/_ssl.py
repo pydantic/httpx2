@@ -16,15 +16,11 @@ CA_FILE_CANDIDATES = [
 ]
 
 
-def default_ssl_context() -> ssl.SSLContext:
-    if cafile := os.environ.get("SSL_CERT_FILE"):  # pragma: no cover
+def default_ssl_context(trust_env: bool = True) -> ssl.SSLContext:
+    if trust_env and (cafile := os.environ.get("SSL_CERT_FILE")):  # pragma: no cover
         return ssl.create_default_context(cafile=cafile)
-    if capath := os.environ.get("SSL_CERT_DIR"):  # pragma: no cover
+    if trust_env and (capath := os.environ.get("SSL_CERT_DIR")):  # pragma: no cover
         return ssl.create_default_context(capath=capath)
-    return system_ssl_context()
-
-
-def system_ssl_context() -> ssl.SSLContext:
     if platform.system() in ("Windows", "Darwin"):  # pragma: no cover
         return truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
     # `truststore` re-adds verify paths per handshake, which OpenSSL < 3.4 accumulates (sethmlarson/truststore#212).
