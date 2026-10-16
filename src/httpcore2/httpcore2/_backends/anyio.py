@@ -46,6 +46,9 @@ class AnyIOStream(AsyncNetworkStream):
             TimeoutError: WriteTimeout,
             anyio.BrokenResourceError: WriteError,
             anyio.ClosedResourceError: WriteError,
+            # `TLSStream.send()` raises this when the peer ended the connection
+            # without a TLS `close_notify`.
+            anyio.EndOfStream: WriteError,
         }
         with map_exceptions(exc_map):
             with anyio.fail_after(timeout):
