@@ -1,0 +1,21 @@
+--- a/httpx2/_models.py
++++ b/httpx2/_models.py
+@@ -430,6 +430,18 @@
+             Cookies(cookies).set_cookie_header(self)
+ 
+         if stream is None:
++            if (
++                type(self) is Request
++                and data is None
++                and files is None
++                and json is None
++                and (content is None or isinstance(content, (bytes, str)))
++            ):
++                body = content.encode("utf-8") if isinstance(content, str) else (content or b"")
++                self._prepare({"Content-Length": str(len(body))} if body else {})
++                self.stream = ByteStream(body)
++                self._content = body
++                return
+             content_type: str | None = self.headers.get("content-type")
+             headers, stream = encode_request(
+                 content=content,

@@ -1,0 +1,157 @@
+--- a/httpcore2/_async/http11.py
++++ b/httpcore2/_async/http11.py
+@@ -8,7 +8,7 @@
+ import typing
+ from collections.abc import AsyncGenerator
+ 
+-import h11
++import zttp
+ 
+ from .._backends.base import AsyncNetworkStream
+ from .._exceptions import (
+@@ -28,9 +28,9 @@
+ 
+ 
+ # A subset of `h11.Event` types supported by `_send_event`
+-H11SendEvent = h11.Request | h11.Data | h11.EndOfMessage
+ 
+ 
++
+ class HTTPConnectionState(enum.IntEnum):
+     NEW = 0
+     ACTIVE = 1
+@@ -55,10 +55,10 @@
+         self._state = HTTPConnectionState.NEW
+         self._state_lock = AsyncLock()
+         self._request_count = 0
+-        self._h11_state = h11.Connection(
+-            our_role=h11.CLIENT,
+-            max_incomplete_event_size=self.MAX_INCOMPLETE_EVENT_SIZE,
+-        )
++        self._h11_state = zttp.Connection(zttp.CLIENT)
++        self._sent_complete = False
++        self._received_complete = False
++        self._received_headers = False
+ 
+     async def handle_async_request(self, request: Request) -> Response:
+         if not self.can_handle_request(request.url.origin):
+@@ -130,30 +130,24 @@
+         timeouts = request.extensions.get("timeout", {})
+         timeout = timeouts.get("write", None)
+ 
+-        with map_exceptions({h11.LocalProtocolError: LocalProtocolError}):
+-            event = h11.Request(
+-                method=request.method,
+-                target=request.url.target,
+-                headers=request.headers,
+-            )
+-        await self._send_event(event, timeout=timeout)
++        with map_exceptions({zttp.LocalProtocolError: LocalProtocolError}):
++            self._h11_state.send_request(request.method, request.url.target, b"1.1", request.headers)
++        await self._network_stream.write(self._h11_state.data_to_send(), timeout=timeout)
+ 
+     async def _send_request_body(self, request: Request) -> None:
+-        timeouts = request.extensions.get("timeout", {})
+-        timeout = timeouts.get("write", None)
+-
++        timeout = request.extensions.get("timeout", {}).get("write", None)
+         assert isinstance(request.stream, typing.AsyncIterable)
+         async with safe_async_iterate(request.stream) as iterator:
+             async for chunk in iterator:
+-                event = h11.Data(data=chunk)
+-                await self._send_event(event, timeout=timeout)
+-
+-        await self._send_event(h11.EndOfMessage(), timeout=timeout)
+-
+-    async def _send_event(self, event: h11.Event, timeout: float | None = None) -> None:
+-        bytes_to_send = self._h11_state.send(event)
+-        if bytes_to_send is not None:
+-            await self._network_stream.write(bytes_to_send, timeout=timeout)
++                if not chunk:
++                    continue
++                with map_exceptions({zttp.LocalProtocolError: LocalProtocolError}):
++                    self._h11_state.send_data(chunk)
++                await self._network_stream.write(self._h11_state.data_to_send(), timeout=timeout)
++        with map_exceptions({zttp.LocalProtocolError: LocalProtocolError}):
++            self._h11_state.end_message()
++        await self._network_stream.write(self._h11_state.data_to_send(), timeout=timeout)
++        self._sent_complete = True
+ 
+     # Receiving the response...
+ 
+@@ -165,18 +159,21 @@
+ 
+         while True:
+             event = await self._receive_event(timeout=timeout)
+-            if isinstance(event, h11.Response):
++            if isinstance(event, zttp.Response) and (event.status_code >= 200 or event.status_code == 101):
++                self._received_headers = True
+                 break
+-            if isinstance(event, h11.InformationalResponse) and event.status_code == 101:
+-                break
++            if event is zttp.CONNECTION_CLOSED:
++                raise RemoteProtocolError("Server disconnected without sending a response.")
+ 
+         http_version = b"HTTP/" + event.http_version
+ 
+         # h11 version 0.11+ supports a `raw_items` interface to get the
+         # raw header casing, rather than the enforced lowercase headers.
+-        headers = event.headers.raw_items()
++        headers = list(event.headers)
+ 
+-        trailing_data, _ = self._h11_state.trailing_data
++        if event.status_code == 101 or (request.method == b"CONNECT" and 200 <= event.status_code < 300):
++            raise RuntimeError("Upgrade/CONNECT not supported by this benchmark prototype")
++        trailing_data = b""
+ 
+         return http_version, event.status_code, event.reason, headers, trailing_data
+ 
+@@ -186,17 +183,20 @@
+ 
+         while True:
+             event = await self._receive_event(timeout=timeout)
+-            if isinstance(event, h11.Data):
++            if isinstance(event, zttp.Data):
+                 yield bytes(event.data)
+-            elif isinstance(event, (h11.EndOfMessage, h11.PAUSED)):
++            elif isinstance(event, zttp.EndOfMessage):
++                self._received_complete = True
+                 break
++            elif event is zttp.CONNECTION_CLOSED:
++                raise RemoteProtocolError("Incomplete response")
+ 
+-    async def _receive_event(self, timeout: float | None = None) -> h11.Event | type[h11.PAUSED]:
++    async def _receive_event(self, timeout: float | None = None) -> zttp.Event:
+         while True:
+-            with map_exceptions({h11.RemoteProtocolError: RemoteProtocolError}):
++            with map_exceptions({zttp.RemoteProtocolError: RemoteProtocolError}):
+                 event = self._h11_state.next_event()
+ 
+-            if event is h11.NEED_DATA:
++            if event is zttp.NEED_DATA:
+                 data = await self._network_stream.read(self.READ_NUM_BYTES, timeout=timeout)
+ 
+                 # If we feed this case through h11 we'll raise an exception like:
+@@ -207,7 +207,7 @@
+                 # Which is accurate, but not very informative from an end-user
+                 # perspective. Instead we handle this case distinctly and treat
+                 # it as a ConnectError.
+-                if data == b"" and self._h11_state.their_state == h11.SEND_RESPONSE:
++                if data == b"" and not self._received_headers:
+                     msg = "Server disconnected without sending a response."
+                     raise RemoteProtocolError(msg)
+ 
+@@ -218,9 +218,12 @@
+ 
+     async def _response_closed(self) -> None:
+         async with self._state_lock:
+-            if self._h11_state.our_state is h11.DONE and self._h11_state.their_state is h11.DONE:
++            if self._sent_complete and self._received_complete and not self._h11_state.should_close():
+                 self._state = HTTPConnectionState.IDLE
+                 self._h11_state.start_next_cycle()
++                self._sent_complete = False
++                self._received_complete = False
++                self._received_headers = False
+                 if self._keepalive_expiry is not None:
+                     now = time.monotonic()
+                     self._expire_at = now + self._keepalive_expiry

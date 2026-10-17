@@ -1,0 +1,80 @@
+
+  _     ._   __/__   _ _  _  _ _/_   Recorded: 17:04:55  Samples:  2001
+ /_//_/// /_\ / //_// / //_'/ //     Duration: 2.002     CPU time: 1.996
+/   _/                      v5.1.3
+
+Profile at /Users/marcelotryle/.codex/worktrees/b5ff/httpx2/benchmark/client.py:243
+
+2.001 _UnixSelectorEventLoop._run_once  asyncio/base_events.py:1966
+├─ 1.929 Handle._run  asyncio/events.py:92
+│     [2 frames hidden]  asyncio
+│        1.882 worker  client.py:211
+│        └─ 1.867 one  worker.py:52
+│           └─ 1.844 AsyncClient.request  httpx2/_client.py:1580
+│              ├─ 1.660 AsyncClient.send  httpx2/_client.py:1787
+│              │  ├─ 1.140 AsyncClient._send_handling_auth  httpx2/_client.py:1834
+│              │  │  ├─ 1.096 AsyncClient._send_handling_redirects  httpx2/_client.py:1868
+│              │  │  │  └─ 1.060 AsyncClient._send_single_request  httpx2/_client.py:1904
+│              │  │  │     ├─ 0.985 CoreTransport.handle_async_request  core_transport.py:28
+│              │  │  │     │  ├─ 0.855 OriginPool.handle_async_request  origin_pool.py:44
+│              │  │  │     │  │  ├─ 0.662 AsyncHTTPConnection.handle_async_request  httpcore2/_async/connection.py:67
+│              │  │  │     │  │  │  ├─ 0.601 AsyncHTTP11Connection.handle_async_request  httpcore2/_async/http11.py:63
+│              │  │  │     │  │  │  │  ├─ 0.183 AsyncHTTP11Connection._receive_response_headers  httpcore2/_async/http11.py:154
+│              │  │  │     │  │  │  │  │  ├─ 0.159 AsyncHTTP11Connection._receive_event  httpcore2/_async/http11.py:194
+│              │  │  │     │  │  │  │  │  │  └─ 0.110 AsyncioStream.read  asyncio_backend.py:51
+│              │  │  │     │  │  │  │  │  │     ├─ 0.034 StreamReader.read  asyncio/streams.py:688
+│              │  │  │     │  │  │  │  │  │     ├─ 0.031 [self]  asyncio_backend.py
+│              │  │  │     │  │  │  │  │  │     └─ 0.028 Timeout.__aenter__  asyncio/timeouts.py:83
+│              │  │  │     │  │  │  │  │  │        └─ 0.025 Timeout.reschedule  asyncio/timeouts.py:48
+│              │  │  │     │  │  │  │  │  └─ 0.022 [self]  httpcore2/_async/http11.py
+│              │  │  │     │  │  │  │  ├─ 0.145 AsyncHTTP11Connection._send_request_headers  httpcore2/_async/http11.py:129
+│              │  │  │     │  │  │  │  │  └─ 0.116 AsyncioStream.write  asyncio_backend.py:60
+│              │  │  │     │  │  │  │  │     ├─ 0.048 StreamWriter.write  asyncio/streams.py:339
+│              │  │  │     │  │  │  │  │     │     [2 frames hidden]  asyncio, <built-in>
+│              │  │  │     │  │  │  │  │     └─ 0.023 Timeout.__aenter__  asyncio/timeouts.py:83
+│              │  │  │     │  │  │  │  ├─ 0.108 [self]  httpcore2/_async/http11.py
+│              │  │  │     │  │  │  │  ├─ 0.084 AsyncHTTP11Connection._send_request_body  httpcore2/_async/http11.py:137
+│              │  │  │     │  │  │  │  └─ 0.038 Response.__init__  httpcore2/_models.py:357
+│              │  │  │     │  │  │  │     └─ 0.031 enforce_headers  httpcore2/_models.py:56
+│              │  │  │     │  │  │  └─ 0.031 [self]  httpcore2/_async/connection.py
+│              │  │  │     │  │  ├─ 0.056 [self]  origin_pool.py
+│              │  │  │     │  │  ├─ 0.036 Response.__init__  httpcore2/_models.py:357
+│              │  │  │     │  │  │  └─ 0.031 enforce_headers  httpcore2/_models.py:56
+│              │  │  │     │  │  └─ 0.029 Timeout.__aenter__  asyncio/timeouts.py:83
+│              │  │  │     │  │     └─ 0.024 Timeout.reschedule  asyncio/timeouts.py:48
+│              │  │  │     │  ├─ 0.056 Request.__init__  httpcore2/_models.py:314
+│              │  │  │     │  │  └─ 0.049 enforce_headers  httpcore2/_models.py:56
+│              │  │  │     │  │     └─ 0.026 enforce_bytes  httpcore2/_models.py:22
+│              │  │  │     │  ├─ 0.033 [self]  core_transport.py
+│              │  │  │     │  └─ 0.025 Response.__init__  httpx2/_models.py:526
+│              │  │  │     │     └─ 0.023 Headers.__init__  httpx2/_models.py:146
+│              │  │  │     └─ 0.030 [self]  httpx2/_client.py
+│              │  │  └─ 0.030 [self]  httpx2/_client.py
+│              │  ├─ 0.475 Response.aread  httpx2/_models.py:970
+│              │  │  └─ 0.442 Response.aiter_bytes  httpx2/_models.py:979
+│              │  │     ├─ 0.362 Response.aiter_raw  httpx2/_models.py:1031
+│              │  │     │  ├─ 0.170 BoundAsyncStream.__aiter__  httpx2/_client.py:162
+│              │  │     │  │  └─ 0.150 ResponseStream.__aiter__  core_transport.py:71
+│              │  │     │  │     └─ 0.127 PooledStream.__aiter__  origin_pool.py:128
+│              │  │     │  │        └─ 0.112 HTTP11ConnectionByteStream.__aiter__  httpcore2/_async/http11.py:310
+│              │  │     │  │           ├─ 0.064 AsyncHTTP11Connection._receive_response_body  httpcore2/_async/http11.py:180
+│              │  │     │  │           │  └─ 0.044 AsyncHTTP11Connection._receive_event  httpcore2/_async/http11.py:194
+│              │  │     │  │           └─ 0.025 [self]  httpcore2/_async/http11.py
+│              │  │     │  ├─ 0.146 Response.aclose  httpx2/_models.py:1061
+│              │  │     │  │  └─ 0.126 BoundAsyncStream.aclose  httpx2/_client.py:171
+│              │  │     │  │     └─ 0.118 ResponseStream.aclose  core_transport.py:76
+│              │  │     │  │        └─ 0.099 PooledStream.aclose  origin_pool.py:132
+│              │  │     │  │           └─ 0.073 HTTP11ConnectionByteStream.aclose  httpcore2/_async/http11.py:325
+│              │  │     │  │              └─ 0.047 AsyncHTTP11Connection._response_closed  httpcore2/_async/http11.py:219
+│              │  │     │  └─ 0.031 [self]  httpx2/_models.py
+│              │  │     └─ 0.040 [self]  httpx2/_models.py
+│              │  └─ 0.021 AsyncClient._build_request_auth  httpx2/_client.py:437
+│              └─ 0.170 AsyncClient.build_request  httpx2/_client.py:326
+│                 ├─ 0.119 Request.__init__  httpx2/_models.py:398
+│                 │  └─ 0.068 Request._prepare  httpx2/_models.py:454
+│                 │     └─ 0.029 Headers.__init__  httpx2/_models.py:146
+│                 └─ 0.022 AsyncClient._merge_headers  httpx2/_client.py:406
+│                    └─ 0.021 Headers.update  httpx2/_models.py:279
+├─ 0.027 [self]  asyncio/base_events.py
+└─ 0.024 TimerHandle.__lt__  asyncio/events.py:162
+
