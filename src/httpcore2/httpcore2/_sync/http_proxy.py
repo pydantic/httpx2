@@ -184,7 +184,7 @@ class ForwardHTTPConnection(ConnectionInterface):
             scheme=self._proxy_origin.scheme,
             host=self._proxy_origin.host,
             port=self._proxy_origin.port,
-            target=bytes(request.url),
+            target=bytes(request.url) if request.url.target.startswith(b"/") else request.url.target,
         )
         proxy_request = Request(
             method=request.method,

@@ -243,30 +243,72 @@ def test_proxy_headers() -> None:
 
 
 @pytest.mark.anyio
-@pytest.mark.parametrize("scheme", ["http", "https"])
-async def test_proxy_preserves_target_extension(scheme: str) -> None:
-    requests: list[tuple[bytes, bytes]] = []
+@pytest.mark.parametrize(
+    "method, target, forwarding_target",
+    [
+        ("GET", b"/custom^path", b"http://example.com/custom^path"),
+        ("OPTIONS", b"*", b"*"),
+        ("CONNECT", b"example.com:443", b"example.com:443"),
+        ("GET", b"http://example.com/custom^path", b"http://example.com/custom^path"),
+    ],
+)
+async def test_proxy_forwarding_preserves_target_extension(
+    method: str, target: bytes, forwarding_target: bytes
+) -> None:
+    events: dict[str, list[dict[str, typing.Any]]] = {}
 
     async def trace(name: str, info: dict[str, typing.Any]) -> None:
-        if name == "http11.send_request_headers.started":
-            request = info["request"]
-            requests.append((request.method, request.url.target))
+        events.setdefault(name, []).append(info)
 
-    responses = [b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK"]
-    if scheme == "https":
-        responses.insert(0, b"HTTP/1.1 200 Connection established\r\n\r\n")
-    network_backend = AsyncMockBackend(responses)
-    extensions = {"target": b"/custom^path", "trace": trace}
+    network_backend = AsyncMockBackend([b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n"])
+    extensions = {"target": target, "trace": trace}
     expected_extensions = extensions.copy()
     async with AsyncConnectionPool(proxy=Proxy("http://localhost:8080"), network_backend=network_backend) as pool:
-        response = await pool.request("GET", f"{scheme}://example.com/", extensions=extensions)
+        response = await pool.request(method, "http://example.com/", extensions=extensions)
 
     assert response.status == 200
-    assert response.content == b"OK"
-    if scheme == "https":
-        assert requests == [(b"CONNECT", b"example.com:443"), (b"GET", b"/custom^path")]
-    else:
-        assert requests == [(b"GET", b"http://example.com/custom^path")]
+    assert response.content == b""
+    requests = [info["request"] for info in events["http11.send_request_headers.started"]]
+    assert [(request.method, request.url.target) for request in requests] == [
+        (method.encode("ascii"), forwarding_target)
+    ]
+    assert extensions == expected_extensions
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    "method, target",
+    [
+        ("GET", b"/custom^path"),
+        ("OPTIONS", b"*"),
+        ("CONNECT", b"example.com:443"),
+        ("GET", b"http://example.com/custom^path"),
+    ],
+)
+async def test_proxy_tunneling_preserves_target_extension(method: str, target: bytes) -> None:
+    events: dict[str, list[dict[str, typing.Any]]] = {}
+
+    async def trace(name: str, info: dict[str, typing.Any]) -> None:
+        events.setdefault(name, []).append(info)
+
+    network_backend = AsyncMockBackend(
+        [
+            b"HTTP/1.1 200 Connection established\r\n\r\n",
+            b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n",
+        ]
+    )
+    extensions = {"target": target, "trace": trace}
+    expected_extensions = extensions.copy()
+    async with AsyncConnectionPool(proxy=Proxy("http://localhost:8080"), network_backend=network_backend) as pool:
+        response = await pool.request(method, "https://example.com/", extensions=extensions)
+
+    assert response.status == 200
+    assert response.content == b""
+    requests = [info["request"] for info in events["http11.send_request_headers.started"]]
+    assert [(request.method, request.url.target) for request in requests] == [
+        (b"CONNECT", b"example.com:443"),
+        (method.encode("ascii"), target),
+    ]
     assert extensions == expected_extensions
 
 
