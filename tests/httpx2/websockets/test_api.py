@@ -1025,7 +1025,7 @@ async def test_receive_after_exit(server_factory: ServerFactoryFixture) -> None:
             with connect_ws("http://socket/ws", client, keepalive_ping_interval_seconds=None) as ws:
                 pass
             with pytest.raises(WebSocketDisconnect):
-                ws.receive()
+                ws.receive(timeout=1)
 
 
 @pytest.mark.anyio
