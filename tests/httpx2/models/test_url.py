@@ -335,6 +335,19 @@ def test_url_invalid_port() -> None:
     assert str(exc.value) == "Invalid port: 'abc'"
 
 
+def test_url_boolean_port_after_integer_port() -> None:
+    assert httpx2.URL("https://example.com/", port=1).port == 1
+    with pytest.raises(httpx2.InvalidURL, match="Invalid port: 'True'"):
+        httpx2.URL("https://example.com/", port=True)
+
+
+def test_url_with_unhashable_string_subclass() -> None:
+    unhashable_string = type("UnhashableString", (str,), {"__hash__": None})
+
+    assert str(httpx2.URL(unhashable_string("https://example.com/"))) == "https://example.com/"
+    assert str(httpx2.URL("https://example.com/", path=unhashable_string("/path"))) == "https://example.com/path"
+
+
 # Tests for path handling
 
 

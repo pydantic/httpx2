@@ -21,6 +21,7 @@ from __future__ import annotations
 import ipaddress
 import re
 import typing
+from functools import lru_cache
 
 import idna
 
@@ -199,6 +200,17 @@ class ParseResult(typing.NamedTuple):
 
 
 def urlparse(url: str = "", **kwargs: str | None) -> ParseResult:
+    if type(url) is str and not kwargs:
+        return _cached_urlparse(url)
+    return _parse_url(url, **kwargs)
+
+
+@lru_cache(maxsize=128)
+def _cached_urlparse(url: str) -> ParseResult:
+    return _parse_url(url)
+
+
+def _parse_url(url: str = "", **kwargs: str | None) -> ParseResult:
     # Initial basic checks on allowable URLs.
     # ---------------------------------------
 
