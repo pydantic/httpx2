@@ -154,15 +154,14 @@ class WebSocketSession:
         tb: TracebackType | None,
     ) -> None:
         self.close()
-        tasks = (self._background_receive_task, self._background_keepalive_ping_task)
         # A task blocked on a full events queue only exits once there's room, or the queue shuts down.
         if sys.version_info >= (3, 13):  # pragma: no cover - Python 3.13+ only
             self._events.shutdown(immediate=True)
-            for task in tasks:
-                if task is not None:
-                    task.join()
+            self._background_receive_task.join()
+            if self._background_keepalive_ping_task is not None:
+                self._background_keepalive_ping_task.join()
         else:  # pragma: no cover - Python < 3.13 only
-            for task in tasks:
+            for task in (self._background_receive_task, self._background_keepalive_ping_task):
                 while task is not None and task.is_alive():
                     with contextlib.suppress(queue.Empty):
                         self._events.get(timeout=0.01)
