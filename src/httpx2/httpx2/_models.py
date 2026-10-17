@@ -1088,7 +1088,9 @@ class Cookies(typing.MutableMapping[str, str]):
             for key, value in cookies:
                 self.set(key, value)
         elif isinstance(cookies, Cookies):
-            self.jar = CookieJar()
+            # Carry the cookie policy over, so that copies made when sending requests
+            # enforce the same rules as the original jar.
+            self.jar = CookieJar(policy=getattr(cookies.jar, "_policy", None))
             for cookie in cookies.jar:
                 self.jar.set_cookie(cookie)
         else:
