@@ -407,3 +407,52 @@ def test_http2_remote_max_streams_update() -> None:
                         conn._h2_state.local_settings.max_concurrent_streams,
                     )
                 i += 1
+
+
+
+@pytest.mark.parametrize("limits", [[1], [1, 2], [1, 100], [1, 2, 1]])
+def test_http2_remote_max_streams_decrease_below_in_flight(limits: list[int]) -> None:
+    origin = httpcore2.Origin(b"https", b"example.com", 443)
+    stream = httpcore2.MockStream(
+        [
+            hyperframe.frame.SettingsFrame(
+                settings={hyperframe.frame.SettingsFrame.MAX_CONCURRENT_STREAMS: 100}
+            ).serialize(),
+            hyperframe.frame.HeadersFrame(
+                stream_id=1,
+                data=hpack.Encoder().encode([(b":status", b"200")]),
+                flags=["END_HEADERS"],
+            ).serialize(),
+            hyperframe.frame.HeadersFrame(
+                stream_id=3,
+                data=hpack.Encoder().encode([(b":status", b"200")]),
+                flags=["END_HEADERS"],
+            ).serialize(),
+            *[
+                hyperframe.frame.SettingsFrame(
+                    settings={hyperframe.frame.SettingsFrame.MAX_CONCURRENT_STREAMS: limit}
+                ).serialize()
+                for limit in limits
+            ],
+            hyperframe.frame.DataFrame(stream_id=1, data=b"response a", flags=["END_STREAM"]).serialize(),
+            hyperframe.frame.DataFrame(stream_id=3, data=b"response b", flags=["END_STREAM"]).serialize(),
+            hyperframe.frame.HeadersFrame(
+                stream_id=5,
+                data=hpack.Encoder().encode([(b":status", b"200")]),
+                flags=["END_HEADERS"],
+            ).serialize(),
+            hyperframe.frame.DataFrame(stream_id=5, data=b"response c", flags=["END_STREAM"]).serialize(),
+        ]
+    )
+
+    with httpcore2.HTTP2Connection(origin=origin, stream=stream) as conn:
+        with conn.stream("GET", "https://example.com/a") as response_a:
+            with conn.stream("GET", "https://example.com/b") as response_b:
+                assert response_a.status == response_b.status == 200
+                assert response_a.read() == b"response a"
+                assert response_b.read() == b"response b"
+
+        response_c = conn.request("GET", "https://example.com/c")
+        assert response_c.status == 200
+        assert response_c.content == b"response c"
+        assert conn.is_idle()

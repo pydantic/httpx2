@@ -202,8 +202,8 @@ UI options.
 
 At this point the server is ready to start serving requests, you'll need to
 configure HTTPX2 as described in the
-[proxy section](https://httpx2.pydantic.dev/advanced/proxies/#http-proxies) and
-the [SSL certificates section](https://httpx2.pydantic.dev/advanced/ssl/),
+[proxy section](https://pydantic.dev/docs/httpx2/advanced/proxies/#http-proxies) and
+the [SSL certificates section](https://pydantic.dev/docs/httpx2/advanced/ssl/),
 this is where our previously generated `client.pem` comes in:
 
 ```python

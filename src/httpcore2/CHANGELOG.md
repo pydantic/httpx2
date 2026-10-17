@@ -4,6 +4,53 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2.13.1 (September 23rd, 2026)
+
+### Fixed
+
+* Honor the `sni_hostname` extension for TLS inside HTTP proxy tunnels without applying it to the proxy's TLS connection.
+  ([#1223](https://github.com/pydantic/httpx2/pull/1223))
+* Prefer HTTP/2 during TLS protocol negotiation when enabled, and stop advertising HTTP/1.1 when it is disabled.
+  ([#1155](https://github.com/pydantic/httpx2/pull/1155))
+
+## 2.13.0 (September 14th, 2026)
+
+### Changed
+
+* Require Trio 0.34.0 or later for the `trio` extra.
+  ([#1179](https://github.com/pydantic/httpx2/pull/1179))
+
+### Fixed
+
+* Avoid nested async generator finalization errors when streamed responses are abandoned early.
+  ([#1204](https://github.com/pydantic/httpx2/pull/1204))
+
+## 2.12.0 (August 18th, 2026)
+
+No changes since `2.11.0`. Version bumped to stay in lockstep with `httpx2`.
+
+## 2.11.0 (August 18th, 2026)
+
+### Changed
+
+* Cache sniffio availability instead of importing it on every synchronization call.
+  ([#1132](https://github.com/pydantic/httpx2/pull/1132))
+
+## 2.10.0 (August 9th, 2026)
+
+### Added
+
+* Add support for Python 3.15. ([#1090](https://github.com/pydantic/httpx2/pull/1090))
+
+### Changed
+
+* Avoid quadratic copying when sending large HTTP/2 request bodies. ([#1127](https://github.com/pydantic/httpx2/pull/1127))
+
+### Fixed
+
+* Propagate the original exception instead of raising `KeyError` when an HTTP/2 stream fails. ([#1093](https://github.com/pydantic/httpx2/pull/1093))
+* Start TLS for the `wss` scheme in SOCKS5 proxy connections. ([#1104](https://github.com/pydantic/httpx2/pull/1104))
+
 ## 2.9.1 (July 24th, 2026)
 
 No changes since `2.9.0`. Version bumped to stay in lockstep with `httpx2`.

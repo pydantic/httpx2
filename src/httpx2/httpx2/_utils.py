@@ -115,6 +115,18 @@ def peek_filelike_length(stream: typing.Any) -> int | None:
     return length
 
 
+def peek_filelike_remaining_length(stream: typing.Any) -> int | None:
+    """Return the remaining byte length without changing the stream position."""
+    try:
+        offset: int = stream.tell()
+        length: int = stream.seek(0, os.SEEK_END)
+        stream.seek(offset)
+    except (AttributeError, OSError):
+        return None
+
+    return max(0, length - offset)
+
+
 class URLPattern:
     """
     A utility class currently used for making lookups against proxy keys...

@@ -41,7 +41,7 @@ class WebSocketDisconnect(HTTPXWSException):
 
 class WebSocketInvalidTypeReceived(HTTPXWSException):
     """
-    Raised when a event is not of the expected type.
+    Raised when an event is not of the expected type.
     """
 
     def __init__(self, event: wsproto.events.Event) -> None:

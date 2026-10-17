@@ -102,7 +102,7 @@ Any `gzip` and `deflate` HTTP response encodings will automatically
 be decoded for you. If `brotlipy` is installed, then the `brotli` response
 encoding will be supported. The `zstd` response encoding is supported
 on Python 3.14+ via the stdlib [`compression.zstd`][] module when it is
-available; on Python 3.13 and below it requires the `zstandard` package.
+available; on Python 3.13 and below it requires the `backports.zstd` package.
 
 For example, to create an image from binary data returned by a request, you can use the following code:
 

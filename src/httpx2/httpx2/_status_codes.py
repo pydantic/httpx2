@@ -16,7 +16,7 @@ _DEPRECATED_CODES = {
 
 
 class _CodesMeta(EnumMeta):
-    def __getattr__(cls, name: str) -> codes:
+    def __getattribute__(cls, name: str) -> object:
         if name in _DEPRECATED_CODES:
             new_name = _DEPRECATED_CODES[name]
             warnings.warn(
@@ -24,8 +24,7 @@ class _CodesMeta(EnumMeta):
                 category=DeprecationWarning,
                 stacklevel=2,
             )
-            return cls[new_name]
-        raise AttributeError(name)
+        return super().__getattribute__(name)
 
 
 class codes(IntEnum, metaclass=_CodesMeta):
@@ -178,7 +177,13 @@ class codes(IntEnum, metaclass=_CodesMeta):
     NOT_EXTENDED = 510, "Not Extended"
     NETWORK_AUTHENTICATION_REQUIRED = 511, "Network Authentication Required"
 
+    # Deprecated aliases for names replaced by RFC 9110.
+    REQUEST_ENTITY_TOO_LARGE = CONTENT_TOO_LARGE
+    REQUEST_URI_TOO_LONG = URI_TOO_LONG
+    REQUESTED_RANGE_NOT_SATISFIABLE = RANGE_NOT_SATISFIABLE
+    UNPROCESSABLE_ENTITY = UNPROCESSABLE_CONTENT
+
 
 # Include lower-case styles for `requests` compatibility.
-for code in codes:
-    setattr(codes, code._name_.lower(), int(code))
+for name, code in codes.__members__.items():
+    setattr(codes, name.lower(), int(code))

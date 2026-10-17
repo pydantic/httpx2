@@ -84,7 +84,7 @@ def test_bench_queryparams_merge(benchmark: BenchmarkFixture) -> None:
 def test_bench_gzip_decode(benchmark: BenchmarkFixture) -> None:
     def decode() -> bytes:
         decoder = GZipDecoder()
-        return decoder.decode(GZIP_BODY) + decoder.flush()
+        return b"".join(decoder.decode(GZIP_BODY)) + b"".join(decoder.flush())
 
     benchmark(decode)
 

@@ -15,13 +15,12 @@ from starlette.websockets import WebSocket, WebSocketDisconnect as StarletteWebS
 import httpcore2 as httpcore
 import httpx2 as httpx
 from httpcore2 import AsyncNetworkStream, NetworkStream
-from httpx2.websockets import _api
+from httpx2.websockets import WebSocketSession, _api
 from httpx2.websockets._api import (
     AsyncWebSocketClient,
     AsyncWebSocketSession,
     JSONMode,
     WebSocketClient,
-    WebSocketSession,
     aconnect_ws,
     connect_ws,
 )
@@ -581,6 +580,60 @@ class TestReceivePing:
             wsproto.events.CloseConnection(1000, ""),
         ]
 
+    async def test_receive_unsolicited_pong(self) -> None:
+        class MockNetworkStream(NetworkStream):
+            def __init__(self) -> None:
+                self.connection = wsproto.connection.Connection(wsproto.connection.ConnectionType.SERVER)
+                self.events_to_send = [
+                    wsproto.events.Pong(b"UNSOLICITED"),
+                    wsproto.events.TextMessage("SERVER_MESSAGE"),
+                    wsproto.events.CloseConnection(1000),
+                ]
+
+            def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
+                try:
+                    event = self.events_to_send.pop(0)
+                    return self.connection.send(event)
+                except IndexError:  # pragma: no cover
+                    raise httpcore.ReadError()
+
+            def write(self, buffer: bytes, timeout: float | None = None) -> None:
+                self.connection.receive_data(buffer)
+
+            def close(self) -> None:
+                pass
+
+        stream = MockNetworkStream()
+        with WebSocketSession(stream) as session:
+            assert session.receive_text(timeout=1) == "SERVER_MESSAGE"
+
+    async def test_async_receive_unsolicited_pong(self) -> None:
+        class MockAsyncNetworkStream(AsyncNetworkStream):
+            def __init__(self) -> None:
+                self.connection = wsproto.connection.Connection(wsproto.connection.ConnectionType.SERVER)
+                self.events_to_send = [
+                    wsproto.events.Pong(b"UNSOLICITED"),
+                    wsproto.events.TextMessage("SERVER_MESSAGE"),
+                    wsproto.events.CloseConnection(1000),
+                ]
+
+            async def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
+                try:
+                    event = self.events_to_send.pop(0)
+                    return self.connection.send(event)
+                except IndexError:  # pragma: no cover
+                    raise httpcore.ReadError()
+
+            async def write(self, buffer: bytes, timeout: float | None = None) -> None:
+                self.connection.receive_data(buffer)
+
+            async def aclose(self) -> None:
+                pass
+
+        stream = MockAsyncNetworkStream()
+        async with AsyncWebSocketSession(stream) as session:
+            assert await session.receive_text(timeout=1) == "SERVER_MESSAGE"
+
 
 @pytest.mark.anyio
 class TestKeepalivePing:
@@ -623,6 +676,37 @@ class TestKeepalivePing:
 
         assert stream.ping_received >= 1
         assert stream.ping_answered >= 1
+
+    def test_keepalive_ping_exits_when_closing(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        read_started = threading.Event()
+        closed = threading.Event()
+        writes: list[bytes] = []
+
+        class MockNetworkStream(NetworkStream):
+            def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
+                read_started.set()
+                assert closed.wait(5)
+                return b""
+
+            def write(self, buffer: bytes, timeout: float | None = None) -> None:
+                writes.append(buffer)
+
+            def close(self) -> None:
+                closed.set()
+
+        session = WebSocketSession(MockNetworkStream(), keepalive_ping_interval_seconds=0)
+        ping = session.ping
+
+        def ping_while_closing(payload: bytes = b"") -> threading.Event:
+            assert read_started.wait(5)
+            session.close()
+            return ping(payload)
+
+        monkeypatch.setattr(session, "ping", ping_while_closing)
+        with session:
+            assert closed.wait(5)
+
+        assert len(writes) == 1
 
     async def test_keepalive_ping_timeout(self) -> None:
         class MockNetworkStream(NetworkStream):

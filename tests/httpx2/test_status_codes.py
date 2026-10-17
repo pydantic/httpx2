@@ -51,6 +51,10 @@ def test_pre_rfc9110_aliases_are_deprecated(old_name: str, new_name: str) -> Non
     with pytest.warns(DeprecationWarning, match=msg):
         assert getattr(httpx2.codes, old_name) == httpx2.codes[new_name]
 
+    assert old_name in httpx2.codes.__members__
+    assert httpx2.codes[old_name] == httpx2.codes[new_name]
+    assert getattr(httpx2.codes, old_name.lower()) == httpx2.codes[new_name]
+
 
 def test_unknown_status_code_attribute_raises() -> None:
     name = "NOT_A_REAL_CODE"

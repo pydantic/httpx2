@@ -3,6 +3,7 @@ site_description: A next-generation HTTP client for Python.
 
 theme:
     name: 'material'
+    custom_dir: 'docs/overrides'
     palette:
       - scheme: 'default'
         media: '(prefers-color-scheme: light)'
@@ -35,6 +36,7 @@ nav:
         - Transports: 'advanced/transports.md'
         - Text Encodings: 'advanced/text-encodings.md'
         - Extensions: 'advanced/extensions.md'
+        - Emscripten: 'advanced/emscripten.md'
     - Guides:
         - Async Support: 'async.md'
         - HTTP/2 Support: 'http2.md'

@@ -72,28 +72,16 @@ def _is_https_redirect(url: URL, location: URL) -> bool:
     """
     Return 'True' if 'location' is a HTTPS upgrade of 'url'
     """
-    if url.host != location.host:
-        return False
+    origin = url.origin
+    location_origin = location.origin
 
     return (
-        url.scheme == "http"
-        and _port_or_default(url) == 80
-        and location.scheme == "https"
-        and _port_or_default(location) == 443
+        origin.host == location_origin.host
+        and origin.scheme == "http"
+        and origin.port == 80
+        and location_origin.scheme == "https"
+        and location_origin.port == 443
     )
-
-
-def _port_or_default(url: URL) -> int | None:
-    if url.port is not None:
-        return url.port
-    return {"http": 80, "https": 443}.get(url.scheme)
-
-
-def _same_origin(url: URL, other: URL) -> bool:
-    """
-    Return 'True' if the given URLs share the same origin.
-    """
-    return url.scheme == other.scheme and url.host == other.host and _port_or_default(url) == _port_or_default(other)
 
 
 class UseClientDefault:
@@ -172,8 +160,13 @@ class BoundAsyncStream(AsyncByteStream):
         self.elapsed: datetime.timedelta | None = None
 
     async def __aiter__(self) -> typing.AsyncIterator[bytes]:
-        async for chunk in self._stream:
-            yield chunk
+        stream = self._stream.__aiter__()
+        try:
+            async for chunk in stream:
+                yield chunk
+        finally:
+            if isinstance(stream, AsyncGenerator):
+                await stream.aclose()
 
     async def aclose(self) -> None:
         self.elapsed = datetime.timedelta(seconds=time.perf_counter() - self._start)
@@ -269,7 +262,7 @@ class BaseClient:
 
         See also [Authentication][0].
 
-        [0]: /quickstart/#authentication
+        [0]: quickstart.md#authentication
         """
         return self._auth
 
@@ -354,7 +347,7 @@ class BaseClient:
 
         See also: [Request instances][0]
 
-        [0]: /advanced/clients/#request-instances
+        [0]: advanced/clients.md#request-instances
         """
         url = self._merge_url(url)
         headers = self._merge_headers(headers)
@@ -534,7 +527,7 @@ class BaseClient:
         """
         headers = Headers(request.headers)
 
-        if not _same_origin(url, request.url):
+        if url.origin != request.url.origin:
             if not _is_https_redirect(request.url, url):
                 # Strip Authorization headers when responses are redirected
                 # away from the origin. (Except for direct HTTP to HTTPS redirects.)
@@ -778,7 +771,7 @@ class Client(BaseClient):
         [Merging of configuration][0] for how the various parameters
         are merged with client-level configuration.
 
-        [0]: /advanced/clients/#merging-of-configuration
+        [0]: advanced/clients.md#merging-of-configuration
         """
         if cookies is not None:
             message = (
@@ -829,7 +822,7 @@ class Client(BaseClient):
 
         See also: [Streaming Responses][0]
 
-        [0]: /quickstart#streaming-responses
+        [0]: quickstart.md#streaming-responses
         """
         request = self.build_request(
             method=method,
@@ -972,7 +965,7 @@ class Client(BaseClient):
 
         See also: [Request instances][0]
 
-        [0]: /advanced/clients/#request-instances
+        [0]: advanced/clients.md#request-instances
         """
         if self._state == ClientState.CLOSED:
             raise RuntimeError("Cannot send a request, as the client has been closed.")
@@ -1615,7 +1608,7 @@ class AsyncClient(BaseClient):
         and [Merging of configuration][0] for how the various parameters
         are merged with client-level configuration.
 
-        [0]: /advanced/clients/#merging-of-configuration
+        [0]: advanced/clients.md#merging-of-configuration
         """
 
         if cookies is not None:  # pragma: no cover
@@ -1667,7 +1660,7 @@ class AsyncClient(BaseClient):
 
         See also: [Streaming Responses][0]
 
-        [0]: /quickstart#streaming-responses
+        [0]: quickstart.md#streaming-responses
         """
         request = self.build_request(
             method=method,
@@ -1810,7 +1803,7 @@ class AsyncClient(BaseClient):
 
         See also: [Request instances][0]
 
-        [0]: /advanced/clients/#request-instances
+        [0]: advanced/clients.md#request-instances
         """
         if self._state == ClientState.CLOSED:
             raise RuntimeError("Cannot send a request, as the client has been closed.")
