@@ -369,6 +369,8 @@ class ConnectionPool(RequestInterface):
 
     def _close_connections(self, closing: list[ConnectionInterface]) -> None:
         # Close connections which have been removed from the pool.
+        if not closing:
+            return
         with ShieldCancellation():
             for connection in closing:
                 connection.close()
