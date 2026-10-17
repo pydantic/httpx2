@@ -191,7 +191,9 @@ class ForwardHTTPConnection(ConnectionInterface):
             url=url,
             headers=headers,
             content=request.stream,
-            extensions={key: value for key, value in request.extensions.items() if key != "sni_hostname"},
+            extensions={
+                key: value for key, value in request.extensions.items() if key not in ("sni_hostname", "target")
+            },
         )
         return self._connection.handle_request(proxy_request)
 
@@ -274,7 +276,9 @@ class TunnelHTTPConnection(ConnectionInterface):
                     method=b"CONNECT",
                     url=connect_url,
                     headers=connect_headers,
-                    extensions={key: value for key, value in request.extensions.items() if key != "sni_hostname"},
+                    extensions={
+                        key: value for key, value in request.extensions.items() if key not in ("sni_hostname", "target")
+                    },
                 )
                 connect_response = self._connection.handle_request(connect_request)
 

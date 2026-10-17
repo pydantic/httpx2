@@ -243,6 +243,34 @@ def test_proxy_headers() -> None:
 
 
 
+@pytest.mark.parametrize("scheme", ["http", "https"])
+def test_proxy_preserves_target_extension(scheme: str) -> None:
+    requests: list[tuple[bytes, bytes]] = []
+
+    def trace(name: str, info: dict[str, typing.Any]) -> None:
+        if name == "http11.send_request_headers.started":
+            request = info["request"]
+            requests.append((request.method, request.url.target))
+
+    responses = [b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK"]
+    if scheme == "https":
+        responses.insert(0, b"HTTP/1.1 200 Connection established\r\n\r\n")
+    network_backend = MockBackend(responses)
+    extensions = {"target": b"/custom^path", "trace": trace}
+    expected_extensions = extensions.copy()
+    with ConnectionPool(proxy=Proxy("http://localhost:8080"), network_backend=network_backend) as pool:
+        response = pool.request("GET", f"{scheme}://example.com/", extensions=extensions)
+
+    assert response.status == 200
+    assert response.content == b"OK"
+    if scheme == "https":
+        assert requests == [(b"CONNECT", b"example.com:443"), (b"GET", b"/custom^path")]
+    else:
+        assert requests == [(b"GET", b"http://example.com/custom^path")]
+    assert extensions == expected_extensions
+
+
+
 def test_proxy_forwarding_uses_proxy_tls_hostname() -> None:
     events: dict[str, dict[str, typing.Any]] = {}
 
