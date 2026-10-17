@@ -38,13 +38,18 @@ def test_get(server: TestServer) -> None:
     [
         pytest.param("invalid://example.org", id="scheme-not-http(s)"),
         pytest.param("://example.org", id="no-scheme"),
-        pytest.param("http://", id="no-host"),
     ],
 )
 def test_get_invalid_url(server: TestServer, url: str) -> None:
     with httpx2.Client() as client:
         with pytest.raises((httpx2.UnsupportedProtocol, httpx2.LocalProtocolError)):
             client.get(url)
+
+
+def test_get_url_with_scheme_and_no_host() -> None:
+    with httpx2.Client(base_url="https://www.example.com/") as client:
+        with pytest.raises(httpx2.InvalidURL, match="URL has a scheme but no host"):
+            client.get("https:/example.org")
 
 
 def test_build_request(server: TestServer) -> None:

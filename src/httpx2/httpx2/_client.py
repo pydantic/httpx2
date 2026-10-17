@@ -377,6 +377,9 @@ class BaseClient:
         """
         merge_url = URL(url)
         if merge_url.is_relative_url:
+            # A URL with a scheme is never resolved against a base URL (RFC 3986, section 5.2.2).
+            if merge_url.scheme:
+                raise InvalidURL(f"URL has a scheme but no host: {str(url)!r}")
             # To merge URLs we always append to the base URL. To get this
             # behaviour correct we always ensure the base URL ends in a '/'
             # separator, and strip any leading '/' from the merge URL.
