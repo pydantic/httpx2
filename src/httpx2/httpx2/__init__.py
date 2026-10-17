@@ -69,6 +69,7 @@ __all__ = [
     "RequestError",
     "RequestNotRead",
     "ResponseNotRead",
+    "SSLError",
     "StreamClosed",
     "StreamConsumed",
     "StreamError",
