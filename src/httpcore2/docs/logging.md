@@ -20,6 +20,8 @@ httpcore2.request('GET', 'https://www.example.com')
 Will send debug level output to the console, or wherever `stdout` is directed too...
 
 ```
+DEBUG [2023-01-09 14:44:00] httpcore2.connection_pool - wait_for_connection.started timeout=None
+DEBUG [2023-01-09 14:44:00] httpcore2.connection_pool - wait_for_connection.complete return_value=<HTTPConnection [CONNECTING]>
 DEBUG [2023-01-09 14:44:00] httpcore2.connection - connect_tcp.started host='www.example.com' port=443 local_address=None timeout=None
 DEBUG [2023-01-09 14:44:00] httpcore2.connection - connect_tcp.complete return_value=<httpcore2._backends.sync.SyncStream object at 0x109ba6610>
 DEBUG [2023-01-09 14:44:00] httpcore2.connection - start_tls.started ssl_context=<ssl.SSLContext object at 0x109e427b0> server_hostname='www.example.com' timeout=None
