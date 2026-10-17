@@ -149,16 +149,11 @@ class WebSocketSession:
         tb: TracebackType | None,
     ) -> None:
         self.close()
-        self._join_discarding_events(self._background_receive_task)
-        if self._background_keepalive_ping_task is not None:
-            self._join_discarding_events(self._background_keepalive_ping_task)
-
-    def _join_discarding_events(self, task: threading.Thread) -> None:
-        # A task blocked on a full events queue can only exit once room is made.
-        while task.is_alive():
-            with contextlib.suppress(queue.Empty):
-                self._events.get_nowait()
-            task.join(timeout=0.01)
+        for task in (self._background_receive_task, self._background_keepalive_ping_task):
+            # A task blocked on a full events queue only exits once there's room.
+            while task is not None and task.is_alive():
+                with contextlib.suppress(queue.Empty):
+                    self._events.get(timeout=0.01)
 
     def ping(self, payload: bytes = b"") -> threading.Event:
         """

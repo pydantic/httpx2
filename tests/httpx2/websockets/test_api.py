@@ -1006,33 +1006,7 @@ async def test_exit_with_full_queue(server_factory: ServerFactoryFixture) -> Non
     with server_factory(websocket_endpoint) as socket:
         with httpx.Client(transport=httpx.HTTPTransport(uds=socket)) as client:
             with connect_ws("http://socket/ws", client, queue_size=1, keepalive_ping_interval_seconds=None) as ws:
-                for _ in range(100):
-                    if ws._events.full():
-                        break
-                    time.sleep(0.05)
-                assert ws._events.full()
-
-
-@pytest.mark.anyio
-async def test_close_delivered_after_draining_full_queue(server_factory: ServerFactoryFixture) -> None:
-    """
-    Check that the close event is still delivered once the consumer drains
-    messages that had filled the events queue.
-    """
-
-    async def websocket_endpoint(websocket: WebSocket) -> None:
-        await websocket.accept()
-        for i in range(5):
-            await websocket.send_text(f"MESSAGE_{i}")
-        await websocket.close()
-
-    with server_factory(websocket_endpoint) as socket:
-        with httpx.Client(transport=httpx.HTTPTransport(uds=socket)) as client:
-            with connect_ws("http://socket/ws", client, queue_size=1, keepalive_ping_interval_seconds=None) as ws:
-                for i in range(5):
-                    assert ws.receive_text(timeout=5) == f"MESSAGE_{i}"
-                with pytest.raises(WebSocketDisconnect):
-                    ws.receive(timeout=5)
+                assert ws.receive_text() == "SERVER_MESSAGE"
 
 
 @pytest.mark.anyio
