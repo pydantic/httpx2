@@ -1451,7 +1451,7 @@ requires-dist = [
     { name = "rich", marker = "extra == 'cli'", specifier = ">=10,<16" },
     { name = "socksio", marker = "extra == 'socks'", specifier = "==1.*" },
     { name = "truststore", marker = "sys_platform != 'emscripten'", specifier = ">=0.10" },
-    { name = "typing-extensions", marker = "python_full_version < '3.13'", specifier = ">=4.5.0" },
+    { name = "typing-extensions", marker = "python_full_version < '3.13'", specifier = ">=4.10.0" },
     { name = "wsproto", marker = "extra == 'ws'", specifier = ">=1.2" },
 ]
 provides-extras = ["brotli", "cli", "http2", "socks", "ws", "zstd"]

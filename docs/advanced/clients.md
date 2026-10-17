@@ -263,6 +263,34 @@ httpx2.post("https://httpbin.org/post", content=gen())
 
 ![tqdm progress bar](../img/tqdm-progress.gif)
 
+## Async file uploads
+
+`AsyncClient` accepts file objects with awaitable reads, such as those returned by
+[`anyio.open_file()`](https://anyio.readthedocs.io/en/stable/fileio.html),
+[`trio.open_file()`](https://trio.readthedocs.io/en/stable/reference-io.html#asynchronous-path-objects)
+or [`aiofiles.open()`](https://github.com/Tinche/aiofiles), both as raw request
+content and as a multipart file upload.
+
+```python
+import anyio
+import httpx2
+
+
+async def main():
+    async with httpx2.AsyncClient() as client:
+        async with await anyio.open_file("report.xls", "rb") as f:
+            await client.post("https://httpbin.org/post", content=f)
+
+        async with await anyio.open_file("report.xls", "rb") as f:
+            await client.post("https://httpbin.org/post", files={"upload-file": f})
+
+
+anyio.run(main)
+```
+
+The file is read one chunk at a time, so uploads are streaming and only one chunk is
+held in memory. As with sync file uploads, files must be opened in binary mode.
+
 ## Multipart file encoding
 
 As mentioned in the [quickstart](../quickstart.md#sending-multipart-file-uploads)

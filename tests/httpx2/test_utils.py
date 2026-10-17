@@ -3,13 +3,14 @@ from __future__ import annotations
 import json
 import logging
 import os
+import pathlib
 import random
 import typing
 
 import pytest
 
 import httpx2
-from httpx2._utils import URLPattern, get_environment_proxies
+from httpx2._utils import URLPattern, get_environment_proxies, peek_async_filelike_length
 
 if typing.TYPE_CHECKING:
     from conftest import TestServer
@@ -157,3 +158,68 @@ def test_pattern_priority() -> None:
         URLPattern("http://"),
         URLPattern("all://"),
     ]
+
+
+def test_peek_async_filelike_length_without_fileno() -> None:
+    class AsyncBytesIO:
+        async def read(self, size: int = -1) -> bytes:
+            return b""  # pragma: no cover
+
+    assert peek_async_filelike_length(AsyncBytesIO()) is None
+
+
+def test_peek_async_filelike_length_with_async_fileno() -> None:
+    class AsyncFileno:
+        async def fileno(self) -> int:
+            return 0  # pragma: no cover
+
+    assert peek_async_filelike_length(AsyncFileno()) is None
+
+
+@pytest.mark.parametrize("fileno", (lambda: -1, lambda: None))
+def test_peek_async_filelike_length_with_unstatable_fileno(fileno: typing.Callable[[], typing.Any]) -> None:
+    class Unstatable:
+        def __init__(self) -> None:
+            self.fileno = fileno
+
+    assert peek_async_filelike_length(Unstatable()) is None
+
+
+def test_peek_async_filelike_length_with_non_seekable_stream() -> None:
+    class AsyncPipe:
+        def seekable(self) -> bool:
+            return False
+
+        def fileno(self) -> int:
+            return 0  # pragma: no cover
+
+    assert peek_async_filelike_length(AsyncPipe()) is None
+
+
+def test_peek_async_filelike_length_with_unusable_seekable() -> None:
+    class Closed:
+        def seekable(self) -> bool:
+            raise OSError("closed")
+
+        def fileno(self) -> int:
+            return 0  # pragma: no cover
+
+    assert peek_async_filelike_length(Closed()) is None
+
+
+def test_peek_async_filelike_length_with_async_seekable(tmp_path: pathlib.Path) -> None:
+    path = tmp_path / "upload.bin"
+    path.write_bytes(b"<file content>")
+
+    class AsyncSeekable:
+        def __init__(self, fileno: int) -> None:
+            self._fileno = fileno
+
+        async def seekable(self) -> bool:
+            return True  # pragma: no cover
+
+        def fileno(self) -> int:
+            return self._fileno
+
+    with path.open("rb") as file:
+        assert peek_async_filelike_length(AsyncSeekable(file.fileno())) == len(b"<file content>")
