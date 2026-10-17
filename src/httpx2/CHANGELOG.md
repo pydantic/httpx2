@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## Unreleased
+
+### Fixed
+
+* Don't leak request/response headers and body when pickling or copying an `HTTPError`.
+  ([#766](https://github.com/pydantic/httpx2/issues/766))
+
+### Changed
+
+* `HTTPStatusError.response` is now a read-only property, matching `HTTPError.request`: accessing it
+  before it's set (e.g. after unpickling) raises `RuntimeError` instead of returning `None`.
+  ([#766](https://github.com/pydantic/httpx2/issues/766))
+
 ## 2.13.1 (September 23rd, 2026)
 
 ### Fixed
