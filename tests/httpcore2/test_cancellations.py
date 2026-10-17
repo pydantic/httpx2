@@ -1,3 +1,4 @@
+import asyncio
 import typing
 from unittest.mock import patch
 
@@ -8,6 +9,48 @@ import pytest
 from trio.testing import MockClock
 
 import httpcore2
+
+
+@pytest.mark.parametrize("read_body", [False, True])
+def test_connection_pool_task_cancellation_during_response_close(read_body: bool) -> None:
+    async def run() -> None:
+        backend = httpcore2.AsyncMockBackend([b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\n{}"])
+        state_lock = asyncio.Lock()
+        with patch("httpcore2._async.http11.AsyncLock", return_value=state_lock):
+            async with httpcore2.AsyncConnectionPool(max_connections=1, network_backend=backend) as pool:
+                response = await pool.handle_async_request(
+                    httpcore2.Request("GET", "http://example.com/", headers={"Host": "example.com"})
+                )
+                connection = pool.connections[0]
+                assert not connection.is_idle()
+                if read_body:
+                    await response.aread()
+
+                # Block the established connection's transition to IDLE or CLOSED.
+                await state_lock.acquire()
+                try:
+                    close_task = asyncio.create_task(response.aclose())
+                    await asyncio.sleep(0)
+                    assert not close_task.done()
+                    close_task.cancel()
+                    await asyncio.sleep(0)
+                finally:
+                    state_lock.release()
+
+                with pytest.raises(asyncio.CancelledError):
+                    await asyncio.wait_for(close_task, timeout=1)
+
+                assert connection.is_closed()
+                assert not pool.connections
+                assert not pool._requests
+
+                # Repeated close must remain harmless, and capacity must be restored.
+                await response.aclose()
+                follow_up = await pool.request("GET", "http://example.com/", extensions={"timeout": {"pool": 0.1}})
+                assert follow_up.status == 200
+                assert follow_up.content == b"{}"
+
+    asyncio.run(run())
 
 
 @pytest.fixture(params=["asyncio", "trio"])
