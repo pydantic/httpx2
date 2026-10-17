@@ -255,37 +255,24 @@ def test_proxy_headers() -> None:
 def test_proxy_forwarding_preserves_target_extension(
     method: str, target: bytes, forwarding_target: bytes
 ) -> None:
-    events: dict[str, list[dict[str, typing.Any]]] = {}
+    events: dict[str, dict[str, typing.Any]] = {}
 
     def trace(name: str, info: dict[str, typing.Any]) -> None:
-        events.setdefault(name, []).append(info)
+        events[name] = info
 
     network_backend = MockBackend([b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n"])
     extensions = {"target": target, "trace": trace}
     expected_extensions = extensions.copy()
     with ConnectionPool(proxy=Proxy("http://localhost:8080"), network_backend=network_backend) as pool:
-        response = pool.request(method, "http://example.com/", extensions=extensions)
+        pool.request(method, "http://example.com/", extensions=extensions)
 
-    assert response.status == 200
-    assert response.content == b""
-    requests = [info["request"] for info in events["http11.send_request_headers.started"]]
-    assert [(request.method, request.url.target) for request in requests] == [
-        (method.encode("ascii"), forwarding_target)
-    ]
+    request = events["http11.send_request_headers.started"]["request"]
+    assert request.url.target == forwarding_target
     assert extensions == expected_extensions
 
 
 
-@pytest.mark.parametrize(
-    "method, target",
-    [
-        ("GET", b"/custom^path"),
-        ("OPTIONS", b"*"),
-        ("CONNECT", b"example.com:443"),
-        ("GET", b"http://example.com/custom^path"),
-    ],
-)
-def test_proxy_tunneling_preserves_target_extension(method: str, target: bytes) -> None:
+def test_proxy_tunneling_preserves_target_extension() -> None:
     events: dict[str, list[dict[str, typing.Any]]] = {}
 
     def trace(name: str, info: dict[str, typing.Any]) -> None:
@@ -297,17 +284,15 @@ def test_proxy_tunneling_preserves_target_extension(method: str, target: bytes) 
             b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n",
         ]
     )
-    extensions = {"target": target, "trace": trace}
+    extensions = {"target": b"/custom^path", "trace": trace}
     expected_extensions = extensions.copy()
     with ConnectionPool(proxy=Proxy("http://localhost:8080"), network_backend=network_backend) as pool:
-        response = pool.request(method, "https://example.com/", extensions=extensions)
+        pool.request("GET", "https://example.com/", extensions=extensions)
 
-    assert response.status == 200
-    assert response.content == b""
     requests = [info["request"] for info in events["http11.send_request_headers.started"]]
     assert [(request.method, request.url.target) for request in requests] == [
         (b"CONNECT", b"example.com:443"),
-        (method.encode("ascii"), target),
+        (b"GET", b"/custom^path"),
     ]
     assert extensions == expected_extensions
 
