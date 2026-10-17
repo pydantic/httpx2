@@ -328,6 +328,8 @@ class WebSocketSession:
             event = self._events.get(block=True, timeout=timeout)
         except queue.Empty as e:
             raise TimeoutError from e
+        except QueueShutDown as e:  # pragma: no cover - Python 3.13+ only
+            raise WebSocketDisconnect() from e
         if isinstance(event, HTTPXWSException):
             raise event
         if isinstance(event, wsproto.events.CloseConnection):
