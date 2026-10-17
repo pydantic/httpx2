@@ -53,6 +53,18 @@ def get_environment_proxies() -> dict[str, str | None]:
             # proxies.
             return {}
         elif hostname:
+            # A `NO_PROXY` entry may spell an IPv6 address the way it appears in a
+            # URL - in brackets, optionally followed by a port or a prefix length:
+            # `[::1]`, `[::1]:8080`, `[::1]/128`. These must not fall through to
+            # the host-wildcard branch below: `all://*[::1]` is not a parseable
+            # URL pattern, and it raises while the client is being constructed.
+            # `is_ipv6_hostname` ignores anything after a `/`, so require a bare
+            # address here rather than accepting e.g. `[fe11::/16]`.
+            if hostname.startswith("["):
+                addr, bracket, suffix = hostname[1:].partition("]")
+                if bracket and "/" not in addr and is_ipv6_hostname(addr):
+                    mounts[f"all://[{addr}]{suffix}"] = None
+                    continue
             # NO_PROXY=.google.com is marked as "all://*.google.com,
             #   which disables "www.google.com" but not "google.com"
             # NO_PROXY=google.com is marked as "all://*google.com,
