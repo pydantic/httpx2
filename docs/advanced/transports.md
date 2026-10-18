@@ -140,6 +140,53 @@ async with httpx2.AsyncClient(transport=transport, base_url="http://testserver")
 
 See [the ASGI documentation](https://asgi.readthedocs.io/en/latest/specs/www.html#connection-scope) for more details on the `client` and `root_path` keys.
 
+### Streaming responses
+
+The ASGI transport streams response bodies, so you can test server-sent events and other endpoints that send data over time. This app sends three events, one per second, and the client prints each one as it arrives:
+
+```python
+import asyncio
+
+import httpx2
+from starlette.applications import Starlette
+from starlette.responses import StreamingResponse
+from starlette.routing import Route
+
+
+async def numbers():
+    for number in range(3):
+        yield f"data: {number}\n\n"
+        await asyncio.sleep(1)
+
+
+async def events(request):
+    return StreamingResponse(numbers(), media_type="text/event-stream")
+
+
+app = Starlette(routes=[Route("/events", events)])
+
+
+async def main():
+    transport = httpx2.ASGITransport(app=app)
+    async with httpx2.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        async with client.stream("GET", "/events") as response:
+            async for line in response.aiter_lines():
+                print(line)
+
+
+asyncio.run(main())
+```
+
+Inside `async with`, the transport runs the app in a background task. The response is returned as soon as the app sends its status and headers, and each body chunk arrives as the app sends it.
+
+Closing the response sends `http.disconnect` to the app. Apps still running when the client closes are cancelled.
+
+!!! warning "Use `async with` to stream"
+    Without `async with`, the transport has nowhere to run a background task, so it runs the app to completion before returning the response. An endpoint that never finishes will hang. The same applies on Emscripten, where `anyio` is not installed.
+
+!!! note "Context variables set by the app stay in the app"
+    The app runs in its own task, so context variables it sets are not visible to the caller, the same as with a real server.
+
 ### ASGI startup and shutdown
 
 It is not in the scope of HTTPX to trigger ASGI lifespan events of your app.

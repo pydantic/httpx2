@@ -281,6 +281,7 @@ class TestASGIWebSocketTransport:
         async with ASGIWebSocketTransport(app=test_app) as transport:
             request = httpx.Request("GET", "http://localhost:8000/http")
             response = await transport.handle_async_request(request)
+            await response.aclose()
             assert response.status_code == 200
 
     @pytest.mark.parametrize(
