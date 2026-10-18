@@ -113,7 +113,20 @@ def test_logging_redirect_chain(server: TestServer, caplog: pytest.LogCaptureFix
         ({"no_proxy": "[::1]/128"}, {"all://[::1]/128": None}),
         ({"no_proxy": "[::1,foo:bar,github.com"}, {"all://*github.com": None}),
         (
-            {"no_proxy": "192.168.0.0/33,[::1]/129,10.0.0.0/8?x,user@10.0.0.0/8,[fe80::1%eth0]/128,github.com"},
+            {
+                "no_proxy": ",".join(
+                    [
+                        "192.168.0.0/33",
+                        "[::1]/129",
+                        "10.0.0.0/8?x",
+                        "10.0.0.0/8?",
+                        "10.0.0.0/8#",
+                        "user@10.0.0.0/8",
+                        "[fe80::1%eth0]/128",
+                        "github.com",
+                    ]
+                )
+            },
             {"all://*github.com": None},
         ),
         ({"no_proxy": "fe11::/16"}, {"all://[fe11::]/16": None}),
