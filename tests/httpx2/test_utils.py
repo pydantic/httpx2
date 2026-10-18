@@ -118,6 +118,7 @@ def test_logging_redirect_chain(server: TestServer, caplog: pytest.LogCaptureFix
                     [
                         "192.168.0.0/33",
                         "[::1]/129",
+                        "127.0.0.1//0",
                         "10.0.0.0/8?x",
                         "10.0.0.0/8?",
                         "10.0.0.0/8#",
