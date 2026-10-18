@@ -235,6 +235,12 @@ def test_unsupported_proxy_scheme() -> None:
             {"ALL_PROXY": "http://localhost:123", "NO_PROXY": "192.168.0.0/16"},
             "http://localhost:123",
         ),
+        # Proxied, because an invalid NO_PROXY network is ignored.
+        (
+            "http://192.168.0.0",
+            {"ALL_PROXY": "http://localhost:123", "NO_PROXY": "192.168.0.0/33"},
+            "http://localhost:123",
+        ),
         # No requests are proxied if NO_PROXY="*" is set.
         (
             "https://www.example3.com",

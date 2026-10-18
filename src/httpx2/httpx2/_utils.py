@@ -191,12 +191,12 @@ class URLPattern:
         url = URL(pattern)
         self.network = None
         prefix = url.path.lstrip("/")
-        if prefix:
+        if prefix and (is_ipv4_hostname(url.host) or is_ipv6_hostname(url.host)):
             # A CIDR-style host, e.g. "all://192.168.0.0/16" or "all://[::1]/64".
             try:
                 self.network = ipaddress.ip_network(f"{url.host}/{prefix}", strict=False)
-            except ValueError:
-                self.network = None
+            except ValueError as exc:
+                raise InvalidURL(f"Invalid network in {pattern!r}") from exc
 
         self.pattern = pattern
         self.scheme = "" if url.scheme == "all" else url.scheme
