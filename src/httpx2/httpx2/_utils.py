@@ -6,6 +6,7 @@ import re
 import typing
 from urllib.request import getproxies
 
+from ._exceptions import InvalidURL
 from ._types import PrimitiveData
 
 if typing.TYPE_CHECKING:
@@ -72,8 +73,16 @@ def get_environment_proxies() -> dict[str, str | None]:
                     mounts[f"all://[{hostname}]"] = None
             elif hostname.lower() == "localhost":
                 mounts[f"all://{hostname}"] = None
+            elif hostname.startswith("["):
+                mounts[f"all://{hostname}"] = None
             else:
                 mounts[f"all://*{hostname}"] = None
+
+    for pattern in list(mounts):
+        try:
+            URLPattern(pattern)
+        except InvalidURL:
+            del mounts[pattern]  # Like curl and Go, ignore entries that cannot be parsed.
 
     return mounts
 
