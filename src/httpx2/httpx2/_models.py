@@ -73,7 +73,11 @@ def _normalize_header_key(key: str | bytes, encoding: str | None = None) -> byte
     return key if isinstance(key, bytes) else key.encode(encoding or "ascii")
 
 
-def _normalize_header_value(value: str | bytes, encoding: str | None = None) -> bytes:
+def _normalize_header_value(
+    value: str | bytes,
+    encoding: str | None = None,
+    header_name: str | bytes | None = None,
+) -> bytes:
     """
     Coerce str/bytes into a strictly byte-wise HTTP header value.
     """
@@ -81,7 +85,17 @@ def _normalize_header_value(value: str | bytes, encoding: str | None = None) -> 
         return value
     if not isinstance(value, str):
         raise TypeError(f"Header value must be str or bytes, not {type(value)}")
-    return value.encode(encoding or "ascii")
+
+    try:
+        return value.encode(encoding or "ascii")
+    except UnicodeEncodeError as exc:
+        raise UnicodeEncodeError(
+            exc.encoding,
+            exc.object,
+            exc.start,
+            exc.end,
+            f"Header {header_name!r} value contains characters that cannot be encoded with {exc.encoding}",
+        ) from exc
 
 
 def _parse_content_type_charset(content_type: str) -> str | None:
@@ -155,12 +169,12 @@ class Headers(typing.MutableMapping[str, str]):
         elif isinstance(headers, Mapping):
             for k, v in headers.items():
                 bytes_key = _normalize_header_key(k, encoding)
-                bytes_value = _normalize_header_value(v, encoding)
+                bytes_value = _normalize_header_value(v, encoding, header_name=k)
                 self._list.append((bytes_key, bytes_key.lower(), bytes_value))
         elif headers is not None:
             for k, v in headers:
                 bytes_key = _normalize_header_key(k, encoding)
-                bytes_value = _normalize_header_value(v, encoding)
+                bytes_value = _normalize_header_value(v, encoding, header_name=k)
                 self._list.append((bytes_key, bytes_key.lower(), bytes_value))
 
         self._encoding = encoding
@@ -329,8 +343,12 @@ class Headers(typing.MutableMapping[str, str]):
         Set the header `key` to `value`, removing any duplicate entries.
         Retains insertion order.
         """
-        set_key = key.encode(self._encoding or "utf-8")
-        set_value = value.encode(self._encoding or "utf-8")
+        set_key = _normalize_header_key(key, self._encoding or "utf-8")
+        set_value = _normalize_header_value(
+            value,
+            self._encoding or "utf-8",
+            header_name=key,
+        )
         lookup_key = set_key.lower()
 
         found_indexes = [idx for idx, (_, item_key, _) in enumerate(self._list) if item_key == lookup_key]
