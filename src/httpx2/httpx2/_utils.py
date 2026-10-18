@@ -190,16 +190,13 @@ class URLPattern:
 
         url = URL(pattern)
         self.network = None
-        if url.path not in ("", "/") and (is_ipv4_hostname(url.host) or is_ipv6_hostname(url.host)):
-            # A CIDR-style host, e.g. "all://192.168.0.0/16" or "all://[::1]/64". Parsed from the raw
-            # pattern, since URL normalization could turn a malformed network into a broader valid one.
-            network = re.fullmatch(
-                r"[a-z][a-z0-9+.-]*://\[?([0-9a-f.:]+)\]?/([0-9]+)", pattern, re.ASCII | re.IGNORECASE
-            )
-            if network is None:
+        prefix = url.path.removeprefix("/")
+        if prefix and (is_ipv4_hostname(url.host) or is_ipv6_hostname(url.host)):
+            # A CIDR-style host, e.g. "all://192.168.0.0/16" or "all://[::1]/64".
+            if any(char in pattern for char in "@?#%"):
                 raise InvalidURL(f"Invalid network in {pattern!r}")
             try:
-                self.network = ipaddress.ip_network(f"{network[1]}/{network[2]}", strict=False)
+                self.network = ipaddress.ip_network(f"{url.host}/{prefix}", strict=False)
             except ValueError as exc:
                 raise InvalidURL(f"Invalid network in {pattern!r}") from exc
 
