@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2.14.0 (October 18th, 2026)
+
+### Added
+
+* Match IP CIDR ranges, like `192.168.0.0/16` and `[fe80::]/10`, in `NO_PROXY` and `mounts`. Requests to any address in the range now bypass the proxy; previously only the network address itself did.
+  ([#1165](https://github.com/pydantic/httpx2/pull/1165))
+* Accept bracketed IPv6 addresses, like `[::1]` and `[::1]:8080`, in `NO_PROXY`.
+  ([#1267](https://github.com/pydantic/httpx2/pull/1267))
+
+### Changed
+
+* Raise `InvalidURL` for a `mounts` key with an IP host followed by anything other than a valid CIDR prefix, like `all://10.0.0.0/33`.
+  ([#1165](https://github.com/pydantic/httpx2/pull/1165))
+
+### Fixed
+
+* Ignore `NO_PROXY` entries that cannot be parsed, instead of raising `InvalidURL` when the client is created.
+  ([#1267](https://github.com/pydantic/httpx2/pull/1267))
+* Import `httpx2` on FIPS-enforced Python builds without `hashlib.md5`. `DigestAuth` raises `ProtocolError` when the server asks for an unavailable algorithm.
+  ([#1130](https://github.com/pydantic/httpx2/pull/1130))
+* Handle reads after an ASGI WebSocket app shuts down, instead of leaking `anyio` exceptions.
+  ([#1233](https://github.com/pydantic/httpx2/pull/1233))
+* Stop the sync WebSocket session from hanging on exit when its event queue is full.
+  ([#1123](https://github.com/pydantic/httpx2/pull/1123))
+
 ## 2.13.1 (September 23rd, 2026)
 
 ### Fixed
