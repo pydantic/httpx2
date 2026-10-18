@@ -6,6 +6,7 @@ import re
 import typing
 from urllib.request import getproxies
 
+from ._exceptions import InvalidURL
 from ._types import PrimitiveData
 
 if typing.TYPE_CHECKING:
@@ -72,8 +73,16 @@ def get_environment_proxies() -> dict[str, str | None]:
                     mounts[f"all://[{hostname}]"] = None
             elif hostname.lower() == "localhost":
                 mounts[f"all://{hostname}"] = None
+            elif hostname.startswith("[") and "/" not in hostname:
+                mounts[f"all://{hostname}"] = None
             else:
                 mounts[f"all://*{hostname}"] = None
+
+    for pattern in list(mounts):
+        try:
+            URLPattern(pattern)
+        except InvalidURL:
+            del mounts[pattern]  # Like curl and Go, ignore entries that cannot be parsed.
 
     return mounts
 
@@ -113,6 +122,18 @@ def peek_filelike_length(stream: typing.Any) -> int | None:
             return None
 
     return length
+
+
+def peek_filelike_remaining_length(stream: typing.Any) -> int | None:
+    """Return the remaining byte length without changing the stream position."""
+    try:
+        offset: int = stream.tell()
+        length: int = stream.seek(0, os.SEEK_END)
+        stream.seek(offset)
+    except (AttributeError, OSError):
+        return None
+
+    return max(0, length - offset)
 
 
 class URLPattern:

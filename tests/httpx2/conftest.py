@@ -59,6 +59,8 @@ async def app(scope: Scope, receive: Receive, send: Send) -> None:
     assert scope["type"] == "http"
     if scope["path"].startswith("/slow_response"):
         await slow_response(scope, receive, send)
+    elif scope["path"].startswith("/stream_response"):
+        await stream_response(scope, receive, send)
     elif scope["path"].startswith("/status"):
         await status_code(scope, receive, send)
     elif scope["path"].startswith("/echo_body"):
@@ -107,6 +109,19 @@ async def slow_response(scope: Scope, receive: Receive, send: Send) -> None:
     )
     await sleep(1.0)  # Allow triggering a read timeout.
     await send({"type": "http.response.body", "body": b"Hello, world!"})
+
+
+async def stream_response(scope: Scope, receive: Receive, send: Send) -> None:
+    await send(
+        {
+            "type": "http.response.start",
+            "status": 200,
+            "headers": [[b"content-type", b"text/plain"]],
+        }
+    )
+    await send({"type": "http.response.body", "body": b"Hello\n", "more_body": True})
+    await sleep(0.1)
+    await send({"type": "http.response.body", "body": b"world!"})
 
 
 async def status_code(scope: Scope, receive: Receive, send: Send) -> None:

@@ -54,11 +54,11 @@ httpx2 --help
 
 HTTPX2 builds on the well-established usability of `requests`, and gives you:
 
-* A broadly [requests-compatible API](https://httpx2.pydantic.dev/compatibility/).
+* A broadly [requests-compatible API](https://pydantic.dev/docs/httpx2/guides/compatibility/).
 * An integrated command-line client.
-* HTTP/1.1 [and HTTP/2 support](https://httpx2.pydantic.dev/http2/).
-* Standard synchronous interface, but with [async support if you need it](https://httpx2.pydantic.dev/async/).
-* Ability to make requests directly to [WSGI applications](https://httpx2.pydantic.dev/advanced/transports/#wsgi-transport) or [ASGI applications](https://httpx2.pydantic.dev/advanced/transports/#asgi-transport).
+* HTTP/1.1 [and HTTP/2 support](https://pydantic.dev/docs/httpx2/guides/http2/).
+* Standard synchronous interface, but with [async support if you need it](https://pydantic.dev/docs/httpx2/guides/async/).
+* Ability to make requests directly to [WSGI applications](https://pydantic.dev/docs/httpx2/advanced/transports/#wsgi-transport) or [ASGI applications](https://pydantic.dev/docs/httpx2/advanced/transports/#asgi-transport).
 * Strict timeouts everywhere.
 * Fully type annotated.
 * 100% test coverage.
@@ -97,15 +97,15 @@ pip install httpx2[http2]
 
 ## Documentation
 
-Project documentation is available at [https://httpx2.pydantic.dev/](https://httpx2.pydantic.dev/).
+Project documentation is available at [https://pydantic.dev/docs/httpx2/](https://pydantic.dev/docs/httpx2/).
 
-For a run-through of all the basics, head over to the [QuickStart](https://httpx2.pydantic.dev/quickstart/).
+For a run-through of all the basics, head over to the [QuickStart](https://pydantic.dev/docs/httpx2/get-started/quickstart/).
 
-For more advanced topics, see the [Advanced Usage](https://httpx2.pydantic.dev/advanced/) section, the [async support](https://httpx2.pydantic.dev/async/) section, or the [HTTP/2](https://httpx2.pydantic.dev/http2/) section.
+For more advanced topics, see the [Advanced Usage](https://pydantic.dev/docs/httpx2/advanced/clients/) section, the [async support](https://pydantic.dev/docs/httpx2/guides/async/) section, or the [HTTP/2](https://pydantic.dev/docs/httpx2/guides/http2/) section.
 
-The [Developer Interface](https://httpx2.pydantic.dev/api/) provides a comprehensive API reference.
+The [Developer Interface](https://pydantic.dev/docs/httpx2/api/api/) provides a comprehensive API reference.
 
-To find out about tools that integrate with HTTPX, see [Third Party Packages](https://httpx2.pydantic.dev/third_party_packages/).
+To find out about tools that integrate with HTTPX, see [Third Party Packages](https://pydantic.dev/docs/httpx2/community/third_party_packages/).
 
 ## Observability with Pydantic Logfire
 
@@ -131,7 +131,7 @@ This works the same way for explicit `httpx2.Client()` and `httpx2.AsyncClient()
 
 ## Contribute
 
-If you want to contribute with HTTPX2 check out the [Contributing Guide](https://httpx2.pydantic.dev/contributing/) to learn how to start.
+If you want to contribute with HTTPX2 check out the [Contributing Guide](https://pydantic.dev/docs/httpx2/community/contributing/) to learn how to start.
 
 ## Dependencies
 
