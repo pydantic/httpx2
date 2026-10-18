@@ -47,6 +47,7 @@ bench = [
 
 [tool.ruff]
 line-length = 120
+target-version = "py311"
 exclude = ["src/httpcore2/httpcore2/_sync", "tests/httpcore2/_sync"]
 extend-exclude = ["*.md"]
 
