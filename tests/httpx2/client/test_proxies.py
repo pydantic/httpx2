@@ -307,6 +307,14 @@ def test_host_mount_takes_priority_over_network_mount() -> None:
     assert client.get("http://10.4.5.6").text == "network"
 
 
+def test_scheme_mount_takes_priority_over_equal_network_mount() -> None:
+    all_schemes = httpx2.MockTransport(lambda request: httpx2.Response(200, text="all"))
+    http = httpx2.MockTransport(lambda request: httpx2.Response(200, text="http"))
+    client = httpx2.Client(mounts={"all://[0:0:0:0:0:0:0:0]/0": all_schemes, "http://[::]/0": http})
+
+    assert client.get("http://[2001:db8::1]").text == "http"
+
+
 def test_mount_with_invalid_network() -> None:
     with pytest.raises(httpx2.InvalidURL):
         httpx2.Client(mounts={"all://127.0.0.1:8080/8": httpx2.HTTPTransport()})

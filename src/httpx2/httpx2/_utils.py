@@ -250,8 +250,8 @@ class URLPattern:
         host_kind_priority = 1 if self.network is not None else 0 if self.host else 2
         # Smaller networks match first. Address count, not prefix length, so IPv4 and IPv6 compare fairly.
         network_priority = self.network.num_addresses if self.network is not None else 0
-        # Longer hostnames should match first.
-        host_priority = -len(self.host)
+        # Longer hostnames should match first. Networks are already ordered by size.
+        host_priority = -len(self.host) if self.network is None else 0
         # Longer schemes should match first.
         scheme_priority = -len(self.scheme)
         return (port_priority, host_kind_priority, network_priority, host_priority, scheme_priority)
