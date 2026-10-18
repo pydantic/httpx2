@@ -974,7 +974,7 @@ async def test_threads_wont_hang(server_factory: ServerFactoryFixture) -> None:
         for _ in range(100):
             if len(session_threads()) == expected:
                 return
-            time.sleep(0.05)
+            time.sleep(0.05)  # pragma: no cover - only runs if the threads are still exiting
         assert len(session_threads()) == expected  # pragma: no cover
 
     with server_factory(websocket_endpoint) as socket:
