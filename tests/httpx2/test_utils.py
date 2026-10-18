@@ -110,7 +110,7 @@ def test_logging_redirect_chain(server: TestServer, caplog: pytest.LogCaptureFix
         ({"no_proxy": "::1"}, {"all://[::1]": None}),
         ({"no_proxy": "[::1]"}, {"all://[::1]": None}),
         ({"no_proxy": "[::1]:8080"}, {"all://[::1]:8080": None}),
-        ({"no_proxy": "[::1]/128"}, {}),
+        ({"no_proxy": "[::1]/128"}, {"all://[::1]/128": None}),
         ({"no_proxy": "[::1,foo:bar,github.com"}, {"all://*github.com": None}),
         ({"no_proxy": "fe11::/16"}, {"all://[fe11::]/16": None}),
         ({"no_proxy": "localhost"}, {"all://localhost": None}),
@@ -163,6 +163,7 @@ def test_pattern_priority() -> None:
         URLPattern("http://"),
         URLPattern("http://example.com"),
         URLPattern("http://example.com:123"),
+        URLPattern("all://192.168.1.10"),
         URLPattern("all://[::]/8"),  # 2**120 addresses
         URLPattern("all://192.168.1.0/24"),  # 256 addresses
         URLPattern("all://192.168.1.0/23"),  # 512 addresses
@@ -170,12 +171,13 @@ def test_pattern_priority() -> None:
     ]
     random.shuffle(matchers)
     assert sorted(matchers) == [
+        URLPattern("http://example.com:123"),
+        URLPattern("all://192.168.1.10"),
+        URLPattern("http://example.com"),
         URLPattern("all://[::]/126"),
         URLPattern("all://192.168.1.0/24"),
         URLPattern("all://192.168.1.0/23"),
         URLPattern("all://[::]/8"),
-        URLPattern("http://example.com:123"),
-        URLPattern("http://example.com"),
         URLPattern("http://"),
         URLPattern("all://"),
     ]

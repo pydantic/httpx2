@@ -218,6 +218,23 @@ def test_unsupported_proxy_scheme() -> None:
             {"ALL_PROXY": "http://localhost:123", "NO_PROXY": "ample2.com"},
             "http://localhost:123",
         ),
+        # Not proxied for addresses within a NO_PROXY network.
+        (
+            "http://192.168.5.10",
+            {"ALL_PROXY": "http://localhost:123", "NO_PROXY": "192.168.0.0/16"},
+            None,
+        ),
+        (
+            "http://[fe80::1]",
+            {"ALL_PROXY": "http://localhost:123", "NO_PROXY": "[fe80::]/64"},
+            None,
+        ),
+        # Proxied for addresses outside a NO_PROXY network.
+        (
+            "http://10.0.0.1",
+            {"ALL_PROXY": "http://localhost:123", "NO_PROXY": "192.168.0.0/16"},
+            "http://localhost:123",
+        ),
         # No requests are proxied if NO_PROXY="*" is set.
         (
             "https://www.example3.com",
@@ -273,3 +290,12 @@ def test_proxy_with_mounts() -> None:
 
     transport = client._transport_for_url(httpx2.URL("http://example.com"))
     assert transport == proxy_transport
+
+
+def test_host_mount_takes_priority_over_network_mount() -> None:
+    network = httpx2.MockTransport(lambda request: httpx2.Response(200, text="network"))
+    host = httpx2.MockTransport(lambda request: httpx2.Response(200, text="host"))
+    client = httpx2.Client(mounts={"all://10.0.0.0/8": network, "all://10.1.2.3": host})
+
+    assert client.get("http://10.1.2.3").text == "host"
+    assert client.get("http://10.4.5.6").text == "network"

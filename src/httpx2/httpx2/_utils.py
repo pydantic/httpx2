@@ -73,7 +73,7 @@ def get_environment_proxies() -> dict[str, str | None]:
                     mounts[f"all://[{hostname}]"] = None
             elif hostname.lower() == "localhost":
                 mounts[f"all://{hostname}"] = None
-            elif hostname.startswith("[") and "/" not in hostname:
+            elif hostname.startswith("["):
                 mounts[f"all://{hostname}"] = None
             else:
                 mounts[f"all://*{hostname}"] = None
@@ -241,25 +241,17 @@ class URLPattern:
         The priority allows URLPattern instances to be sortable, so that
         we can match from most specific to least specific.
         """
-        # Patterns without a network sort after any CIDR network. Smaller
-        # (more specific) networks should match first, compared by address
-        # count rather than prefix length, since an IPv4 /8 and an IPv6 /8
-        # cover wildly different numbers of addresses.
-        has_no_network = 0 if self.network is not None else 1
-        network_priority = self.network.num_addresses if self.network is not None else 0
         # URLs with a port should take priority over URLs without a port.
         port_priority = 0 if self.port is not None else 1
+        # Exact hosts match first, then networks, then patterns without a host.
+        host_kind_priority = 1 if self.network is not None else 0 if self.host else 2
+        # Smaller networks match first. Address count, not prefix length, so IPv4 and IPv6 compare fairly.
+        network_priority = self.network.num_addresses if self.network is not None else 0
         # Longer hostnames should match first.
         host_priority = -len(self.host)
         # Longer schemes should match first.
         scheme_priority = -len(self.scheme)
-        return (
-            has_no_network,
-            network_priority,
-            port_priority,
-            host_priority,
-            scheme_priority,
-        )
+        return (port_priority, host_kind_priority, network_priority, host_priority, scheme_priority)
 
     def __hash__(self) -> int:
         return hash(self.pattern)
