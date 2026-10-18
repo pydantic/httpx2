@@ -1364,10 +1364,12 @@ class Client(BaseClient):
         if self._state != ClientState.CLOSED:
             self._state = ClientState.CLOSED
 
-            self._transport.close()
-            for transport in self._mounts.values():
-                if transport is not None:
-                    transport.close()
+            try:
+                self._transport.close()
+            finally:
+                for transport in self._mounts.values():
+                    if transport is not None:
+                        transport.close()
 
     def __enter__(self: T) -> T:
         if self._state != ClientState.UNOPENED:
@@ -1393,10 +1395,12 @@ class Client(BaseClient):
     ) -> None:
         self._state = ClientState.CLOSED
 
-        self._transport.__exit__(exc_type, exc_value, traceback)
-        for transport in self._mounts.values():
-            if transport is not None:
-                transport.__exit__(exc_type, exc_value, traceback)
+        try:
+            self._transport.__exit__(exc_type, exc_value, traceback)
+        finally:
+            for transport in self._mounts.values():
+                if transport is not None:
+                    transport.__exit__(exc_type, exc_value, traceback)
 
 
 class AsyncClient(BaseClient):
@@ -2202,10 +2206,12 @@ class AsyncClient(BaseClient):
         if self._state != ClientState.CLOSED:
             self._state = ClientState.CLOSED
 
-            await self._transport.aclose()
-            for proxy in self._mounts.values():
-                if proxy is not None:
-                    await proxy.aclose()
+            try:
+                await self._transport.aclose()
+            finally:
+                for proxy in self._mounts.values():
+                    if proxy is not None:
+                        await proxy.aclose()
 
     async def __aenter__(self: U) -> U:
         if self._state != ClientState.UNOPENED:
@@ -2231,7 +2237,9 @@ class AsyncClient(BaseClient):
     ) -> None:
         self._state = ClientState.CLOSED
 
-        await self._transport.__aexit__(exc_type, exc_value, traceback)
-        for proxy in self._mounts.values():
-            if proxy is not None:
-                await proxy.__aexit__(exc_type, exc_value, traceback)
+        try:
+            await self._transport.__aexit__(exc_type, exc_value, traceback)
+        finally:
+            for proxy in self._mounts.values():
+                if proxy is not None:
+                    await proxy.__aexit__(exc_type, exc_value, traceback)
