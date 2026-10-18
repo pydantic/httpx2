@@ -76,6 +76,10 @@ class ConnectError(NetworkError):
     pass
 
 
+class SSLError(ConnectError):
+    pass
+
+
 class ReadError(NetworkError):
     pass
 

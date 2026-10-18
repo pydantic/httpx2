@@ -12,6 +12,7 @@ from .._exceptions import (
     ConnectTimeout,
     ReadError,
     ReadTimeout,
+    SSLError,
     WriteError,
     WriteTimeout,
     map_exceptions,
@@ -65,7 +66,7 @@ class AnyIOStream(AsyncNetworkStream):
             TimeoutError: ConnectTimeout,
             anyio.BrokenResourceError: ConnectError,
             anyio.EndOfStream: ConnectError,
-            ssl.SSLError: ConnectError,
+            ssl.SSLError: SSLError,
         }
         with map_exceptions(exc_map):
             try:
