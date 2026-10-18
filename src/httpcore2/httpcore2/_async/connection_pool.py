@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import ssl
 import sys
 import types
@@ -11,9 +12,12 @@ from .._backends.base import SOCKET_OPTION, AsyncNetworkBackend
 from .._exceptions import ConnectionNotAvailable, UnsupportedProtocol
 from .._models import Origin, Proxy, Request, Response
 from .._synchronization import AsyncEvent, AsyncShieldCancellation, AsyncThreadLock
+from .._trace import Trace
 from .._utils import safe_async_iterate
 from .connection import AsyncHTTPConnection
 from .interfaces import AsyncConnectionInterface, AsyncRequestInterface
+
+logger = logging.getLogger("httpcore2.connection_pool")
 
 
 class AsyncPoolRequest:
@@ -217,7 +221,9 @@ class AsyncConnectionPool(AsyncRequestInterface):
                 await self._close_connections(closing)
 
                 # Wait until this request has an assigned connection.
-                connection = await pool_request.wait_for_connection(timeout=timeout)
+                async with Trace("wait_for_connection", logger, request, {"timeout": timeout}) as trace:
+                    connection = await pool_request.wait_for_connection(timeout=timeout)
+                    trace.return_value = connection
 
                 try:
                     # Send the request on the assigned connection.
