@@ -75,7 +75,7 @@ def get_environment_proxies() -> dict[str, str | None]:
                 mounts[f"all://{hostname}"] = None
             elif hostname.startswith("["):
                 mounts[f"all://{hostname}"] = None
-            else:
+            elif "/" not in hostname:
                 mounts[f"all://*{hostname}"] = None
 
     for pattern in list(mounts):
@@ -190,13 +190,16 @@ class URLPattern:
 
         url = URL(pattern)
         self.network = None
-        prefix = url.path.removeprefix("/")
-        if prefix and (is_ipv4_hostname(url.host) or is_ipv6_hostname(url.host)):
-            # A CIDR-style host, e.g. "all://192.168.0.0/16" or "all://[::1]/64".
-            if any(char in pattern for char in "@?#%"):
+        if url.path not in ("", "/") and (is_ipv4_hostname(url.host) or is_ipv6_hostname(url.host)):
+            # A CIDR-style host, e.g. "all://192.168.0.0/16" or "all://[::1]/64". Parsed from the raw
+            # pattern, since URL normalization could turn a malformed network into a broader valid one.
+            network = re.fullmatch(
+                r"[a-z][a-z0-9+.-]*://\[?([0-9a-f.:]+)\]?/([0-9]+)", pattern, re.ASCII | re.IGNORECASE
+            )
+            if network is None:
                 raise InvalidURL(f"Invalid network in {pattern!r}")
             try:
-                self.network = ipaddress.ip_network(f"{url.host}/{prefix}", strict=False)
+                self.network = ipaddress.ip_network(f"{network[1]}/{network[2]}", strict=False)
             except ValueError as exc:
                 raise InvalidURL(f"Invalid network in {pattern!r}") from exc
 
