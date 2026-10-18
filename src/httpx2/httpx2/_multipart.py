@@ -5,6 +5,7 @@ import mimetypes
 import os
 import re
 import typing
+from contextlib import aclosing
 from pathlib import Path
 
 from ._types import (
@@ -14,8 +15,10 @@ from ._types import (
     RequestData,
     RequestFiles,
     SyncByteStream,
+    is_async_readable_file,
 )
 from ._utils import (
+    peek_async_filelike_length,
     peek_filelike_length,
     primitive_value_to_str,
     to_bytes,
@@ -159,7 +162,10 @@ class FileField:
         if isinstance(self.file, (str, bytes)):
             return len(headers) + len(to_bytes(self.file))
 
-        file_length = peek_filelike_length(self.file)
+        if is_async_readable_file(self.file):
+            file_length = peek_async_filelike_length(self.file)
+        else:
+            file_length = peek_filelike_length(self.file)
 
         # If we can't determine the filesize without reading it into memory,
         # then return `None` here, to indicate an unknown file length.
@@ -190,6 +196,9 @@ class FileField:
         return self._headers
 
     def render_data(self) -> typing.Iterator[bytes]:
+        if is_async_readable_file(self.file):
+            raise TypeError("Async file uploads are only supported by 'httpx2.AsyncClient'.")
+
         if isinstance(self.file, (str, bytes)):
             yield to_bytes(self.file)
             return
@@ -204,6 +213,27 @@ class FileField:
         while chunk:
             yield to_bytes(chunk)
             chunk = self.file.read(self.CHUNK_SIZE)
+
+    async def arender_data(self) -> typing.AsyncGenerator[bytes, None]:
+        if not is_async_readable_file(self.file):
+            for chunk in self.render_data():
+                yield chunk
+            return
+
+        if hasattr(self.file, "seek"):
+            try:
+                await self.file.seek(0)
+            except io.UnsupportedOperation:
+                pass
+
+        chunk = await self.file.read(self.CHUNK_SIZE)
+        if not isinstance(chunk, bytes):
+            # `get_length()` derives Content-Length from the file size on disk,
+            # which only matches the uploaded bytes for binary mode reads.
+            raise TypeError("Multipart file uploads must be opened in binary mode, not text mode.")
+        while chunk:
+            yield chunk
+            chunk = await self.file.read(self.CHUNK_SIZE)
 
     def render(self) -> typing.Iterator[bytes]:
         yield self.render_headers()
@@ -247,6 +277,20 @@ class MultipartStream(SyncByteStream, AsyncByteStream):
             yield b"\r\n"
         yield b"--%s--\r\n" % self.boundary
 
+    async def aiter_chunks(self) -> typing.AsyncGenerator[bytes, None]:
+        for field in self.fields:
+            yield b"--%s\r\n" % self.boundary
+            if isinstance(field, FileField):
+                yield field.render_headers()
+                async with aclosing(field.arender_data()) as data:
+                    async for chunk in data:
+                        yield chunk
+            else:
+                for chunk in field.render():
+                    yield chunk
+            yield b"\r\n"
+        yield b"--%s--\r\n" % self.boundary
+
     def get_content_length(self) -> int | None:
         """
         Return the length of the multipart encoded content, or `None` if
@@ -280,5 +324,6 @@ class MultipartStream(SyncByteStream, AsyncByteStream):
         yield from self.iter_chunks()
 
     async def __aiter__(self) -> typing.AsyncIterator[bytes]:
-        for chunk in self.iter_chunks():
-            yield chunk
+        async with aclosing(self.aiter_chunks()) as chunks:
+            async for chunk in chunks:
+                yield chunk
