@@ -73,7 +73,7 @@ def get_environment_proxies() -> dict[str, str | None]:
                     mounts[f"all://[{hostname}]"] = None
             elif hostname.lower() == "localhost":
                 mounts[f"all://{hostname}"] = None
-            elif hostname.startswith("["):
+            elif hostname.startswith("[") and "/" not in hostname:
                 mounts[f"all://{hostname}"] = None
             else:
                 mounts[f"all://*{hostname}"] = None
