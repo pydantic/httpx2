@@ -193,7 +193,8 @@ class URLPattern:
         prefix = url.path.removeprefix("/")
         if prefix and (is_ipv4_hostname(url.host) or is_ipv6_hostname(url.host)):
             # A CIDR-style host, e.g. "all://192.168.0.0/16" or "all://[::1]/64".
-            if any(char in pattern for char in "@?#%"):
+            host = f"[{url.host}]" if ":" in url.host else url.host
+            if "@" in pattern or "%" in pattern or not prefix.isdigit() or not pattern.endswith(f"{host}/{prefix}"):
                 raise InvalidURL(f"Invalid network in {pattern!r}")
             try:
                 self.network = ipaddress.ip_network(f"{url.host}/{prefix}", strict=False)
