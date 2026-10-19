@@ -18,29 +18,29 @@ dev = [
   "httpcore2[asyncio,trio,http2,socks]",
   # Tests
   "chardet>=7.6.0",
-  "coverage[toml]>=7.15.4",
-  "cryptography>=50.0.1",
+  "coverage[toml]>=7.16.2",
+  "cryptography>=50.0.2",
   "flaky>=3.8",
   "pytest>=9.1.0",
   "pytest-codspeed>=5.0.3",
   "pytest-httpbin>=2.1.0",
   "pytest-trio>=0.8.0",
-  "starlette>=1.6.0",
+  "starlette>=1.7.0",
   "trio>=0.34.0",
   "trio-typing>=0.10.0",
   "trustme>=1.2.1",
-  "uvicorn>=0.52.4",
-  "websockets>=16.1.1",
+  "uvicorn>=0.54.0",
+  "websockets>=17.2",
   "werkzeug>=3.1.9",
   # Linting
-  "mypy>=2.3.1",
-  "ruff>=0.16.4",
+  "mypy>=2.4.0",
+  "ruff>=0.17.0",
   # Packaging
   "twine>=7.0.0",
 ]
-docs = ["zensical>=0.0.57", "mkdocstrings[python]>=1.0.6"]
+docs = ["zensical>=0.0.69", "mkdocstrings[python]>=1.0.7"]
 bench = [
-  "aiohttp>=3.14.3",
+  "aiohttp>=3.14.5",
   "pyinstrument>=5.1.3",
   "zuvloop>=0.0.8; python_version >= '3.14' and implementation_name == 'cpython'",
 ]
