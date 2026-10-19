@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2.15.0 (October 19th, 2026)
+
+### Removed
+
+* Drop support for Python 3.10. ([#1274](https://github.com/pydantic/httpx2/pull/1274))
+
 ## 2.14.0 (October 18th, 2026)
 
 ### Fixed
