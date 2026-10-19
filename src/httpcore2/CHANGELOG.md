@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2.15.1 (October 19th, 2026)
+
+### Fixed
+
+* Configure the default SSL context once on Linux, instead of on every handshake. With OpenSSL older than 3.4, CPU usage grew over the lifetime of a reused client.
+  ([#1253](https://github.com/pydantic/httpx2/pull/1253))
+
 ## 2.15.0 (October 19th, 2026)
 
 ### Removed
