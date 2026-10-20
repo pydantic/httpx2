@@ -37,6 +37,14 @@ class IndexedCookieJar(CookieJar):
             if cookie.expires is not None:
                 self._next_expiry = min(self._next_expiry, cookie.expires)
 
+    def clear(self, domain: str | None = None, path: str | None = None, name: str | None = None) -> None:
+        with self._cookies_lock:  # type: ignore[attr-defined]
+            super().clear(domain, path, name)
+            if domain is None:
+                self._domain_order.clear()
+            elif path is None:
+                del self._domain_order[domain]
+
     def clear_expired_cookies(self) -> None:
         if time.time() < self._next_expiry:
             return

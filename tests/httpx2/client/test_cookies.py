@@ -219,3 +219,13 @@ def test_custom_cookie_policy_decides_which_domains_match() -> None:
     client.cookies.jar.set_policy(SendEverywherePolicy())
 
     assert client.get("http://example.org/echo_cookies").json() == {"cookies": "other=1"}
+
+
+def test_cookies_are_sent_after_clearing_the_jar() -> None:
+    client = httpx2.Client(transport=httpx2.MockTransport(get_and_set_cookies))
+    client.cookies.set("old", "1", domain="example.org")
+    client.cookies.clear()
+    client.cookies.set("first", "2", domain=".example.org")
+    client.cookies.set("second", "3", domain="example.org")
+
+    assert client.get("http://example.org/echo_cookies").json() == {"cookies": "first=2; second=3"}
