@@ -55,6 +55,20 @@ def test_zlib() -> None:
     assert response.content == body
 
 
+@pytest.mark.anyio
+async def test_deflate_stream_with_leading_empty_chunk() -> None:
+    body = b"test 123"
+    compressor = zlib.compressobj(9, zlib.DEFLATED, -zlib.MAX_WBITS)
+    compressed_body = compressor.compress(body) + compressor.flush()
+
+    async def raw() -> typing.AsyncIterator[bytes]:
+        yield b""
+        yield compressed_body
+
+    response = httpx2.Response(200, headers=[(b"Content-Encoding", b"deflate")], content=raw())
+    assert await response.aread() == body
+
+
 def test_gzip() -> None:
     body = b"test 123"
     compressor = zlib.compressobj(9, zlib.DEFLATED, zlib.MAX_WBITS | 16)

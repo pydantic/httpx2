@@ -1040,6 +1040,8 @@ class Response:
         try:
             with request_context(request=self._request):
                 async for raw_stream_bytes in stream:
+                    if not raw_stream_bytes:
+                        continue  # an empty first chunk would defeat `DeflateDecoder`'s raw-deflate fallback
                     self._num_bytes_downloaded += len(raw_stream_bytes)
                     for decoded in decoder.decode(raw_stream_bytes):
                         for chunk in chunker.decode(decoded):
