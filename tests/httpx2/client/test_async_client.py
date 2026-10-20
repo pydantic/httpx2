@@ -112,6 +112,24 @@ def test_abandon_streamed_response(server: TestServer) -> None:
     asyncio.run(request())
 
 
+def test_streamed_responses_open_at_event_loop_shutdown(server: TestServer) -> None:
+    errors: list[dict[str, typing.Any]] = []
+    streams: list[typing.AsyncIterator[bytes]] = []
+
+    async def request() -> None:
+        asyncio.get_running_loop().set_exception_handler(lambda loop, context: errors.append(context))
+        client = httpx2.AsyncClient()
+        for _ in range(5):
+            request = client.build_request("GET", server.url.copy_with(path="/stream_response"))
+            response = await client.send(request, stream=True)
+            stream = response.aiter_bytes()
+            await anext(stream)
+            streams.append(stream)  # keep open until `asyncio.run()` finalizes async generators
+
+    asyncio.run(request())
+    assert errors == []
+
+
 @pytest.mark.anyio
 async def test_access_content_stream_response(server: TestServer) -> None:
     async with httpx2.AsyncClient() as client:
