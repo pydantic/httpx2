@@ -229,3 +229,13 @@ def test_cookies_are_sent_after_clearing_the_jar() -> None:
     client.cookies.set("second", "3", domain="example.org")
 
     assert client.get("http://example.org/echo_cookies").json() == {"cookies": "first=2; second=3"}
+
+
+def test_cookies_are_sent_to_hosts_longer_than_a_dns_name() -> None:
+    client = httpx2.Client(transport=httpx2.MockTransport(get_and_set_cookies))
+    client.cookies.set("parent", "1", domain=".example.org")
+    client.cookies.set("other", "2", domain="example.com")
+
+    response = client.get(f"http://{'a.' * 200}example.org/echo_cookies")
+
+    assert response.json() == {"cookies": "parent=1"}

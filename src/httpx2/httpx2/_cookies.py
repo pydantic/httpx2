@@ -53,12 +53,17 @@ class IndexedCookieJar(CookieJar):
             self._next_expiry = min((c.expires for c in self if c.expires is not None), default=math.inf)
 
     def _cookies_for_request(self, request: urllib.request.Request) -> list[Cookie]:
-        if type(self._policy).domain_return_ok is not DefaultCookiePolicy.domain_return_ok:  # type: ignore[attr-defined]
+        hosts: tuple[str, str] = eff_request_host(request)
+        # Hosts longer than any DNS name would make the suffix set quadratic in size.
+        if (
+            type(self._policy).domain_return_ok is not DefaultCookiePolicy.domain_return_ok  # type: ignore[attr-defined]
+            or max(len(host) for host in hosts) > 255
+        ):
             return super()._cookies_for_request(request)  # type: ignore[misc, no-any-return]
 
         # Every domain `DefaultCookiePolicy.domain_return_ok` can accept for this request host.
         candidates = {""}
-        for host in eff_request_host(request):
+        for host in hosts:
             dotted = host if host.startswith(".") else f".{host}"
             for index, char in enumerate(dotted):
                 if char == ".":
