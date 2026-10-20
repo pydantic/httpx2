@@ -300,6 +300,18 @@ def test_multi_decode_links_limit() -> None:
         httpx2.Response(200, headers=headers, content=b"")
 
 
+@pytest.mark.anyio
+async def test_multi_decode_links_limit_keeps_raw_stream_readable() -> None:
+    async def body() -> typing.AsyncIterator[bytes]:
+        yield b"raw"
+
+    headers = [(b"Content-Encoding", b", ".join([b"gzip"] * 6))]
+    response = httpx2.Response(200, headers=headers, content=body())
+    with pytest.raises(httpx2.DecodingError, match="Cannot apply more than 5 content encodings"):
+        await anext(response.aiter_bytes())
+    assert [chunk async for chunk in response.aiter_raw()] == [b"raw"]
+
+
 def test_multi_decode_links_limit_ignores_identity_and_unsupported() -> None:
     body = b"test 123"
     compressed = zlib.compress(body)

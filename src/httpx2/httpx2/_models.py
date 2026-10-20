@@ -1024,6 +1024,7 @@ class Response:
             for i in range(0, len(self._content), max(chunk_size, 1)):
                 yield self._content[i : i + chunk_size]
             return
+        decoder = self._get_content_decoder() if decode else IdentityDecoder()
         if self.is_stream_consumed:
             raise StreamConsumed()
         if self.is_closed:
@@ -1033,7 +1034,6 @@ class Response:
 
         self.is_stream_consumed = True
         self._num_bytes_downloaded = 0
-        decoder = self._get_content_decoder() if decode else IdentityDecoder()
         chunker = ByteChunker(chunk_size=chunk_size)
 
         stream = self.stream.__aiter__()

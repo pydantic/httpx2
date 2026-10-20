@@ -117,17 +117,19 @@ def test_streamed_responses_open_at_event_loop_shutdown(server: TestServer) -> N
     streams: list[typing.AsyncIterator[bytes]] = []
 
     async def request() -> None:
-        asyncio.get_running_loop().set_exception_handler(lambda loop, context: errors.append(context))
+        loop = asyncio.get_running_loop()
+        loop.set_exception_handler(lambda loop, context: errors.append(context))
         client = httpx2.AsyncClient()
         for _ in range(5):
             request = client.build_request("GET", server.url.copy_with(path="/stream_response"))
             response = await client.send(request, stream=True)
             stream = response.aiter_bytes()
             await anext(stream)
-            streams.append(stream)  # keep open until `asyncio.run()` finalizes async generators
+            streams.append(stream)
+        await loop.shutdown_asyncgens()
+        assert errors == []
 
     asyncio.run(request())
-    assert errors == []
 
 
 @pytest.mark.anyio
