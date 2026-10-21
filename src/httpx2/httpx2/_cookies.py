@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import math
 import threading
 import time
@@ -19,8 +17,10 @@ class IndexedCookieJar(CookieJar):
     """
     A `CookieJar` whose per-request cost does not grow with the number of stored cookies.
 
-    It looks up only the domains that can match the request host, and skips the
-    expiry sweep until the earliest known expiry has passed.
+    Compared to `CookieJar`, on each request it:
+
+    1. Looks up only the domains that can match the request host, instead of checking every stored domain.
+    2. Skips the expiry sweep until the earliest known expiry has passed, instead of checking every stored cookie.
     """
 
     _cookies: dict[str, dict[str, dict[str, Cookie]]]
