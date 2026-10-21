@@ -369,6 +369,8 @@ class AsyncConnectionPool(AsyncRequestInterface):
 
     async def _close_connections(self, closing: list[AsyncConnectionInterface]) -> None:
         # Close connections which have been removed from the pool.
+        if not closing:
+            return
         with AsyncShieldCancellation():
             for connection in closing:
                 await connection.aclose()
