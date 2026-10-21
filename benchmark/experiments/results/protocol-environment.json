@@ -1,0 +1,84 @@
+{
+  "date": "2026-09-19",
+  "platform": "macOS-27.0-arm64-arm-64bit-Mach-O",
+  "python": "3.14.3 (main, Mar 25 2026, 03:28:18) [Clang 22.1.1 ]",
+  "gil": true,
+  "revision": "a1f507e0ddbd6472a41b0dd408dcc446636af36c",
+  "versions": {
+    "h11": "0.16.0",
+    "zttp": "0.0.31",
+    "aiohttp": "3.14.3",
+    "pyreqwest": "0.13.0",
+    "anyio": "4.14.2",
+    "zuvloop": "0.0.8",
+    "pyinstrument": "5.1.3"
+  },
+  "methodology": {
+    "protocol": "HTTP/1.1",
+    "server": "benchmark/server.py, separate process, loopback",
+    "cpu_affinity": false,
+    "rounds": 3,
+    "seconds_per_worker": 2,
+    "warmup_seconds": 0.5,
+    "pools": "unbounded, keepalive 95 seconds",
+    "body": "fully consumed, pyreqwest buffer materialized to Python bytes",
+    "pyreqwest_runtime_multithreaded": false
+  },
+  "follow_up": {
+    "native_compiler": "Cython 3.3.0, setuptools 84.0.0, Apple Clang 21.0.0, SDK MacOSX14.4, -O3 -DNDEBUG",
+    "compiled_modules": [
+      "httpx2._models",
+      "httpx2._client",
+      "httpx2._urls",
+      "httpx2._decoders",
+      "httpx2._utils"
+    ],
+    "transport": "Python FusedTransport and FusedStream, zttp 0.0.31",
+    "url_input": "ordinary str, bounded parse cache 128 entries",
+    "read_size": 65536,
+    "eager_body": "enabled only for fully-read requests without custom auth or response hooks"
+  },
+  "phase3": {
+    "frontend_patch_sha256": "b85f3621a46e3295ecb70b3809999ebd8374d649ec85d78629cb424bdc78e6b1",
+    "compiled_modules": [
+      "httpx2._models",
+      "httpx2._client",
+      "httpx2._urls",
+      "httpx2._decoders",
+      "httpx2._utils"
+    ],
+    "protocol_transport_compiled": false,
+    "seed": 20260919,
+    "rounds": 5,
+    "seconds_per_run": 3,
+    "read_buffer_high_water": 65536,
+    "sources": {
+      "fused_transport.py": "a98d9950181e3534c840b62fa4054670be83700f7fd8147ed1717b508ed325dd",
+      "fused_stream.py": "43d77c3aaf119b553678d86ce1d73bd27a9baa88013c57eeedbae39e550cc72e",
+      "protocol_connection.py": "2bb01f2cc52549747d5014c75c8d373c05b1290d23898084f7ae91ca88c541e5",
+      "response_buffer.py": "24dc20479ce06cb9a8d23997daabc3be4407898f60a3095f134722a2057583b1",
+      "read_deadline.py": "3fbaf2f1169414c611ddab8ebde5ecfb787f8b9b17c56e708e0447540e6ece43",
+      "worker.py": "9f1fb1655de5561c6f16122435ec0ae390948be577288b18cf9528dac7436055",
+      "compare.py": "b7de0ad88aea470dd611a64983c9e9946d368493d7e5bca2acb46b08ed0ff98f",
+      "pyreqwest_reference.py": "20fc2080d97d3d21dc0e346fcf8134b3cb7b322949a618650e6a40bacca17004"
+    },
+    "source_hash_timing": "Final retained source; the reference runner subsequently gained a multithreaded variant. Main reference settings are unchanged.",
+    "additional_comparisons": {
+      "runtime": {
+        "rounds": 3,
+        "seconds": 3,
+        "seed": 42
+      },
+      "zuvloop": {
+        "rounds": 3,
+        "seconds": 3,
+        "seed": 73
+      },
+      "stream": {
+        "rounds": 3,
+        "seconds": 2,
+        "seed": 97
+      }
+    }
+  }
+}

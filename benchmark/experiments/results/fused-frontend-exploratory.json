@@ -1,0 +1,78 @@
+{
+  "c16/1k fused": [
+    {
+      "lib": "fused",
+      "mode": "read",
+      "concurrency": 16,
+      "size": 1024,
+      "post": false,
+      "requests": 36884,
+      "seconds": 2.005,
+      "rps": 18392.9,
+      "p50_ms": 0.86,
+      "p99_ms": 1.08,
+      "max_ms": 14.58,
+      "cpu_us": 53.8,
+      "python": "3.14.3",
+      "gil": true,
+      "zuvloop": false
+    }
+  ],
+  "c16/1k fused-url-buffered": [
+    {
+      "lib": "fused-url-buffered",
+      "mode": "read",
+      "concurrency": 16,
+      "size": 1024,
+      "post": false,
+      "requests": 47004,
+      "seconds": 2.0,
+      "rps": 23498.3,
+      "p50_ms": 0.68,
+      "p99_ms": 0.88,
+      "max_ms": 1.38,
+      "cpu_us": 42.5,
+      "python": "3.14.3",
+      "gil": true,
+      "zuvloop": false
+    }
+  ],
+  "c16/1k aiohttp": [
+    {
+      "lib": "aiohttp",
+      "mode": "read",
+      "concurrency": 16,
+      "size": 1024,
+      "post": false,
+      "requests": 48075,
+      "seconds": 2.0,
+      "rps": 24034.0,
+      "p50_ms": 0.66,
+      "p99_ms": 0.8,
+      "max_ms": 1.05,
+      "cpu_us": 41.5,
+      "python": "3.14.3",
+      "gil": true,
+      "zuvloop": false
+    }
+  ],
+  "c16/1k pyreqwest": [
+    {
+      "lib": "pyreqwest",
+      "mode": "read",
+      "concurrency": 16,
+      "size": 1024,
+      "post": false,
+      "requests": 75957,
+      "seconds": 2.0,
+      "rps": 37971.5,
+      "p50_ms": 0.41,
+      "p99_ms": 0.64,
+      "max_ms": 0.97,
+      "cpu_us": 37.0,
+      "python": "3.14.3",
+      "gil": true,
+      "zuvloop": false
+    }
+  ]
+}
