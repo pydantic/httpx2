@@ -12,8 +12,32 @@ permissions:
 
 jobs:
   benchmarks:
-    name: Run benchmarks
+    name: Run CPU benchmarks
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          python-version: "3.13"
+          enable-cache: true
+
+      - name: Install dependencies
+        run: scripts/install
+        shell: bash
+
+      - name: Run the CPU benchmarks
+        uses: CodSpeedHQ/action@373d6868929f444bc08d901fd0eb0ad52a8875ea # v5.2.1
+        with:
+          mode: instrumentation
+          run: uv run pytest tests/test_benchmark.py --codspeed -k "not websocket_fragment_reassembly"
+
+  walltime-benchmarks:
+    name: Run walltime benchmarks
+    runs-on: codspeed-macro-x64-ryzen-9950x-ubuntu-24-04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -32,8 +56,8 @@ jobs:
       - name: Run the benchmarks
         uses: CodSpeedHQ/action@373d6868929f444bc08d901fd0eb0ad52a8875ea # v5.2.1
         with:
-          mode: instrumentation
-          run: uv run pytest tests/test_benchmark.py --codspeed
+          mode: walltime
+          run: uv run pytest tests/test_benchmark.py --codspeed -k websocket_fragment_reassembly
 
   memory-benchmarks:
     name: Run memory benchmarks
