@@ -4,13 +4,8 @@ import math
 import threading
 import time
 import urllib.request
-from http.cookiejar import (  # type: ignore[attr-defined]
-    Cookie,
-    CookieJar,
-    CookiePolicy,
-    DefaultCookiePolicy,
-    eff_request_host,
-)
+from http import cookiejar
+from http.cookiejar import Cookie, CookieJar, CookiePolicy, DefaultCookiePolicy
 from typing import TYPE_CHECKING
 
 __all__ = ["IndexedCookieJar"]
@@ -49,7 +44,7 @@ class IndexedCookieJar(CookieJar):
             self._next_expiry = min((c.expires for c in self if c.expires is not None), default=math.inf)
 
     def _cookies_for_request(self, request: urllib.request.Request) -> list[Cookie]:
-        hosts: tuple[str, str] = eff_request_host(request)
+        hosts: tuple[str, str] = cookiejar.eff_request_host(request)  # type: ignore[attr-defined]
         uses_default_matching = type(self._policy).domain_return_ok is DefaultCookiePolicy.domain_return_ok
         if not uses_default_matching or max(map(len, hosts)) > MAX_HOST_LENGTH:
             return super()._cookies_for_request(request)  # type: ignore[misc, no-any-return]
