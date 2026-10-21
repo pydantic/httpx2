@@ -251,10 +251,12 @@ async def test_context_managed_transport() -> None:
 
 @pytest.mark.anyio
 async def test_context_managed_transport_and_mount() -> None:
+    events: list[str] = []
+
     class Transport(httpx2.AsyncBaseTransport):
         def __init__(self, name: str) -> None:
             self.name: str = name
-            self.events: list[str] = []
+            self.events = events
 
         async def aclose(self) -> None:
             # The base implementation of httpx2.AsyncBaseTransport just
@@ -277,16 +279,38 @@ async def test_context_managed_transport_and_mount() -> None:
     async with httpx2.AsyncClient(transport=transport, mounts={"http://www.example.org": mounted}):
         pass
 
-    assert transport.events == [
+    assert events == [
         "transport.__aenter__",
-        "transport.aclose",
-        "transport.__aexit__",
-    ]
-    assert mounted.events == [
         "mounted.__aenter__",
         "mounted.aclose",
         "mounted.__aexit__",
+        "transport.aclose",
+        "transport.__aexit__",
     ]
+
+
+@pytest.mark.anyio
+async def test_failing_transport_does_not_skip_closing_the_others() -> None:
+    class Transport(httpx2.AsyncBaseTransport):
+        def __init__(self, fail: bool = False) -> None:
+            self.fail = fail
+            self.closed = False
+
+        async def aclose(self) -> None:
+            self.closed = True
+            if self.fail:
+                raise RuntimeError("failed to close")
+
+    mounted = Transport()
+    with pytest.raises(RuntimeError, match="failed to close"):
+        async with httpx2.AsyncClient(transport=Transport(fail=True), mounts={"http://a": mounted}):
+            pass
+    assert mounted.closed
+
+    mounted = Transport()
+    with pytest.raises(RuntimeError, match="failed to close"):
+        await httpx2.AsyncClient(transport=Transport(fail=True), mounts={"http://a": mounted}).aclose()
+    assert mounted.closed
 
 
 def hello_world(request: httpx2.Request) -> httpx2.Response:
