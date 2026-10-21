@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 
 __all__ = ["IndexedCookieJar"]
 
-# RFC 1035 caps DNS names at 255 octets; longer hosts take the stdlib path.
+# [RFC 1035](https://www.rfc-editor.org/rfc/rfc1035) caps DNS names at 255 octets; longer hosts take the stdlib path.
 MAX_HOST_LENGTH = 255
 
 
