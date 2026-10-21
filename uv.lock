@@ -19,8 +19,6 @@ exclude-newer-span = "P7D"
 
 [options.exclude-newer-package]
 certifi = "2026-10-21T00:00:00Z"
-httpx2-jsfetch = "2026-08-08T00:00:00Z"
-idna = "2026-06-03T00:00:00Z"
 
 [manifest]
 members = [
