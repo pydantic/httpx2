@@ -3,11 +3,13 @@
 An end-to-end, keep-alive throughput benchmark for the async client stack, designed so that the client
 under test is the bottleneck rather than the server.
 
-* `server.py` is a raw `asyncio.Protocol` HTTP/1.1 origin: `GET /<n>` returns `n` bytes, `POST /echo`
-  echoes the body. No parsing library, no per-request sleep. The server and clients run on
+* `server.py` is a raw `asyncio.Protocol` origin: `/<n>` returns `n` bytes and discards any request body,
+  `/echo` echoes the body. A connection that opens with the HTTP/2 preface is served as cleartext HTTP/2
+  with prior knowledge, which is what `AsyncClient(http1=False, http2=True)` sends to an `http://` URL.
+  No parsing library, no per-request sleep. The server and clients run on
   [zuvloop](https://github.com/Kludex/zuvloop) when it is importable (`--no-zuvloop` for the stdlib loop).
 * `client.py` runs one library at one concurrency and body size, and prints a JSON line with rps,
-  p50/p99 latency and per-request CPU time.
+  p50/p99 latency, per-request CPU time and the number of failed requests.
 * `run.py` starts the server, runs the matrix interleaved across interpreters and libraries, and
   prints a comparison table plus two headline numbers.
 
@@ -17,6 +19,20 @@ scripts/benchmark --quick         # c16/1k, c512/1k, c64/100k
 scripts/benchmark --lib httpx2 --lib httpcore2 --scenario c512/1k --rounds 3
 scripts/benchmark --profile /tmp/profiles   # pyinstrument output per scenario
 ```
+
+A scenario is `c<concurrency>/<size>` plus optional flags:
+
+| Flag | Meaning |
+| --- | --- |
+| `post` | `POST` a body of `size` bytes to `/echo` and read it back. |
+| `upload` | `POST` a body of `size` bytes to `/0` and read an empty response. |
+| `h2` | Cleartext HTTP/2 with prior knowledge, no HTTP/1.1. Only `httpx2` and `httpcore2` run it. |
+| `batch` | Start requests in lockstep batches of `concurrency` instead of back to back. |
+
+`upload/h2/batch` is the shape of [#1133](https://github.com/pydantic/httpx2/issues/1133): a fan-out of
+uploads over one HTTP/2 connection, where the last stream to finish has no other stream's frames to
+wake it. A stall there surfaces as failed requests after `--read-timeout` (default 10 s) and a collapse
+in rps, rather than as a crashed run.
 
 ## Comparing two revisions
 
