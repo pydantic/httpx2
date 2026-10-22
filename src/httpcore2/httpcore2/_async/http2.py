@@ -308,58 +308,50 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
         Will read more data from the network if required.
         """
         while not self._events.get(stream_id):
-            await self._receive_events(request, stream_id, pending=lambda: bool(self._events.get(stream_id)))
+            async with self._read_lock:
+                if not self._events.get(stream_id):
+                    await self._receive_events(request, stream_id)
+            await self._write_outgoing_data(request)
         event = self._events[stream_id].pop(0)
         if isinstance(event, h2.events.StreamReset):
             raise RemoteProtocolError(event)
         return event
 
-    async def _receive_events(
-        self,
-        request: Request,
-        stream_id: int | None,
-        pending: typing.Callable[[], bool],
-    ) -> None:
+    async def _receive_events(self, request: Request, stream_id: int | None = None) -> None:
         """
-        Read some data from the network unless `pending()` is already satisfied.
+        Read some data from the network and dispatch the resulting events.
 
-        `pending` is re-checked under the read lock, since another task may have
-        received the awaited event while this one was queued for the lock.
+        The caller holds `_read_lock`, and re-checks what it is waiting for
+        after acquiring it, since another task may have read it in the meantime.
         """
-        async with self._read_lock:
-            if self._connection_terminated is not None:
-                last_stream_id = self._connection_terminated.last_stream_id
-                if stream_id and last_stream_id and stream_id > last_stream_id:
-                    self._request_count -= 1
-                    raise ConnectionNotAvailable()
-                raise RemoteProtocolError(self._connection_terminated)
+        if self._connection_terminated is not None:
+            last_stream_id = self._connection_terminated.last_stream_id
+            if stream_id and last_stream_id and stream_id > last_stream_id:
+                self._request_count -= 1
+                raise ConnectionNotAvailable()
+            raise RemoteProtocolError(self._connection_terminated)
 
-            if pending():
-                return
+        events = await self._read_incoming_data(request)
+        for event in events:
+            if isinstance(event, h2.events.RemoteSettingsChanged):
+                async with Trace("receive_remote_settings", logger, request) as trace:
+                    await self._receive_remote_settings_change(event)
+                    trace.return_value = event
 
-            events = await self._read_incoming_data(request)
-            for event in events:
-                if isinstance(event, h2.events.RemoteSettingsChanged):
-                    async with Trace("receive_remote_settings", logger, request) as trace:
-                        await self._receive_remote_settings_change(event)
-                        trace.return_value = event
+            elif isinstance(
+                event,
+                (
+                    h2.events.ResponseReceived,
+                    h2.events.DataReceived,
+                    h2.events.StreamEnded,
+                    h2.events.StreamReset,
+                ),
+            ):
+                if event.stream_id in self._events:
+                    self._events[event.stream_id].append(event)
 
-                elif isinstance(
-                    event,
-                    (
-                        h2.events.ResponseReceived,
-                        h2.events.DataReceived,
-                        h2.events.StreamEnded,
-                        h2.events.StreamReset,
-                    ),
-                ):
-                    if event.stream_id in self._events:
-                        self._events[event.stream_id].append(event)
-
-                elif isinstance(event, h2.events.ConnectionTerminated):
-                    self._connection_terminated = event
-
-        await self._write_outgoing_data(request)
+            elif isinstance(event, h2.events.ConnectionTerminated):
+                self._connection_terminated = event
 
     async def _receive_remote_settings_change(self, event: h2.events.RemoteSettingsChanged) -> None:
         max_concurrent_streams = event.changed_settings.get(h2.settings.SettingCodes.MAX_CONCURRENT_STREAMS)
@@ -468,9 +460,10 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
         max_frame_size: int = self._h2_state.max_outbound_frame_size
         flow = min(local_flow, max_frame_size)
         while flow <= 0:
-            await self._receive_events(
-                request, None, pending=lambda: self._h2_state.local_flow_control_window(stream_id) > 0
-            )
+            async with self._read_lock:
+                if self._h2_state.local_flow_control_window(stream_id) <= 0:
+                    await self._receive_events(request)
+            await self._write_outgoing_data(request)
             local_flow = self._h2_state.local_flow_control_window(stream_id)
             max_frame_size = self._h2_state.max_outbound_frame_size
             flow = min(local_flow, max_frame_size)
