@@ -6,6 +6,7 @@ import re
 import typing
 from urllib.request import getproxies
 
+from ._exceptions import InvalidURL
 from ._types import PrimitiveData
 
 if typing.TYPE_CHECKING:
@@ -72,8 +73,16 @@ def get_environment_proxies() -> dict[str, str | None]:
                     mounts[f"all://[{hostname}]"] = None
             elif hostname.lower() == "localhost":
                 mounts[f"all://{hostname}"] = None
-            else:
+            elif hostname.startswith("["):
+                mounts[f"all://{hostname}"] = None
+            elif "/" not in hostname:
                 mounts[f"all://*{hostname}"] = None
+
+    for pattern in list(mounts):
+        try:
+            URLPattern(pattern)
+        except InvalidURL:
+            del mounts[pattern]  # Like curl and Go, ignore entries that cannot be parsed.
 
     return mounts
 
@@ -180,12 +189,26 @@ class URLPattern:
             )
 
         url = URL(pattern)
+        self.network = None
+        prefix = url.path.removeprefix("/")
+        if prefix and (is_ipv4_hostname(url.host) or is_ipv6_hostname(url.host)):
+            # A CIDR-style host, e.g. "all://192.168.0.0/16" or "all://[::1]/64".
+            host = f"[{url.host}]" if ":" in url.host else url.host
+            if "@" in pattern or "%" in pattern or not prefix.isdigit() or not pattern.endswith(f"{host}/{prefix}"):
+                raise InvalidURL(f"Invalid network in {pattern!r}")
+            try:
+                self.network = ipaddress.ip_network(f"{url.host}/{prefix}", strict=False)
+            except ValueError as exc:
+                raise InvalidURL(f"Invalid network in {pattern!r}") from exc
+
         self.pattern = pattern
         self.scheme = "" if url.scheme == "all" else url.scheme
         self.host = "" if url.host == "*" else url.host
         self.port = url.port
-        if not url.host or url.host == "*":
+        if self.network is not None:
             self.host_regex: typing.Pattern[str] | None = None
+        elif not url.host or url.host == "*":
+            self.host_regex = None
         elif url.host.startswith("*."):
             # *.example.com should match "www.example.com", but not "example.com"
             domain = re.escape(url.host[2:])
@@ -202,25 +225,36 @@ class URLPattern:
     def matches(self, other: URL) -> bool:
         if self.scheme and self.scheme != other.scheme:
             return False
-        if self.host and self.host_regex is not None and not self.host_regex.match(other.host):
+        if self.network is not None:
+            try:
+                other_address = ipaddress.ip_address(other.host)
+            except ValueError:
+                return False
+            if other_address not in self.network:
+                return False
+        elif self.host and self.host_regex is not None and not self.host_regex.match(other.host):
             return False
         if self.port is not None and self.port != other.port:
             return False
         return True
 
     @property
-    def priority(self) -> tuple[int, int, int]:
+    def priority(self) -> tuple[int, int, int, int, int]:
         """
         The priority allows URLPattern instances to be sortable, so that
         we can match from most specific to least specific.
         """
         # URLs with a port should take priority over URLs without a port.
         port_priority = 0 if self.port is not None else 1
-        # Longer hostnames should match first.
-        host_priority = -len(self.host)
+        # Exact hosts match first, then networks, then patterns without a host.
+        host_kind_priority = 1 if self.network is not None else 0 if self.host else 2
+        # Smaller networks match first. Address count, not prefix length, so IPv4 and IPv6 compare fairly.
+        network_priority = self.network.num_addresses if self.network is not None else 0
+        # Longer hostnames should match first. Networks are already ordered by size.
+        host_priority = -len(self.host) if self.network is None else 0
         # Longer schemes should match first.
         scheme_priority = -len(self.scheme)
-        return (port_priority, host_priority, scheme_priority)
+        return (port_priority, host_kind_priority, network_priority, host_priority, scheme_priority)
 
     def __hash__(self) -> int:
         return hash(self.pattern)

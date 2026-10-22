@@ -105,13 +105,23 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
                 # its max_concurrent_streams value
                 self._max_streams = 1
 
+                # Revoked permits still held by active or queued requests.
+                self._max_streams_deficit = 0
+
                 local_settings_max_streams = self._h2_state.local_settings.max_concurrent_streams
                 self._max_streams_semaphore = AsyncSemaphore(local_settings_max_streams)
 
                 for _ in range(local_settings_max_streams - self._max_streams):
                     await self._max_streams_semaphore.acquire()
 
-        await self._max_streams_semaphore.acquire()
+        # A queued request may receive a permit just before the limit drops.
+        while True:
+            await self._max_streams_semaphore.acquire()
+            with AsyncShieldCancellation():
+                async with self._state_lock:
+                    if not self._max_streams_deficit:
+                        break
+                    self._max_streams_deficit -= 1
 
         try:
             stream_id = self._h2_state.get_next_available_stream_id()
@@ -338,7 +348,6 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
                 for event in events:
                     if isinstance(event, h2.events.RemoteSettingsChanged):
                         async with Trace("receive_remote_settings", logger, request) as trace:
-                            await self._receive_remote_settings_change(event)
                             trace.return_value = event
 
                     elif isinstance(
@@ -366,17 +375,25 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
                 self._h2_state.local_settings.max_concurrent_streams,
             )
             if new_max_streams and new_max_streams != self._max_streams:
+                # Never wait for permits while holding the read lock.
                 while new_max_streams > self._max_streams:
-                    await self._max_streams_semaphore.release()
+                    if self._max_streams_deficit > 0:
+                        self._max_streams_deficit -= 1
+                    else:
+                        await self._max_streams_semaphore.release()
                     self._max_streams += 1
                 while new_max_streams < self._max_streams:
-                    await self._max_streams_semaphore.acquire()
+                    if not self._max_streams_semaphore.acquire_if_available():
+                        self._max_streams_deficit += 1
                     self._max_streams -= 1
 
     async def _response_closed(self, stream_id: int) -> None:
         async with self._state_lock:
             if stream_id in self._events:
-                await self._max_streams_semaphore.release()
+                if self._max_streams_deficit > 0:
+                    self._max_streams_deficit -= 1
+                else:
+                    await self._max_streams_semaphore.release()
                 del self._events[stream_id]
             if self._connection_terminated and not self._events:
                 await self.aclose()
@@ -422,7 +439,13 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
             self._connection_error = True
             raise exc
 
-        events: list[h2.events.Event] = self._h2_state.receive_data(data)
+        # Apply settings and stream admission limits atomically.
+        with AsyncShieldCancellation():
+            async with self._state_lock:
+                events: list[h2.events.Event] = self._h2_state.receive_data(data)
+                for event in events:
+                    if isinstance(event, h2.events.RemoteSettingsChanged):
+                        await self._receive_remote_settings_change(event)
 
         return events
 

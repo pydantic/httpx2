@@ -5,9 +5,7 @@ Unit tests for auth classes also exist in tests/test_auth.py
 """
 
 import hashlib
-import netrc
 import os
-import sys
 import threading
 import typing
 from urllib.request import parse_keqv_list
@@ -248,21 +246,6 @@ def test_netrc_auth_credentials_do_not_exist() -> None:
 
     assert response.status_code == 200
     assert response.json() == {"auth": None}
-
-
-@pytest.mark.skipif(
-    sys.version_info >= (3, 11),
-    reason="netrc files without a password are valid from Python >= 3.11",
-)
-def test_netrc_auth_nopassword_parse_error() -> None:  # pragma: no cover
-    """
-    Python has different netrc parsing behaviours with different versions.
-    For Python < 3.11 a netrc file with no password is invalid. In this case
-    we want to allow the parse error to be raised.
-    """
-    netrc_file = str(FIXTURES_DIR / ".netrc-nopassword")
-    with pytest.raises(netrc.NetrcParseError):
-        httpx2.NetRCAuth(netrc_file)
 
 
 @pytest.mark.anyio

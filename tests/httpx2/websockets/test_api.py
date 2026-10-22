@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import concurrent.futures
 import queue
+import sys
 import threading
 import time
 import typing
@@ -973,7 +974,7 @@ async def test_threads_wont_hang(server_factory: ServerFactoryFixture) -> None:
         for _ in range(100):
             if len(session_threads()) == expected:
                 return
-            time.sleep(0.05)
+            time.sleep(0.05)  # pragma: no cover - only runs if the threads are still exiting
         assert len(session_threads()) == expected  # pragma: no cover
 
     with server_factory(websocket_endpoint) as socket:
@@ -985,6 +986,46 @@ async def test_threads_wont_hang(server_factory: ServerFactoryFixture) -> None:
                     ws.send_text("CLIENT_MESSAGE")
                 wait_for_session_threads(2)
             wait_for_session_threads(0)
+
+
+@pytest.mark.anyio
+async def test_exit_with_full_queue(server_factory: ServerFactoryFixture) -> None:
+    """
+    Check that exiting the session doesn't deadlock when the background receive
+    thread is blocked on a full events queue.
+    """
+
+    async def websocket_endpoint(websocket: WebSocket) -> None:
+        await websocket.accept()
+        for _ in range(10):
+            await websocket.send_text("SERVER_MESSAGE")
+        try:
+            await websocket.receive_text()
+        except StarletteWebSocketDisconnect:
+            pass
+
+    with server_factory(websocket_endpoint) as socket:
+        with httpx.Client(transport=httpx.HTTPTransport(uds=socket)) as client:
+            with connect_ws("http://socket/ws", client, queue_size=1, keepalive_ping_interval_seconds=None) as ws:
+                assert ws.receive_text() == "SERVER_MESSAGE"
+
+
+@pytest.mark.skipif(sys.version_info < (3, 13), reason="`Queue.shutdown()` is new in Python 3.13")
+@pytest.mark.anyio
+async def test_receive_after_exit(server_factory: ServerFactoryFixture) -> None:  # pragma: no cover
+    async def websocket_endpoint(websocket: WebSocket) -> None:
+        await websocket.accept()
+        try:
+            await websocket.receive_text()
+        except StarletteWebSocketDisconnect:
+            pass
+
+    with server_factory(websocket_endpoint) as socket:
+        with httpx.Client(transport=httpx.HTTPTransport(uds=socket)) as client:
+            with connect_ws("http://socket/ws", client, keepalive_ping_interval_seconds=None) as ws:
+                pass
+            with pytest.raises(WebSocketDisconnect):
+                ws.receive(timeout=1)
 
 
 @pytest.mark.anyio

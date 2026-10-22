@@ -126,7 +126,7 @@ The public API did not change. But a rename touches a few visible things, and th
 ### Behavior differences
 
 * **SSL verification uses the operating system's trust store**, via [`truststore`](https://truststore.readthedocs.io/), instead of `certifi`'s bundled certificates. For most users this just means fewer corporate-proxy headaches. The `SSL_CERT_FILE` and `SSL_CERT_DIR` environment variables are still honored first, and you can still pass `verify=` explicitly. See [SSL](advanced/ssl.md) for details.
-* **Python 3.10 or newer is required**. Support for Python 3.9 was dropped.
+* **Python 3.11 or newer is required**. Support for Python 3.9 and 3.10 was dropped.
 * **Deprecation warnings are visible by default**. `httpx2` uses `HTTPXDeprecationWarning`, a `UserWarning` subclass, so you will actually see deprecations without configuring warning filters.
 
 ### New things you get

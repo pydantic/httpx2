@@ -4,6 +4,34 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2.16.0 (October 21st, 2026)
+
+No changes since `2.15.1`. Version bumped to stay in lockstep with `httpx2`.
+
+## 2.15.1 (October 19th, 2026)
+
+### Fixed
+
+* Configure the default SSL context once on Linux, instead of on every handshake. With OpenSSL older than 3.4, CPU usage grew over the lifetime of a reused client.
+  ([#1253](https://github.com/pydantic/httpx2/pull/1253))
+
+## 2.15.0 (October 19th, 2026)
+
+### Removed
+
+* Drop support for Python 3.10. ([#1274](https://github.com/pydantic/httpx2/pull/1274))
+
+## 2.14.0 (October 18th, 2026)
+
+### Fixed
+
+* Keep `CONNECT` and absolute-form proxy targets when the request sets the `target` extension.
+  ([#1262](https://github.com/pydantic/httpx2/pull/1262))
+* Stop blocking reads when an HTTP/2 server lowers `SETTINGS_MAX_CONCURRENT_STREAMS` while requests are in flight.
+  ([#1217](https://github.com/pydantic/httpx2/pull/1217))
+* Raise `WriteError` instead of `anyio.EndOfStream` when writing after the peer closes a TLS connection without `close_notify`.
+  ([#1263](https://github.com/pydantic/httpx2/pull/1263))
+
 ## 2.13.1 (September 23rd, 2026)
 
 ### Fixed

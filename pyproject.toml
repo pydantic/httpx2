@@ -3,7 +3,7 @@ package = false
 default-groups = ["dev", "docs", "bench"]
 required-version = ">=0.8.6"
 exclude-newer = "7 days"
-exclude-newer-package = { idna = "2026-06-03T00:00:00Z", httpx2-jsfetch = "2026-08-08T00:00:00Z" }
+exclude-newer-package = { certifi = "2026-10-21T00:00:00Z" }
 
 [tool.uv.workspace]
 members = ["src/httpx2", "src/httpcore2"]
@@ -31,7 +31,7 @@ dev = [
   "trustme>=1.2.1",
   "uvicorn>=0.52.4",
   "websockets>=16.1.1",
-  "werkzeug>=3.1.6",
+  "werkzeug>=3.1.9",
   # Linting
   "mypy>=2.3.1",
   "ruff>=0.16.4",
@@ -47,6 +47,7 @@ bench = [
 
 [tool.ruff]
 line-length = 120
+target-version = "py311"
 exclude = ["src/httpcore2/httpcore2/_sync", "tests/httpcore2/_sync"]
 extend-exclude = ["*.md"]
 

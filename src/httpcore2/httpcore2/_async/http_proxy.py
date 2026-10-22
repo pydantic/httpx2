@@ -184,14 +184,16 @@ class AsyncForwardHTTPConnection(AsyncConnectionInterface):
             scheme=self._proxy_origin.scheme,
             host=self._proxy_origin.host,
             port=self._proxy_origin.port,
-            target=bytes(request.url),
+            target=bytes(request.url) if request.url.target.startswith(b"/") else request.url.target,
         )
         proxy_request = Request(
             method=request.method,
             url=url,
             headers=headers,
             content=request.stream,
-            extensions={key: value for key, value in request.extensions.items() if key != "sni_hostname"},
+            extensions={
+                key: value for key, value in request.extensions.items() if key not in ("sni_hostname", "target")
+            },
         )
         return await self._connection.handle_async_request(proxy_request)
 
@@ -274,7 +276,9 @@ class AsyncTunnelHTTPConnection(AsyncConnectionInterface):
                     method=b"CONNECT",
                     url=connect_url,
                     headers=connect_headers,
-                    extensions={key: value for key, value in request.extensions.items() if key != "sni_hostname"},
+                    extensions={
+                        key: value for key, value in request.extensions.items() if key not in ("sni_hostname", "target")
+                    },
                 )
                 connect_response = await self._connection.handle_async_request(connect_request)
 
