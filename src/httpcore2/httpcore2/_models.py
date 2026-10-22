@@ -169,6 +169,9 @@ class Origin:
             and self.port == other.port
         )
 
+    def __hash__(self) -> int:
+        return hash((self.scheme, self.host, self.port))
+
     def __str__(self) -> str:
         scheme = self.scheme.decode("ascii")
         host = self.host.decode("ascii")
