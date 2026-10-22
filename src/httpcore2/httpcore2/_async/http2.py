@@ -319,8 +319,9 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
         """
         while not self._events.get(stream_id):
             async with self._read_lock:
-                if not self._events.get(stream_id):
-                    await self._receive_events(request, stream_id)
+                if self._events.get(stream_id):
+                    continue
+                await self._receive_events(request, stream_id)
             await self._write_outgoing_data(request)
         event = self._events[stream_id].pop(0)
         if isinstance(event, h2.events.StreamReset):
@@ -331,8 +332,9 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
         """
         Read some data from the network and dispatch the resulting events.
 
-        The caller holds `_read_lock`, and re-checks what it is waiting for
-        after acquiring it, since another task may have read it in the meantime.
+        The caller holds `_read_lock`, re-checks what it is waiting for after
+        acquiring it, since another task may have read it in the meantime, and
+        flushes outgoing data once the lock is released.
         """
         if self._connection_terminated is not None:
             last_stream_id = self._connection_terminated.last_stream_id
@@ -479,18 +481,17 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
         WindowUpdated frames have increased the flow rate.
         https://tools.ietf.org/html/rfc7540#section-6.9
         """
-        local_flow: int = self._h2_state.local_flow_control_window(stream_id)
-        max_frame_size: int = self._h2_state.max_outbound_frame_size
-        flow = min(local_flow, max_frame_size)
-        while flow <= 0:
-            async with self._read_lock:
-                if self._h2_state.local_flow_control_window(stream_id) <= 0:
-                    await self._receive_events(request)
-            await self._write_outgoing_data(request)
-            local_flow = self._h2_state.local_flow_control_window(stream_id)
-            max_frame_size = self._h2_state.max_outbound_frame_size
+        while True:
+            local_flow: int = self._h2_state.local_flow_control_window(stream_id)
+            max_frame_size: int = self._h2_state.max_outbound_frame_size
             flow = min(local_flow, max_frame_size)
-        return flow
+            if flow > 0:
+                return flow
+            async with self._read_lock:
+                if self._h2_state.local_flow_control_window(stream_id) > 0:
+                    continue
+                await self._receive_events(request)
+            await self._write_outgoing_data(request)
 
     # Interface for connection pooling...
 
