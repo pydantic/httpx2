@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling", "hatch-fancy-pypi-readme", "uv-dynamic-versioning>=0.14.0"]
+requires = ["hatchling", "hatch-fancy-pypi-readme", "uv-dynamic-versioning>=0.14.1"]
 build-backend = "hatchling.build"
 
 [tool.hatch.version]
@@ -15,7 +15,7 @@ fallback-version = "0.0.0"
 name = "httpx2"
 description = "The next generation HTTP client."
 license = "BSD-3-Clause"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 authors = [
     { name = "Tom Christie", email = "tom@tomchristie.com" },
 ]
@@ -33,7 +33,6 @@ classifiers = [
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -56,7 +55,7 @@ dependencies = [
 [project.optional-dependencies]
 brotli = [
     "brotli>=1.2.0; platform_python_implementation == 'CPython'",
-    "brotlicffi>=1.2.0.0; platform_python_implementation != 'CPython'",
+    "brotlicffi>=1.2.0.2; platform_python_implementation != 'CPython'",
 ]
 cli = [
     "click>=8.4.2",

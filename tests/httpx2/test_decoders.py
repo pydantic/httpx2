@@ -362,7 +362,7 @@ def test_decoding_errors(header_value: bytes) -> None:
     [
         ((b"Hello,", b" world!"), "ascii"),
         ((b"\xe3\x83", b"\x88\xe3\x83\xa9", b"\xe3", b"\x83\x99\xe3\x83\xab"), "utf-8"),
-        ((b"Euro character: \x88! abcdefghijklmnopqrstuvwxyz", b""), "cp1252"),
+        (("L’été à Paris coûte 20 € — c’est déjà cher pour une journée entière.".encode("cp1252"), b""), "cp1252"),
         ((b"Accented: \xd6sterreich abcdefghijklmnopqrstuvwxyz", b""), "iso-8859-1"),
     ],
 )

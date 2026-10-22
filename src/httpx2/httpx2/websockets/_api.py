@@ -12,9 +12,14 @@ import typing
 from types import TracebackType
 
 if sys.version_info >= (3, 13):
+    from queue import ShutDown as QueueShutDown  # pragma: no cover
     from typing import TypeVar  # pragma: no cover
 else:
     from typing_extensions import TypeVar  # pragma: no cover
+
+    class QueueShutDown(Exception):  # pragma: no cover
+        """Stand-in for `queue.ShutDown`, which is never raised before Python 3.13."""
+
 
 import anyio
 import wsproto
@@ -149,9 +154,17 @@ class WebSocketSession:
         tb: TracebackType | None,
     ) -> None:
         self.close()
-        self._background_receive_task.join()
-        if self._background_keepalive_ping_task is not None:
-            self._background_keepalive_ping_task.join()
+        # A task blocked on a full events queue only exits once there's room, or the queue shuts down.
+        if sys.version_info >= (3, 13):  # pragma: no cover - Python 3.13+ only
+            self._events.shutdown(immediate=True)
+            self._background_receive_task.join()
+            if self._background_keepalive_ping_task is not None:
+                self._background_keepalive_ping_task.join()
+        else:  # pragma: no cover - Python < 3.13 only
+            for task in (self._background_receive_task, self._background_keepalive_ping_task):
+                while task is not None and task.is_alive():
+                    with contextlib.suppress(queue.Empty):
+                        self._events.get(timeout=0.01)
 
     def ping(self, payload: bytes = b"") -> threading.Event:
         """
@@ -315,6 +328,8 @@ class WebSocketSession:
             event = self._events.get(block=True, timeout=timeout)
         except queue.Empty as e:
             raise TimeoutError from e
+        except QueueShutDown as e:  # pragma: no cover - Python 3.13+ only
+            raise WebSocketDisconnect() from e
         if isinstance(event, HTTPXWSException):
             raise event
         if isinstance(event, wsproto.events.CloseConnection):
@@ -547,8 +562,9 @@ class WebSocketSession:
                     self._events.put(event)
         except (httpcore2.ReadError, httpcore2.WriteError, EndOfStream):
             self.close(CloseReason.INTERNAL_ERROR, "Stream error")
-            self._events.put(WebSocketNetworkError())
-        except ShouldClose:
+            with contextlib.suppress(QueueShutDown):
+                self._events.put(WebSocketNetworkError())
+        except (ShouldClose, QueueShutDown):
             pass
 
     def _background_keepalive_ping(self, interval_seconds: float, timeout_seconds: float | None = None) -> None:
@@ -557,13 +573,16 @@ class WebSocketSession:
                 should_close = self._wait_until_closed(self._should_close.wait, interval_seconds)
                 if should_close:  # pragma: no cover
                     raise ShouldClose()
-                pong_callback = self.ping()
+                try:
+                    pong_callback = self.ping()
+                except wsproto.utilities.LocalProtocolError:
+                    return
                 if timeout_seconds is not None:
                     acknowledged = self._wait_until_closed(pong_callback.wait, timeout_seconds)
                     if not acknowledged:
                         self.close(CloseReason.INTERNAL_ERROR, "Keepalive ping timeout")
                         self._events.put(WebSocketNetworkError())
-        except ShouldClose:
+        except (ShouldClose, QueueShutDown):
             pass
 
     def _wait_until_closed(

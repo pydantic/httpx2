@@ -262,7 +262,7 @@ class BaseClient:
 
         See also [Authentication][0].
 
-        [0]: /quickstart/#authentication
+        [0]: quickstart.md#authentication
         """
         return self._auth
 
@@ -347,7 +347,7 @@ class BaseClient:
 
         See also: [Request instances][0]
 
-        [0]: /advanced/clients/#request-instances
+        [0]: advanced/clients.md#request-instances
         """
         url = self._merge_url(url)
         headers = self._merge_headers(headers)
@@ -392,16 +392,16 @@ class BaseClient:
             return self.base_url.copy_with(raw_path=merge_raw_path)
         return merge_url
 
-    def _merge_cookies(self, cookies: CookieTypes | None = None) -> CookieTypes | None:
+    def _merge_cookies(self, cookies: CookieTypes | None = None) -> Cookies:
         """
         Merge a cookies argument together with any cookies on the client,
         to create the cookies used for the outgoing request.
         """
-        if cookies or self.cookies:
-            merged_cookies = Cookies(self.cookies)
-            merged_cookies.update(cookies)
-            return merged_cookies
-        return cookies
+        if not cookies:
+            return self.cookies
+        merged_cookies = Cookies(self.cookies)
+        merged_cookies.update(cookies)
+        return merged_cookies
 
     def _merge_headers(self, headers: HeaderTypes | None = None) -> HeaderTypes | None:
         """
@@ -459,12 +459,11 @@ class BaseClient:
         url = self._redirect_url(request, response)
         headers = self._redirect_headers(request, url, method)
         stream = self._redirect_stream(request, method)
-        cookies = Cookies(self.cookies)
         return Request(
             method=method,
             url=url,
             headers=headers,
-            cookies=cookies,
+            cookies=self.cookies,
             stream=stream,
             extensions=request.extensions,
         )
@@ -771,7 +770,7 @@ class Client(BaseClient):
         [Merging of configuration][0] for how the various parameters
         are merged with client-level configuration.
 
-        [0]: /advanced/clients/#merging-of-configuration
+        [0]: advanced/clients.md#merging-of-configuration
         """
         if cookies is not None:
             message = (
@@ -822,7 +821,7 @@ class Client(BaseClient):
 
         See also: [Streaming Responses][0]
 
-        [0]: /quickstart#streaming-responses
+        [0]: quickstart.md#streaming-responses
         """
         request = self.build_request(
             method=method,
@@ -965,7 +964,7 @@ class Client(BaseClient):
 
         See also: [Request instances][0]
 
-        [0]: /advanced/clients/#request-instances
+        [0]: advanced/clients.md#request-instances
         """
         if self._state == ClientState.CLOSED:
             raise RuntimeError("Cannot send a request, as the client has been closed.")
@@ -1608,7 +1607,7 @@ class AsyncClient(BaseClient):
         and [Merging of configuration][0] for how the various parameters
         are merged with client-level configuration.
 
-        [0]: /advanced/clients/#merging-of-configuration
+        [0]: advanced/clients.md#merging-of-configuration
         """
 
         if cookies is not None:  # pragma: no cover
@@ -1660,7 +1659,7 @@ class AsyncClient(BaseClient):
 
         See also: [Streaming Responses][0]
 
-        [0]: /quickstart#streaming-responses
+        [0]: quickstart.md#streaming-responses
         """
         request = self.build_request(
             method=method,
@@ -1803,7 +1802,7 @@ class AsyncClient(BaseClient):
 
         See also: [Request instances][0]
 
-        [0]: /advanced/clients/#request-instances
+        [0]: advanced/clients.md#request-instances
         """
         if self._state == ClientState.CLOSED:
             raise RuntimeError("Cannot send a request, as the client has been closed.")

@@ -108,6 +108,31 @@ def test_logging_redirect_chain(server: TestServer, caplog: pytest.LogCaptureFix
         ({"no_proxy": "127.0.0.1"}, {"all://127.0.0.1": None}),
         ({"no_proxy": "192.168.0.0/16"}, {"all://192.168.0.0/16": None}),
         ({"no_proxy": "::1"}, {"all://[::1]": None}),
+        ({"no_proxy": "[::1]"}, {"all://[::1]": None}),
+        ({"no_proxy": "[::1]:8080"}, {"all://[::1]:8080": None}),
+        ({"no_proxy": "[::1]/128"}, {"all://[::1]/128": None}),
+        ({"no_proxy": "[::1,foo:bar,github.com"}, {"all://*github.com": None}),
+        (
+            {
+                "no_proxy": ",".join(
+                    [
+                        "192.168.0.0/33",
+                        "[::1]/129",
+                        "127.0.0.1//0",
+                        "127.0.0.1:8080/8",
+                        "127.0.0.1/8/../0",
+                        "127.0.0.1/255.0.0.0",
+                        "10.0.0.0/8?x",
+                        "10.0.0.0/8?",
+                        "10.0.0.0/8#",
+                        "user@10.0.0.0/8",
+                        "[fe80::1%eth0]/128",
+                        "github.com",
+                    ]
+                )
+            },
+            {"all://*github.com": None},
+        ),
         ({"no_proxy": "fe11::/16"}, {"all://[fe11::]/16": None}),
         ({"no_proxy": "localhost"}, {"all://localhost": None}),
         ({"no_proxy": "github.com"}, {"all://*github.com": None}),
@@ -136,6 +161,16 @@ def test_get_environment_proxies(environment: dict[str, str], proxies: dict[str,
         ("http://", "https://example.com", False),
         ("all://", "https://example.com:123", True),
         ("", "https://example.com:123", True),
+        ("all://192.168.0.0/16", "http://192.168.5.10", True),
+        ("all://192.168.0.0/16", "http://192.168.5.10:8080", True),
+        ("all://192.168.0.0/16", "http://10.0.0.1", False),
+        ("all://192.168.0.0/16", "http://example.com", False),
+        ("all://[::1]/128", "http://[::1]", True),
+        ("all://[::1]/128", "http://[::1]:8080", True),
+        ("all://[::1]/128", "http://[::2]", False),
+        ("all://192.168.0.0.0/16", "http://192.168.4.5", False),  # Invalid CIDR
+        ("all://[fe11::]/16", "http://[fe11:1234::5]", True),
+        ("all://192.168.0.10/16", "http://192.168.5.10", True),  # host bits set
     ],
 )
 def test_url_matches(pattern: str, url: str, expected: bool) -> None:
@@ -149,11 +184,21 @@ def test_pattern_priority() -> None:
         URLPattern("http://"),
         URLPattern("http://example.com"),
         URLPattern("http://example.com:123"),
+        URLPattern("all://192.168.1.10"),
+        URLPattern("all://[::]/8"),  # 2**120 addresses
+        URLPattern("all://192.168.1.0/24"),  # 256 addresses
+        URLPattern("all://192.168.1.0/23"),  # 512 addresses
+        URLPattern("all://[::]/126"),  # 4 addresses
     ]
     random.shuffle(matchers)
     assert sorted(matchers) == [
         URLPattern("http://example.com:123"),
+        URLPattern("all://192.168.1.10"),
         URLPattern("http://example.com"),
+        URLPattern("all://[::]/126"),
+        URLPattern("all://192.168.1.0/24"),
+        URLPattern("all://192.168.1.0/23"),
+        URLPattern("all://[::]/8"),
         URLPattern("http://"),
         URLPattern("all://"),
     ]

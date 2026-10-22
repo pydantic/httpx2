@@ -457,6 +457,7 @@ def test_multipart_rewinds_files() -> None:
         files = {"file": upload}
         response = client.post("http://127.0.0.1:8000/", files=files)
         assert response.status_code == 200
+        assert int(response.request.headers["Content-Length"]) == len(response.content)
         assert b"\r\nHello, world!\r\n" in response.content
 
 

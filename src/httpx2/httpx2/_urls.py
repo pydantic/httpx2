@@ -34,7 +34,7 @@ class URL:
     assert url.port == 1234
     assert url.netloc == b"xn--mller-kva.de:1234"
     assert url.path == "/pa th"
-    assert url.query == b"?search=ab"
+    assert url.query == b"search=ab"
     assert url.raw_path == b"/pa%20th?search=ab"
     assert url.fragment == "anchorlink"
 

@@ -1,4 +1,7 @@
+import gzip
 import io
+import os
+import tempfile
 import typing
 
 import pytest
@@ -65,6 +68,52 @@ async def test_bytesio_content() -> None:
 
     assert request.headers == {"Host": "www.example.com", "Content-Length": "13"}
     assert content == b"Hello, world!"
+
+
+def test_file_content() -> None:
+    with tempfile.TemporaryFile() as file:
+        file.write(b"0123456789")
+        file.seek(4)
+
+        request = httpx2.Request(method, url, content=file)
+        assert file.tell() == 4
+        assert request.headers["Content-Length"] == "6"
+        assert request.read() == b"456789"
+
+        request = httpx2.Request(method, url, content=file)
+        assert file.tell() == 10
+        assert request.headers["Content-Length"] == "0"
+        assert request.read() == b""
+
+        file.seek(15)
+        request = httpx2.Request(method, url, content=file)
+        assert file.tell() == 15
+        assert request.headers["Content-Length"] == "0"
+        assert request.read() == b""
+
+
+def test_gzip_file_content() -> None:
+    content = b"0123456789" * 100
+    with tempfile.TemporaryFile() as raw:
+        raw.write(gzip.compress(content))
+        raw.seek(0)
+        with gzip.GzipFile(fileobj=raw, mode="rb") as file:
+            file.read(4)
+            request = httpx2.Request(method, url, content=file)
+            assert file.tell() == 4
+            assert request.headers["Content-Length"] == str(len(content) - 4)
+            assert request.read() == content[4:]
+
+
+def test_non_seekable_file_content() -> None:
+    read_fd, write_fd = os.pipe()
+    with os.fdopen(read_fd, "rb") as file:
+        with os.fdopen(write_fd, "wb") as writer:
+            writer.write(b"0123456789")
+        request = httpx2.Request(method, url, content=file)
+        assert request.headers["Transfer-Encoding"] == "chunked"
+        assert "Content-Length" not in request.headers
+        assert request.read() == b"0123456789"
 
 
 @pytest.mark.anyio
