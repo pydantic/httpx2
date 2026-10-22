@@ -308,7 +308,7 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
         Will read more data from the network if required.
         """
         while not self._events.get(stream_id):
-            await self._receive_events(request, stream_id)
+            await self._receive_events(request, stream_id, pending=lambda: bool(self._events.get(stream_id)))
         event = self._events[stream_id].pop(0)
         if isinstance(event, h2.events.StreamReset):
             raise RemoteProtocolError(event)
@@ -317,12 +317,14 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
     async def _receive_events(
         self,
         request: Request,
-        stream_id: int | None = None,
-        awaiting_flow_on: int | None = None,
+        stream_id: int | None,
+        pending: typing.Callable[[], bool],
     ) -> None:
         """
-        Read some data from the network until we see one or more events
-        for a given stream ID.
+        Read some data from the network unless `pending()` is already satisfied.
+
+        `pending` is re-checked under the read lock, since another task may have
+        received the awaited event while this one was queued for the lock.
         """
         async with self._read_lock:
             if self._connection_terminated is not None:
@@ -332,39 +334,30 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
                     raise ConnectionNotAvailable()
                 raise RemoteProtocolError(self._connection_terminated)
 
-            # Another task may have received the WINDOW_UPDATE while this task
-            # was queued for the read lock. Avoid blocking on a redundant read.
-            if awaiting_flow_on is not None and self._h2_state.local_flow_control_window(awaiting_flow_on) > 0:
+            if pending():
                 return
 
-            # This conditional is a bit icky. We don't want to block reading if we've
-            # actually got an event to return for a given stream. We need to do that
-            # check *within* the atomic read lock. Though it also need to be optional,
-            # because when we call it from `_wait_for_outgoing_flow` we *do* want to
-            # block until we've available flow control, event when we have events
-            # pending for the stream ID we're attempting to send on.
-            if stream_id is None or not self._events.get(stream_id):
-                events = await self._read_incoming_data(request)
-                for event in events:
-                    if isinstance(event, h2.events.RemoteSettingsChanged):
-                        async with Trace("receive_remote_settings", logger, request) as trace:
-                            await self._receive_remote_settings_change(event)
-                            trace.return_value = event
+            events = await self._read_incoming_data(request)
+            for event in events:
+                if isinstance(event, h2.events.RemoteSettingsChanged):
+                    async with Trace("receive_remote_settings", logger, request) as trace:
+                        await self._receive_remote_settings_change(event)
+                        trace.return_value = event
 
-                    elif isinstance(
-                        event,
-                        (
-                            h2.events.ResponseReceived,
-                            h2.events.DataReceived,
-                            h2.events.StreamEnded,
-                            h2.events.StreamReset,
-                        ),
-                    ):
-                        if event.stream_id in self._events:
-                            self._events[event.stream_id].append(event)
+                elif isinstance(
+                    event,
+                    (
+                        h2.events.ResponseReceived,
+                        h2.events.DataReceived,
+                        h2.events.StreamEnded,
+                        h2.events.StreamReset,
+                    ),
+                ):
+                    if event.stream_id in self._events:
+                        self._events[event.stream_id].append(event)
 
-                    elif isinstance(event, h2.events.ConnectionTerminated):
-                        self._connection_terminated = event
+                elif isinstance(event, h2.events.ConnectionTerminated):
+                    self._connection_terminated = event
 
         await self._write_outgoing_data(request)
 
@@ -475,7 +468,9 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
         max_frame_size: int = self._h2_state.max_outbound_frame_size
         flow = min(local_flow, max_frame_size)
         while flow <= 0:
-            await self._receive_events(request, awaiting_flow_on=stream_id)
+            await self._receive_events(
+                request, None, pending=lambda: self._h2_state.local_flow_control_window(stream_id) > 0
+            )
             local_flow = self._h2_state.local_flow_control_window(stream_id)
             max_frame_size = self._h2_state.max_outbound_frame_size
             flow = min(local_flow, max_frame_size)
