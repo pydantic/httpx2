@@ -119,7 +119,8 @@ def test_setting_client_cookies_to_cookiejar() -> None:
 
 def test_client_cookie_policy_is_respected() -> None:
     """
-    The cookie policy of the client's `CookieJar` applies to outgoing requests.
+    The cookie policy of the client's `CookieJar` applies to outgoing requests,
+    including when per-request cookies are merged into a copy of the client's cookies.
     """
     policy = DefaultCookiePolicy(blocked_domains=["example.org"])
     cookies = httpx2.Cookies(CookieJar(policy=policy))
@@ -130,6 +131,12 @@ def test_client_cookie_policy_is_respected() -> None:
 
     assert response.status_code == 200
     assert response.json() == {"cookies": None}
+
+    with pytest.warns(DeprecationWarning):
+        response = client.get("http://example.org/echo_cookies", cookies={"other-name": "other-value"})
+
+    assert response.status_code == 200
+    assert response.json() == {"cookies": "other-name=other-value"}
 
 
 def test_set_cookie_with_cookies_model() -> None:
