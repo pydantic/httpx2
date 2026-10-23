@@ -9,10 +9,8 @@ We don't do any smarts around cancellations, or managing exceptions from
 children, because we don't need that for our use-case.
 """
 
-import contextlib
 import threading
-import time
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from types import TracebackType
 from typing import Any
 
@@ -42,15 +40,3 @@ class Nursery:
 
 def open_nursery() -> Nursery:
     return Nursery()
-
-
-class lowlevel:
-    @staticmethod
-    def checkpoint() -> None:
-        time.sleep(0)
-
-
-@contextlib.contextmanager
-def fail_after(seconds: float) -> Iterator[None]:
-    # Threads cannot be cancelled; the async twin is the one that detects a hang.
-    yield

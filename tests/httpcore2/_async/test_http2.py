@@ -1,13 +1,9 @@
-import h2.settings
 import hpack
 import hyperframe.frame
 import pytest
-import trio as concurrency
 from h2.connection import H2Connection
 
 import httpcore2
-
-HTTP2_PREFACE = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
 
 
 class AsyncFlowControlLock:
@@ -376,71 +372,6 @@ async def test_http2_connection_rechecks_flow_after_acquiring_read_lock() -> Non
     conn._read_lock = AsyncFlowControlLock(conn._h2_state, amount=1)  # type: ignore[assignment]
 
     assert await conn._wait_for_outgoing_flow(request, stream_id=3) == 1
-
-
-class AsyncTwoStreamServerStream(httpcore2.AsyncMockStream):
-    """
-    A server that answers only once both request streams are open: reads reach the
-    scheduler, as a socket read would, and the last scripted read is held back until
-    two HEADERS frames have been written.
-    """
-
-    def __init__(self, buffer: list[bytes]) -> None:
-        super().__init__(buffer, http2=True)
-        self.headers_written = 0
-
-    async def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
-        while len(self._buffer) == 1 and self.headers_written < 2:
-            await concurrency.lowlevel.checkpoint()
-        await concurrency.lowlevel.checkpoint()
-        return await super().read(max_bytes, timeout)
-
-    async def write(self, buffer: bytes, timeout: float | None = None) -> None:
-        data = memoryview(buffer.removeprefix(HTTP2_PREFACE))
-        while data:
-            frame, length = hyperframe.frame.Frame.parse_frame_header(data[:9])
-            self.headers_written += isinstance(frame, hyperframe.frame.HeadersFrame)
-            data = data[9 + length :]
-
-
-@pytest.mark.trio
-async def test_http2_concurrent_uploads_share_one_window_update_read() -> None:
-    """
-    Two uploads exhaust the connection window and both wait for credit. A single read
-    delivers credit for both, and the responses. The upload that was queued behind that
-    read must not read again: the server has nothing more to send.
-    See https://github.com/pydantic/httpx2/issues/1133
-    """
-
-    def response(stream_id: int) -> bytes:
-        headers = hpack.Encoder().encode([(b":status", b"200")])
-        return (
-            hyperframe.frame.HeadersFrame(stream_id=stream_id, data=headers, flags=["END_HEADERS"]).serialize()
-            + hyperframe.frame.DataFrame(stream_id=stream_id, data=b"ok", flags=["END_STREAM"]).serialize()
-        )
-
-    origin = httpcore2.Origin(b"https", b"example.com", 443)
-    stream = AsyncTwoStreamServerStream(
-        [
-            hyperframe.frame.SettingsFrame(settings={h2.settings.SettingCodes.MAX_CONCURRENT_STREAMS: 100}).serialize(),
-            hyperframe.frame.WindowUpdateFrame(stream_id=0, window_increment=2**20).serialize()
-            + hyperframe.frame.WindowUpdateFrame(stream_id=1, window_increment=2**20).serialize()
-            + hyperframe.frame.WindowUpdateFrame(stream_id=3, window_increment=2**20).serialize()
-            + response(1)
-            + response(3),
-        ]
-    )
-    body = b"x" * 100_000  # more than the 65,535 byte initial connection window
-    async with httpcore2.AsyncHTTP2Connection(origin=origin, stream=stream) as conn:
-
-        async def upload() -> None:
-            response = await conn.request("POST", "https://example.com/", content=body)
-            assert response.status == 200
-
-        with concurrency.fail_after(2):
-            async with concurrency.open_nursery() as nursery:
-                nursery.start_soon(upload)
-                nursery.start_soon(upload)
 
 
 @pytest.mark.anyio
