@@ -11,6 +11,7 @@ import chardet
 import pytest
 
 import httpx2
+from httpx2._decoders import _brotli_supports_output_buffer_limit
 
 if sys.version_info >= (3, 14):  # pragma: no cover
     from compression import zstd
@@ -107,6 +108,28 @@ def test_brotli() -> None:
         content=compressed_body,
     )
     assert response.content == body
+
+
+class _OldBrotliDecompressor:
+    process = staticmethod(lambda data: data)
+
+
+class _OldBrotli:
+    Decompressor = _OldBrotliDecompressor
+
+
+class _OldBrotliCFFIDecompressor:
+    decompress = staticmethod(lambda data: data)
+
+
+class _OldBrotliCFFI:
+    Decompressor = _OldBrotliCFFIDecompressor
+
+
+def test_brotli_supports_output_buffer_limit() -> None:
+    assert _brotli_supports_output_buffer_limit(brotli)
+    assert not _brotli_supports_output_buffer_limit(_OldBrotli)
+    assert not _brotli_supports_output_buffer_limit(_OldBrotliCFFI)
 
 
 @pytest.mark.parametrize(("encoding", "compress"), [(b"br", brotli.compress), (b"zstd", zstd.compress)])

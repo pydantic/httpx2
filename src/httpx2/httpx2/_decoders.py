@@ -28,6 +28,25 @@ except ImportError:  # pragma: no cover
         brotli = None
 
 
+def _brotli_supports_output_buffer_limit(module: typing.Any) -> bool:
+    """
+    `BrotliDecoder` passes `output_buffer_limit`, which was added in Brotli 1.2.0
+    and brotlicffi 1.2.0.0. The `brotli` extra requires those versions, but an older
+    release can still be importable when httpx2 is installed without the extra.
+    """
+    decompressor = module.Decompressor()
+    method = getattr(decompressor, "decompress", None) or decompressor.process
+    try:
+        method(b"", output_buffer_limit=1)
+    except TypeError:
+        return False
+    return True
+
+
+if brotli is not None and not _brotli_supports_output_buffer_limit(brotli):  # pragma: no cover
+    brotli = None
+
+
 # Zstandard support is optional on Python <= 3.13.
 # On Python 3.14+, the stdlib includes an optional built-in zstd implementation.
 if typing.TYPE_CHECKING:
