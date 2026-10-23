@@ -222,6 +222,13 @@ def test_path_query_fragment(url: str, raw_path: bytes, path: str, query: bytes,
     assert parsed.fragment == fragment
 
 
+def test_url_percent_encodes_pipe_in_path() -> None:
+    url = httpx2.URL("https://example.com/|")
+
+    assert url.raw_path == b"/%7C"
+    assert str(url) == "https://example.com/%7C"
+
+
 def test_url_query_encoding() -> None:
     url = httpx2.URL("https://www.example.com/?a=b c&d=e/f")
     assert url.raw_path == b"/?a=b%20c&d=e/f"
