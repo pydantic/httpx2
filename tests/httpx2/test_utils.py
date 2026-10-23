@@ -137,6 +137,8 @@ def test_logging_redirect_chain(server: TestServer, caplog: pytest.LogCaptureFix
         ({"no_proxy": "localhost"}, {"all://localhost": None}),
         ({"no_proxy": "github.com"}, {"all://*github.com": None}),
         ({"no_proxy": ".github.com"}, {"all://*.github.com": None}),
+        ({"no_proxy": "*.github.com"}, {"all://*.github.com": None}),
+        ({"no_proxy": "*.github.com/path"}, {}),
         ({"no_proxy": "http://github.com"}, {"http://github.com": None}),
     ],
 )
