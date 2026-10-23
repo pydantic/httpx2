@@ -228,7 +228,8 @@ def print_kpis(
     specs: list[ScenarioSpec], columns: list[str], results: dict[tuple[str, str], list[dict[str, Any]]]
 ) -> None:
     get_1k = sorted(
-        (s for s in specs if s.size == 1024 and not (s.post or s.upload or s.http2)), key=lambda s: s.concurrency
+        (s for s in specs if s.size == 1024 and not (s.post or s.upload or s.http2 or s.batch)),
+        key=lambda s: s.concurrency,
     )
     if not get_1k:
         return
