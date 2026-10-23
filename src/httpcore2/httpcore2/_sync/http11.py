@@ -322,8 +322,15 @@ class HTTP11ConnectionByteStream:
     def close(self) -> None:
         if not self._closed:
             self._closed = True
-            with Trace("response_closed", logger, self._request):
-                self._connection._response_closed()
+            try:
+                with Trace("response_closed", logger, self._request):
+                    self._connection._response_closed()
+            except BaseException:
+                # If response cleanup is interrupted, do not leave an ACTIVE connection.
+                # Make the connection terminal before the pool releases its request.
+                with ShieldCancellation():
+                    self._connection.close()
+                raise
 
 
 class HTTP11UpgradeStream(NetworkStream):
