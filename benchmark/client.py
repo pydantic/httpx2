@@ -13,7 +13,8 @@ Modes:
 By default each worker issues requests back to back. With `--batch`, all workers start a request together
 and the next batch begins only when every request in the current one has finished, as in a fan-out. The
 difference matters for HTTP/2: a stream that is left alone on a connection cannot rely on other streams
-to wake it up. Requests that fail are counted in `errors` instead of ending the run.
+to wake it up. Requests that fail are counted in `errors` and left out of rps and latency, instead of
+ending the run.
 """
 
 from __future__ import annotations
@@ -231,6 +232,11 @@ BUILDERS: dict[str, Builder] = {
 
 
 async def drive(one: RequestFn, concurrency: int, seconds: float, batch: bool) -> tuple[list[float], int]:
+    """
+    Run requests until `seconds` have elapsed, and at least one per worker.
+
+    Returns the latencies of successful requests and the number of failed ones.
+    """
     deadline = time.perf_counter() + seconds
     latencies: list[float] = []
     errors = 0
@@ -242,6 +248,7 @@ async def drive(one: RequestFn, concurrency: int, seconds: float, batch: bool) -
             await one()
         except Exception:
             errors += 1
+            return time.perf_counter()
         end = time.perf_counter()
         latencies.append(end - start)
         return end
@@ -251,8 +258,10 @@ async def drive(one: RequestFn, concurrency: int, seconds: float, batch: bool) -
             pass
 
     if batch:
-        while time.perf_counter() < deadline:
+        while True:
             await asyncio.gather(*(timed() for _ in range(concurrency)))
+            if time.perf_counter() >= deadline:
+                break
     else:
         await asyncio.gather(*(worker() for _ in range(concurrency)))
     return latencies, errors
@@ -269,7 +278,7 @@ async def run_scenario(
     one, aclose = BUILDERS[scenario.lib](scenario, payload)
     try:
         # Establish `concurrency` connections, then run unmeasured for a while.
-        await asyncio.gather(*(one() for _ in range(scenario.concurrency)))
+        await drive(one, scenario.concurrency, 0.0, batch=True)
         await drive(one, scenario.concurrency, warmup_seconds, scenario.batch)
 
         profiler = None
@@ -292,6 +301,8 @@ async def run_scenario(
     finally:
         await aclose()
 
+    if not latencies:
+        raise RuntimeError(f"All {errors} requests failed.")
     latencies.sort()
     count = len(latencies)
     return {

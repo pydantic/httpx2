@@ -32,7 +32,7 @@ A scenario is `c<concurrency>/<size>` plus optional flags:
 `upload/h2/batch` is the shape of [#1133](https://github.com/pydantic/httpx2/issues/1133): a fan-out of
 uploads over one HTTP/2 connection, where the last stream to finish has no other stream's frames to
 wake it. A stall there surfaces as failed requests after `--read-timeout` (default 10 s) and a collapse
-in rps, rather than as a crashed run.
+in rps, rather than as a crashed run. `rps` and the latency percentiles count successful requests only.
 
 ## Comparing two revisions
 
