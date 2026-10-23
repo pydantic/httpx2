@@ -21,6 +21,22 @@ from ._utils import primitive_value_to_str
 __all__ = ["URL", "Origin", "QueryParams"]
 
 
+def _url_to_host_header(url: URL) -> bytes:
+    """Return the HTTP Host header value for a URL.
+
+    IPv6 zone identifiers identify a local interface for the connection, but
+    are not part of the HTTP authority. Keep them in ``URL.netloc`` so that
+    URL and transport handling retain the connection scope.
+    """
+    netloc = url.netloc
+    if netloc.startswith(b"["):
+        closing_bracket = netloc.find(b"]")
+        if closing_bracket != -1:
+            host = netloc[1:closing_bracket].split(b"%", 1)[0]
+            return b"[" + host + netloc[closing_bracket:]
+    return netloc
+
+
 class URL:
     """
     url = httpx2.URL("HTTPS://jo%40email.com:a%20secret@müller.de:1234/pa%20th?search=ab#anchorlink")
