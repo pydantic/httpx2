@@ -250,7 +250,11 @@ class HTTP2Connection(ConnectionInterface):
         with safe_iterate(request.stream) as iterator:
             for chunk in iterator:
                 if not self._send_stream_data(request, stream_id, chunk):
-                    self._abandon_request_body(request, stream_id)
+                    # The server completed its response before the upload finished. Close the
+                    # stream without error, unless the server already reset it. RFC 9113 §8.1
+                    if not any(isinstance(event, h2.events.StreamReset) for event in self._events[stream_id]):
+                        self._h2_state.reset_stream(stream_id, h2.errors.ErrorCodes.NO_ERROR)
+                        self._write_outgoing_data(request)
                     return
 
         self._send_end_stream(request, stream_id)
@@ -271,16 +275,6 @@ class HTTP2Connection(ConnectionInterface):
             self._h2_state.send_data(stream_id, chunk)
             self._write_outgoing_data(request)
         return True
-
-    def _abandon_request_body(self, request: Request, stream_id: int) -> None:
-        """
-        The server completed its response before the upload finished.
-        Close the stream without error, unless the server already reset it.
-        https://www.rfc-editor.org/rfc/rfc9113#section-8.1
-        """
-        if not any(isinstance(event, h2.events.StreamReset) for event in self._events[stream_id]):
-            self._h2_state.reset_stream(stream_id, h2.errors.ErrorCodes.NO_ERROR)
-            self._write_outgoing_data(request)
 
     def _send_end_stream(self, request: Request, stream_id: int) -> None:
         """
@@ -502,7 +496,9 @@ class HTTP2Connection(ConnectionInterface):
         nothing more should be sent on it.
         """
         while True:
-            if self._stream_ended_by_peer(stream_id):
+            if any(
+                isinstance(event, (h2.events.StreamEnded, h2.events.StreamReset)) for event in self._events[stream_id]
+            ):
                 return 0
             local_flow: int = self._h2_state.local_flow_control_window(stream_id)
             max_frame_size: int = self._h2_state.max_outbound_frame_size
@@ -514,11 +510,6 @@ class HTTP2Connection(ConnectionInterface):
                     continue
                 self._receive_events(request)
             self._write_outgoing_data(request)
-
-    def _stream_ended_by_peer(self, stream_id: int) -> bool:
-        return any(
-            isinstance(event, (h2.events.StreamEnded, h2.events.StreamReset)) for event in self._events[stream_id]
-        )
 
     # Interface for connection pooling...
 

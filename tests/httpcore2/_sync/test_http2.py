@@ -200,11 +200,14 @@ def early_response_frames(stream_id: int, status: bytes) -> bytes:
 
 
 def ok_response_frames(stream_id: int) -> bytes:
-    return hyperframe.frame.HeadersFrame(
-        stream_id=stream_id,
-        data=hpack.Encoder().encode([(b":status", b"200")]),
-        flags=["END_HEADERS"],
-    ).serialize() + hyperframe.frame.DataFrame(stream_id=stream_id, data=b"Hello, world!", flags=["END_STREAM"]).serialize()
+    return (
+        hyperframe.frame.HeadersFrame(
+            stream_id=stream_id,
+            data=hpack.Encoder().encode([(b":status", b"200")]),
+            flags=["END_HEADERS"],
+        ).serialize()
+        + hyperframe.frame.DataFrame(stream_id=stream_id, data=b"Hello, world!", flags=["END_STREAM"]).serialize()
+    )
 
 
 class RecordingMockStream(httpcore2.MockStream):
