@@ -319,9 +319,8 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
         """
         while not self._events.get(stream_id):
             async with self._read_lock:
-                if self._events.get(stream_id):
-                    continue
-                await self._receive_events(request, stream_id)
+                if not self._events.get(stream_id):
+                    await self._receive_events(request, stream_id)
             await self._write_outgoing_data(request)
         event = self._events[stream_id].pop(0)
         if isinstance(event, h2.events.StreamReset):
