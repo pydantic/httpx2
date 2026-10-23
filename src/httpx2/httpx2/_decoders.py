@@ -7,6 +7,7 @@ See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Encoding
 from __future__ import annotations
 
 import codecs
+import importlib
 import io
 import itertools
 import sys
@@ -14,18 +15,6 @@ import typing
 import zlib
 
 from ._exceptions import DecodingError
-
-# Brotli support is optional
-try:
-    # The C bindings in `brotli` are recommended for CPython.
-    import brotli
-except ImportError:  # pragma: no cover
-    try:
-        # The CFFI bindings in `brotlicffi` are recommended for PyPy
-        # and other environments.
-        import brotlicffi as brotli
-    except ImportError:
-        brotli = None
 
 
 def _brotli_supports_output_buffer_limit(module: typing.Any) -> bool:
@@ -43,8 +32,25 @@ def _brotli_supports_output_buffer_limit(module: typing.Any) -> bool:
     return True
 
 
-if brotli is not None and not _brotli_supports_output_buffer_limit(brotli):  # pragma: no cover
-    brotli = None
+def _load_brotli(import_module: typing.Callable[[str], typing.Any] = importlib.import_module) -> typing.Any:
+    """
+    Brotli support is optional. Return the first importable binding that supports
+    `output_buffer_limit`, or `None`.
+
+    The C bindings in `brotli` are recommended for CPython, and the CFFI bindings in
+    `brotlicffi` for PyPy and other environments.
+    """
+    for name in ("brotli", "brotlicffi"):
+        try:
+            module = import_module(name)
+        except ImportError:
+            continue
+        if _brotli_supports_output_buffer_limit(module):
+            return module
+    return None
+
+
+brotli = _load_brotli()
 
 
 # Zstandard support is optional on Python <= 3.13.
