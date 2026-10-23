@@ -250,14 +250,18 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
         async with safe_async_iterate(request.stream) as iterator:
             async for chunk in iterator:
                 if not await self._send_stream_data(request, stream_id, chunk):
-                    # The server completed its response before the upload finished. Close the
-                    # stream without error, unless the server already reset it. RFC 9113 §8.1
-                    if not any(isinstance(event, h2.events.StreamReset) for event in self._events[stream_id]):
-                        self._h2_state.reset_stream(stream_id, h2.errors.ErrorCodes.NO_ERROR)
-                        await self._write_outgoing_data(request)
-                    return
+                    break
 
-        await self._send_end_stream(request, stream_id)
+        # The server may complete its response before the upload has finished, in which
+        # case the stream is closed without error, unless the server has already reset it.
+        # https://www.rfc-editor.org/rfc/rfc9113#section-8.1
+        events = self._events[stream_id]
+        last_event = events[-1] if events else None
+        if isinstance(last_event, h2.events.StreamEnded):
+            self._h2_state.reset_stream(stream_id, h2.errors.ErrorCodes.NO_ERROR)
+            await self._write_outgoing_data(request)
+        elif not isinstance(last_event, h2.events.StreamReset):
+            await self._send_end_stream(request, stream_id)
 
     async def _send_stream_data(self, request: Request, stream_id: int, data: bytes) -> bool:
         """
@@ -496,9 +500,9 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
         nothing more should be sent on it.
         """
         while True:
-            if any(
-                isinstance(event, (h2.events.StreamEnded, h2.events.StreamReset)) for event in self._events[stream_id]
-            ):
+            # A stream's terminal event is always the last one queued for it.
+            events = self._events[stream_id]
+            if events and isinstance(events[-1], (h2.events.StreamEnded, h2.events.StreamReset)):
                 return 0
             local_flow: int = self._h2_state.local_flow_control_window(stream_id)
             max_frame_size: int = self._h2_state.max_outbound_frame_size
