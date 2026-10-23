@@ -259,11 +259,15 @@ async def drive(one: RequestFn, concurrency: int, seconds: float, batch: bool) -
 
     if batch:
         while True:
-            await asyncio.gather(*(timed() for _ in range(concurrency)))
+            async with asyncio.TaskGroup() as batch_group:
+                for _ in range(concurrency):
+                    batch_group.create_task(timed())
             if time.perf_counter() >= deadline:
                 break
     else:
-        await asyncio.gather(*(worker() for _ in range(concurrency)))
+        async with asyncio.TaskGroup() as workers:
+            for _ in range(concurrency):
+                workers.create_task(worker())
     return latencies, errors
 
 
