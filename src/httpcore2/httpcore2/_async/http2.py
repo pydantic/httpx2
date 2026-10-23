@@ -9,6 +9,7 @@ from collections.abc import AsyncGenerator
 
 import h2.config
 import h2.connection
+import h2.errors
 import h2.events
 import h2.exceptions
 import h2.settings
@@ -248,20 +249,37 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
         assert isinstance(request.stream, typing.AsyncIterable)
         async with safe_async_iterate(request.stream) as iterator:
             async for chunk in iterator:
-                await self._send_stream_data(request, stream_id, chunk)
+                if not await self._send_stream_data(request, stream_id, chunk):
+                    await self._abandon_request_body(request, stream_id)
+                    return
 
         await self._send_end_stream(request, stream_id)
 
-    async def _send_stream_data(self, request: Request, stream_id: int, data: bytes) -> None:
+    async def _send_stream_data(self, request: Request, stream_id: int, data: bytes) -> bool:
         """
         Send a single chunk of data in one or more data frames.
+
+        Returns `False` if the server ended the stream before the chunk was sent.
         """
         position = 0
         while position < len(data):
             max_flow = await self._wait_for_outgoing_flow(request, stream_id)
+            if max_flow == 0:
+                return False
             chunk = data[position : position + max_flow]
             position += len(chunk)
             self._h2_state.send_data(stream_id, chunk)
+            await self._write_outgoing_data(request)
+        return True
+
+    async def _abandon_request_body(self, request: Request, stream_id: int) -> None:
+        """
+        The server completed its response before the upload finished.
+        Close the stream without error, unless the server already reset it.
+        https://www.rfc-editor.org/rfc/rfc9113#section-8.1
+        """
+        if not any(isinstance(event, h2.events.StreamReset) for event in self._events[stream_id]):
+            self._h2_state.reset_stream(stream_id, h2.errors.ErrorCodes.NO_ERROR)
             await self._write_outgoing_data(request)
 
     async def _send_end_stream(self, request: Request, stream_id: int) -> None:
@@ -479,8 +497,13 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
         If the allowable flow is zero, then waits on the network until
         WindowUpdated frames have increased the flow rate.
         https://tools.ietf.org/html/rfc7540#section-6.9
+
+        Returns zero once the server has ended or reset the stream, since
+        nothing more should be sent on it.
         """
         while True:
+            if self._stream_ended_by_peer(stream_id):
+                return 0
             local_flow: int = self._h2_state.local_flow_control_window(stream_id)
             max_frame_size: int = self._h2_state.max_outbound_frame_size
             flow = min(local_flow, max_frame_size)
@@ -491,6 +514,11 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
                     continue
                 await self._receive_events(request)
             await self._write_outgoing_data(request)
+
+    def _stream_ended_by_peer(self, stream_id: int) -> bool:
+        return any(
+            isinstance(event, (h2.events.StreamEnded, h2.events.StreamReset)) for event in self._events[stream_id]
+        )
 
     # Interface for connection pooling...
 

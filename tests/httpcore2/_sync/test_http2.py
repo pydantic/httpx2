@@ -1,3 +1,6 @@
+import typing
+
+import h2.errors
 import h2.settings
 import hpack
 import hyperframe.frame
@@ -184,6 +187,135 @@ def test_http2_connection_with_rst_stream() -> None:
     with httpcore2.HTTP2Connection(origin=origin, stream=stream) as conn:
         with pytest.raises(httpcore2.RemoteProtocolError):
             conn.request("GET", "https://example.com/")
+        response = conn.request("GET", "https://example.com/")
+        assert response.status == 200
+
+
+def early_response_frames(stream_id: int, status: bytes) -> bytes:
+    return hyperframe.frame.HeadersFrame(
+        stream_id=stream_id,
+        data=hpack.Encoder().encode([(b":status", status)]),
+        flags=["END_HEADERS", "END_STREAM"],
+    ).serialize()
+
+
+def ok_response_frames(stream_id: int) -> bytes:
+    return hyperframe.frame.HeadersFrame(
+        stream_id=stream_id,
+        data=hpack.Encoder().encode([(b":status", b"200")]),
+        flags=["END_HEADERS"],
+    ).serialize() + hyperframe.frame.DataFrame(stream_id=stream_id, data=b"Hello, world!", flags=["END_STREAM"]).serialize()
+
+
+class RecordingMockStream(httpcore2.MockStream):
+    """
+    A mock stream that keeps the frames the client writes, after the connection preface.
+    """
+
+    def __init__(self, buffer: list[bytes]) -> None:
+        super().__init__(buffer, http2=True)
+        self.frames_written: list[hyperframe.frame.Frame] = []
+
+    def write(self, buffer: bytes, timeout: float | None = None) -> None:
+        data = memoryview(buffer.removeprefix(b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"))
+        while data:
+            frame, length = hyperframe.frame.Frame.parse_frame_header(data[:9])
+            frame.parse_body(data[9 : 9 + length])
+            self.frames_written.append(frame)
+            data = data[9 + length :]
+
+
+
+def test_http2_connection_with_early_response() -> None:
+    """
+    A server may answer, and reset the stream with NO_ERROR, before the request body
+    has been fully sent. The client must stop uploading and return that response.
+    https://www.rfc-editor.org/rfc/rfc9113#section-8.1
+    """
+    chunks_sent: list[int] = []
+
+    def body() -> typing.Iterator[bytes]:
+        for index in range(10):
+            chunks_sent.append(index)
+            yield b"x" * 20_000  # 200,000 bytes in total, more than the 65,535 byte initial window.
+
+    origin = httpcore2.Origin(b"https", b"example.com", 443)
+    stream = httpcore2.MockStream(
+        [
+            hyperframe.frame.SettingsFrame().serialize(),
+            early_response_frames(stream_id=1, status=b"413")
+            + hyperframe.frame.RstStreamFrame(stream_id=1, error_code=h2.errors.ErrorCodes.NO_ERROR).serialize(),
+            ok_response_frames(stream_id=3),
+        ]
+    )
+    with httpcore2.HTTP2Connection(origin=origin, stream=stream) as conn:
+        response = conn.request("POST", "https://example.com/", content=body())
+        assert response.status == 413
+        assert len(chunks_sent) < 10
+
+        # The connection remains usable for other requests.
+        response = conn.request("GET", "https://example.com/")
+        assert response.status == 200
+        assert response.content == b"Hello, world!"
+
+
+
+def test_http2_connection_with_early_response_without_stream_reset() -> None:
+    """
+    If the server completes its response without resetting the stream, the client
+    closes the stream itself with RST_STREAM(NO_ERROR), rather than finishing the upload.
+    """
+
+    def body() -> typing.Iterator[bytes]:
+        for _ in range(10):
+            yield b"x" * 20_000
+
+    origin = httpcore2.Origin(b"https", b"example.com", 443)
+    stream = RecordingMockStream(
+        [
+            hyperframe.frame.SettingsFrame().serialize(),
+            early_response_frames(stream_id=1, status=b"413"),
+            ok_response_frames(stream_id=3),
+        ]
+    )
+    with httpcore2.HTTP2Connection(origin=origin, stream=stream) as conn:
+        response = conn.request("POST", "https://example.com/", content=body())
+        assert response.status == 413
+
+        resets = [frame for frame in stream.frames_written if isinstance(frame, hyperframe.frame.RstStreamFrame)]
+        assert [(frame.stream_id, frame.error_code) for frame in resets] == [(1, h2.errors.ErrorCodes.NO_ERROR)]
+        assert not any(
+            isinstance(frame, hyperframe.frame.DataFrame) and "END_STREAM" in frame.flags
+            for frame in stream.frames_written
+        )
+
+        response = conn.request("GET", "https://example.com/")
+        assert response.status == 200
+
+
+
+def test_http2_connection_with_stream_reset_during_upload() -> None:
+    """
+    A stream reset with an error code during the upload is reported as a remote
+    protocol error, and the connection remains usable.
+    """
+
+    def body() -> typing.Iterator[bytes]:
+        for _ in range(10):
+            yield b"x" * 20_000
+
+    origin = httpcore2.Origin(b"https", b"example.com", 443)
+    stream = httpcore2.MockStream(
+        [
+            hyperframe.frame.SettingsFrame().serialize(),
+            hyperframe.frame.RstStreamFrame(stream_id=1, error_code=h2.errors.ErrorCodes.REFUSED_STREAM).serialize(),
+            ok_response_frames(stream_id=3),
+        ]
+    )
+    with httpcore2.HTTP2Connection(origin=origin, stream=stream) as conn:
+        with pytest.raises(httpcore2.RemoteProtocolError):
+            conn.request("POST", "https://example.com/", content=body())
+
         response = conn.request("GET", "https://example.com/")
         assert response.status == 200
 
