@@ -11,6 +11,7 @@ import chardet
 import pytest
 
 import httpx2
+from httpx2._decoders import _brotli_supports_output_buffer_limit, _load_brotli
 
 if sys.version_info >= (3, 14):  # pragma: no cover
     from compression import zstd
@@ -107,6 +108,57 @@ def test_brotli() -> None:
         content=compressed_body,
     )
     assert response.content == body
+
+
+class _OldBrotliDecompressor:
+    process = staticmethod(lambda data: data)
+
+
+class _OldBrotli:
+    Decompressor = _OldBrotliDecompressor
+
+
+class _OldBrotliCFFIDecompressor:
+    decompress = staticmethod(lambda data: data)
+
+
+class _OldBrotliCFFI:
+    Decompressor = _OldBrotliCFFIDecompressor
+
+
+def test_brotli_supports_output_buffer_limit() -> None:
+    assert _brotli_supports_output_buffer_limit(brotli)
+    assert not _brotli_supports_output_buffer_limit(_OldBrotli)
+    assert not _brotli_supports_output_buffer_limit(_OldBrotliCFFI)
+
+
+def _fake_import(modules: dict[str, typing.Any]) -> typing.Callable[[str], typing.Any]:
+    def import_module(name: str) -> typing.Any:
+        if name not in modules:
+            raise ImportError(name)
+        return modules[name]
+
+    return import_module
+
+
+def test_load_brotli_prefers_brotli() -> None:
+    assert _load_brotli(_fake_import({"brotli": brotli, "brotlicffi": _OldBrotliCFFI})) is brotli
+
+
+def test_load_brotli_falls_back_to_brotlicffi_when_brotli_is_too_old() -> None:
+    assert _load_brotli(_fake_import({"brotli": _OldBrotli, "brotlicffi": brotli})) is brotli
+
+
+@pytest.mark.parametrize(
+    "modules",
+    [
+        {},
+        {"brotli": _OldBrotli},
+        {"brotli": _OldBrotli, "brotlicffi": _OldBrotliCFFI},
+    ],
+)
+def test_load_brotli_returns_none_without_a_supported_binding(modules: dict[str, typing.Any]) -> None:
+    assert _load_brotli(_fake_import(modules)) is None
 
 
 @pytest.mark.parametrize(("encoding", "compress"), [(b"br", brotli.compress), (b"zstd", zstd.compress)])
