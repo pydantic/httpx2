@@ -977,29 +977,12 @@ class Response:
                 self._content = b"".join([part async for part in parts])
         return self._content
 
-    async def aiter_bytes(self, chunk_size: int | None = None) -> typing.AsyncGenerator[bytes, None]:
+    def aiter_bytes(self, chunk_size: int | None = None) -> typing.AsyncGenerator[bytes, None]:
         """
         A byte-iterator over the decoded response content.
         This allows us to handle gzip, deflate, brotli, and zstd encoded responses.
         """
-        if hasattr(self, "_content"):
-            chunk_size = len(self._content) if chunk_size is None else chunk_size
-            for i in range(0, len(self._content), max(chunk_size, 1)):
-                yield self._content[i : i + chunk_size]
-        else:
-            decoder = self._get_content_decoder()
-            chunker = ByteChunker(chunk_size=chunk_size)
-            with request_context(request=self._request):
-                async with contextlib.aclosing(self.aiter_raw()) as raw_stream:
-                    async for raw_bytes in raw_stream:
-                        for decoded in decoder.decode(raw_bytes):
-                            for chunk in chunker.decode(decoded):
-                                yield chunk
-                for decoded in decoder.flush():
-                    for chunk in chunker.decode(decoded):
-                        yield chunk  # pragma: no cover
-                for chunk in chunker.flush():
-                    yield chunk
+        return self._aiter_stream(chunk_size, decode=True)
 
     async def aiter_text(self, chunk_size: int | None = None) -> typing.AsyncIterator[str]:
         """
@@ -1029,10 +1012,20 @@ class Response:
             for line in decoder.flush():
                 yield line
 
-    async def aiter_raw(self, chunk_size: int | None = None) -> typing.AsyncGenerator[bytes, None]:
+    def aiter_raw(self, chunk_size: int | None = None) -> typing.AsyncGenerator[bytes, None]:
         """
         A byte-iterator over the raw response content.
         """
+        return self._aiter_stream(chunk_size, decode=False)
+
+    # Shared, not nested: asyncio closes all async generators concurrently at shutdown, so nesting races.
+    async def _aiter_stream(self, chunk_size: int | None, decode: bool) -> typing.AsyncGenerator[bytes, None]:
+        if decode and hasattr(self, "_content"):
+            chunk_size = len(self._content) if chunk_size is None else chunk_size
+            for i in range(0, len(self._content), max(chunk_size, 1)):
+                yield self._content[i : i + chunk_size]
+            return
+        decoder = self._get_content_decoder() if decode else IdentityDecoder()
         if self.is_stream_consumed:
             raise StreamConsumed()
         if self.is_closed:
@@ -1048,12 +1041,17 @@ class Response:
         try:
             with request_context(request=self._request):
                 async for raw_stream_bytes in stream:
+                    if not raw_stream_bytes:
+                        continue  # an empty first chunk would defeat `DeflateDecoder`'s raw-deflate fallback
                     self._num_bytes_downloaded += len(raw_stream_bytes)
-                    for chunk in chunker.decode(raw_stream_bytes):
-                        yield chunk
-
-            for chunk in chunker.flush():
-                yield chunk
+                    for decoded in decoder.decode(raw_stream_bytes):
+                        for chunk in chunker.decode(decoded):
+                            yield chunk
+                for decoded in decoder.flush():
+                    for chunk in chunker.decode(decoded):
+                        yield chunk  # pragma: no cover
+                for chunk in chunker.flush():
+                    yield chunk
         finally:
             if isinstance(stream, AsyncGenerator):
                 await stream.aclose()
