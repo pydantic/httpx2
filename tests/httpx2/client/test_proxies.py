@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ssl
 import typing
 
 import pytest
@@ -318,3 +319,48 @@ def test_scheme_mount_takes_priority_over_equal_network_mount() -> None:
 def test_mount_with_invalid_network() -> None:
     with pytest.raises(httpx2.InvalidURL):
         httpx2.Client(mounts={"all://127.0.0.1:8080/8": httpx2.HTTPTransport()})
+
+
+@pytest.mark.parametrize(
+    "transport_class, pool_class",
+    [
+        (httpx2.HTTPTransport, httpcore2.HTTPProxy),
+        (httpx2.AsyncHTTPTransport, httpcore2.AsyncHTTPProxy),
+    ],
+)
+def test_https_proxy_uses_verify_ssl_context(
+    transport_class: type[httpx2.HTTPTransport | httpx2.AsyncHTTPTransport],
+    pool_class: type[httpcore2.HTTPProxy | httpcore2.AsyncHTTPProxy],
+) -> None:
+    ssl_context = ssl.create_default_context()
+    transport = transport_class(proxy="https://127.0.0.1", verify=ssl_context)
+
+    assert isinstance(transport._pool, pool_class)
+    assert transport._pool._proxy_ssl_context is ssl_context
+
+
+def test_client_https_proxy_uses_verify_ssl_context() -> None:
+    ssl_context = ssl.create_default_context()
+    client = httpx2.Client(proxy="https://127.0.0.1", verify=ssl_context)
+
+    transport = client._transport_for_url(httpx2.URL("https://example.com"))
+    assert isinstance(transport, httpx2.HTTPTransport)
+    assert isinstance(transport._pool, httpcore2.HTTPProxy)
+    assert transport._pool._proxy_ssl_context is ssl_context
+
+
+def test_https_proxy_explicit_ssl_context_takes_priority() -> None:
+    ssl_context = ssl.create_default_context()
+    proxy_ssl_context = ssl.create_default_context()
+    proxy = httpx2.Proxy("https://127.0.0.1", ssl_context=proxy_ssl_context)
+    transport = httpx2.HTTPTransport(proxy=proxy, verify=ssl_context)
+
+    assert isinstance(transport._pool, httpcore2.HTTPProxy)
+    assert transport._pool._proxy_ssl_context is proxy_ssl_context
+
+
+def test_http_proxy_has_no_proxy_ssl_context() -> None:
+    transport = httpx2.HTTPTransport(proxy="http://127.0.0.1", verify=ssl.create_default_context())
+
+    assert isinstance(transport._pool, httpcore2.HTTPProxy)
+    assert transport._pool._proxy_ssl_context is None

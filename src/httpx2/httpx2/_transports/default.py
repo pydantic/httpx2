@@ -162,6 +162,9 @@ class HTTPTransport(BaseTransport):
                 socket_options=socket_options,
             )
         elif proxy.url.scheme in ("http", "https"):
+            proxy_ssl_context = proxy.ssl_context
+            if proxy_ssl_context is None and proxy.url.scheme == "https":
+                proxy_ssl_context = ssl_context
             self._pool = httpcore2.HTTPProxy(
                 proxy_url=httpcore2.URL(
                     scheme=proxy.url.raw_scheme,
@@ -172,7 +175,7 @@ class HTTPTransport(BaseTransport):
                 proxy_auth=proxy.raw_auth,
                 proxy_headers=proxy.headers.raw,
                 ssl_context=ssl_context,
-                proxy_ssl_context=proxy.ssl_context,
+                proxy_ssl_context=proxy_ssl_context,
                 max_connections=limits.max_connections,
                 max_keepalive_connections=limits.max_keepalive_connections,
                 keepalive_expiry=limits.keepalive_expiry,
@@ -305,6 +308,9 @@ class AsyncHTTPTransport(AsyncBaseTransport):
                 socket_options=socket_options,
             )
         elif proxy.url.scheme in ("http", "https"):
+            proxy_ssl_context = proxy.ssl_context
+            if proxy_ssl_context is None and proxy.url.scheme == "https":
+                proxy_ssl_context = ssl_context
             self._pool = httpcore2.AsyncHTTPProxy(
                 proxy_url=httpcore2.URL(
                     scheme=proxy.url.raw_scheme,
@@ -314,7 +320,7 @@ class AsyncHTTPTransport(AsyncBaseTransport):
                 ),
                 proxy_auth=proxy.raw_auth,
                 proxy_headers=proxy.headers.raw,
-                proxy_ssl_context=proxy.ssl_context,
+                proxy_ssl_context=proxy_ssl_context,
                 ssl_context=ssl_context,
                 max_connections=limits.max_connections,
                 max_keepalive_connections=limits.max_keepalive_connections,
