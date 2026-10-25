@@ -145,6 +145,30 @@ def test_headers_encoding_in_repr() -> None:
     assert repr(headers) == "Headers({'custom': 'example ☃'}, encoding='utf-8')"
 
 
+def test_header_encoding_error_mentions_header_name() -> None:
+    with pytest.raises(UnicodeEncodeError, match="auth"):
+        httpx2.Headers({"auth": "здравейздравей"})
+
+
+def test_header_encoding_error_mentions_header_name_with_list() -> None:
+    with pytest.raises(UnicodeEncodeError, match="auth"):
+        httpx2.Headers([("auth", "здравейздравей")])
+
+
+def test_header_encoding_error_mentions_header_name_with_setitem() -> None:
+    headers = httpx2.Headers(encoding="ascii")
+
+    with pytest.raises(UnicodeEncodeError, match="auth"):
+        headers["auth"] = "здравейздравей"
+
+
+def test_header_encoding_error_mentions_header_name_with_update() -> None:
+    headers = httpx2.Headers()
+
+    with pytest.raises(UnicodeEncodeError, match="auth"):
+        headers.update({"auth": "здравейздравей"})
+
+
 def test_headers_list_repr() -> None:
     """
     Headers should display with a list repr if they include multiple identical keys.
