@@ -51,10 +51,44 @@ def _guess_content_type(filename: str | None) -> str | None:
     return None
 
 
+def is_multipart_form_data_content_type(content_type: str | bytes | None) -> bool:
+    if not content_type:
+        return False
+    if isinstance(content_type, str):
+        return content_type.split(";", 1)[0].strip().lower() == "multipart/form-data"
+    return content_type.split(b";", 1)[0].strip().lower() == b"multipart/form-data"
+
+
+# RFC 2045 tspecials. A parameter value containing any of these characters (or
+# whitespace) is not a `token` and must be transmitted as a quoted-string.
+_TSPECIALS = set('()<>@,;:\\"/[]?= \t')
+
+
+def _format_boundary_parameter_value(boundary: str) -> str:
+    """
+    Render a boundary as a `Content-Type` parameter value.
+
+    Per RFC 2046 section 5.1.1 a boundary may contain characters (e.g. ``:``)
+    that are RFC 2045 `tspecials`. Such values are not `token`s and must be
+    enclosed in quotes. RFC 2046 `bcharsnospace` never includes ``"`` or ``\\``,
+    so no character escaping inside the quoted-string is required.
+    """
+    if boundary and not any(char in _TSPECIALS for char in boundary):
+        return boundary
+    return f'"{boundary}"'
+
+
+def append_boundary_to_content_type(content_type: str, boundary: str) -> str:
+    content_type = content_type.rstrip()
+    while content_type.endswith(";"):
+        content_type = content_type[:-1].rstrip()
+    return f"{content_type}; boundary={_format_boundary_parameter_value(boundary)}"
+
+
 def get_multipart_boundary_from_content_type(
     content_type: bytes | None,
 ) -> bytes | None:
-    if not content_type or not content_type.startswith(b"multipart/form-data"):
+    if content_type is None or not is_multipart_form_data_content_type(content_type):
         return None
     # parse boundary according to
     # https://www.rfc-editor.org/rfc/rfc2046#section-5.1.1
