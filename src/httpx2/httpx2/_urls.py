@@ -127,7 +127,7 @@ class URL:
         elif isinstance(url, URL):
             self._uri_reference = url._uri_reference.copy_with(**kwargs)
         else:
-            raise TypeError(f"Invalid type for url.  Expected str or httpx2.URL, got {type(url)}: {url!r}")
+            self._uri_reference = urlparse(str(url), **kwargs)
 
     @property
     def scheme(self) -> str:

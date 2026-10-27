@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pytest
+import yarl
 
 import httpx2
 
@@ -530,16 +531,15 @@ def test_url_set() -> None:
 # Tests for TypeErrors when instantiating `httpx2.URL`.
 
 
-def test_url_invalid_type() -> None:
+def test_other_url_type() -> None:
     """
-    Ensure that invalid types on `httpx2.URL()` raise a `TypeError`.
+    Ensure that custom URL types can be used to create an `httpx2.URL()`
     """
 
-    class ExternalURLClass:  # representing external URL class
-        pass
+    yarl_url = yarl.URL("https://www.example.com/")
+    url = httpx2.URL(yarl_url)  # type: ignore
 
-    with pytest.raises(TypeError):
-        httpx2.URL(ExternalURLClass())  # type: ignore
+    assert repr(url) == "URL('https://www.example.com/')"
 
 
 def test_url_with_invalid_component() -> None:
