@@ -64,6 +64,24 @@ def test_digest_auth_with_401() -> None:
         flow.send(response)
 
 
+def test_digest_auth_preserves_quoted_parameter_whitespace() -> None:
+    auth = httpx2.DigestAuth(username="user", password="pass")
+    request = httpx2.Request("GET", "https://www.example.com")
+    flow = auth.sync_auth_flow(request)
+    next(flow)
+
+    response = httpx2.Response(
+        401,
+        headers={"WWW-Authenticate": ('Digest Realm = " A Realm ", Nonce = " Mixed Case ", Opaque = " Keep Spaces "')},
+        request=request,
+    )
+    request = flow.send(response)
+
+    assert 'realm=" A Realm "' in request.headers["Authorization"]
+    assert 'nonce=" Mixed Case "' in request.headers["Authorization"]
+    assert 'opaque=" Keep Spaces "' in request.headers["Authorization"]
+
+
 def test_digest_auth_with_401_nonce_counting() -> None:
     auth = httpx2.DigestAuth(username="user", password="pass")
     request = httpx2.Request("GET", "https://www.example.com")
@@ -213,7 +231,22 @@ def test_digest_auth_rfc_7616_md5(monkeypatch: pytest.MonkeyPatch) -> None:
         flow.send(response)
 
 
-def test_digest_auth_rfc_7616_sha_256(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize(
+    "uppercase_parameters",
+    [
+        (),
+        ("realm",),
+        ("nonce",),
+        ("algorithm",),
+        ("qop",),
+        ("opaque",),
+        ("realm", "nonce", "algorithm", "qop", "opaque"),
+    ],
+)
+@pytest.mark.parametrize("separator", ["=", " = ", "\t=\t"])
+def test_digest_auth_rfc_7616_sha_256(
+    monkeypatch: pytest.MonkeyPatch, uppercase_parameters: tuple[str, ...], separator: str
+) -> None:
     # Example from https://datatracker.ietf.org/doc/html/rfc7616#section-3.9.1
 
     def mock_get_client_nonce(nonce_count: int, nonce: bytes) -> bytes:
@@ -239,6 +272,9 @@ def test_digest_auth_rfc_7616_sha_256(monkeypatch: pytest.MonkeyPatch) -> None:
             'opaque="FQhe/qaU925kfnzjCev0ciny7QMkPqMAFRtzCUYo5tdS"'
         )
     }
+    for parameter in ("realm", "nonce", "algorithm", "qop", "opaque"):
+        name = parameter.upper() if parameter in uppercase_parameters else parameter
+        headers["WWW-Authenticate"] = headers["WWW-Authenticate"].replace(f"{parameter}=", f"{name}{separator}")
     response = httpx2.Response(content=b"Auth required", status_code=401, headers=headers, request=request)
     request = flow.send(response)
     assert request.headers["Authorization"].startswith("Digest")
