@@ -8,6 +8,131 @@ import httpx2
 
 SSE_BODY = b": this is a comment\nevent: ping\ndata: hello\nid: 1\nretry: 500\n\ndata: first\ndata: second\n\n"
 
+BOM_CASES = [
+    pytest.param(
+        [b"\xef\xbb\xbfdata: first\n\ndata: second\n\n"],
+        1024,
+        [httpx2.ServerSentEvent(data="first"), httpx2.ServerSentEvent(data="second")],
+        id="first-data-field",
+    ),
+    pytest.param(
+        [b"", b"\xef", b"\xbb", b"\xbf", b"data: first", b"\n\n"],
+        1024,
+        [httpx2.ServerSentEvent(data="first")],
+        id="split-bom-and-first-line",
+    ),
+    pytest.param(
+        [b"\xef", b"\xbb\xbfdata: caf\xc3", b"\xa9\n\n"],
+        1024,
+        [httpx2.ServerSentEvent(data="café")],
+        id="split-bom-and-utf8-character",
+    ),
+    pytest.param(
+        [b"\xef\xbb\xbfevent: ping\ndata: first\n\n"],
+        1024,
+        [httpx2.ServerSentEvent(event="ping", data="first")],
+        id="first-event-field",
+    ),
+    pytest.param(
+        [b"\xef\xbb\xbfid: 1\ndata: first\n\ndata: second\n\n"],
+        1024,
+        [httpx2.ServerSentEvent(data="first", id="1"), httpx2.ServerSentEvent(data="second", id="1")],
+        id="first-id-persists",
+    ),
+    pytest.param(
+        [b"\xef\xbb\xbf", b"data: hi", b"\n\n"],
+        8,
+        [httpx2.ServerSentEvent(data="hi")],
+        id="bom-does-not-count-towards-pending-line-limit",
+    ),
+    pytest.param(
+        [b"\xef\xbb\xbf: keepalive comment\n", b"data: hi\n\n"],
+        8,
+        [httpx2.ServerSentEvent(data="hi")],
+        id="first-comment",
+    ),
+    pytest.param(
+        [b"data: \xef\xbb\xbfinside\n\n\xef\xbb\xbfdata: ignored\n\ndata: tail\n\n"],
+        1024,
+        [httpx2.ServerSentEvent(data="\ufeffinside"), httpx2.ServerSentEvent(data="tail")],
+        id="later-boms-are-not-stripped",
+    ),
+    pytest.param(
+        [b"\xef\xbb\xbf\xef\xbb\xbfdata: ignored\n\ndata: tail\n\n"],
+        1024,
+        [httpx2.ServerSentEvent(data="tail")],
+        id="strip-only-one-leading-bom",
+    ),
+    pytest.param(
+        [b"\n", b"\xef\xbb\xbfdata: ignored\n\ndata: tail\n\n"],
+        1024,
+        [httpx2.ServerSentEvent(data="tail")],
+        id="blank-line-consumes-stream-start",
+    ),
+    pytest.param(
+        [b"data: plain\n\n"],
+        1024,
+        [httpx2.ServerSentEvent(data="plain")],
+        id="no-bom",
+    ),
+]
+
+
+@pytest.mark.parametrize(("chunks", "max_event_size", "expected"), BOM_CASES)
+def test_sse_leading_bom_sync(chunks: list[bytes], max_event_size: int, expected: list[httpx2.ServerSentEvent]) -> None:
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(200, content=iter(chunks), headers={"Content-Type": "text/event-stream"})
+
+    with httpx2.Client(transport=httpx2.MockTransport(handler)) as client:
+        with client.sse("http://testserver/sse", max_event_size=max_event_size) as source:
+            assert list(source) == expected
+
+
+@pytest.mark.parametrize(("chunks", "max_event_size", "expected"), BOM_CASES)
+@pytest.mark.anyio
+async def test_sse_leading_bom_async(
+    chunks: list[bytes], max_event_size: int, expected: list[httpx2.ServerSentEvent]
+) -> None:
+    async def body() -> AsyncIterator[bytes]:
+        for chunk in chunks:
+            yield chunk
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(200, content=body(), headers={"Content-Type": "text/event-stream"})
+
+    async with httpx2.AsyncClient(transport=httpx2.MockTransport(handler)) as client:
+        async with client.sse("http://testserver/sse", max_event_size=max_event_size) as source:
+            assert [event async for event in source] == expected
+
+
+@pytest.mark.parametrize("charset", [None, "latin-1", "utf-8-sig"])
+def test_sse_utf8_decoding_sync(charset: str | None) -> None:
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        content_type = "text/event-stream" if charset is None else f"text/event-stream; charset={charset}"
+        body = b"\xef\xbb\xbf\xef\xbb\xbfdata: ignored\n\ndata: caf\xc3\xa9\n\n"
+        return httpx2.Response(200, content=body, headers={"Content-Type": content_type})
+
+    with httpx2.Client(transport=httpx2.MockTransport(handler), default_encoding="latin-1") as client:
+        with client.sse("http://testserver/sse") as source:
+            assert source.response.encoding == (charset or "latin-1")
+            assert list(source) == [httpx2.ServerSentEvent(data="café")]
+            assert source.response.encoding == (charset or "latin-1")
+
+
+@pytest.mark.parametrize("charset", [None, "latin-1", "utf-8-sig"])
+@pytest.mark.anyio
+async def test_sse_utf8_decoding_async(charset: str | None) -> None:
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        content_type = "text/event-stream" if charset is None else f"text/event-stream; charset={charset}"
+        body = b"\xef\xbb\xbf\xef\xbb\xbfdata: ignored\n\ndata: caf\xc3\xa9\n\n"
+        return httpx2.Response(200, content=body, headers={"Content-Type": content_type})
+
+    async with httpx2.AsyncClient(transport=httpx2.MockTransport(handler), default_encoding="latin-1") as client:
+        async with client.sse("http://testserver/sse") as source:
+            assert source.response.encoding == (charset or "latin-1")
+            assert [event async for event in source] == [httpx2.ServerSentEvent(data="café")]
+            assert source.response.encoding == (charset or "latin-1")
+
 
 def sse_handler(request: httpx2.Request) -> httpx2.Response:
     return httpx2.Response(200, content=SSE_BODY, headers={"Content-Type": "text/event-stream"})

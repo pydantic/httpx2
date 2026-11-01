@@ -22,6 +22,8 @@ It works the same way with the async client, using `async with` and `async for`:
 ...             print(event.event, event.data)
 ```
 
+Event streams are decoded as UTF-8 regardless of the response's charset or default encoding. One leading UTF-8 byte-order mark is ignored; later U+FEFF characters are left intact.
+
 `sse()` issues a `GET` request by default. Some APIs stream events in response to a `POST` - pass `method="POST"` along with the usual request arguments:
 
 ```pycon
