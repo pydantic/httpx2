@@ -35,9 +35,21 @@ SERVER = HERE / "server.py"
 CLIENT = HERE / "client.py"
 DEFAULT_PORT = 8765
 
-DEFAULT_SCENARIOS = ["c1/1k", "c16/1k", "c128/1k", "c512/1k", "c64/100k", "c8/5m", "c64/1k/post", "c8/1m/post"]
+DEFAULT_SCENARIOS = [
+    "c1/1k",
+    "c16/1k",
+    "c128/1k",
+    "c512/1k",
+    "c64/100k",
+    "c8/5m",
+    "c64/1k/post",
+    "c8/1m/post",
+    "c64/1k/h2",
+    "c16/1m/upload/h2/batch",
+]
 QUICK_SCENARIOS = ["c16/1k", "c512/1k", "c64/100k"]
 PROFILE_LIBS = ("httpx2", "httpcore2")
+HTTP2_LIBS = ("httpx2", "httpcore2")
 
 
 @dataclass(frozen=True)
@@ -45,18 +57,39 @@ class ScenarioSpec:
     concurrency: int
     size: int
     post: bool
+    upload: bool
+    http2: bool
+    batch: bool
 
     @classmethod
     def parse(cls, text: str) -> ScenarioSpec:
         parts = text.split("/")
-        valid = len(parts) in (2, 3) and parts[0].startswith("c") and (len(parts) == 2 or parts[2] == "post")
+        flags = parts[2:]
+        valid = (
+            len(parts) >= 2
+            and parts[0].startswith("c")
+            and len(flags) == len(set(flags))
+            and all(flag in ("post", "upload", "h2", "batch") for flag in flags)
+            and not ("post" in flags and "upload" in flags)
+        )
         if not valid:
-            raise argparse.ArgumentTypeError(f"Expected 'c<concurrency>/<size>[/post]', got {text!r}.")
-        return cls(concurrency=int(parts[0][1:]), size=parse_size(parts[1]), post=len(parts) == 3)
+            raise argparse.ArgumentTypeError(
+                f"Expected 'c<concurrency>/<size>[/post|/upload][/h2][/batch]', got {text!r}."
+            )
+        return cls(
+            concurrency=int(parts[0][1:]),
+            size=parse_size(parts[1]),
+            post="post" in flags,
+            upload="upload" in flags,
+            http2="h2" in flags,
+            batch="batch" in flags,
+        )
 
     @property
     def label(self) -> str:
-        return f"c{self.concurrency}/{format_size(self.size)}" + ("/post" if self.post else "")
+        enabled = (("post", self.post), ("upload", self.upload), ("h2", self.http2), ("batch", self.batch))
+        flags = [name for name, on in enabled if on]
+        return "/".join([f"c{self.concurrency}", format_size(self.size), *flags])
 
 
 def parse_size(text: str) -> int:
@@ -135,6 +168,13 @@ def run_worker(
     ]
     if spec.post:
         command.append("--post")
+    if spec.upload:
+        command.append("--upload")
+    if spec.http2:
+        command.append("--http2")
+    if spec.batch:
+        command.append("--batch")
+    command += ["--read-timeout", str(args.read_timeout)]
     if args.max_connections is not None:
         command += ["--max-connections", str(args.max_connections)]
     if args.client_cpu is not None:
@@ -169,13 +209,15 @@ def print_table(
                 errors = [r["error"] for r in results.get((spec.label, column), []) if "error" in r]
                 row.append(f"FAILED: {errors[0]}" if errors else "-")
                 continue
-            row.append(
+            cell = (
                 f"{median(ok, 'rps'):,.0f} rps · {median(ok, 'p50_ms'):.1f}/{median(ok, 'p99_ms'):.1f} ms"
                 f" · {median(ok, 'cpu_us'):.0f} us"
             )
+            errors = sum(r["errors"] for r in ok)
+            row.append(f"{cell} · {errors} err" if errors else cell)
         rows.append(row)
     widths = [max(len(line[i]) for line in [header, *rows]) for i in range(len(header))]
-    print("Cells: median rps · p50/p99 latency ms · CPU us per request")
+    print("Cells: median rps · p50/p99 latency ms · CPU us per request · failed requests, if any")
     print("| " + " | ".join(cell.ljust(widths[i]) for i, cell in enumerate(header)) + " |")
     print("|" + "|".join("-" * (width + 2) for width in widths) + "|")
     for row in rows:
@@ -185,7 +227,10 @@ def print_table(
 def print_kpis(
     specs: list[ScenarioSpec], columns: list[str], results: dict[tuple[str, str], list[dict[str, Any]]]
 ) -> None:
-    get_1k = sorted((s for s in specs if s.size == 1024 and not s.post), key=lambda s: s.concurrency)
+    get_1k = sorted(
+        (s for s in specs if s.size == 1024 and not (s.post or s.upload or s.http2 or s.batch)),
+        key=lambda s: s.concurrency,
+    )
     if not get_1k:
         return
     low, high = get_1k[0], get_1k[-1]
@@ -214,13 +259,18 @@ def main(argv: list[str] | None = None) -> None:
         "--lib", action="append", default=[], help="Client library (repeatable). Default: httpx2, aiohttp."
     )
     parser.add_argument(
-        "--scenario", type=ScenarioSpec.parse, action="append", default=[], metavar="c<N>/<size>[/post]"
+        "--scenario",
+        type=ScenarioSpec.parse,
+        action="append",
+        default=[],
+        metavar="c<N>/<size>[/post|/upload][/h2][/batch]",
     )
     parser.add_argument("--quick", action="store_true", help=f"Use the short matrix: {', '.join(QUICK_SCENARIOS)}.")
     parser.add_argument("--mode", choices=("stream", "read"), default="stream")
     parser.add_argument("--rounds", type=int, default=2, help="Interleaved repetitions; medians are reported.")
     parser.add_argument("--seconds", type=float, default=4.0, help="Measured duration per run.")
     parser.add_argument("--max-connections", type=int, default=None)
+    parser.add_argument("--read-timeout", type=float, default=10.0, help="Per-request read timeout in seconds.")
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
     parser.add_argument(
         "--server-cpu", type=int, default=None, help="Default: the first usable CPU when at least two are available."
@@ -271,17 +321,22 @@ def main(argv: list[str] | None = None) -> None:
             for spec in specs:
                 for label, python in pythons:
                     for lib in libs:
+                        if spec.http2 and lib not in HTTP2_LIBS:
+                            continue
                         column = f"{lib}@{label}" if len(pythons) > 1 else lib
                         result = run_worker(python, lib, spec, args)
                         results.setdefault((spec.label, column), []).append(result)
-                        summary = result.get("error") or f"{result['rps']:,.0f} rps, {result['cpu_us']:.0f} us/req"
+                        summary = result.get("error") or (
+                            f"{result['rps']:,.0f} rps, {result['cpu_us']:.0f} us/req"
+                            + (f", {result['errors']} errors" if result["errors"] else "")
+                        )
                         print(f"[round {round_number}] {spec.label:<14} {column:<24} {summary}", flush=True)
         if args.profile is not None:
             args.profile.mkdir(parents=True, exist_ok=True)
             label, python = pythons[0]
             for spec in specs:
                 for lib in libs:
-                    if lib not in PROFILE_LIBS:
+                    if lib not in PROFILE_LIBS or (spec.http2 and lib not in HTTP2_LIBS):
                         continue
                     path = args.profile / f"{lib}-{label}-{spec.label.replace('/', '-')}.txt"
                     result = run_worker(python, lib, spec, args, profile=path)

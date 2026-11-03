@@ -1,4 +1,6 @@
-from http.cookiejar import Cookie, CookieJar
+import time
+import urllib.request
+from http.cookiejar import Cookie, CookieJar, DefaultCookiePolicy
 
 import pytest
 
@@ -161,3 +163,69 @@ def test_cookie_persistence() -> None:
     response = client.get("http://example.org/echo_cookies")
     assert response.status_code == 200
     assert response.json() == {"cookies": "example-name=example-value"}
+
+
+def test_cookies_are_only_sent_to_matching_domains() -> None:
+    client = httpx2.Client(transport=httpx2.MockTransport(get_and_set_cookies))
+    client.cookies.set("any", "1")
+    client.cookies.set("parent", "2", domain=".example.org")
+    client.cookies.set("sub", "3", domain="sub.example.org")
+    client.cookies.set("other", "4", domain="example.com")
+
+    assert client.get("http://sub.example.org/echo_cookies").json() == {"cookies": "any=1; parent=2; sub=3"}
+    assert client.get("http://example.org/echo_cookies").json() == {"cookies": "any=1; parent=2"}
+
+
+def test_expired_cookies_are_not_sent_and_are_cleared() -> None:
+    client = httpx2.Client(transport=httpx2.MockTransport(get_and_set_cookies))
+    for name, expires in [("expired", int(time.time()) - 1), ("fresh", int(time.time()) + 3600)]:
+        cookie = Cookie(
+            version=0,
+            name=name,
+            value="value",
+            port=None,
+            port_specified=False,
+            domain="",
+            domain_specified=False,
+            domain_initial_dot=False,
+            path="/",
+            path_specified=True,
+            secure=False,
+            expires=expires,
+            discard=False,
+            comment=None,
+            comment_url=None,
+            rest={},
+            rfc2109=False,
+        )
+        client.cookies.jar.set_cookie(cookie)
+
+    response = client.get("http://example.org/echo_cookies")
+
+    assert response.json() == {"cookies": "fresh=value"}
+    assert list(client.cookies) == ["fresh"]
+
+
+def test_custom_cookie_policy_decides_which_domains_match() -> None:
+    class SendEverywherePolicy(DefaultCookiePolicy):
+        def domain_return_ok(self, domain: str, request: urllib.request.Request) -> bool:
+            return True
+
+        def return_ok(self, cookie: Cookie, request: urllib.request.Request) -> bool:
+            return True
+
+    client = httpx2.Client(transport=httpx2.MockTransport(get_and_set_cookies))
+    client.cookies.set("other", "1", domain="example.com")
+    client.cookies.jar.set_policy(SendEverywherePolicy())
+
+    assert client.get("http://example.org/echo_cookies").json() == {"cookies": "other=1"}
+
+
+def test_cookies_are_sent_to_hosts_longer_than_a_dns_name() -> None:
+    client = httpx2.Client(transport=httpx2.MockTransport(get_and_set_cookies))
+    client.cookies.set("parent", "1", domain=".example.org")
+    client.cookies.set("other", "2", domain="example.com")
+
+    response = client.get(f"http://{'a.' * 200}example.org/echo_cookies")
+
+    assert response.json() == {"cookies": "parent=1"}

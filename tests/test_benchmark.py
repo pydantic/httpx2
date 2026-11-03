@@ -184,3 +184,11 @@ def _json_handler(request: httpx2.Request) -> httpx2.Response:
 def test_bench_client_post_json(benchmark: BenchmarkFixture) -> None:
     with httpx2.Client(transport=httpx2.MockTransport(_json_handler)) as client:
         benchmark(lambda: client.post(TYPICAL_URL, json=MEDIUM_JSON).json())
+
+
+def test_bench_client_get_with_large_cookie_jar(benchmark: BenchmarkFixture) -> None:
+    with httpx2.Client(transport=httpx2.MockTransport(lambda request: httpx2.Response(204))) as client:
+        for i in range(1000):
+            client.cookies.set(f"session{i}", f"value{i}", domain=f"site{i % 500}.example.org")
+        response = benchmark(lambda: client.get("https://site0.example.org/"))
+    assert response.request.headers["Cookie"] == "session0=value0; session500=value500"

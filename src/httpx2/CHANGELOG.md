@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2.16.0 (October 21st, 2026)
+
+### Changed
+
+* Look up only the cookie domains that match the request host, and skip the expired cookie sweep until a cookie is due. With 1,000 cookies across 500 domains, building the `Cookie` header is about 18 times faster. Cookies from different domains are now sent from the least to the most specific domain.
+  ([#1285](https://github.com/pydantic/httpx2/pull/1285))
+
+### Fixed
+
+* Reuse the client cookie jar instead of copying it on every request and redirect. A custom policy set with `client.cookies.jar.set_policy()` now applies to outgoing requests.
+  ([#1284](https://github.com/pydantic/httpx2/pull/1284))
+
+## 2.15.1 (October 19th, 2026)
+
+### Fixed
+
+* Configure the default SSL context once on Linux, instead of on every handshake. With OpenSSL older than 3.4, CPU usage grew over the lifetime of a reused client.
+  ([#1253](https://github.com/pydantic/httpx2/pull/1253))
+
+## 2.15.0 (October 19th, 2026)
+
+### Removed
+
+* Drop support for Python 3.10. ([#1274](https://github.com/pydantic/httpx2/pull/1274))
+
 ## 2.14.0 (October 18th, 2026)
 
 ### Added
