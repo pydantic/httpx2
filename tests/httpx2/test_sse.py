@@ -282,6 +282,18 @@ def test_charset_is_ignored() -> None:
     assert event.data == "café"
 
 
+def test_response_text_read_by_hook() -> None:
+    def read_text(response: httpx2.Response) -> None:
+        response.read()
+        assert response.text
+
+    with httpx2.Client(transport=httpx2.MockTransport(sse_handler), event_hooks={"response": [read_text]}) as client:
+        with client.sse("http://testserver/sse") as source:
+            events = list(source)
+
+    assert [event.data for event in events] == ["hello", "first\nsecond"]
+
+
 def test_event_without_trailing_blank_line() -> None:
     def handler(request: httpx2.Request) -> httpx2.Response:
         return httpx2.Response(200, content=b"data: hi", headers={"Content-Type": "text/event-stream"})

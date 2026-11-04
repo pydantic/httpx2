@@ -33,6 +33,7 @@ from collections.abc import AsyncIterator, Iterator
 from dataclasses import dataclass
 
 from ._config import DEFAULT_MAX_EVENT_SIZE_BYTES
+from ._decoders import TextDecoder
 from ._exceptions import TransportError, request_context
 from ._models import Response
 
@@ -178,12 +179,14 @@ class _SSEParser:
     def __init__(self, max_event_size: int | None = None) -> None:
         self._event_decoder = _SSEEventDecoder(max_event_size)
         self._line_decoder = _SSELineDecoder()
+        self._text_decoder = TextDecoder("utf-8-sig")
 
-    def decode(self, text: str) -> Iterator[ServerSentEvent]:
-        yield from self._decode_lines(self._line_decoder.decode(text))
+    def decode(self, content: bytes) -> Iterator[ServerSentEvent]:
+        yield from self._decode_lines(self._line_decoder.decode(self._text_decoder.decode(content)))
         self._event_decoder.check_pending(self._line_decoder.pending_size)
 
     def flush(self) -> Iterator[ServerSentEvent]:
+        yield from self._decode_lines(self._line_decoder.decode(self._text_decoder.flush()))
         yield from self._decode_lines(self._line_decoder.flush())
 
     def _decode_lines(self, lines: list[str]) -> Iterator[ServerSentEvent]:
@@ -196,7 +199,6 @@ class _SSEParser:
 class EventSource:
     def __init__(self, response: Response, max_event_size: int | None = DEFAULT_MAX_EVENT_SIZE_BYTES) -> None:
         self._response = response
-        self._response.encoding = "utf-8-sig"
         self._max_event_size = max_event_size
 
     @property
@@ -212,7 +214,7 @@ class EventSource:
         with request_context(request=self._response.request):
             self._check_content_type()
             parser = _SSEParser(self._max_event_size)
-            for chunk in self._response.iter_text():
+            for chunk in self._response.iter_bytes():
                 yield from parser.decode(chunk)
             yield from parser.flush()
 
@@ -220,7 +222,7 @@ class EventSource:
         with request_context(request=self._response.request):
             self._check_content_type()
             parser = _SSEParser(self._max_event_size)
-            async for chunk in self._response.aiter_text():
+            async for chunk in self._response.aiter_bytes():
                 for sse in parser.decode(chunk):
                     yield sse
             for sse in parser.flush():
