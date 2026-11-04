@@ -13,8 +13,8 @@ from ._models import Cookies, Request, Response
 from ._utils import to_bytes, to_str
 
 if typing.TYPE_CHECKING:
+    from collections.abc import Callable
     from hashlib import _Hash
-
 
 __all__ = ["Auth", "BasicAuth", "DigestAuth", "FunctionAuth", "NetRCAuth"]
 
@@ -167,15 +167,16 @@ class NetRCAuth(Auth):
 
 
 class DigestAuth(Auth):
-    _ALGORITHM_TO_HASH_FUNCTION: dict[str, typing.Callable[[bytes], _Hash]] = {
-        "MD5": hashlib.md5,
-        "MD5-SESS": hashlib.md5,
-        "SHA": hashlib.sha1,
-        "SHA-SESS": hashlib.sha1,
-        "SHA-256": hashlib.sha256,
-        "SHA-256-SESS": hashlib.sha256,
-        "SHA-512": hashlib.sha512,
-        "SHA-512-SESS": hashlib.sha512,
+    # Hashes are resolved by name at use time, since FIPS builds may remove or block MD5.
+    _ALGORITHM_TO_HASH_NAME = {
+        "MD5": "md5",
+        "MD5-SESS": "md5",
+        "SHA": "sha1",
+        "SHA-SESS": "sha1",
+        "SHA-256": "sha256",
+        "SHA-256-SESS": "sha256",
+        "SHA-512": "sha512",
+        "SHA-512-SESS": "sha512",
     }
 
     def __init__(self, username: str | bytes, password: str | bytes) -> None:
@@ -239,7 +240,13 @@ class DigestAuth(Auth):
             raise ProtocolError(message, request=request) from exc
 
     def _build_auth_header(self, request: Request, challenge: _DigestAuthChallenge) -> str:
-        hash_func = self._ALGORITHM_TO_HASH_FUNCTION[challenge.algorithm.upper()]
+        try:
+            hash_func: Callable[[bytes], _Hash] = getattr(
+                hashlib, self._ALGORITHM_TO_HASH_NAME[challenge.algorithm.upper()]
+            )
+        except (KeyError, AttributeError) as exc:
+            message = f"Unsupported digest auth algorithm {challenge.algorithm!r}"
+            raise ProtocolError(message, request=request) from exc
 
         def digest(data: bytes) -> bytes:
             return hash_func(data).hexdigest().encode()

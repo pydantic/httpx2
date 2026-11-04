@@ -264,34 +264,40 @@ class ConnectionPool(RequestInterface):
         closing_connections: list[ConnectionInterface] = []
         retained_connections: list[ConnectionInterface] = []
 
-        # Connections currently referenced by an active request (including
-        # connections that are in the process of being established).
+        # Connections currently referenced by an in-flight request, including
+        # connections that are in the process of being established and idle
+        # connections reserved by an assigned-but-not-yet-sent request.
         request_connections = {r.connection for r in self._requests}
 
         # First we handle cleaning up any connections that are closed
-        # or have expired their keep-alive, in a single pass.
+        # or have expired their keep-alive, in a single pass. Reserved
+        # connections skip the expiry check: they were checked when assigned,
+        # and `has_expired()` on an idle connection probes the socket.
         for connection in self._connections:
+            reserved = connection in request_connections
             if connection.is_closed():
                 continue
-            elif not (connection.is_connected() or connection in request_connections):
+            elif not (connection.is_connected() or reserved):
                 # Garbage: a NEW-state connection whose request was cancelled
                 # before the TCP handshake completed.  Drop it without closing
                 # (there is no socket to close yet).
                 continue
-            elif connection.has_expired():
+            elif not reserved and connection.has_expired():
                 closing_connections.append(connection)
             else:
                 retained_connections.append(connection)
 
         # Then we close any surplus idle connections, to enforce the
-        # max_keepalive_connections setting.
+        # max_keepalive_connections setting. Reserved connections are not
+        # surplus: a request is about to be sent on them.
         idle_surplus = (
-            sum(connection.is_idle() for connection in retained_connections) - self._max_keepalive_connections
+            sum(connection.is_idle() and connection not in request_connections for connection in retained_connections)
+            - self._max_keepalive_connections
         )
         if idle_surplus > 0:
             kept: list[ConnectionInterface] = []
             for connection in retained_connections:
-                if idle_surplus > 0 and connection.is_idle():
+                if idle_surplus > 0 and connection.is_idle() and connection not in request_connections:
                     closing_connections.append(connection)
                     idle_surplus -= 1
                 else:
@@ -303,11 +309,27 @@ class ConnectionPool(RequestInterface):
         # Snapshot the set of reusable connections once, rather than rebuilding
         # it per queued request — this is what brings the loop from O(N*M) to
         # O(N+M) in the common case.
-        available_connections = [connection for connection in self._connections if connection.is_available()]
+        #
+        # An idle connection already assigned to an in-flight request is
+        # reserved: it stays IDLE until the winning task sends on it, so
+        # without this exclusion the next pass would assign it again and the
+        # loser would churn through `ConnectionNotAvailable`. Multiplexing
+        # connections are exempt: they can take further requests while idle.
+        available_connections = [
+            connection
+            for connection in self._connections
+            if connection.is_available()
+            and not (connection.is_idle() and connection in request_connections and not connection.can_multiplex())
+        ]
         new_connection_budget = self._max_connections - len(self._connections)
 
-        # Assign queued requests to connections.
+        # Assign queued requests to connections. Once no connection is
+        # available and no new connection may be created, no queued request
+        # can be assigned, so the scan stops early: this keeps a pass on a
+        # saturated pool O(connections) rather than O(in-flight requests).
         for pool_request in self._requests:
+            if not available_connections and new_connection_budget <= 0:
+                break
             if not pool_request.is_queued():
                 continue
             origin = pool_request.request.url.origin
@@ -318,9 +340,13 @@ class ConnectionPool(RequestInterface):
             # 2. We can create a new connection to handle the request.
             # 3. We can close an idle connection and then create a new connection
             #    to handle the request.
-            for connection in available_connections:
+            for idx, connection in enumerate(available_connections):
                 if connection.can_handle_request(origin):
                     pool_request.assign_to_connection(connection)
+                    if connection.is_idle() and not connection.can_multiplex():
+                        # An idle HTTP/1.1 connection can only take this
+                        # single request until it is released.
+                        del available_connections[idx]
                     break
             else:
                 if new_connection_budget > 0:

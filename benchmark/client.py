@@ -1,0 +1,413 @@
+"""
+Single benchmark worker: drives one client library at one concurrency and body size, then emits a JSON line.
+
+Normally launched by `run.py`, but it can be used directly against a running `server.py`:
+
+    python client.py --lib httpx2 --concurrency 16 --size 1024
+
+Modes:
+
+* `stream` (default) mirrors a proxy hot path: a hand-built request, `stream=True`, raw chunk iteration.
+* `read` is the plain "request and read the whole body" path.
+
+By default each worker issues requests back to back. With `--batch`, all workers start a request together
+and the next batch begins only when every request in the current one has finished, as in a fan-out. The
+difference matters for HTTP/2: a stream that is left alone on a connection cannot rely on other streams
+to wake it up. Requests that fail are counted in `errors` and left out of rps and latency, instead of
+ending the run.
+"""
+
+from __future__ import annotations
+
+import argparse
+import asyncio
+import json
+import os
+import sys
+import time
+from collections.abc import AsyncIterable, AsyncIterator, Awaitable, Callable, Coroutine
+from dataclasses import dataclass
+from typing import Any, TypeVar
+
+DEFAULT_PORT = 8765
+DEFAULT_CHUNK_SIZE = 256 * 1024
+DEFAULT_READ_TIMEOUT = 10.0
+KEEPALIVE_EXPIRY = 95.0
+CONNECT_TIMEOUT = 5.0
+
+T = TypeVar("T")
+RequestFn = Callable[[], Awaitable[None]]
+CloseFn = Callable[[], Awaitable[None]]
+Builder = Callable[["Scenario", bytes], tuple[RequestFn, CloseFn]]
+
+
+@dataclass(frozen=True)
+class Scenario:
+    lib: str
+    concurrency: int
+    size: int
+    post: bool
+    upload: bool
+    mode: str
+    chunk_size: int
+    max_connections: int | None
+    http2: bool
+    batch: bool
+    read_timeout: float
+    host: str
+    port: int
+
+    @property
+    def method(self) -> str:
+        return "POST" if self.post or self.upload else "GET"
+
+    @property
+    def url(self) -> str:
+        path = "/echo" if self.post else "/0" if self.upload else f"/{self.size}"
+        return f"http://{self.host}:{self.port}{path}"
+
+    @property
+    def expected_size(self) -> int:
+        return 0 if self.upload else self.size
+
+
+def check_size(received: int, expected: int) -> None:
+    if received != expected:
+        raise RuntimeError(f"Expected a {expected} byte body, received {received} bytes.")
+
+
+def build_httpx2(scenario: Scenario, payload: bytes) -> tuple[RequestFn, CloseFn]:
+    import httpx2
+
+    client = httpx2.AsyncClient(
+        http1=not scenario.http2,
+        http2=scenario.http2,
+        limits=httpx2.Limits(
+            max_connections=scenario.max_connections,
+            max_keepalive_connections=None,
+            keepalive_expiry=KEEPALIVE_EXPIRY,
+        ),
+        timeout=httpx2.Timeout(CONNECT_TIMEOUT, read=scenario.read_timeout),
+        # Keep the benchmark direct even if HTTP_PROXY or ALL_PROXY is set in the environment.
+        trust_env=False,
+    )
+    headers = [("host", scenario.host), ("user-agent", "httpx2-benchmark")]
+    if payload:
+        headers.append(("content-length", str(len(payload))))
+
+    class RequestBody(httpx2.AsyncByteStream):
+        async def __aiter__(self) -> AsyncIterator[bytes]:
+            if payload:
+                yield payload
+
+    async def stream_one() -> None:
+        request = httpx2.Request(scenario.method, scenario.url, headers=headers, stream=RequestBody())
+        response = await client.send(request, stream=True, follow_redirects=False)
+        received = 0
+        async for chunk in response.aiter_raw(scenario.chunk_size):
+            received += len(chunk)
+        check_size(received, scenario.expected_size)
+
+    async def read_one() -> None:
+        response = await client.request(scenario.method, scenario.url, content=payload or None)
+        check_size(len(response.content), scenario.expected_size)
+
+    return (stream_one if scenario.mode == "stream" else read_one), client.aclose
+
+
+def build_httpcore2(scenario: Scenario, payload: bytes) -> tuple[RequestFn, CloseFn]:
+    import httpcore2
+
+    pool = httpcore2.AsyncConnectionPool(
+        http1=not scenario.http2,
+        http2=scenario.http2,
+        max_connections=scenario.max_connections,
+        max_keepalive_connections=None,
+        keepalive_expiry=KEEPALIVE_EXPIRY,
+    )
+    extensions: dict[str, Any] = {
+        "timeout": {
+            "connect": CONNECT_TIMEOUT,
+            "read": scenario.read_timeout,
+            "write": CONNECT_TIMEOUT,
+            "pool": CONNECT_TIMEOUT,
+        }
+    }
+    content = payload or None
+
+    async def stream_one() -> None:
+        async with pool.stream(scenario.method, scenario.url, content=content, extensions=extensions) as response:
+            assert isinstance(response.stream, AsyncIterable)
+            received = 0
+            async for chunk in response.stream:
+                received += len(chunk)
+        check_size(received, scenario.expected_size)
+
+    async def read_one() -> None:
+        response = await pool.request(scenario.method, scenario.url, content=content, extensions=extensions)
+        check_size(len(response.content), scenario.expected_size)
+
+    return (stream_one if scenario.mode == "stream" else read_one), pool.aclose
+
+
+def build_aiohttp(scenario: Scenario, payload: bytes) -> tuple[RequestFn, CloseFn]:
+    import aiohttp
+
+    if scenario.http2:
+        raise RuntimeError("aiohttp has no HTTP/2 client.")
+    session = aiohttp.ClientSession(
+        connector=aiohttp.TCPConnector(limit=scenario.max_connections or 0, keepalive_timeout=KEEPALIVE_EXPIRY),
+        timeout=aiohttp.ClientTimeout(connect=CONNECT_TIMEOUT, sock_read=scenario.read_timeout),
+    )
+    data = payload or None
+
+    async def stream_one() -> None:
+        async with session.request(scenario.method, scenario.url, data=data) as response:
+            received = 0
+            async for chunk in response.content.iter_chunked(scenario.chunk_size):
+                received += len(chunk)
+        check_size(received, scenario.expected_size)
+
+    async def read_one() -> None:
+        async with session.request(scenario.method, scenario.url, data=data) as response:
+            body = await response.read()
+        check_size(len(body), scenario.expected_size)
+
+    return (stream_one if scenario.mode == "stream" else read_one), session.close
+
+
+def build_punkreq(scenario: Scenario, payload: bytes) -> tuple[RequestFn, CloseFn]:
+    import punkreq
+    from punkreq.asyncio import Client
+
+    if scenario.http2:
+        raise RuntimeError("The punkreq builder is HTTP/1.1 only.")
+    client = Client(
+        limits=punkreq.Limits(
+            max_connections=scenario.max_connections,
+            max_keepalive_connections=None,
+            keepalive_expiry=KEEPALIVE_EXPIRY,
+        ),
+        timeout=punkreq.Timeout(connect=CONNECT_TIMEOUT, read=scenario.read_timeout, pool=CONNECT_TIMEOUT, total=None),
+        follow_redirects=False,
+        http2=False,
+        trust_env=False,
+    )
+    headers = [("host", scenario.host), ("user-agent", "httpx2-benchmark")]
+    if payload:
+        headers.append(("content-length", str(len(payload))))
+
+    async def request_body(self: object) -> AsyncIterator[bytes]:
+        yield payload
+
+    # Built dynamically so this module type-checks when punkreq is not installed.
+    request_body_stream = type("RequestBody", (punkreq.AsyncByteStream,), {"__aiter__": request_body})
+
+    async def stream_one() -> None:
+        request = punkreq.Request(
+            scenario.method,
+            scenario.url,
+            headers=headers,
+            stream=request_body_stream() if payload else None,
+        )
+        response = await client.send(request, follow_redirects=False)
+        received = 0
+        async for chunk in response.iter_raw(scenario.chunk_size):
+            received += len(chunk)
+        check_size(received, scenario.expected_size)
+
+    async def read_one() -> None:
+        response = await client.request(scenario.method, scenario.url, content=payload or None)
+        check_size(len(await response.read()), scenario.expected_size)
+
+    return (stream_one if scenario.mode == "stream" else read_one), client.close
+
+
+BUILDERS: dict[str, Builder] = {
+    "httpx2": build_httpx2,
+    "httpcore2": build_httpcore2,
+    "aiohttp": build_aiohttp,
+    "punkreq": build_punkreq,
+}
+
+
+async def drive(one: RequestFn, concurrency: int, seconds: float, batch: bool) -> tuple[list[float], int]:
+    """
+    Run requests until `seconds` have elapsed, and at least one per worker.
+
+    Returns the latencies of successful requests and the number of failed ones.
+    """
+    deadline = time.perf_counter() + seconds
+    latencies: list[float] = []
+    errors = 0
+
+    async def timed() -> float:
+        nonlocal errors
+        start = time.perf_counter()
+        try:
+            await one()
+        except Exception:
+            errors += 1
+            return time.perf_counter()
+        end = time.perf_counter()
+        latencies.append(end - start)
+        return end
+
+    async def worker() -> None:
+        while await timed() < deadline:
+            pass
+
+    if batch:
+        while True:
+            async with asyncio.TaskGroup() as batch_group:
+                for _ in range(concurrency):
+                    batch_group.create_task(timed())
+            if time.perf_counter() >= deadline:
+                break
+    else:
+        async with asyncio.TaskGroup() as workers:
+            for _ in range(concurrency):
+                workers.create_task(worker())
+    return latencies, errors
+
+
+def percentile(sorted_values: list[float], fraction: float) -> float:
+    return sorted_values[min(len(sorted_values) - 1, int(len(sorted_values) * fraction))]
+
+
+async def run_scenario(
+    scenario: Scenario, seconds: float, warmup_seconds: float, profile_path: str | None
+) -> dict[str, Any]:
+    payload = b"y" * scenario.size if scenario.post or scenario.upload else b""
+    one, aclose = BUILDERS[scenario.lib](scenario, payload)
+    try:
+        # Establish `concurrency` connections, then run unmeasured for a while.
+        await drive(one, scenario.concurrency, 0.0, batch=True)
+        await drive(one, scenario.concurrency, warmup_seconds, scenario.batch)
+
+        profiler = None
+        if profile_path is not None:
+            import pyinstrument
+
+            profiler = pyinstrument.Profiler(async_mode="disabled")
+            profiler.start()
+
+        cpu_start = time.process_time()
+        wall_start = time.perf_counter()
+        latencies, errors = await drive(one, scenario.concurrency, seconds, scenario.batch)
+        wall = time.perf_counter() - wall_start
+        cpu = time.process_time() - cpu_start
+
+        if profiler is not None:
+            profiler.stop()
+            with open(profile_path, "w") as f:  # type: ignore[arg-type]
+                f.write(profiler.output_text(unicode=True, color=False))
+    finally:
+        await aclose()
+
+    if not latencies:
+        raise RuntimeError(f"All {errors} requests failed.")
+    latencies.sort()
+    count = len(latencies)
+    return {
+        "lib": scenario.lib,
+        "mode": scenario.mode,
+        "concurrency": scenario.concurrency,
+        "size": scenario.size,
+        "post": scenario.post,
+        "upload": scenario.upload,
+        "http2": scenario.http2,
+        "batch": scenario.batch,
+        "requests": count,
+        "errors": errors,
+        "seconds": round(wall, 3),
+        "rps": round(count / wall, 1),
+        "p50_ms": round(percentile(latencies, 0.5) * 1000, 2),
+        "p99_ms": round(percentile(latencies, 0.99) * 1000, 2),
+        "max_ms": round(latencies[-1] * 1000, 2),
+        "cpu_us": round(cpu * 1_000_000 / count, 1),
+    }
+
+
+def pin_to_cpu(cpu: int | None) -> None:
+    if cpu is not None and hasattr(os, "sched_setaffinity"):
+        os.sched_setaffinity(0, {cpu})
+
+
+def run(coro: Coroutine[Any, Any, T], use_zuvloop: bool) -> tuple[T, bool]:
+    loop: asyncio.AbstractEventLoop
+    zuvloop_active = False
+    if use_zuvloop:
+        try:
+            import zuvloop
+        except ImportError:
+            loop = asyncio.new_event_loop()
+        else:
+            loop = zuvloop.new_event_loop()
+            zuvloop_active = True
+    else:
+        loop = asyncio.new_event_loop()
+    try:
+        return loop.run_until_complete(coro), zuvloop_active
+    finally:
+        loop.run_until_complete(loop.shutdown_asyncgens())
+        loop.close()
+
+
+def interpreter_info() -> dict[str, Any]:
+    gil_enabled = True
+    if sys.version_info >= (3, 13):
+        gil_enabled = sys._is_gil_enabled()
+    return {"python": sys.version.split()[0], "gil": gil_enabled}
+
+
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--lib", choices=sorted(BUILDERS), required=True)
+    parser.add_argument("--concurrency", type=int, default=16)
+    parser.add_argument("--size", type=int, default=1024, help="Response body size in bytes (request body for --post).")
+    body = parser.add_mutually_exclusive_group()
+    body.add_argument("--post", action="store_true", help="POST a body of --size bytes to the echo endpoint.")
+    body.add_argument(
+        "--upload", action="store_true", help="POST a body of --size bytes and receive an empty response."
+    )
+    parser.add_argument("--mode", choices=("stream", "read"), default="stream")
+    parser.add_argument("--chunk-size", type=int, default=DEFAULT_CHUNK_SIZE)
+    parser.add_argument("--max-connections", type=int, default=None, help="Pool limit; unbounded by default.")
+    parser.add_argument("--http2", action="store_true", help="Cleartext HTTP/2 with prior knowledge, no HTTP/1.1.")
+    parser.add_argument("--batch", action="store_true", help="Start requests in lockstep batches of --concurrency.")
+    parser.add_argument("--read-timeout", type=float, default=DEFAULT_READ_TIMEOUT)
+    parser.add_argument("--seconds", type=float, default=4.0, help="Measured duration.")
+    parser.add_argument("--warmup", type=float, default=0.5, help="Unmeasured duration before measuring.")
+    parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument("--port", type=int, default=DEFAULT_PORT)
+    parser.add_argument("--cpu", type=int, default=None, help="Pin this worker to a CPU (Linux only).")
+    parser.add_argument("--no-zuvloop", action="store_true")
+    parser.add_argument("--profile", default=None, help="Write a pyinstrument profile of the measured phase here.")
+    args = parser.parse_args(argv)
+
+    pin_to_cpu(args.cpu)
+    scenario = Scenario(
+        lib=args.lib,
+        concurrency=args.concurrency,
+        size=args.size,
+        post=args.post,
+        upload=args.upload,
+        mode=args.mode,
+        chunk_size=args.chunk_size,
+        max_connections=args.max_connections,
+        http2=args.http2,
+        batch=args.batch,
+        read_timeout=args.read_timeout,
+        host=args.host,
+        port=args.port,
+    )
+    result, zuvloop_active = run(
+        run_scenario(scenario, args.seconds, args.warmup, args.profile), use_zuvloop=not args.no_zuvloop
+    )
+    result.update(interpreter_info(), zuvloop=zuvloop_active)
+    print(json.dumps(result), flush=True)
+
+
+if __name__ == "__main__":
+    main()

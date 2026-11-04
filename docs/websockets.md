@@ -97,7 +97,7 @@ You can also send a Ping manually. `ping()` returns an event that is set when th
 
 | Argument | Default | Description |
 | -------- | ------- | ----------- |
-| `max_message_size_bytes` | 65536 | The number of bytes read from the network at a time. Larger messages are received in multiple chunks and reassembled. |
+| `max_message_size_bytes` | 65536 | The maximum incoming message size in bytes. Messages larger than this limit, including fragmented messages whose cumulative size exceeds the limit, close the connection with `MESSAGE_TOO_BIG`. |
 | `queue_size` | 512 | The size of the queue holding received messages until they are consumed. When full, the session stops reading from the server until room is available. |
 | `keepalive_ping_interval_seconds` | 20.0 | The interval between automatic keepalive pings. Use `None` to disable them. |
 | `keepalive_ping_timeout_seconds` | 20.0 | How long to wait for the server to answer a keepalive ping before considering the connection lost. |

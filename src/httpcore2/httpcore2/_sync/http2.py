@@ -105,13 +105,23 @@ class HTTP2Connection(ConnectionInterface):
                 # its max_concurrent_streams value
                 self._max_streams = 1
 
+                # Revoked permits still held by active or queued requests.
+                self._max_streams_deficit = 0
+
                 local_settings_max_streams = self._h2_state.local_settings.max_concurrent_streams
                 self._max_streams_semaphore = Semaphore(local_settings_max_streams)
 
                 for _ in range(local_settings_max_streams - self._max_streams):
                     self._max_streams_semaphore.acquire()
 
-        self._max_streams_semaphore.acquire()
+        # A queued request may receive a permit just before the limit drops.
+        while True:
+            self._max_streams_semaphore.acquire()
+            with ShieldCancellation():
+                with self._state_lock:
+                    if not self._max_streams_deficit:
+                        break
+                    self._max_streams_deficit -= 1
 
         try:
             stream_id = self._h2_state.get_next_available_stream_id()
@@ -246,10 +256,11 @@ class HTTP2Connection(ConnectionInterface):
         """
         Send a single chunk of data in one or more data frames.
         """
-        while data:
+        position = 0
+        while position < len(data):
             max_flow = self._wait_for_outgoing_flow(request, stream_id)
-            chunk_size = min(len(data), max_flow)
-            chunk, data = data[:chunk_size], data[chunk_size:]
+            chunk = data[position : position + max_flow]
+            position += len(chunk)
             self._h2_state.send_data(stream_id, chunk)
             self._write_outgoing_data(request)
 
@@ -307,7 +318,10 @@ class HTTP2Connection(ConnectionInterface):
         Will read more data from the network if required.
         """
         while not self._events.get(stream_id):
-            self._receive_events(request, stream_id)
+            with self._read_lock:
+                if not self._events.get(stream_id):
+                    self._receive_events(request, stream_id)
+            self._write_outgoing_data(request)
         event = self._events[stream_id].pop(0)
         if isinstance(event, h2.events.StreamReset):
             raise RemoteProtocolError(event)
@@ -315,47 +329,39 @@ class HTTP2Connection(ConnectionInterface):
 
     def _receive_events(self, request: Request, stream_id: int | None = None) -> None:
         """
-        Read some data from the network until we see one or more events
-        for a given stream ID.
+        Read some data from the network and dispatch the resulting events.
+
+        The caller holds `_read_lock`, re-checks what it is waiting for after
+        acquiring it, since another task may have read it in the meantime, and
+        flushes outgoing data once the lock is released.
         """
-        with self._read_lock:
-            if self._connection_terminated is not None:
-                last_stream_id = self._connection_terminated.last_stream_id
-                if stream_id and last_stream_id and stream_id > last_stream_id:
-                    self._request_count -= 1
-                    raise ConnectionNotAvailable()
-                raise RemoteProtocolError(self._connection_terminated)
+        if self._connection_terminated is not None:
+            last_stream_id = self._connection_terminated.last_stream_id
+            if stream_id and last_stream_id and stream_id > last_stream_id:
+                self._request_count -= 1
+                raise ConnectionNotAvailable()
+            raise RemoteProtocolError(self._connection_terminated)
 
-            # This conditional is a bit icky. We don't want to block reading if we've
-            # actually got an event to return for a given stream. We need to do that
-            # check *within* the atomic read lock. Though it also need to be optional,
-            # because when we call it from `_wait_for_outgoing_flow` we *do* want to
-            # block until we've available flow control, event when we have events
-            # pending for the stream ID we're attempting to send on.
-            if stream_id is None or not self._events.get(stream_id):
-                events = self._read_incoming_data(request)
-                for event in events:
-                    if isinstance(event, h2.events.RemoteSettingsChanged):
-                        with Trace("receive_remote_settings", logger, request) as trace:
-                            self._receive_remote_settings_change(event)
-                            trace.return_value = event
+        events = self._read_incoming_data(request)
+        for event in events:
+            if isinstance(event, h2.events.RemoteSettingsChanged):
+                with Trace("receive_remote_settings", logger, request) as trace:
+                    trace.return_value = event
 
-                    elif isinstance(
-                        event,
-                        (
-                            h2.events.ResponseReceived,
-                            h2.events.DataReceived,
-                            h2.events.StreamEnded,
-                            h2.events.StreamReset,
-                        ),
-                    ):
-                        if event.stream_id in self._events:
-                            self._events[event.stream_id].append(event)
+            elif isinstance(
+                event,
+                (
+                    h2.events.ResponseReceived,
+                    h2.events.DataReceived,
+                    h2.events.StreamEnded,
+                    h2.events.StreamReset,
+                ),
+            ):
+                if event.stream_id in self._events:
+                    self._events[event.stream_id].append(event)
 
-                    elif isinstance(event, h2.events.ConnectionTerminated):
-                        self._connection_terminated = event
-
-        self._write_outgoing_data(request)
+            elif isinstance(event, h2.events.ConnectionTerminated):
+                self._connection_terminated = event
 
     def _receive_remote_settings_change(self, event: h2.events.RemoteSettingsChanged) -> None:
         max_concurrent_streams = event.changed_settings.get(h2.settings.SettingCodes.MAX_CONCURRENT_STREAMS)
@@ -365,17 +371,26 @@ class HTTP2Connection(ConnectionInterface):
                 self._h2_state.local_settings.max_concurrent_streams,
             )
             if new_max_streams and new_max_streams != self._max_streams:
+                # Never wait for permits while holding the read lock.
                 while new_max_streams > self._max_streams:
-                    self._max_streams_semaphore.release()
+                    if self._max_streams_deficit > 0:
+                        self._max_streams_deficit -= 1
+                    else:
+                        self._max_streams_semaphore.release()
                     self._max_streams += 1
                 while new_max_streams < self._max_streams:
-                    self._max_streams_semaphore.acquire()
+                    if not self._max_streams_semaphore.acquire_if_available():
+                        self._max_streams_deficit += 1
                     self._max_streams -= 1
 
     def _response_closed(self, stream_id: int) -> None:
-        self._max_streams_semaphore.release()
         with self._state_lock:
-            del self._events[stream_id]
+            if stream_id in self._events:
+                if self._max_streams_deficit > 0:
+                    self._max_streams_deficit -= 1
+                else:
+                    self._max_streams_semaphore.release()
+                del self._events[stream_id]
             if self._connection_terminated and not self._events:
                 self.close()
 
@@ -420,7 +435,13 @@ class HTTP2Connection(ConnectionInterface):
             self._connection_error = True
             raise exc
 
-        events: list[h2.events.Event] = self._h2_state.receive_data(data)
+        # Apply settings and stream admission limits atomically.
+        with ShieldCancellation():
+            with self._state_lock:
+                events: list[h2.events.Event] = self._h2_state.receive_data(data)
+                for event in events:
+                    if isinstance(event, h2.events.RemoteSettingsChanged):
+                        self._receive_remote_settings_change(event)
 
         return events
 
@@ -459,15 +480,17 @@ class HTTP2Connection(ConnectionInterface):
         WindowUpdated frames have increased the flow rate.
         https://tools.ietf.org/html/rfc7540#section-6.9
         """
-        local_flow: int = self._h2_state.local_flow_control_window(stream_id)
-        max_frame_size: int = self._h2_state.max_outbound_frame_size
-        flow = min(local_flow, max_frame_size)
-        while flow <= 0:
-            self._receive_events(request)
-            local_flow = self._h2_state.local_flow_control_window(stream_id)
-            max_frame_size = self._h2_state.max_outbound_frame_size
+        while True:
+            local_flow: int = self._h2_state.local_flow_control_window(stream_id)
+            max_frame_size: int = self._h2_state.max_outbound_frame_size
             flow = min(local_flow, max_frame_size)
-        return flow
+            if flow > 0:
+                return flow
+            with self._read_lock:
+                if self._h2_state.local_flow_control_window(stream_id) > 0:
+                    continue
+                self._receive_events(request)
+            self._write_outgoing_data(request)
 
     # Interface for connection pooling...
 
@@ -494,6 +517,9 @@ class HTTP2Connection(ConnectionInterface):
 
     def is_idle(self) -> bool:
         return self._state == HTTPConnectionState.IDLE
+
+    def can_multiplex(self) -> bool:
+        return True
 
     def is_closed(self) -> bool:
         return self._state == HTTPConnectionState.CLOSED

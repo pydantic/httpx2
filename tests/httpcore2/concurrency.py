@@ -10,6 +10,7 @@ children, because we don't need that for our use-case.
 """
 
 import threading
+import time
 from collections.abc import Callable
 from types import TracebackType
 from typing import Any
@@ -40,3 +41,6 @@ class Nursery:
 
 def open_nursery() -> Nursery:
     return Nursery()
+
+
+sleep = time.sleep

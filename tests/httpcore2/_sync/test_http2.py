@@ -1,6 +1,8 @@
+import h2.settings
 import hpack
 import hyperframe.frame
 import pytest
+from tests.httpcore2 import concurrency
 
 import httpcore2
 
@@ -66,6 +68,37 @@ def test_http2_connection_closed() -> None:
             conn.request("GET", "https://example.com/")
 
         assert not conn.is_available()
+
+
+
+def test_http2_response_closed_twice() -> None:
+    """
+    Closing a response for a stream that has already been removed should be
+    a no-op, rather than raising a `KeyError` that masks the exception which
+    triggered the cleanup. See https://github.com/encode/httpx/issues/3072
+    """
+    origin = httpcore2.Origin(b"https", b"example.com", 443)
+    stream = httpcore2.MockStream(
+        [
+            hyperframe.frame.SettingsFrame().serialize(),
+            hyperframe.frame.HeadersFrame(
+                stream_id=1,
+                data=hpack.Encoder().encode(
+                    [
+                        (b":status", b"200"),
+                        (b"content-type", b"plain/text"),
+                    ]
+                ),
+                flags=["END_HEADERS"],
+            ).serialize(),
+            hyperframe.frame.DataFrame(stream_id=1, data=b"Hello, world!", flags=["END_STREAM"]).serialize(),
+        ]
+    )
+    with httpcore2.HTTP2Connection(origin=origin, stream=stream, keepalive_expiry=5.0) as conn:
+        conn.request("GET", "https://example.com/")
+
+        # The stream was closed when the response completed.
+        conn._response_closed(stream_id=1)
 
 
 
@@ -283,6 +316,76 @@ def test_http2_connection_with_flow_control() -> None:
         assert response.content == b"100,000 bytes received"
 
 
+class SlowServerStream(httpcore2.MockStream):
+    """
+    A mock stream where reads yield to the scheduler, as a socket read would,
+    and the final chunk is only readable once two request streams have been opened.
+    """
+
+    def __init__(self, buffer: list[bytes]) -> None:
+        super().__init__(buffer, http2=True)
+        self.headers_frames_received = 0
+
+    def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
+        while len(self._buffer) == 1 and self.headers_frames_received < 2:
+            concurrency.sleep(0)
+        concurrency.sleep(0)
+        return super().read(max_bytes, timeout)
+
+    def write(self, buffer: bytes, timeout: float | None = None) -> None:
+        data = memoryview(buffer.removeprefix(b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"))
+        while data:
+            frame, length = hyperframe.frame.Frame.parse_frame_header(data[:9])
+            if isinstance(frame, hyperframe.frame.HeadersFrame):
+                self.headers_frames_received += 1
+            data = data[9 + length :]
+
+
+
+def test_http2_connection_with_concurrent_uploads() -> None:
+    """
+    Two uploads exhaust the connection flow control window, and both wait for the
+    server to extend it. A single read returns the WINDOW_UPDATE for both streams,
+    together with the responses. The upload that was queued behind that read
+    should not then block on a further read, since the server has nothing more to send.
+
+    See https://github.com/pydantic/httpx2/issues/1133
+    """
+    origin = httpcore2.Origin(b"https", b"example.com", 443)
+    stream = SlowServerStream(
+        [
+            hyperframe.frame.SettingsFrame(settings={h2.settings.SettingCodes.MAX_CONCURRENT_STREAMS: 100}).serialize(),
+            b"".join(
+                [
+                    hyperframe.frame.WindowUpdateFrame(stream_id=0, window_increment=2**20).serialize(),
+                    hyperframe.frame.WindowUpdateFrame(stream_id=1, window_increment=2**20).serialize(),
+                    hyperframe.frame.WindowUpdateFrame(stream_id=3, window_increment=2**20).serialize(),
+                    hyperframe.frame.HeadersFrame(
+                        stream_id=1, data=hpack.Encoder().encode([(b":status", b"200")]), flags=["END_HEADERS"]
+                    ).serialize(),
+                    hyperframe.frame.DataFrame(stream_id=1, data=b"", flags=["END_STREAM"]).serialize(),
+                    hyperframe.frame.HeadersFrame(
+                        stream_id=3, data=hpack.Encoder().encode([(b":status", b"200")]), flags=["END_HEADERS"]
+                    ).serialize(),
+                    hyperframe.frame.DataFrame(stream_id=3, data=b"", flags=["END_STREAM"]).serialize(),
+                ]
+            ),
+        ]
+    )
+    # Each upload is larger than the 65,535 byte initial connection window.
+    content = b"x" * 100_000
+
+    with httpcore2.HTTP2Connection(origin=origin, stream=stream) as conn:
+
+        def upload() -> None:
+            response = conn.request("POST", "https://example.com/", content=content)
+            assert response.status == 200
+
+        with concurrency.open_nursery() as nursery:
+            nursery.start_soon(upload)
+            nursery.start_soon(upload)
+
+
 
 def test_http2_connection_attempt_close() -> None:
     """
@@ -376,3 +479,52 @@ def test_http2_remote_max_streams_update() -> None:
                         conn._h2_state.local_settings.max_concurrent_streams,
                     )
                 i += 1
+
+
+
+@pytest.mark.parametrize("limits", [[1], [1, 2], [1, 100], [1, 2, 1]])
+def test_http2_remote_max_streams_decrease_below_in_flight(limits: list[int]) -> None:
+    origin = httpcore2.Origin(b"https", b"example.com", 443)
+    stream = httpcore2.MockStream(
+        [
+            hyperframe.frame.SettingsFrame(
+                settings={hyperframe.frame.SettingsFrame.MAX_CONCURRENT_STREAMS: 100}
+            ).serialize(),
+            hyperframe.frame.HeadersFrame(
+                stream_id=1,
+                data=hpack.Encoder().encode([(b":status", b"200")]),
+                flags=["END_HEADERS"],
+            ).serialize(),
+            hyperframe.frame.HeadersFrame(
+                stream_id=3,
+                data=hpack.Encoder().encode([(b":status", b"200")]),
+                flags=["END_HEADERS"],
+            ).serialize(),
+            *[
+                hyperframe.frame.SettingsFrame(
+                    settings={hyperframe.frame.SettingsFrame.MAX_CONCURRENT_STREAMS: limit}
+                ).serialize()
+                for limit in limits
+            ],
+            hyperframe.frame.DataFrame(stream_id=1, data=b"response a", flags=["END_STREAM"]).serialize(),
+            hyperframe.frame.DataFrame(stream_id=3, data=b"response b", flags=["END_STREAM"]).serialize(),
+            hyperframe.frame.HeadersFrame(
+                stream_id=5,
+                data=hpack.Encoder().encode([(b":status", b"200")]),
+                flags=["END_HEADERS"],
+            ).serialize(),
+            hyperframe.frame.DataFrame(stream_id=5, data=b"response c", flags=["END_STREAM"]).serialize(),
+        ]
+    )
+
+    with httpcore2.HTTP2Connection(origin=origin, stream=stream) as conn:
+        with conn.stream("GET", "https://example.com/a") as response_a:
+            with conn.stream("GET", "https://example.com/b") as response_b:
+                assert response_a.status == response_b.status == 200
+                assert response_a.read() == b"response a"
+                assert response_b.read() == b"response b"
+
+        response_c = conn.request("GET", "https://example.com/c")
+        assert response_c.status == 200
+        assert response_c.content == b"response c"
+        assert conn.is_idle()

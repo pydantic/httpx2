@@ -142,11 +142,16 @@ def test_response_sync_streaming() -> None:
 
 class AsyncByteIterator:
     def __init__(self, chunks: list[bytes]) -> None:
-        self._chunks = chunks
+        self._chunks = iter(chunks)
 
-    async def __aiter__(self) -> typing.AsyncIterator[bytes]:
-        for chunk in self._chunks:
-            yield chunk
+    def __aiter__(self) -> typing.AsyncIterator[bytes]:
+        return self
+
+    async def __anext__(self) -> bytes:
+        try:
+            return next(self._chunks)
+        except StopIteration:
+            raise StopAsyncIteration from None
 
 
 @pytest.mark.trio

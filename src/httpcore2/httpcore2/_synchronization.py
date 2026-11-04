@@ -18,13 +18,16 @@ try:
 except ImportError:  # pragma: no cover
     anyio = None  # type: ignore
 
+try:
+    import sniffio
+except ImportError:  # pragma: no cover
+    sniffio = None  # type: ignore
+
 
 def current_async_library() -> str:
     # Determine if we're running under trio or asyncio.
     # See https://sniffio.readthedocs.io/en/latest/
-    try:
-        import sniffio
-    except ImportError:  # pragma: no cover
+    if sniffio is None:  # pragma: no cover
         environment = "asyncio"
     else:
         environment = sniffio.current_async_library()
@@ -172,6 +175,28 @@ class AsyncSemaphore:
         elif self._backend == "asyncio":
             await self._anyio_semaphore.acquire()
 
+    def acquire_if_available(self) -> bool:
+        """
+        Acquire a permit if one is immediately available, without blocking.
+        Returns True if a permit was acquired.
+
+        Like `release()`, this requires `setup()` to have run, which any
+        prior `acquire()` call ensures.
+        """
+        if self._backend == "trio":
+            try:
+                self._trio_semaphore.acquire_nowait()
+            except trio.WouldBlock:
+                return False
+            return True
+        elif self._backend == "asyncio":
+            try:
+                self._anyio_semaphore.acquire_nowait()
+            except anyio.WouldBlock:
+                return False
+            return True
+        return False  # pragma: no cover
+
     async def release(self) -> None:
         if self._backend == "trio":
             self._trio_semaphore.release()
@@ -289,6 +314,9 @@ class Semaphore:
 
     def acquire(self) -> None:
         self._semaphore.acquire()
+
+    def acquire_if_available(self) -> bool:
+        return self._semaphore.acquire(blocking=False)
 
     def release(self) -> None:
         self._semaphore.release()
