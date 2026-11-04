@@ -196,6 +196,7 @@ class _SSEParser:
 class EventSource:
     def __init__(self, response: Response, max_event_size: int | None = DEFAULT_MAX_EVENT_SIZE_BYTES) -> None:
         self._response = response
+        self._response.encoding = "utf-8-sig"
         self._max_event_size = max_event_size
 
     @property

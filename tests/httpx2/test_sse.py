@@ -253,6 +253,35 @@ async def test_chunk_boundaries_and_crlf_async() -> None:
     assert [event.data for event in events] == ["hello", "world"]
 
 
+def test_leading_bom_split_across_chunks_is_ignored() -> None:
+    def chunks() -> Iterator[bytes]:
+        yield b"\xef"
+        yield b"\xbb"
+        yield b"\xbfdata: first\n\n"
+        yield b"data: \xef\xbb\xbfsecond\n\n"
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(200, content=chunks(), headers={"Content-Type": "text/event-stream"})
+
+    with httpx2.Client(transport=httpx2.MockTransport(handler)) as client:
+        with client.sse("http://testserver/sse") as source:
+            events = list(source)
+
+    assert [event.data for event in events] == ["first", "\ufeffsecond"]
+
+
+def test_charset_is_ignored() -> None:
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        content = "data: café\n\n".encode()
+        return httpx2.Response(200, content=content, headers={"Content-Type": "text/event-stream; charset=latin-1"})
+
+    with httpx2.Client(transport=httpx2.MockTransport(handler)) as client:
+        with client.sse("http://testserver/sse") as source:
+            (event,) = list(source)
+
+    assert event.data == "café"
+
+
 def test_event_without_trailing_blank_line() -> None:
     def handler(request: httpx2.Request) -> httpx2.Response:
         return httpx2.Response(200, content=b"data: hi", headers={"Content-Type": "text/event-stream"})
