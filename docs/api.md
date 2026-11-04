@@ -96,7 +96,7 @@
 * `.encoding` - **str**
 * `.is_redirect` - **bool**
 * `.request` - **Request**
-* `.next_request` - **Optional[Request]**
+* `.next_request` - **Optional[Request]** - The redirect request, when not following redirects. `None` if the `Location` header is not a valid URL.
 * `.cookies` - **Cookies**
 * `.history` - **List[Response]**
 * `.elapsed` - **[timedelta](https://docs.python.org/3/library/datetime.html)**
