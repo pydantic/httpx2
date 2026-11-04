@@ -64,6 +64,23 @@ def test_digest_auth_with_401() -> None:
         flow.send(response)
 
 
+def test_digest_auth_challenge_parameters_are_case_and_whitespace_insensitive() -> None:
+    auth = httpx2.DigestAuth(username="user", password="pass")
+    request = httpx2.Request("GET", "https://www.example.com")
+    flow = auth.sync_auth_flow(request)
+    request = next(flow)
+
+    headers = {"WWW-Authenticate": 'Digest Realm = "r", NONCE="n", QOP="auth", Algorithm=SHA-256, Opaque="o"'}
+    response = httpx2.Response(content=b"Auth required", status_code=401, headers=headers, request=request)
+    authorization = flow.send(response).headers["Authorization"]
+
+    assert 'realm="r"' in authorization
+    assert 'nonce="n"' in authorization
+    assert "qop=auth" in authorization
+    assert "algorithm=SHA-256" in authorization
+    assert 'opaque="o"' in authorization
+
+
 def test_digest_auth_with_401_nonce_counting() -> None:
     auth = httpx2.DigestAuth(username="user", password="pass")
     request = httpx2.Request("GET", "https://www.example.com")
