@@ -226,7 +226,7 @@ class DigestAuth(Auth):
         header_dict: dict[str, str] = {}
         for field in parse_http_list(fields):
             key, value = field.strip().split("=", 1)
-            header_dict[key] = value.strip('"')
+            header_dict[key.strip().lower()] = value.strip().strip('"')
 
         try:
             realm = header_dict["realm"].encode()
