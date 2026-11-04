@@ -4,14 +4,13 @@ import ssl
 import sys
 import types
 import typing
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncIterator
 
 from .._backends.auto import AutoBackend
 from .._backends.base import SOCKET_OPTION, AsyncNetworkBackend
 from .._exceptions import ConnectionNotAvailable, UnsupportedProtocol
 from .._models import Origin, Proxy, Request, Response
 from .._synchronization import AsyncEvent, AsyncShieldCancellation, AsyncThreadLock
-from .._utils import safe_async_iterate
 from .connection import AsyncHTTPConnection
 from .interfaces import AsyncConnectionInterface, AsyncRequestInterface
 
@@ -421,10 +420,8 @@ class PoolByteStream:
         self._pool = pool
         self._closed = False
 
-    async def __aiter__(self) -> AsyncGenerator[bytes]:
-        async with safe_async_iterate(self._stream) as iterator:
-            async for chunk in iterator:
-                yield chunk
+    def __aiter__(self) -> AsyncIterator[bytes]:
+        return self._stream.__aiter__()
 
     async def aclose(self) -> None:
         if not self._closed:
