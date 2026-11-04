@@ -3,6 +3,7 @@ from __future__ import annotations
 import subprocess
 import sys
 import threading
+import typing
 from unittest.mock import patch
 
 import anyio
@@ -14,6 +15,29 @@ import httpx2 as httpx
 from httpcore2 import AsyncNetworkStream, NetworkStream
 from httpx2.websockets import AsyncWebSocketSession, WebSocketSession, _api
 from tests.httpx2.websockets.conftest import ServerFactoryFixture
+
+FRAGMENTED_MESSAGES = [
+    pytest.param(
+        [
+            wsproto.events.TextMessage("FRAG", message_finished=False),
+            wsproto.events.TextMessage("", message_finished=False),
+            wsproto.events.TextMessage("MEN", message_finished=False),
+            wsproto.events.TextMessage("TED", message_finished=True),
+        ],
+        "FRAGMENTED",
+        id="text",
+    ),
+    pytest.param(
+        [
+            wsproto.events.BytesMessage(b"FRAG", message_finished=False),
+            wsproto.events.BytesMessage(b"", message_finished=False),
+            wsproto.events.BytesMessage(b"MEN", message_finished=False),
+            wsproto.events.BytesMessage(b"TED", message_finished=True),
+        ],
+        b"FRAGMENTED",
+        id="binary",
+    ),
+]
 
 
 def test_importing_httpx2_does_not_import_wsproto() -> None:
@@ -65,11 +89,12 @@ async def test_client_websocket_forwards_request_params(server_factory: ServerFa
                 assert await aws.receive_text() == "secret"
 
 
-def test_receive_reassembles_fragmented_message() -> None:
+@pytest.mark.parametrize(("events", "expected"), FRAGMENTED_MESSAGES)
+def test_receive_reassembles_fragmented_message(
+    events: list[wsproto.events.Message[typing.Any]], expected: str | bytes
+) -> None:
     server = wsproto.connection.Connection(wsproto.connection.ConnectionType.SERVER)
-    fragments = server.send(wsproto.events.TextMessage("FRAG", message_finished=False))
-    fragments += server.send(wsproto.events.TextMessage("MEN", message_finished=False))
-    fragments += server.send(wsproto.events.TextMessage("TED", message_finished=True))
+    fragments = b"".join(server.send(event) for event in events)
 
     class MockNetworkStream(NetworkStream):
         def __init__(self) -> None:
@@ -89,15 +114,18 @@ def test_receive_reassembles_fragmented_message() -> None:
             self._closed.set()
 
     with WebSocketSession(MockNetworkStream()) as ws:
-        assert ws.receive_text() == "FRAGMENTED"
+        event = ws.receive()
+        assert isinstance(event, wsproto.events.Message)
+        assert event.data == expected
 
 
 @pytest.mark.anyio
-async def test_async_receive_reassembles_fragmented_message() -> None:
+@pytest.mark.parametrize(("events", "expected"), FRAGMENTED_MESSAGES)
+async def test_async_receive_reassembles_fragmented_message(
+    events: list[wsproto.events.Message[typing.Any]], expected: str | bytes
+) -> None:
     server = wsproto.connection.Connection(wsproto.connection.ConnectionType.SERVER)
-    fragments = server.send(wsproto.events.TextMessage("FRAG", message_finished=False))
-    fragments += server.send(wsproto.events.TextMessage("MEN", message_finished=False))
-    fragments += server.send(wsproto.events.TextMessage("TED", message_finished=True))
+    fragments = b"".join(server.send(event) for event in events)
 
     class AsyncMockNetworkStream(AsyncNetworkStream):
         def __init__(self) -> None:
@@ -114,4 +142,6 @@ async def test_async_receive_reassembles_fragmented_message() -> None:
         async def aclose(self) -> None: ...
 
     async with AsyncWebSocketSession(AsyncMockNetworkStream()) as ws:
-        assert await ws.receive_text() == "FRAGMENTED"
+        event = await ws.receive()
+        assert isinstance(event, wsproto.events.Message)
+        assert event.data == expected

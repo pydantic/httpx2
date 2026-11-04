@@ -518,7 +518,7 @@ class WebSocketSession:
         """
         import httpcore2
 
-        partial_message_buffer: str | bytes | None = None
+        partial_message_fragments: list[str | bytes] = []
         partial_message_size = 0
         try:
             while not self._should_close.is_set():
@@ -543,19 +543,18 @@ class WebSocketSession:
                             break
                         # Unfinished message: bufferize
                         if not event.message_finished:
-                            if partial_message_buffer is None:
-                                partial_message_buffer = event.data
-                            else:
-                                partial_message_buffer += event.data
+                            if event.data:
+                                partial_message_fragments.append(event.data)
                         # Finished message but no buffer: just emit the event
-                        elif partial_message_buffer is None:
+                        elif not partial_message_fragments:
                             partial_message_size = 0
                             self._events.put(event)
                         # Finished message with buffer: emit the full event
                         else:
                             event_type = type(event)
-                            full_message_event = event_type(partial_message_buffer + event.data)
-                            partial_message_buffer = None
+                            partial_message_fragments.append(event.data)
+                            full_message_event = event_type(_join_message_fragments(partial_message_fragments))
+                            partial_message_fragments = []
                             partial_message_size = 0
                             self._events.put(full_message_event)
                         continue
@@ -1091,7 +1090,7 @@ class AsyncWebSocketSession(anyio.AsyncContextManagerMixin):
         """
         import httpcore2
 
-        partial_message_buffer: str | bytes | None = None
+        partial_message_fragments: list[str | bytes] = []
         partial_message_size = 0
         try:
             while not self._should_close.is_set():
@@ -1118,19 +1117,18 @@ class AsyncWebSocketSession(anyio.AsyncContextManagerMixin):
                             break
                         # Unfinished message: bufferize
                         if not event.message_finished:
-                            if partial_message_buffer is None:
-                                partial_message_buffer = event.data
-                            else:
-                                partial_message_buffer += event.data
+                            if event.data:
+                                partial_message_fragments.append(event.data)
                         # Finished message but no buffer: just emit the event
-                        elif partial_message_buffer is None:
+                        elif not partial_message_fragments:
                             partial_message_size = 0
                             await self._send_event.send(event)
                         # Finished message with buffer: emit the full event
                         else:
                             event_type = type(event)
-                            full_message_event = event_type(partial_message_buffer + event.data)
-                            partial_message_buffer = None
+                            partial_message_fragments.append(event.data)
+                            full_message_event = event_type(_join_message_fragments(partial_message_fragments))
+                            partial_message_fragments = []
                             partial_message_size = 0
                             await self._send_event.send(full_message_event)
                         continue
@@ -1162,6 +1160,12 @@ class AsyncWebSocketSession(anyio.AsyncContextManagerMixin):
         if data == b"":
             raise EndOfStream()
         return data
+
+
+def _join_message_fragments(fragments: list[str | bytes]) -> str | bytes:
+    if isinstance(fragments[0], str):
+        return "".join(typing.cast(list[str], fragments))
+    return b"".join(typing.cast(list[bytes], fragments))
 
 
 def _get_headers(
