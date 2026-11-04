@@ -1089,7 +1089,7 @@ class Cookies(typing.MutableMapping[str, str]):
             for key, value in cookies:
                 self.set(key, value)
         elif isinstance(cookies, Cookies):
-            self.jar = IndexedCookieJar()
+            self.jar = IndexedCookieJar(policy=cookies.jar._policy)  # type: ignore[attr-defined]
             for cookie in cookies.jar:
                 self.jar.set_cookie(cookie)
         else:

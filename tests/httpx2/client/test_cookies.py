@@ -117,6 +117,17 @@ def test_setting_client_cookies_to_cookiejar() -> None:
     assert response.json() == {"cookies": "example-name=example-value"}
 
 
+def test_client_cookie_policy_applies_with_per_request_cookies() -> None:
+    jar = CookieJar(policy=DefaultCookiePolicy(blocked_domains=["example.org"]))
+    httpx2.Cookies(jar).set("blocked", "value", domain="example.org")
+    client = httpx2.Client(cookies=jar, transport=httpx2.MockTransport(get_and_set_cookies))
+
+    with pytest.warns(DeprecationWarning):
+        response = client.get("http://example.org/echo_cookies", cookies={"allowed": "value"})
+
+    assert response.json() == {"cookies": "allowed=value"}
+
+
 def test_set_cookie_with_cookies_model() -> None:
     """
     Send a request including a cookie, using a `Cookies` instance.
