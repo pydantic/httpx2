@@ -189,6 +189,12 @@ class SyncBackend(NetworkBackend):
         local_address: str | None = None,
         socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
     ) -> NetworkStream:
+        # Unpack the raw numeric value if a Timeout object is passed instead a float
+        if timeout is not None and not isinstance(timeout, (int, float)):
+            if hasattr(timeout, "connect"):
+                timeout=timeout.connect
+            elif hasattr(timeout, "total"):
+                timeout = timeout.total
         # Note that we automatically include `TCP_NODELAY`
         # in addition to any other custom socket options.
         if socket_options is None:
