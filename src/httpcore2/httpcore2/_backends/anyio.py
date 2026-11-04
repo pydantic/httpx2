@@ -46,6 +46,7 @@ class AnyIOStream(AsyncNetworkStream):
             TimeoutError: WriteTimeout,
             anyio.BrokenResourceError: WriteError,
             anyio.ClosedResourceError: WriteError,
+            anyio.EndOfStream: WriteError,
         }
         with map_exceptions(exc_map):
             with anyio.fail_after(timeout):

@@ -3,6 +3,7 @@ site_description: A next-generation HTTP client for Python.
 
 theme:
     name: 'material'
+    custom_dir: 'docs/overrides'
     palette:
       - scheme: 'default'
         media: '(prefers-color-scheme: light)'
@@ -23,6 +24,7 @@ edit_uri: ""
 nav:
     - Introduction: 'index.md'
     - QuickStart: 'quickstart.md'
+    - Migrating from HTTPX: 'migration.md'
     - Advanced:
         - Clients: 'advanced/clients.md'
         - Authentication: 'advanced/authentication.md'
@@ -34,11 +36,13 @@ nav:
         - Transports: 'advanced/transports.md'
         - Text Encodings: 'advanced/text-encodings.md'
         - Extensions: 'advanced/extensions.md'
+        - Emscripten: 'advanced/emscripten.md'
     - Guides:
         - Async Support: 'async.md'
         - HTTP/2 Support: 'http2.md'
         - Logging: 'logging.md'
         - Server-Sent Events: 'sse.md'
+        - WebSockets: 'websockets.md'
         - Requests Compatibility: 'compatibility.md'
         - Troubleshooting: 'troubleshooting.md'
     - API Reference:

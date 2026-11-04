@@ -1,15 +1,15 @@
 # Quickstart
 
-For convenience, the `httpcore` package provides a couple of top-level functions that you can use for sending HTTP requests. You probably don't want to integrate against functions if you're writing a library that uses `httpcore`, but you might find them useful for testing `httpcore` from the command-line, or if you're writing a simple script that doesn't require any of the connection pooling or advanced configuration that `httpcore` offers.
+For convenience, the `httpcore2` package provides a couple of top-level functions that you can use for sending HTTP requests. You probably don't want to integrate against functions if you're writing a library that uses `httpcore2`, but you might find them useful for testing `httpcore2` from the command-line, or if you're writing a simple script that doesn't require any of the connection pooling or advanced configuration that `httpcore2` offers.
 
 ## Sending a request
 
 We'll start off by sending a request...
 
 ```python
-import httpcore
+import httpcore2
 
-response = httpcore.request("GET", "https://www.example.com/")
+response = httpcore2.request("GET", "https://www.example.com/")
 
 print(response)
 # <Response [200]>
@@ -26,17 +26,17 @@ print(response.content)
 Request headers may be included either in a dictionary style, or as a list of two-tuples.
 
 ```python
-import httpcore
+import httpcore2
 import json
 
-headers = {'User-Agent': 'httpcore'}
-r = httpcore.request('GET', 'https://httpbin.org/headers', headers=headers)
+headers = {'User-Agent': 'httpcore2'}
+r = httpcore2.request('GET', 'https://httpbin.org/headers', headers=headers)
 
 print(json.loads(r.content))
 # {
 #     'headers': {
 #         'Host': 'httpbin.org',
-#         'User-Agent': 'httpcore',
+#         'User-Agent': 'httpcore2',
 #         'X-Amzn-Trace-Id': 'Root=1-616ff5de-5ea1b7e12766f1cf3b8e3a33'
 #     }
 # }
@@ -53,10 +53,10 @@ The `Host` header will always be automatically included in any outgoing request,
 A request body can be included either as bytes...
 
 ```python
-import httpcore
+import httpcore2
 import json
 
-r = httpcore.request('POST', 'https://httpbin.org/post', content=b'Hello, world')
+r = httpcore2.request('POST', 'https://httpbin.org/post', content=b'Hello, world')
 
 print(json.loads(r.content))
 # {
@@ -78,11 +78,11 @@ print(json.loads(r.content))
 Or as an iterable that returns bytes...
 
 ```python
-import httpcore
+import httpcore2
 import json
 
 with open("hello-world.txt", "rb") as input_file:
-    r = httpcore.request('POST', 'https://httpbin.org/post', content=input_file)
+    r = httpcore2.request('POST', 'https://httpbin.org/post', content=input_file)
 
 print(json.loads(r.content))
 # {
@@ -109,14 +109,14 @@ The `Transfer-Encoding: chunked` header is the mechanism that HTTP/1.1 uses for 
 
 ## Streaming responses
 
-When using the `httpcore.request()` function, the response body will automatically be read to completion, and made available in the `response.content` attribute.
+When using the `httpcore2.request()` function, the response body will automatically be read to completion, and made available in the `response.content` attribute.
 
-Sometimes you may be dealing with large responses and not want to read the entire response into memory. The `httpcore.stream()` function provides a mechanism for sending a request and dealing with a streaming response:
+Sometimes you may be dealing with large responses and not want to read the entire response into memory. The `httpcore2.stream()` function provides a mechanism for sending a request and dealing with a streaming response:
 
 ```python
-import httpcore
+import httpcore2
 
-with httpcore.stream('GET', 'https://example.com') as response:
+with httpcore2.stream('GET', 'https://example.com') as response:
     for chunk in response.iter_stream():
         print(f"Downloaded: {chunk}")
 ```
@@ -124,20 +124,20 @@ with httpcore.stream('GET', 'https://example.com') as response:
 Here's a more complete example that demonstrates downloading a response:
 
 ```python
-import httpcore
+import httpcore2
 
-with httpcore.stream('GET', 'https://speed.hetzner.de/100MB.bin') as response:
+with httpcore2.stream('GET', 'https://speed.hetzner.de/100MB.bin') as response:
     with open("download.bin", "wb") as output_file:
         for chunk in response.iter_stream():
             output_file.write(chunk)
 ```
 
-The `httpcore.stream()` API also allows you to *conditionally* read the response...
+The `httpcore2.stream()` API also allows you to *conditionally* read the response...
 
 ```python
-import httpcore
+import httpcore2
 
-with httpcore.stream('GET', 'https://example.com') as response:
+with httpcore2.stream('GET', 'https://example.com') as response:
     content_length = [int(v) for k, v in response.headers if k.lower() == b'content-length'][0]
     if content_length > 100_000_000:
         raise Exception("Response too large.")
@@ -148,16 +148,16 @@ with httpcore.stream('GET', 'https://example.com') as response:
 
 # Reference
 
-## `httpcore.request()`
+## `httpcore2.request()`
 
-::: httpcore.request
+::: httpcore2.request
     handler: python
     rendering:
         show_source: False
 
-## `httpcore.stream()`
+## `httpcore2.stream()`
 
-::: httpcore.stream
+::: httpcore2.stream
     handler: python
     rendering:
         show_source: False

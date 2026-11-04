@@ -74,4 +74,16 @@ If the response does not have a `text/event-stream` content type, iterating the 
 
 `SSEError` is a subclass of [`TransportError`](exceptions.md), so it is also caught by `except httpx2.TransportError`.
 
+## Limiting event size
+
+An event is buffered until its terminating blank line arrives. To stop a stream that keeps sending data without ever completing an event from growing the buffer indefinitely, `client.sse()` caps the bytes buffered for a single event at 1 MiB by default and raises `SSEError` once an event exceeds the limit. Pass `max_event_size` to change the cap:
+
+```pycon
+>>> with client.sse("https://example.com/sse", max_event_size=8 * 1024 * 1024) as source:
+...     for event in source:  # raise the 1 MiB default to 8 MiB
+...         print(event.data)
+```
+
+The counter resets after each event, so the limit applies per event rather than to the stream as a whole. Set `max_event_size=None` to buffer events without any limit.
+
 [mdn]: https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events

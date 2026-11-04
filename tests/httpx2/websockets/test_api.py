@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-import contextlib
+import concurrent.futures
 import queue
+import sys
 import threading
 import time
+import typing
 from unittest.mock import MagicMock, call, patch
 
 import anyio
@@ -14,11 +16,12 @@ from starlette.websockets import WebSocket, WebSocketDisconnect as StarletteWebS
 import httpcore2 as httpcore
 import httpx2 as httpx
 from httpcore2 import AsyncNetworkStream, NetworkStream
-from httpx2.websockets import _api
+from httpx2.websockets import WebSocketSession, _api
 from httpx2.websockets._api import (
+    AsyncWebSocketClient,
     AsyncWebSocketSession,
     JSONMode,
-    WebSocketSession,
+    WebSocketClient,
     aconnect_ws,
     connect_ws,
 )
@@ -89,7 +92,7 @@ class TestSend:
                 self._should_close = True
 
         stream = AsyncMockNetworkStream()
-        with pytest.raises(WebSocketNetworkError):
+        with pytest.RaisesGroup(WebSocketNetworkError):
             async with AsyncWebSocketSession(stream) as websocket_session:
                 await websocket_session.send(wsproto.events.Ping())
 
@@ -108,18 +111,12 @@ class TestSend:
 
         with server_factory(websocket_endpoint) as socket:
             with httpx.Client(transport=httpx.HTTPTransport(uds=socket)) as client:
-                try:
-                    with connect_ws("http://socket/ws", client) as ws:
-                        ws.send(wsproto.events.TextMessage(data="CLIENT_MESSAGE"))
-                except WebSocketDisconnect:  # pragma: no cover
-                    pass
+                with connect_ws("http://socket/ws", client) as ws:
+                    ws.send(wsproto.events.TextMessage(data="CLIENT_MESSAGE"))
 
             async with httpx.AsyncClient(transport=httpx.AsyncHTTPTransport(uds=socket)) as aclient:
-                try:
-                    async with aconnect_ws("http://socket/ws", aclient) as aws:
-                        await aws.send(wsproto.events.TextMessage(data="CLIENT_MESSAGE"))
-                except WebSocketDisconnect:  # pragma: no cover
-                    pass
+                async with aconnect_ws("http://socket/ws", aclient) as aws:
+                    await aws.send(wsproto.events.TextMessage(data="CLIENT_MESSAGE"))
 
         on_receive_message.assert_has_calls([call("CLIENT_MESSAGE"), call("CLIENT_MESSAGE")])
 
@@ -138,18 +135,12 @@ class TestSend:
 
         with server_factory(websocket_endpoint) as socket:
             with httpx.Client(transport=httpx.HTTPTransport(uds=socket)) as client:
-                try:
-                    with connect_ws("http://socket/ws", client) as ws:
-                        ws.send_text("CLIENT_MESSAGE")
-                except WebSocketDisconnect:  # pragma: no cover
-                    pass
+                with connect_ws("http://socket/ws", client) as ws:
+                    ws.send_text("CLIENT_MESSAGE")
 
             async with httpx.AsyncClient(transport=httpx.AsyncHTTPTransport(uds=socket)) as aclient:
-                try:
-                    async with aconnect_ws("http://socket/ws", aclient) as aws:
-                        await aws.send_text("CLIENT_MESSAGE")
-                except WebSocketDisconnect:  # pragma: no cover
-                    pass
+                async with aconnect_ws("http://socket/ws", aclient) as aws:
+                    await aws.send_text("CLIENT_MESSAGE")
 
         on_receive_message.assert_has_calls([call("CLIENT_MESSAGE"), call("CLIENT_MESSAGE")])
 
@@ -168,18 +159,12 @@ class TestSend:
 
         with server_factory(websocket_endpoint) as socket:
             with httpx.Client(transport=httpx.HTTPTransport(uds=socket)) as client:
-                try:
-                    with connect_ws("http://socket/ws", client) as ws:
-                        ws.send_bytes(b"CLIENT_MESSAGE")
-                except WebSocketDisconnect:  # pragma: no cover
-                    pass
+                with connect_ws("http://socket/ws", client) as ws:
+                    ws.send_bytes(b"CLIENT_MESSAGE")
 
             async with httpx.AsyncClient(transport=httpx.AsyncHTTPTransport(uds=socket)) as aclient:
-                try:
-                    async with aconnect_ws("http://socket/ws", aclient) as aws:
-                        await aws.send_bytes(b"CLIENT_MESSAGE")
-                except WebSocketDisconnect:  # pragma: no cover
-                    pass
+                async with aconnect_ws("http://socket/ws", aclient) as aws:
+                    await aws.send_bytes(b"CLIENT_MESSAGE")
 
         on_receive_message.assert_has_calls([call(b"CLIENT_MESSAGE"), call(b"CLIENT_MESSAGE")])
 
@@ -200,18 +185,12 @@ class TestSend:
 
         with server_factory(websocket_endpoint) as socket:
             with httpx.Client(transport=httpx.HTTPTransport(uds=socket)) as client:
-                try:
-                    with connect_ws("http://socket/ws", client) as ws:
-                        ws.send_json({"message": "CLIENT_MESSAGE"}, mode=mode)
-                except WebSocketDisconnect:  # pragma: no cover
-                    pass
+                with connect_ws("http://socket/ws", client) as ws:
+                    ws.send_json({"message": "CLIENT_MESSAGE"}, mode=mode)
 
             async with httpx.AsyncClient(transport=httpx.AsyncHTTPTransport(uds=socket)) as aclient:
-                try:
-                    async with aconnect_ws("http://socket/ws", aclient) as aws:
-                        await aws.send_json({"message": "CLIENT_MESSAGE"}, mode=mode)
-                except WebSocketDisconnect:  # pragma: no cover
-                    pass
+                async with aconnect_ws("http://socket/ws", aclient) as aws:
+                    await aws.send_json({"message": "CLIENT_MESSAGE"}, mode=mode)
 
         on_receive_message.assert_has_calls([call({"message": "CLIENT_MESSAGE"}), call({"message": "CLIENT_MESSAGE"})])
 
@@ -237,6 +216,45 @@ class TestReceive:
             with WebSocketSession(stream) as websocket_session:
                 websocket_session.receive()
 
+    def test_receive_closed_socket(self) -> None:
+        class MockNetworkStream(NetworkStream):
+            def __init__(self) -> None:
+                self.connection = wsproto.connection.Connection(wsproto.connection.ConnectionType.SERVER)
+
+            def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
+                return b""
+
+            def write(self, buffer: bytes, timeout: float | None = None) -> None:
+                pass
+
+            def close(self) -> None:
+                pass
+
+        stream = MockNetworkStream()
+        with pytest.raises(WebSocketNetworkError):
+            with WebSocketSession(stream) as websocket_session:
+                websocket_session.receive()
+
+    def test_receive_timeout(self) -> None:
+        class MockNetworkStream(NetworkStream):
+            def __init__(self) -> None:
+                self.connection = wsproto.connection.Connection(wsproto.connection.ConnectionType.SERVER)
+
+            def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
+                time.sleep(0.2)
+                return b""
+
+            def write(self, buffer: bytes, timeout: float | None = None) -> None:
+                pass
+
+            def close(self) -> None:
+                pass
+
+        stream = MockNetworkStream()
+        with pytest.raises(TimeoutError):
+            with WebSocketSession(stream) as websocket_session:
+                websocket_session.receive(timeout=0.1)
+
     async def test_async_receive_error(self) -> None:
         class AsyncMockNetworkStream(AsyncNetworkStream):
             def __init__(self) -> None:
@@ -252,7 +270,26 @@ class TestReceive:
                 pass
 
         stream = AsyncMockNetworkStream()
-        with pytest.raises(WebSocketNetworkError):
+        with pytest.RaisesGroup(WebSocketNetworkError):
+            async with AsyncWebSocketSession(stream) as websocket_session:
+                await websocket_session.receive()
+
+    async def test_async_receive_closed_socket(self) -> None:
+        class AsyncMockNetworkStream(AsyncNetworkStream):
+            def __init__(self) -> None:
+                self.connection = wsproto.connection.Connection(wsproto.connection.ConnectionType.SERVER)
+
+            async def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
+                return b""
+
+            async def write(self, buffer: bytes, timeout: float | None = None) -> None:
+                pass
+
+            async def aclose(self) -> None:
+                pass
+
+        stream = AsyncMockNetworkStream()
+        with pytest.RaisesGroup(WebSocketNetworkError):
             async with AsyncWebSocketSession(stream) as websocket_session:
                 await websocket_session.receive()
 
@@ -266,22 +303,16 @@ class TestReceive:
 
         with server_factory(websocket_endpoint) as socket:
             with httpx.Client(transport=httpx.HTTPTransport(uds=socket)) as client:
-                try:
-                    with connect_ws("http://socket/ws", client) as ws:
-                        event = ws.receive()
-                        assert isinstance(event, wsproto.events.TextMessage)
-                        assert event.data == "SERVER_MESSAGE"
-                except WebSocketDisconnect:  # pragma: no cover
-                    pass
+                with connect_ws("http://socket/ws", client) as ws:
+                    event = ws.receive()
+                    assert isinstance(event, wsproto.events.TextMessage)
+                    assert event.data == "SERVER_MESSAGE"
 
             async with httpx.AsyncClient(transport=httpx.AsyncHTTPTransport(uds=socket)) as aclient:
-                try:
-                    async with aconnect_ws("http://socket/ws", aclient) as aws:
-                        event = await aws.receive()
-                        assert isinstance(event, wsproto.events.TextMessage)
-                        assert event.data == "SERVER_MESSAGE"
-                except WebSocketDisconnect:  # pragma: no cover
-                    pass
+                async with aconnect_ws("http://socket/ws", aclient) as aws:
+                    event = await aws.receive()
+                    assert isinstance(event, wsproto.events.TextMessage)
+                    assert event.data == "SERVER_MESSAGE"
 
     @pytest.mark.parametrize(
         "full_message,send_method",
@@ -306,26 +337,86 @@ class TestReceive:
 
         with server_factory(websocket_endpoint) as socket:
             with httpx.Client(transport=httpx.HTTPTransport(uds=socket)) as client:
-                try:
-                    with connect_ws("http://socket/ws", client, max_message_size_bytes=1024) as ws:
-                        event = ws.receive()
-                        assert isinstance(event, wsproto.events.Message)
-                        assert event.data == full_message
-                except WebSocketDisconnect:  # pragma: no cover
-                    pass
+                with connect_ws("http://socket/ws", client, max_message_size_bytes=1024) as ws:
+                    with pytest.raises(WebSocketDisconnect) as excinfo:
+                        ws.receive()
+                    assert excinfo.value.code == wsproto.frame_protocol.CloseReason.MESSAGE_TOO_BIG
 
             async with httpx.AsyncClient(transport=httpx.AsyncHTTPTransport(uds=socket)) as aclient:
-                try:
-                    async with aconnect_ws(
-                        "http://socket/ws",
-                        aclient,
-                        keepalive_ping_interval_seconds=None,
-                    ) as aws:
-                        event = await aws.receive()
-                        assert isinstance(event, wsproto.events.Message)
-                        assert event.data == full_message
-                except WebSocketDisconnect:  # pragma: no cover
-                    pass
+                async with aconnect_ws("http://socket/ws", aclient, max_message_size_bytes=1024) as aws:
+                    with pytest.raises(WebSocketDisconnect) as aexcinfo:
+                        await aws.receive()
+                    assert aexcinfo.value.code == wsproto.frame_protocol.CloseReason.MESSAGE_TOO_BIG
+
+    @pytest.mark.parametrize(
+        "fragment_event",
+        [
+            pytest.param(wsproto.events.BytesMessage(data=b"A" * 8, message_finished=False), id="binary"),
+            pytest.param(wsproto.events.TextMessage(data="é" * 4, message_finished=False), id="multibyte-text"),
+        ],
+    )
+    async def test_receive_oversized_fragmented_message(
+        self,
+        fragment_event: wsproto.events.Message[typing.Any],
+    ) -> None:
+        server_connection = wsproto.connection.Connection(wsproto.connection.ConnectionType.SERVER)
+        fragments = [server_connection.send(fragment_event) for _ in range(3)]
+
+        class MockNetworkStream(NetworkStream):
+            def __init__(self) -> None:
+                self._fragments = list(fragments)
+
+            def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
+                if self._fragments:
+                    return self._fragments.pop(0)
+                time.sleep(0.1)  # pragma: no cover
+                return b""  # pragma: no cover
+
+            def write(self, buffer: bytes, timeout: float | None = None) -> None:
+                pass
+
+            def close(self) -> None:
+                pass
+
+        with WebSocketSession(MockNetworkStream(), max_message_size_bytes=16) as websocket_session:
+            with pytest.raises(WebSocketDisconnect) as excinfo:
+                websocket_session.receive()
+            assert excinfo.value.code == wsproto.frame_protocol.CloseReason.MESSAGE_TOO_BIG
+
+    @pytest.mark.parametrize(
+        "fragment_event",
+        [
+            pytest.param(wsproto.events.BytesMessage(data=b"A" * 8, message_finished=False), id="binary"),
+            pytest.param(wsproto.events.TextMessage(data="é" * 4, message_finished=False), id="multibyte-text"),
+        ],
+    )
+    async def test_async_receive_oversized_fragmented_message(
+        self,
+        fragment_event: wsproto.events.Message[typing.Any],
+    ) -> None:
+        server_connection = wsproto.connection.Connection(wsproto.connection.ConnectionType.SERVER)
+        fragments = [server_connection.send(fragment_event) for _ in range(3)]
+
+        class AsyncMockNetworkStream(AsyncNetworkStream):
+            def __init__(self) -> None:
+                self._fragments = list(fragments)
+
+            async def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
+                if self._fragments:
+                    return self._fragments.pop(0)
+                await anyio.sleep(0.1)  # pragma: no cover
+                return b""  # pragma: no cover
+
+            async def write(self, buffer: bytes, timeout: float | None = None) -> None:
+                pass
+
+            async def aclose(self) -> None:
+                pass
+
+        async with AsyncWebSocketSession(AsyncMockNetworkStream(), max_message_size_bytes=16) as websocket_session:
+            with pytest.raises(WebSocketDisconnect) as excinfo:
+                await websocket_session.receive()
+            assert excinfo.value.code == wsproto.frame_protocol.CloseReason.MESSAGE_TOO_BIG
 
     async def test_receive_text(self, server_factory: ServerFactoryFixture) -> None:
         async def websocket_endpoint(websocket: WebSocket) -> None:
@@ -337,20 +428,14 @@ class TestReceive:
 
         with server_factory(websocket_endpoint) as socket:
             with httpx.Client(transport=httpx.HTTPTransport(uds=socket)) as client:
-                try:
-                    with connect_ws("http://socket/ws", client) as ws:
-                        data = ws.receive_text()
-                        assert data == "SERVER_MESSAGE"
-                except WebSocketDisconnect:  # pragma: no cover
-                    pass
+                with connect_ws("http://socket/ws", client) as ws:
+                    data = ws.receive_text()
+                    assert data == "SERVER_MESSAGE"
 
             async with httpx.AsyncClient(transport=httpx.AsyncHTTPTransport(uds=socket)) as aclient:
-                try:
-                    async with aconnect_ws("http://socket/ws", aclient) as aws:
-                        data = await aws.receive_text()
-                        assert data == "SERVER_MESSAGE"
-                except WebSocketDisconnect:  # pragma: no cover
-                    pass
+                async with aconnect_ws("http://socket/ws", aclient) as aws:
+                    data = await aws.receive_text()
+                    assert data == "SERVER_MESSAGE"
 
     async def test_receive_text_invalid_type(self, server_factory: ServerFactoryFixture) -> None:
         async def websocket_endpoint(websocket: WebSocket) -> None:
@@ -362,20 +447,14 @@ class TestReceive:
 
         with server_factory(websocket_endpoint) as socket:
             with httpx.Client(transport=httpx.HTTPTransport(uds=socket)) as client:
-                try:
-                    with connect_ws("http://socket/ws", client) as ws:
-                        with pytest.raises(WebSocketInvalidTypeReceived):
-                            ws.receive_text()
-                except WebSocketDisconnect:  # pragma: no cover
-                    pass
+                with connect_ws("http://socket/ws", client) as ws:
+                    with pytest.raises(WebSocketInvalidTypeReceived):
+                        ws.receive_text()
 
             async with httpx.AsyncClient(transport=httpx.AsyncHTTPTransport(uds=socket)) as aclient:
-                try:
-                    async with aconnect_ws("http://socket/ws", aclient) as aws:
-                        with pytest.raises(WebSocketInvalidTypeReceived):
-                            await aws.receive_text()
-                except WebSocketDisconnect:  # pragma: no cover
-                    pass
+                async with aconnect_ws("http://socket/ws", aclient) as aws:
+                    with pytest.raises(WebSocketInvalidTypeReceived):
+                        await aws.receive_text()
 
     async def test_receive_bytes(self, server_factory: ServerFactoryFixture) -> None:
         async def websocket_endpoint(websocket: WebSocket) -> None:
@@ -387,20 +466,14 @@ class TestReceive:
 
         with server_factory(websocket_endpoint) as socket:
             with httpx.Client(transport=httpx.HTTPTransport(uds=socket)) as client:
-                try:
-                    with connect_ws("http://socket/ws", client) as ws:
-                        data = ws.receive_bytes()
-                        assert data == b"SERVER_MESSAGE"
-                except WebSocketDisconnect:  # pragma: no cover
-                    pass
+                with connect_ws("http://socket/ws", client) as ws:
+                    data = ws.receive_bytes()
+                    assert data == b"SERVER_MESSAGE"
 
             async with httpx.AsyncClient(transport=httpx.AsyncHTTPTransport(uds=socket)) as aclient:
-                try:
-                    async with aconnect_ws("http://socket/ws", aclient) as aws:
-                        data = await aws.receive_bytes()
-                        assert data == b"SERVER_MESSAGE"
-                except WebSocketDisconnect:  # pragma: no cover
-                    pass
+                async with aconnect_ws("http://socket/ws", aclient) as aws:
+                    data = await aws.receive_bytes()
+                    assert data == b"SERVER_MESSAGE"
 
     async def test_receive_bytes_invalid_type(self, server_factory: ServerFactoryFixture) -> None:
         async def websocket_endpoint(websocket: WebSocket) -> None:
@@ -432,20 +505,14 @@ class TestReceive:
 
         with server_factory(websocket_endpoint) as socket:
             with httpx.Client(transport=httpx.HTTPTransport(uds=socket)) as client:
-                try:
-                    with connect_ws("http://socket/ws", client) as ws:
-                        data = ws.receive_json(mode=mode)
-                        assert data == {"message": "SERVER_MESSAGE"}
-                except WebSocketDisconnect:  # pragma: no cover
-                    pass
+                with connect_ws("http://socket/ws", client) as ws:
+                    data = ws.receive_json(mode=mode)
+                    assert data == {"message": "SERVER_MESSAGE"}
 
             async with httpx.AsyncClient(transport=httpx.AsyncHTTPTransport(uds=socket)) as aclient:
-                try:
-                    async with aconnect_ws("http://socket/ws", aclient) as aws:
-                        data = await aws.receive_json(mode=mode)
-                        assert data == {"message": "SERVER_MESSAGE"}
-                except WebSocketDisconnect:  # pragma: no cover
-                    pass
+                async with aconnect_ws("http://socket/ws", aclient) as aws:
+                    data = await aws.receive_json(mode=mode)
+                    assert data == {"message": "SERVER_MESSAGE"}
 
 
 @pytest.mark.anyio
@@ -514,6 +581,60 @@ class TestReceivePing:
             wsproto.events.CloseConnection(1000, ""),
         ]
 
+    async def test_receive_unsolicited_pong(self) -> None:
+        class MockNetworkStream(NetworkStream):
+            def __init__(self) -> None:
+                self.connection = wsproto.connection.Connection(wsproto.connection.ConnectionType.SERVER)
+                self.events_to_send = [
+                    wsproto.events.Pong(b"UNSOLICITED"),
+                    wsproto.events.TextMessage("SERVER_MESSAGE"),
+                    wsproto.events.CloseConnection(1000),
+                ]
+
+            def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
+                try:
+                    event = self.events_to_send.pop(0)
+                    return self.connection.send(event)
+                except IndexError:  # pragma: no cover
+                    raise httpcore.ReadError()
+
+            def write(self, buffer: bytes, timeout: float | None = None) -> None:
+                self.connection.receive_data(buffer)
+
+            def close(self) -> None:
+                pass
+
+        stream = MockNetworkStream()
+        with WebSocketSession(stream) as session:
+            assert session.receive_text(timeout=1) == "SERVER_MESSAGE"
+
+    async def test_async_receive_unsolicited_pong(self) -> None:
+        class MockAsyncNetworkStream(AsyncNetworkStream):
+            def __init__(self) -> None:
+                self.connection = wsproto.connection.Connection(wsproto.connection.ConnectionType.SERVER)
+                self.events_to_send = [
+                    wsproto.events.Pong(b"UNSOLICITED"),
+                    wsproto.events.TextMessage("SERVER_MESSAGE"),
+                    wsproto.events.CloseConnection(1000),
+                ]
+
+            async def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
+                try:
+                    event = self.events_to_send.pop(0)
+                    return self.connection.send(event)
+                except IndexError:  # pragma: no cover
+                    raise httpcore.ReadError()
+
+            async def write(self, buffer: bytes, timeout: float | None = None) -> None:
+                self.connection.receive_data(buffer)
+
+            async def aclose(self) -> None:
+                pass
+
+        stream = MockAsyncNetworkStream()
+        async with AsyncWebSocketSession(stream) as session:
+            assert await session.receive_text(timeout=1) == "SERVER_MESSAGE"
+
 
 @pytest.mark.anyio
 class TestKeepalivePing:
@@ -557,6 +678,37 @@ class TestKeepalivePing:
         assert stream.ping_received >= 1
         assert stream.ping_answered >= 1
 
+    def test_keepalive_ping_exits_when_closing(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        read_started = threading.Event()
+        closed = threading.Event()
+        writes: list[bytes] = []
+
+        class MockNetworkStream(NetworkStream):
+            def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
+                read_started.set()
+                assert closed.wait(5)
+                return b""
+
+            def write(self, buffer: bytes, timeout: float | None = None) -> None:
+                writes.append(buffer)
+
+            def close(self) -> None:
+                closed.set()
+
+        session = WebSocketSession(MockNetworkStream(), keepalive_ping_interval_seconds=0)
+        ping = session.ping
+
+        def ping_while_closing(payload: bytes = b"") -> threading.Event:
+            assert read_started.wait(5)
+            session.close()
+            return ping(payload)
+
+        monkeypatch.setattr(session, "ping", ping_while_closing)
+        with session:
+            assert closed.wait(5)
+
+        assert len(writes) == 1
+
     async def test_keepalive_ping_timeout(self) -> None:
         class MockNetworkStream(NetworkStream):
             def __init__(self) -> None:
@@ -583,7 +735,6 @@ class TestKeepalivePing:
             ) as websocket_session:
                 websocket_session.receive()
 
-    @pytest.mark.flaky(max_runs=5, min_passes=1)
     async def test_async_keepalive_ping(self) -> None:
         class MockAsyncNetworkStream(AsyncNetworkStream):
             def __init__(self) -> None:
@@ -629,7 +780,7 @@ class TestKeepalivePing:
         assert stream.ping_received >= 1
         assert stream.ping_answered >= 1
 
-    async def test_async_keepalive_ping_skips_when_closing(self) -> None:
+    async def test_async_keepalive_ping_exits_when_closing(self) -> None:
         writes = 0
 
         class MockAsyncNetworkStream(AsyncNetworkStream):
@@ -642,11 +793,10 @@ class TestKeepalivePing:
 
             async def aclose(self) -> None: ...  # pragma: no cover
 
-        session = AsyncWebSocketSession(MockAsyncNetworkStream(), keepalive_ping_interval_seconds=0.2)
-        async with anyio.create_task_group() as tg:
-            tg.start_soon(session._background_keepalive_ping, 0.2)
-            await anyio.sleep(0.05)  # Let the loop enter its sleep before closing.
-            session._should_close.set()
+        session = AsyncWebSocketSession(MockAsyncNetworkStream(), keepalive_ping_interval_seconds=0.1)
+        session.connection.send(wsproto.events.CloseConnection(1000))
+        with anyio.fail_after(1):
+            await session._background_keepalive_ping(0.01)
 
         assert writes == 0
 
@@ -668,7 +818,7 @@ class TestKeepalivePing:
                 self._should_close = True
 
         stream = MockAsyncNetworkStream()
-        with pytest.raises(WebSocketNetworkError):
+        with pytest.RaisesGroup(WebSocketNetworkError):
             async with AsyncWebSocketSession(
                 stream,
                 keepalive_ping_interval_seconds=0.1,
@@ -742,21 +892,19 @@ async def test_receive_close(server_factory: ServerFactoryFixture) -> None:
 
 @pytest.mark.anyio
 async def test_default_httpx_client() -> None:
-    mock_context = contextlib.ExitStack()
-    with patch.object(_api, "_connect_ws", return_value=mock_context) as mock_connect_ws:
+    with patch.object(_api, "WebSocketClient") as mock_client:
         with connect_ws("http://socket/ws"):
             pass
-    mock_connect_ws.assert_called_once()
-    httpx_client = mock_connect_ws.call_args[1]["client"]
+    mock_client.return_value.connect.assert_called_once()
+    httpx_client = mock_client.call_args[1]["client"]
     assert isinstance(httpx_client, httpx.Client)
     assert httpx_client.is_closed
 
-    mock_async_context = contextlib.AsyncExitStack()
-    with patch.object(_api, "_aconnect_ws", return_value=mock_async_context) as mock_aconnect_ws:
+    with patch.object(_api, "AsyncWebSocketClient") as mock_async_client:
         async with aconnect_ws("http://socket/ws"):
             pass
-    mock_aconnect_ws.assert_called_once()
-    httpx_client = mock_aconnect_ws.call_args[1]["client"]
+    mock_async_client.return_value.connect.assert_called_once()
+    httpx_client = mock_async_client.call_args[1]["client"]
     assert isinstance(httpx_client, httpx.AsyncClient)
     assert httpx_client.is_closed
 
@@ -826,7 +974,7 @@ async def test_threads_wont_hang(server_factory: ServerFactoryFixture) -> None:
         for _ in range(100):
             if len(session_threads()) == expected:
                 return
-            time.sleep(0.05)
+            time.sleep(0.05)  # pragma: no cover - only runs if the threads are still exiting
         assert len(session_threads()) == expected  # pragma: no cover
 
     with server_factory(websocket_endpoint) as socket:
@@ -838,3 +986,95 @@ async def test_threads_wont_hang(server_factory: ServerFactoryFixture) -> None:
                     ws.send_text("CLIENT_MESSAGE")
                 wait_for_session_threads(2)
             wait_for_session_threads(0)
+
+
+@pytest.mark.anyio
+async def test_exit_with_full_queue(server_factory: ServerFactoryFixture) -> None:
+    """
+    Check that exiting the session doesn't deadlock when the background receive
+    thread is blocked on a full events queue.
+    """
+
+    async def websocket_endpoint(websocket: WebSocket) -> None:
+        await websocket.accept()
+        for _ in range(10):
+            await websocket.send_text("SERVER_MESSAGE")
+        try:
+            await websocket.receive_text()
+        except StarletteWebSocketDisconnect:
+            pass
+
+    with server_factory(websocket_endpoint) as socket:
+        with httpx.Client(transport=httpx.HTTPTransport(uds=socket)) as client:
+            with connect_ws("http://socket/ws", client, queue_size=1, keepalive_ping_interval_seconds=None) as ws:
+                assert ws.receive_text() == "SERVER_MESSAGE"
+
+
+@pytest.mark.skipif(sys.version_info < (3, 13), reason="`Queue.shutdown()` is new in Python 3.13")
+@pytest.mark.anyio
+async def test_receive_after_exit(server_factory: ServerFactoryFixture) -> None:  # pragma: no cover
+    async def websocket_endpoint(websocket: WebSocket) -> None:
+        await websocket.accept()
+        try:
+            await websocket.receive_text()
+        except StarletteWebSocketDisconnect:
+            pass
+
+    with server_factory(websocket_endpoint) as socket:
+        with httpx.Client(transport=httpx.HTTPTransport(uds=socket)) as client:
+            with connect_ws("http://socket/ws", client, keepalive_ping_interval_seconds=None) as ws:
+                pass
+            with pytest.raises(WebSocketDisconnect):
+                ws.receive(timeout=1)
+
+
+@pytest.mark.anyio
+async def test_concurrency_write(server_factory: ServerFactoryFixture) -> None:
+    """
+    Check that there is no error because of two tasks trying to write the stream at the
+    same time. Typically, this is when a background ping tries to send a ping while the
+    main task is sending a message.
+
+    See: https://github.com/frankie567/httpx-ws/issues/29
+    """
+
+    async def websocket_endpoint(websocket: WebSocket) -> None:
+        await websocket.accept()
+        while True:
+            message = await websocket.receive_text()
+            await websocket.send_text(message)
+
+    with server_factory(websocket_endpoint) as socket:
+        # Added for completeness, but were not able to reproduce the issue with the sync client
+        with httpx.Client(transport=httpx.HTTPTransport(uds=socket)) as client:
+            with connect_ws("http://socket/ws", client) as ws:
+                with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+                    for _ in range(10):
+                        executor.submit(ws.send_text, "CLIENT_MESSAGE")
+
+        async with httpx.AsyncClient(transport=httpx.AsyncHTTPTransport(uds=socket)) as aclient:
+            async with aconnect_ws("http://socket/ws", aclient) as aws:
+                async with anyio.create_task_group() as tg:
+                    for _ in range(10):
+                        tg.start_soon(aws.send_text, "CLIENT_MESSAGE")
+
+
+@pytest.mark.anyio
+async def test_client() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(101, extensions={"network_stream": MagicMock(spec=NetworkStream)})
+
+    def async_handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(101, extensions={"network_stream": MagicMock(spec=AsyncNetworkStream)})
+
+    with httpx.Client(base_url="http://localhost:8000", transport=httpx.MockTransport(handler)) as client:
+        ws_client = WebSocketClient(client)
+        with ws_client.connect("http://socket/ws") as ws:
+            assert isinstance(ws.response, httpx.Response)
+
+    async with httpx.AsyncClient(
+        base_url="http://localhost:8000", transport=httpx.MockTransport(async_handler)
+    ) as aclient:
+        async_ws_client = AsyncWebSocketClient(aclient)
+        async with async_ws_client.connect("http://socket/ws") as aws:
+            assert isinstance(aws.response, httpx.Response)

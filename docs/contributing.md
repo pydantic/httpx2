@@ -11,13 +11,13 @@ There are many ways you can contribute to the project:
 
 ## Reporting Bugs or Other Issues
 
-Found something that HTTPX should support?
+Found something that HTTPX2 should support?
 Stumbled upon some unexpected behaviour?
 
 Contributions should generally start out with [a discussion](https://github.com/pydantic/httpx2/discussions).
-Possible bugs may be raised as a "Potential Issue" discussion, feature requests may
-be raised as an "Ideas" discussion. We can then determine if the discussion needs
-to be escalated into an "Issue" or not, or if we'd consider a pull request.
+Possible bugs and feature requests may be raised in the "Q&A" category. We can then
+determine if the discussion needs to be escalated into an "Issue" or not, or if we'd
+consider a pull request.
 
 Try to be more descriptive as you can and in case of a bug report,
 provide as much information as possible like:
@@ -178,9 +178,9 @@ If something goes wrong with the PyPI job the release can be published using the
 ## Development proxy setup
 
 To test and debug requests via a proxy it's best to run a proxy server locally.
-Any server should do but HTTPCore's test suite uses
-[`mitmproxy`](https://mitmproxy.org/) which is written in Python, it's fully
-featured and has excellent UI and tools for introspection of requests.
+Any server should do but [`mitmproxy`](https://mitmproxy.org/) is a good
+choice - it's written in Python, fully featured and has excellent UI and
+tools for introspection of requests.
 
 You can install `mitmproxy` using `pip install mitmproxy` or [several
 other ways](https://docs.mitmproxy.org/stable/overview-installation/).
@@ -201,14 +201,19 @@ certificate so we need to concatenate them:
 UI options.
 
 At this point the server is ready to start serving requests, you'll need to
-configure HTTPX as described in the
-[proxy section](https://httpx2.pydantic.dev/advanced/proxies/#http-proxies) and
-the [SSL certificates section](https://httpx2.pydantic.dev/advanced/ssl/),
+configure HTTPX2 as described in the
+[proxy section](https://pydantic.dev/docs/httpx2/advanced/proxies/#http-proxies) and
+the [SSL certificates section](https://pydantic.dev/docs/httpx2/advanced/ssl/),
 this is where our previously generated `client.pem` comes in:
 
 ```python
+import ssl
+import httpx2
+
 ctx = ssl.create_default_context(cafile="/path/to/client.pem")
-client = httpx2.Client(proxy="http://127.0.0.1:8080/", verify=ctx)
+with httpx2.Client(proxy="http://127.0.0.1:8080/", verify=ctx) as client:
+    response = client.get("https://example.org")
+    print(response.status_code)  # should print 200
 ```
 
 Note, however, that HTTPS requests will only succeed to the host specified

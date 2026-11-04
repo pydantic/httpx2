@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import contextlib
 import subprocess
 import sys
+import threading
 from unittest.mock import patch
 
 import anyio
@@ -11,8 +11,8 @@ import wsproto
 from starlette.websockets import WebSocket
 
 import httpx2 as httpx
-from httpcore2 import AsyncNetworkStream
-from httpx2.websockets import AsyncWebSocketSession, _api
+from httpcore2 import AsyncNetworkStream, NetworkStream
+from httpx2.websockets import AsyncWebSocketSession, WebSocketSession, _api
 from tests.httpx2.websockets.conftest import ServerFactoryFixture
 
 
@@ -22,12 +22,11 @@ def test_importing_httpx2_does_not_import_wsproto() -> None:
 
 
 def test_top_level_websocket_uses_a_dedicated_client() -> None:
-    mock_context = contextlib.ExitStack()
-    with patch.object(_api, "_connect_ws", return_value=mock_context) as mock_connect_ws:
+    with patch.object(_api, "WebSocketClient") as mock_client:
         with httpx.websocket("http://socket/ws"):
             pass
-    mock_connect_ws.assert_called_once()
-    client = mock_connect_ws.call_args[1]["client"]
+    mock_client.return_value.connect.assert_called_once()
+    client = mock_client.call_args[1]["client"]
     assert isinstance(client, httpx.Client)
     assert client.is_closed
 
@@ -64,6 +63,33 @@ async def test_client_websocket_forwards_request_params(server_factory: ServerFa
         async with httpx.AsyncClient(transport=httpx.AsyncHTTPTransport(uds=socket)) as aclient:
             async with aclient.websocket("http://socket/ws", headers={"x-token": "secret"}) as aws:
                 assert await aws.receive_text() == "secret"
+
+
+def test_receive_reassembles_fragmented_message() -> None:
+    server = wsproto.connection.Connection(wsproto.connection.ConnectionType.SERVER)
+    fragments = server.send(wsproto.events.TextMessage("FRAG", message_finished=False))
+    fragments += server.send(wsproto.events.TextMessage("MEN", message_finished=False))
+    fragments += server.send(wsproto.events.TextMessage("TED", message_finished=True))
+
+    class MockNetworkStream(NetworkStream):
+        def __init__(self) -> None:
+            self._sent = False
+            self._closed = threading.Event()
+
+        def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
+            if self._sent:
+                self._closed.wait()
+                return b""
+            self._sent = True
+            return fragments
+
+        def write(self, buffer: bytes, timeout: float | None = None) -> None: ...
+
+        def close(self) -> None:
+            self._closed.set()
+
+    with WebSocketSession(MockNetworkStream()) as ws:
+        assert ws.receive_text() == "FRAGMENTED"
 
 
 @pytest.mark.anyio

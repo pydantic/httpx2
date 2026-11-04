@@ -4,6 +4,167 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2.16.0 (October 21st, 2026)
+
+### Changed
+
+* Look up only the cookie domains that match the request host, and skip the expired cookie sweep until a cookie is due. With 1,000 cookies across 500 domains, building the `Cookie` header is about 18 times faster. Cookies from different domains are now sent from the least to the most specific domain.
+  ([#1285](https://github.com/pydantic/httpx2/pull/1285))
+
+### Fixed
+
+* Reuse the client cookie jar instead of copying it on every request and redirect. A custom policy set with `client.cookies.jar.set_policy()` now applies to outgoing requests.
+  ([#1284](https://github.com/pydantic/httpx2/pull/1284))
+
+## 2.15.1 (October 19th, 2026)
+
+### Fixed
+
+* Configure the default SSL context once on Linux, instead of on every handshake. With OpenSSL older than 3.4, CPU usage grew over the lifetime of a reused client.
+  ([#1253](https://github.com/pydantic/httpx2/pull/1253))
+
+## 2.15.0 (October 19th, 2026)
+
+### Removed
+
+* Drop support for Python 3.10. ([#1274](https://github.com/pydantic/httpx2/pull/1274))
+
+## 2.14.0 (October 18th, 2026)
+
+### Added
+
+* Match IP CIDR ranges, like `192.168.0.0/16` and `[fe80::]/10`, in `NO_PROXY` and `mounts`. Requests to any address in the range now bypass the proxy; previously only the network address itself did.
+  ([#1165](https://github.com/pydantic/httpx2/pull/1165))
+* Accept bracketed IPv6 addresses, like `[::1]` and `[::1]:8080`, in `NO_PROXY`.
+  ([#1267](https://github.com/pydantic/httpx2/pull/1267))
+
+### Changed
+
+* Raise `InvalidURL` for a `mounts` key with an IP host followed by anything other than a valid CIDR prefix, like `all://10.0.0.0/33`.
+  ([#1165](https://github.com/pydantic/httpx2/pull/1165))
+
+### Fixed
+
+* Ignore `NO_PROXY` entries that cannot be parsed, instead of raising `InvalidURL` when the client is created.
+  ([#1267](https://github.com/pydantic/httpx2/pull/1267))
+* Import `httpx2` on FIPS-enforced Python builds without `hashlib.md5`. `DigestAuth` raises `ProtocolError` when the server asks for an unavailable algorithm.
+  ([#1130](https://github.com/pydantic/httpx2/pull/1130))
+* Handle reads after an ASGI WebSocket app shuts down, instead of leaking `anyio` exceptions.
+  ([#1233](https://github.com/pydantic/httpx2/pull/1233))
+* Stop the sync WebSocket session from hanging on exit when its event queue is full.
+  ([#1123](https://github.com/pydantic/httpx2/pull/1123))
+
+## 2.13.1 (September 23rd, 2026)
+
+### Fixed
+
+* Calculate `Content-Length` from the remaining bytes when a file is passed as `content=`, respecting its current position.
+  ([#1214](https://github.com/pydantic/httpx2/pull/1214))
+* Stop the sync WebSocket keepalive thread cleanly when a ping races with connection shutdown.
+  ([#1228](https://github.com/pydantic/httpx2/pull/1228))
+
+## 2.13.0 (September 14th, 2026)
+
+### Changed
+
+* Require `brotlicffi` 1.2.0.2 or later for the `brotli` extra on non-CPython implementations.
+  ([#1179](https://github.com/pydantic/httpx2/pull/1179))
+
+### Fixed
+
+* Make the `--no-verify` CLI flag disable TLS certificate verification and add an explicit `--verify` counterpart.
+  ([#1140](https://github.com/pydantic/httpx2/pull/1140),
+  [#1186](https://github.com/pydantic/httpx2/pull/1186))
+* Avoid nested async generator finalization errors when streamed responses are abandoned early.
+  ([#1204](https://github.com/pydantic/httpx2/pull/1204))
+
+## 2.12.0 (August 18th, 2026)
+
+### Changed
+
+* Use `backports.zstd` for Zstandard decoding on Python 3.13 and earlier.
+  ([#1146](https://github.com/pydantic/httpx2/pull/1146))
+
+### Fixed
+
+* Bound peak memory while streaming compressed responses and close response streams when decoding fails.
+  ([#1126](https://github.com/pydantic/httpx2/pull/1126))
+
+## 2.11.0 (August 18th, 2026)
+
+### Added
+
+* Add the public `Origin` value object and `URL.origin` property for normalized,
+  hashable origin comparisons. ([#1134](https://github.com/pydantic/httpx2/pull/1134))
+
+### Changed
+
+* Require Brotli 1.2.0 or later for the `brotli` extra. ([#1141](https://github.com/pydantic/httpx2/pull/1141))
+
+### Fixed
+
+* Restore deprecated status code aliases. ([#1135](https://github.com/pydantic/httpx2/pull/1135))
+* Extract HTTP/2 release notes from changelog headings correctly. ([#1136](https://github.com/pydantic/httpx2/pull/1136))
+* Respect explicit `Transfer-Encoding` headers and expose buffered request body lengths to WSGI applications.
+  ([#1137](https://github.com/pydantic/httpx2/pull/1137))
+* Validate multipart part header names and values before serialization.
+  ([#1142](https://github.com/pydantic/httpx2/pull/1142))
+
+## 2.10.0 (August 9th, 2026)
+
+### Added
+
+* Add support for running on WebAssembly / Emscripten via Pyodide, using a JavaScript
+  `fetch`-based transport defined in `httpx2-jsfetch`.
+  ([#1119](https://github.com/pydantic/httpx2/pull/1119))
+* Add `max_event_size` to cap SSE event buffering. ([#1071](https://github.com/pydantic/httpx2/pull/1071))
+* Add RFC 9110 status code constants. ([#1069](https://github.com/pydantic/httpx2/pull/1069))
+* Add support for Python 3.15. ([#1090](https://github.com/pydantic/httpx2/pull/1090))
+
+### Changed
+
+* Improve SSE chunk buffering performance. ([#1117](https://github.com/pydantic/httpx2/pull/1117))
+* Skip cookie extraction for responses without `Set-Cookie` headers. ([#1107](https://github.com/pydantic/httpx2/pull/1107))
+* Return `str | None` instead of `Any` from `Headers.get`. ([#1121](https://github.com/pydantic/httpx2/pull/1121))
+
+### Fixed
+
+* Enforce the WebSocket max message size across fragmented messages. ([#1085](https://github.com/pydantic/httpx2/pull/1085))
+* Ignore unsolicited and duplicate WebSocket Pong frames. ([#1122](https://github.com/pydantic/httpx2/pull/1122))
+
+## 2.9.1 (July 24th, 2026)
+
+### Fixed
+
+* Alias `httpcore` imports to `httpcore2` in `alias_httpx()`. ([#1082](https://github.com/pydantic/httpx2/pull/1082))
+
+## 2.9.0 (July 23rd, 2026)
+
+### Added
+
+* Add `alias_httpx()`, letting applications make `import httpx` resolve to `httpx2` process-wide. ([#1077](https://github.com/pydantic/httpx2/pull/1077))
+
+## 2.8.0 (July 23rd, 2026)
+
+No changes since `2.7.0`. Version bumped to stay in lockstep with `httpcore2`.
+
+## 2.7.0 (July 14th, 2026)
+
+### Changed
+
+* Update the vendored `httpx-ws` to upstream v0.9.0. ([#1067](https://github.com/pydantic/httpx2/pull/1067))
+
+## 2.6.0 (July 14th, 2026)
+
+### Added
+
+* Add native WebSocket support by vendoring `httpx-ws`, installable with `httpx2[ws]`. ([#1042](https://github.com/pydantic/httpx2/pull/1042))
+* Add support for the `QUERY` HTTP method via `httpx2.query()` and `client.query()`. ([#1055](https://github.com/pydantic/httpx2/pull/1055))
+
+### Changed
+
+* Allow `click` 8.4+ in the `cli` extra, dropping the upper bound. ([#1040](https://github.com/pydantic/httpx2/pull/1040))
+
 ## 2.5.0 (June 25th, 2026)
 
 ### Added
