@@ -212,6 +212,12 @@ def test_unsupported_proxy_scheme() -> None:
             {"ALL_PROXY": "http://localhost:123", "NO_PROXY": ".example1.com"},
             None,
         ),
+        # Not proxied for subdomains matching NO_PROXY, with a leading "*.".
+        (
+            "https://www.example4.com",
+            {"ALL_PROXY": "http://localhost:123", "NO_PROXY": "*.example4.com"},
+            None,
+        ),
         # Proxied, because NO_PROXY subdomains only match if "." separated.
         (
             "https://www.example2.com",
