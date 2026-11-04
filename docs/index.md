@@ -17,7 +17,7 @@ HTTPX2
 <em>A next-generation HTTP client for Python.</em>
 </div>
 
-HTTPX2 is a fully featured HTTP client for Python, which provides sync and async APIs, support for both HTTP/1.1 and HTTP/2, and native support for WebSockets.
+HTTPX2 is a fully featured HTTP client for Python, which provides sync and async APIs, and support for both HTTP/1.1, HTTP/2, and WebSockets.
 
 !!! note
     HTTPX2 is a continuation of the wonderful work started by [@lovelydinosaur](https://github.com/lovelydinosaur) and the broader HTTPX community. We're enormously grateful for everything that has gone into HTTPX over the years - it has been a foundational piece of the modern Python ecosystem, and this project would not exist without it.
@@ -126,8 +126,6 @@ A huge amount of credit is due to `requests` for the API layout that
 much of this work follows, as well as to `urllib3` for plenty of design
 inspiration around the lower-level networking details.
 
-We also want to acknowledge the excellent [httpx-ws](https://github.com/frankie567/httpx-ws) package by [François Voron](https://github.com/frankie567), which served as the foundation for HTTPX2's native WebSocket support.
-
 ## Installation
 
 Install with pip:
@@ -140,12 +138,6 @@ Or, to include the optional HTTP/2 support, use:
 
 ```shell
 pip install 'httpx2[http2]'
-```
-
-Or, to include the optional WebSocket support, use:
-
-```shell
-pip install 'httpx2[ws]'
 ```
 
 To include the optional brotli and zstandard decoders support, use:
