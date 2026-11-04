@@ -10,6 +10,69 @@ import httpcore2
 
 
 
+def test_connection_pool_http2_response_close_failure() -> None:
+    def trace(name: str, info: dict[str, typing.Any]) -> None:
+        if name == "http2.response_closed.started":
+            raise RuntimeError("Response cleanup failed")
+
+    backend = httpcore2.MockBackend(
+        [
+            hyperframe.frame.SettingsFrame(settings={3: 1}).serialize(),
+            hyperframe.frame.HeadersFrame(
+                stream_id=1,
+                data=hpack.Encoder().encode([(b":status", b"200")]),
+                flags=["END_HEADERS", "END_STREAM"],
+            ).serialize(),
+        ],
+        http2=True,
+    )
+    with httpcore2.ConnectionPool(max_connections=1, http2=True, network_backend=backend) as pool:
+        response = pool.handle_request(
+            httpcore2.Request(
+                "GET", "https://example.com/", headers={"Host": "example.com"}, extensions={"trace": trace}
+            )
+        )
+        connection = pool.connections[0]
+        with pytest.raises(RuntimeError, match="Response cleanup failed"):
+            response.close()
+
+        assert connection.is_closed()
+        assert not pool.connections
+        assert not pool._requests
+        response.close()
+
+        # The old connection's only stream permit must not block the next request.
+        follow_up = pool.request("GET", "https://example.com/")
+        assert follow_up.status == 200
+
+
+
+def test_connection_pool_response_close_failure() -> None:
+    def trace(name: str, info: dict[str, typing.Any]) -> None:
+        if name == "http11.response_closed.started":
+            raise RuntimeError("Response cleanup failed")
+
+    backend = httpcore2.MockBackend([b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\n{}"])
+    with httpcore2.ConnectionPool(max_connections=1, network_backend=backend) as pool:
+        response = pool.handle_request(
+            httpcore2.Request(
+                "GET", "http://example.com/", headers={"Host": "example.com"}, extensions={"trace": trace}
+            )
+        )
+        connection = pool.connections[0]
+        with pytest.raises(RuntimeError, match="Response cleanup failed"):
+            response.close()
+
+        assert connection.is_closed()
+        assert not pool.connections
+        assert not pool._requests
+        response.close()
+
+        follow_up = pool.request("GET", "http://example.com/", extensions={"timeout": {"pool": 0.1}})
+        assert follow_up.content == b"{}"
+
+
+
 def test_connection_pool_with_keepalive() -> None:
     """
     By default HTTP/1.1 requests should be returned to the connection pool.

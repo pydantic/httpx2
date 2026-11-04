@@ -429,12 +429,13 @@ class PoolByteStream:
     def close(self) -> None:
         if not self._closed:
             self._closed = True
-            with ShieldCancellation():
-                if hasattr(self._stream, "close"):
-                    self._stream.close()
+            try:
+                with ShieldCancellation():
+                    if hasattr(self._stream, "close"):
+                        self._stream.close()
+            finally:
+                with self._pool._optional_thread_lock:
+                    self._pool._requests.remove(self._pool_request)
+                    closing = self._pool._assign_requests_to_connections()
 
-            with self._pool._optional_thread_lock:
-                self._pool._requests.remove(self._pool_request)
-                closing = self._pool._assign_requests_to_connections()
-
-            self._pool._close_connections(closing)
+                self._pool._close_connections(closing)
