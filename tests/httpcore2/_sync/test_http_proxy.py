@@ -8,6 +8,7 @@ import pytest
 from httpcore2 import (
     SOCKET_OPTION,
     ConnectionPool,
+    HTTPProxy,
     MockBackend,
     MockStream,
     NetworkStream,
@@ -15,6 +16,8 @@ from httpcore2 import (
     Proxy,
     ProxyError,
 )
+
+from .test_connection import NeedsRetryBackend
 
 
 
@@ -227,6 +230,59 @@ def test_proxy_tunneling_with_auth() -> None:
             url="http://localhost:8080/",
             auth=("username", "password"),
         ),
+        network_backend=network_backend,
+    ) as proxy:
+        response = proxy.request("GET", "https://example.com/")
+        assert response.status == 200
+        assert response.content == b"Hello, world!"
+
+
+
+def test_proxy_forwarding_retries() -> None:
+    """
+    The `retries` option is honored when connecting to a forwarding proxy.
+    """
+    network_backend = NeedsRetryBackend(
+        [
+            b"HTTP/1.1 200 OK\r\n",
+            b"Content-Type: plain/text\r\n",
+            b"Content-Length: 13\r\n",
+            b"\r\n",
+            b"Hello, world!",
+        ]
+    )
+
+    with ConnectionPool(
+        proxy=Proxy("http://localhost:8080/"),
+        retries=3,
+        network_backend=network_backend,
+    ) as proxy:
+        response = proxy.request("GET", "http://example.com/")
+        assert response.status == 200
+        assert response.content == b"Hello, world!"
+
+
+
+def test_proxy_tunneling_retries() -> None:
+    """
+    The `retries` option is honored when connecting to a tunneling proxy.
+    """
+    network_backend = NeedsRetryBackend(
+        [
+            # The initial response to the proxy CONNECT
+            b"HTTP/1.1 200 OK\r\n\r\n",
+            # The actual response from the remote server
+            b"HTTP/1.1 200 OK\r\n",
+            b"Content-Type: plain/text\r\n",
+            b"Content-Length: 13\r\n",
+            b"\r\n",
+            b"Hello, world!",
+        ]
+    )
+
+    with HTTPProxy(
+        proxy_url="http://localhost:8080/",
+        retries=3,
         network_backend=network_backend,
     ) as proxy:
         response = proxy.request("GET", "https://example.com/")

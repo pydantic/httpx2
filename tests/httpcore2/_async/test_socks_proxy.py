@@ -2,6 +2,8 @@ import pytest
 
 import httpcore2
 
+from .test_connection import NeedsRetryBackend
+
 
 @pytest.mark.anyio
 async def test_socks5_request() -> None:
@@ -176,3 +178,43 @@ async def test_socks5_request_incorrect_auth() -> None:
         assert str(exc_info.value) == "Invalid username/password"
 
         assert not proxy.connections
+
+
+@pytest.mark.anyio
+async def test_socks5_request_retries() -> None:
+    """
+    The `retries` option is honored when connecting to a SOCKS proxy.
+    """
+    network_backend = NeedsRetryBackend(
+        [
+            # The initial socks CONNECT
+            #   v5 NOAUTH
+            b"\x05\x00",
+            #   v5 SUC RSV IP4 127  .0  .0  .1     :80
+            b"\x05\x00\x00\x01\xff\x00\x00\x01\x00\x50",
+            # The actual response from the remote server
+            b"HTTP/1.1 200 OK\r\n",
+            b"Content-Type: plain/text\r\n",
+            b"Content-Length: 13\r\n",
+            b"\r\n",
+            b"Hello, world!",
+        ]
+    )
+
+    async with httpcore2.AsyncSOCKSProxy(
+        proxy_url="socks5://localhost:8080/",
+        retries=3,
+        network_backend=network_backend,
+    ) as proxy:
+        response = await proxy.request("GET", "https://example.com/")
+        assert response.status == 200
+        assert response.content == b"Hello, world!"
+
+    # Without retries the connect failure is raised.
+    network_backend = NeedsRetryBackend([])
+    async with httpcore2.AsyncSOCKSProxy(
+        proxy_url="socks5://localhost:8080/",
+        network_backend=network_backend,
+    ) as proxy:
+        with pytest.raises(httpcore2.ConnectError):
+            await proxy.request("GET", "https://example.com/")
