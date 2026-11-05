@@ -296,7 +296,7 @@ class TunnelHTTPConnection(ConnectionInterface):
                 alpn_protocols = (["h2", "http/1.1"] if self._http1 else ["h2"]) if self._http2 else ["http/1.1"]
                 ssl_context.set_alpn_protocols(alpn_protocols)
 
-                server_hostname = request.extensions.get("sni_hostname") or self._remote_origin.host.decode("ascii")
+                server_hostname = request.extensions.get("sni_hostname") or self._remote_origin.normalized_host
                 kwargs = {
                     "ssl_context": ssl_context,
                     "server_hostname": server_hostname,
