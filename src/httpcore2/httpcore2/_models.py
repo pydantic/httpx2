@@ -407,7 +407,7 @@ class Response:
             self._content = b"".join(list(self.iter_stream()))
         return self._content
 
-    def iter_stream(self) -> typing.Iterator[bytes]:
+    def iter_stream(self) -> typing.Generator[bytes, None, None]:
         if not isinstance(self.stream, typing.Iterable):  # pragma: no cover
             raise RuntimeError(
                 "Attempted to stream an asynchronous response using 'for ... in "

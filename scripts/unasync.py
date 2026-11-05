@@ -25,6 +25,7 @@ SUBS = [
     ("__aenter__", "__enter__"),
     ("__aexit__", "__exit__"),
     ("__aiter__", "__iter__"),
+    ("anext", "next"),
     ("@pytest.mark.anyio", ""),
     ("@pytest.mark.trio", ""),
     ("AutoBackend", "SyncBackend"),

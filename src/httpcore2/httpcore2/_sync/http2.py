@@ -9,12 +9,19 @@ from collections.abc import Generator
 
 import h2.config
 import h2.connection
+import h2.errors
 import h2.events
 import h2.exceptions
 import h2.settings
 
 from .._backends.base import NetworkStream
-from .._exceptions import ConnectionNotAvailable, LocalProtocolError, RemoteProtocolError
+from .._exceptions import (
+    ConnectionNotAvailable,
+    LocalProtocolError,
+    NetworkError,
+    RemoteProtocolError,
+    TimeoutException,
+)
 from .._models import Origin, Request, Response
 from .._synchronization import Lock, Semaphore, ShieldCancellation
 from .._trace import Trace
@@ -59,11 +66,7 @@ class HTTP2Connection(ConnectionInterface):
         self._used_all_stream_ids = False
         self._connection_error = False
 
-        # Mapping from stream ID to response stream events.
-        self._events: dict[
-            int,
-            list[h2.events.ResponseReceived | h2.events.DataReceived | h2.events.StreamEnded | h2.events.StreamReset,],
-        ] = {}
+        self._streams: dict[int, HTTP2Stream] = {}
 
         # Connection terminated events are stored as state since
         # we need to handle them for all streams.
@@ -125,27 +128,27 @@ class HTTP2Connection(ConnectionInterface):
 
         try:
             stream_id = self._h2_state.get_next_available_stream_id()
-            self._events[stream_id] = []
         except h2.exceptions.NoAvailableStreamIDError:  # pragma: no cover
             self._used_all_stream_ids = True
             self._request_count -= 1
             self._max_streams_semaphore.release()
             raise ConnectionNotAvailable()
 
+        stream = self._streams[stream_id] = HTTP2Stream(self, request, stream_id)
         try:
             kwargs = {"request": request, "stream_id": stream_id}
             with Trace("send_request_headers", logger, request, kwargs):
-                self._send_request_headers(request=request, stream_id=stream_id)
+                stream.send_headers()
             with Trace("send_request_body", logger, request, kwargs):
-                self._send_request_body(request=request, stream_id=stream_id)
+                stream.send_body()
             with Trace("receive_response_headers", logger, request, kwargs) as trace:
-                status, headers = self._receive_response(request=request, stream_id=stream_id)
+                status, headers = stream.receive_response()
                 trace.return_value = (status, headers)
 
             return Response(
                 status=status,
                 headers=headers,
-                content=HTTP2ConnectionByteStream(self, request, stream_id=stream_id),
+                content=stream,
                 extensions={
                     "http_version": b"HTTP/2",
                     "network_stream": self._network_stream,
@@ -154,9 +157,7 @@ class HTTP2Connection(ConnectionInterface):
             )
         except BaseException as exc:  # noqa: PIE786
             with ShieldCancellation():
-                kwargs = {"stream_id": stream_id}
-                with Trace("response_closed", logger, request, kwargs):
-                    self._response_closed(stream_id=stream_id)
+                stream._release(flush=False)
 
             if isinstance(exc, h2.exceptions.ProtocolError):
                 # One case where h2 can raise a protocol error is when a
@@ -205,128 +206,6 @@ class HTTP2Connection(ConnectionInterface):
         self._h2_state.increment_flow_control_window(2**24)
         self._write_outgoing_data(request)
 
-    # Sending the request...
-
-    def _send_request_headers(self, request: Request, stream_id: int) -> None:
-        """
-        Send the request headers to a given stream ID.
-        """
-        end_stream = not has_body_headers(request)
-
-        # In HTTP/2 the ':authority' pseudo-header is used instead of 'Host'.
-        # In order to gracefully handle HTTP/1.1 and HTTP/2 we always require
-        # HTTP/1.1 style headers, and map them appropriately if we end up on
-        # an HTTP/2 connection.
-        authority = [v for k, v in request.headers if k.lower() == b"host"][0]
-
-        headers = [
-            (b":method", request.method),
-            (b":authority", authority),
-            (b":scheme", request.url.scheme),
-            (b":path", request.url.target),
-        ] + [
-            (k.lower(), v)
-            for k, v in request.headers
-            if k.lower()
-            not in (
-                b"host",
-                b"transfer-encoding",
-            )
-        ]
-
-        self._h2_state.send_headers(stream_id, headers, end_stream=end_stream)
-        self._h2_state.increment_flow_control_window(2**24, stream_id=stream_id)
-        self._write_outgoing_data(request)
-
-    def _send_request_body(self, request: Request, stream_id: int) -> None:
-        """
-        Iterate over the request body sending it to a given stream ID.
-        """
-        if not has_body_headers(request):
-            return
-
-        assert isinstance(request.stream, typing.Iterable)
-        with safe_iterate(request.stream) as iterator:
-            for chunk in iterator:
-                self._send_stream_data(request, stream_id, chunk)
-
-        self._send_end_stream(request, stream_id)
-
-    def _send_stream_data(self, request: Request, stream_id: int, data: bytes) -> None:
-        """
-        Send a single chunk of data in one or more data frames.
-        """
-        position = 0
-        while position < len(data):
-            max_flow = self._wait_for_outgoing_flow(request, stream_id)
-            chunk = data[position : position + max_flow]
-            position += len(chunk)
-            self._h2_state.send_data(stream_id, chunk)
-            self._write_outgoing_data(request)
-
-    def _send_end_stream(self, request: Request, stream_id: int) -> None:
-        """
-        Send an empty data frame on on a given stream ID with the END_STREAM flag set.
-        """
-        self._h2_state.end_stream(stream_id)
-        self._write_outgoing_data(request)
-
-    # Receiving the response...
-
-    def _receive_response(self, request: Request, stream_id: int) -> tuple[int, list[tuple[bytes, bytes]]]:
-        """
-        Return the response status code and headers for a given stream ID.
-        """
-        while True:
-            event = self._receive_stream_event(request, stream_id)
-            if isinstance(event, h2.events.ResponseReceived):
-                break
-
-        status_code = 200
-        headers: list[tuple[bytes, bytes]] = []
-        assert event.headers is not None
-        for k, v in event.headers:
-            if k == b":status":
-                status_code = int(v.decode("ascii", errors="ignore"))
-            elif not k.startswith(b":"):
-                headers.append((k, v))
-
-        return (status_code, headers)
-
-    def _receive_response_body(self, request: Request, stream_id: int) -> Generator[bytes]:
-        """
-        Iterator that returns the bytes of the response body for a given stream ID.
-        """
-        while True:
-            event = self._receive_stream_event(request, stream_id)
-            if isinstance(event, h2.events.DataReceived):
-                assert event.flow_controlled_length is not None
-                assert event.data is not None
-                amount = event.flow_controlled_length
-                self._h2_state.acknowledge_received_data(amount, stream_id)
-                self._write_outgoing_data(request)
-                yield event.data
-            elif isinstance(event, h2.events.StreamEnded):
-                break
-
-    def _receive_stream_event(
-        self, request: Request, stream_id: int
-    ) -> h2.events.ResponseReceived | h2.events.DataReceived | h2.events.StreamEnded:
-        """
-        Return the next available event for a given stream ID.
-
-        Will read more data from the network if required.
-        """
-        while not self._events.get(stream_id):
-            with self._read_lock:
-                if not self._events.get(stream_id):
-                    self._receive_events(request, stream_id)
-            self._write_outgoing_data(request)
-        event = self._events[stream_id].pop(0)
-        if isinstance(event, h2.events.StreamReset):
-            raise RemoteProtocolError(event)
-        return event
-
     def _receive_events(self, request: Request, stream_id: int | None = None) -> None:
         """
         Read some data from the network and dispatch the resulting events.
@@ -357,8 +236,8 @@ class HTTP2Connection(ConnectionInterface):
                     h2.events.StreamReset,
                 ),
             ):
-                if event.stream_id in self._events:
-                    self._events[event.stream_id].append(event)
+                if event.stream_id in self._streams:
+                    self._streams[event.stream_id].events.append(event)
 
             elif isinstance(event, h2.events.ConnectionTerminated):
                 self._connection_terminated = event
@@ -383,18 +262,17 @@ class HTTP2Connection(ConnectionInterface):
                         self._max_streams_deficit += 1
                     self._max_streams -= 1
 
-    def _response_closed(self, stream_id: int) -> None:
+    def _stream_closed(self, stream_id: int) -> None:
         with self._state_lock:
-            if stream_id in self._events:
-                if self._max_streams_deficit > 0:
-                    self._max_streams_deficit -= 1
-                else:
-                    self._max_streams_semaphore.release()
-                del self._events[stream_id]
-            if self._connection_terminated and not self._events:
+            del self._streams[stream_id]
+            if self._max_streams_deficit > 0:
+                self._max_streams_deficit -= 1
+            else:
+                self._max_streams_semaphore.release()
+            if self._connection_terminated and not self._streams:
                 self.close()
 
-            elif self._state == HTTPConnectionState.ACTIVE and not self._events:
+            elif self._state == HTTPConnectionState.ACTIVE and not self._streams:
                 self._state = HTTPConnectionState.IDLE
                 if self._keepalive_expiry is not None:
                     now = time.monotonic()
@@ -470,28 +348,6 @@ class HTTP2Connection(ConnectionInterface):
                 self._connection_error = True
                 raise exc
 
-    # Flow control...
-
-    def _wait_for_outgoing_flow(self, request: Request, stream_id: int) -> int:
-        """
-        Returns the maximum allowable outgoing flow for a given stream.
-
-        If the allowable flow is zero, then waits on the network until
-        WindowUpdated frames have increased the flow rate.
-        https://tools.ietf.org/html/rfc7540#section-6.9
-        """
-        while True:
-            local_flow: int = self._h2_state.local_flow_control_window(stream_id)
-            max_frame_size: int = self._h2_state.max_outbound_frame_size
-            flow = min(local_flow, max_frame_size)
-            if flow > 0:
-                return flow
-            with self._read_lock:
-                if self._h2_state.local_flow_control_window(stream_id) > 0:
-                    continue
-                self._receive_events(request)
-            self._write_outgoing_data(request)
-
     # Interface for connection pooling...
 
     def can_handle_request(self, origin: Origin) -> bool:
@@ -548,33 +404,223 @@ class HTTP2Connection(ConnectionInterface):
         self.close()
 
 
-class HTTP2ConnectionByteStream:
+class HTTP2Stream:
+    """
+    One request/response exchange on an HTTP/2 connection.
+
+    The connection queues the stream's events here as it reads them. The stream sends
+    the request, waits for its own flow control, iterates the response body, and closes
+    itself when the response is closed.
+    """
+
     def __init__(self, connection: HTTP2Connection, request: Request, stream_id: int) -> None:
         self._connection = connection
         self._request = request
         self._stream_id = stream_id
+        self._h2_state = connection._h2_state
+        self.events: list[
+            h2.events.ResponseReceived | h2.events.DataReceived | h2.events.StreamEnded | h2.events.StreamReset
+        ] = []
+        self._opened = False
         self._closed = False
+
+    @property
+    def ended_by_peer(self) -> bool:
+        """
+        The server has sent END_STREAM or RST_STREAM. A stream's terminal event is always its last.
+        """
+        return bool(self.events) and isinstance(self.events[-1], (h2.events.StreamEnded, h2.events.StreamReset))
+
+    # Sending the request...
+
+    def send_headers(self) -> None:
+        request = self._request
+        end_stream = not has_body_headers(request)
+
+        # In HTTP/2 the ':authority' pseudo-header is used instead of 'Host'.
+        # In order to gracefully handle HTTP/1.1 and HTTP/2 we always require
+        # HTTP/1.1 style headers, and map them appropriately if we end up on
+        # an HTTP/2 connection.
+        authority = [v for k, v in request.headers if k.lower() == b"host"][0]
+
+        headers = [
+            (b":method", request.method),
+            (b":authority", authority),
+            (b":scheme", request.url.scheme),
+            (b":path", request.url.target),
+        ] + [
+            (k.lower(), v)
+            for k, v in request.headers
+            if k.lower()
+            not in (
+                b"host",
+                b"transfer-encoding",
+            )
+        ]
+
+        self._h2_state.send_headers(self._stream_id, headers, end_stream=end_stream)
+        self._opened = True
+        self._h2_state.increment_flow_control_window(2**24, stream_id=self._stream_id)
+        self._connection._write_outgoing_data(request)
+
+    def send_body(self) -> None:
+        if not has_body_headers(self._request):
+            return
+
+        assert isinstance(self._request.stream, typing.Iterable)
+        with safe_iterate(self._request.stream) as iterator:
+            for chunk in iterator:
+                if not self._send_data(chunk):
+                    break
+
+        # The server may complete its response before the upload has finished, in which
+        # case the stream is closed without error, unless the server has already reset it.
+        # https://www.rfc-editor.org/rfc/rfc9113#section-8.1
+        last_event = self.events[-1] if self.events else None
+        if isinstance(last_event, h2.events.StreamEnded):
+            self._h2_state.reset_stream(self._stream_id, h2.errors.ErrorCodes.NO_ERROR)
+            self._connection._write_outgoing_data(self._request)
+        elif not isinstance(last_event, h2.events.StreamReset):
+            self._h2_state.end_stream(self._stream_id)
+            self._connection._write_outgoing_data(self._request)
+
+    def _send_data(self, data: bytes) -> bool:
+        """
+        Send a single chunk of data in one or more data frames.
+
+        Returns `False` if the server ended the stream before the chunk was sent.
+        """
+        position = 0
+        while position < len(data):
+            max_flow = self._wait_for_outgoing_flow()
+            if max_flow == 0:
+                return False
+            chunk = data[position : position + max_flow]
+            position += len(chunk)
+            self._h2_state.send_data(self._stream_id, chunk)
+            self._connection._write_outgoing_data(self._request)
+        return True
+
+    def _wait_for_outgoing_flow(self) -> int:
+        """
+        Returns the maximum allowable outgoing flow for the stream.
+
+        If the allowable flow is zero, then waits on the network until
+        WindowUpdated frames have increased the flow rate.
+        https://tools.ietf.org/html/rfc7540#section-6.9
+
+        Returns zero once the server has ended or reset the stream, since
+        nothing more should be sent on it.
+        """
+        connection = self._connection
+        while True:
+            if self.ended_by_peer:
+                return 0
+            local_flow: int = self._h2_state.local_flow_control_window(self._stream_id)
+            max_frame_size: int = self._h2_state.max_outbound_frame_size
+            flow = min(local_flow, max_frame_size)
+            if flow > 0:
+                return flow
+            with connection._read_lock:
+                if self._h2_state.local_flow_control_window(self._stream_id) > 0:
+                    continue
+                connection._receive_events(self._request)
+            connection._write_outgoing_data(self._request)
+
+    # Receiving the response...
+
+    def receive_response(self) -> tuple[int, list[tuple[bytes, bytes]]]:
+        """
+        Return the response status code and headers.
+        """
+        while True:
+            event = self._receive_event()
+            if isinstance(event, h2.events.ResponseReceived):
+                break
+
+        status_code = 200
+        headers: list[tuple[bytes, bytes]] = []
+        assert event.headers is not None
+        for k, v in event.headers:
+            if k == b":status":
+                status_code = int(v.decode("ascii", errors="ignore"))
+            elif not k.startswith(b":"):
+                headers.append((k, v))
+
+        return (status_code, headers)
 
     def __iter__(self) -> Generator[bytes]:
         kwargs = {"request": self._request, "stream_id": self._stream_id}
         try:
             with Trace("receive_response_body", logger, self._request, kwargs):
-                with safe_iterate(
-                    self._connection._receive_response_body(request=self._request, stream_id=self._stream_id)
-                ) as iterator:
-                    for chunk in iterator:
-                        yield chunk
+                while True:
+                    event = self._receive_event()
+                    if isinstance(event, h2.events.DataReceived):
+                        assert event.flow_controlled_length is not None
+                        assert event.data is not None
+                        self._h2_state.acknowledge_received_data(event.flow_controlled_length, self._stream_id)
+                        self._connection._write_outgoing_data(self._request)
+                        yield event.data
+                    elif isinstance(event, h2.events.StreamEnded):
+                        break
         except BaseException as exc:
             # If we get an exception while streaming the response,
             # we want to close the response (and possibly the connection)
             # before raising that exception.
             with ShieldCancellation():
-                self.close()
+                self._release(flush=False)
             raise exc
 
+    def _receive_event(
+        self,
+    ) -> h2.events.ResponseReceived | h2.events.DataReceived | h2.events.StreamEnded:
+        """
+        Return the next queued event for the stream, reading from the network if required.
+        """
+        connection = self._connection
+        while not self.events:
+            with connection._read_lock:
+                if not self.events:
+                    connection._receive_events(self._request, self._stream_id)
+            connection._write_outgoing_data(self._request)
+        event = self.events.pop(0)
+        if isinstance(event, h2.events.StreamReset):
+            raise RemoteProtocolError(event)
+        return event
+
     def close(self) -> None:
-        if not self._closed:
-            self._closed = True
-            kwargs = {"stream_id": self._stream_id}
-            with Trace("response_closed", logger, self._request, kwargs):
-                self._connection._response_closed(stream_id=self._stream_id)
+        self._release(flush=True)
+
+    def _release(self, flush: bool) -> None:
+        """
+        Close the stream and hand its permit back to the connection.
+
+        A stream the server may still be sending on is cancelled. The cancel frame is
+        only written out when the response is closed deliberately: on failure or
+        cancellation it is queued for the next write, since a blocked socket must not
+        hold up the caller. Streams that already completed are closed, and h2 says so.
+        """
+        if self._closed:
+            return
+        self._closed = True
+        connection = self._connection
+        kwargs = {"stream_id": self._stream_id}
+        with Trace("response_closed", logger, self._request, kwargs):
+            try:
+                # A reset h2 refuses would also close the connection, so only ask once the
+                # stream exists. Streams that completed are already closed, and h2 says so.
+                if self._opened and not connection._connection_error:
+                    try:
+                        self._h2_state.reset_stream(self._stream_id, h2.errors.ErrorCodes.CANCEL)
+                    except h2.exceptions.ProtocolError:
+                        pass
+                    else:
+                        if flush:
+                            try:
+                                connection._write_outgoing_data(self._request)
+                            except (NetworkError, TimeoutException):
+                                # Best effort: the write has already marked the connection as broken.
+                                pass
+            finally:
+                with ShieldCancellation():
+                    connection._stream_closed(self._stream_id)

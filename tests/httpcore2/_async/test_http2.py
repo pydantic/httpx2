@@ -1,3 +1,6 @@
+import typing
+
+import h2.errors
 import h2.settings
 import hpack
 import hyperframe.frame
@@ -95,10 +98,11 @@ async def test_http2_response_closed_twice() -> None:
         ]
     )
     async with httpcore2.AsyncHTTP2Connection(origin=origin, stream=stream, keepalive_expiry=5.0) as conn:
-        await conn.request("GET", "https://example.com/")
+        async with conn.stream("GET", "https://example.com/") as response:
+            await response.aread()
+            await response.aclose()
 
-        # The stream was closed when the response completed.
-        await conn._response_closed(stream_id=1)
+        assert conn.is_idle()
 
 
 @pytest.mark.anyio
@@ -184,6 +188,251 @@ async def test_http2_connection_with_rst_stream() -> None:
     async with httpcore2.AsyncHTTP2Connection(origin=origin, stream=stream) as conn:
         with pytest.raises(httpcore2.RemoteProtocolError):
             await conn.request("GET", "https://example.com/")
+        response = await conn.request("GET", "https://example.com/")
+        assert response.status == 200
+
+
+class AsyncRecordingMockStream(httpcore2.AsyncMockStream):
+    """
+    A mock stream that keeps everything the client writes.
+    """
+
+    def __init__(self, buffer: list[bytes]) -> None:
+        super().__init__(buffer, http2=True)
+        self.written = bytearray()
+
+    async def write(self, buffer: bytes, timeout: float | None = None) -> None:
+        self.written += buffer
+
+
+@pytest.mark.anyio
+async def test_http2_connection_with_early_response() -> None:
+    """
+    A server may answer, and reset the stream with NO_ERROR, before the request body
+    has been fully sent. The client must stop uploading and return that response.
+    https://www.rfc-editor.org/rfc/rfc9113#section-8.1
+    """
+    origin = httpcore2.Origin(b"https", b"example.com", 443)
+    stream = httpcore2.AsyncMockStream(
+        [
+            hyperframe.frame.SettingsFrame().serialize(),
+            # The response and the reset arrive together, while the upload is waiting for flow control.
+            hyperframe.frame.HeadersFrame(
+                stream_id=1,
+                data=hpack.Encoder().encode([(b":status", b"413")]),
+                flags=["END_HEADERS", "END_STREAM"],
+            ).serialize()
+            + hyperframe.frame.RstStreamFrame(stream_id=1, error_code=h2.errors.ErrorCodes.NO_ERROR).serialize(),
+            # The connection remains usable for other requests.
+            hyperframe.frame.HeadersFrame(
+                stream_id=3,
+                data=hpack.Encoder().encode([(b":status", b"200")]),
+                flags=["END_HEADERS"],
+            ).serialize(),
+            hyperframe.frame.DataFrame(stream_id=3, data=b"Hello, world!", flags=["END_STREAM"]).serialize(),
+        ]
+    )
+    content = b"x" * 100_000  # More than the 65,535 byte initial flow control window.
+    async with httpcore2.AsyncHTTP2Connection(origin=origin, stream=stream) as conn:
+        response = await conn.request("POST", "https://example.com/", content=content)
+        assert response.status == 413
+
+        response = await conn.request("GET", "https://example.com/")
+        assert response.status == 200
+        assert response.content == b"Hello, world!"
+
+
+@pytest.mark.anyio
+async def test_http2_connection_with_early_response_without_stream_reset() -> None:
+    """
+    If the server completes its response without resetting the stream, the client
+    closes the stream itself with RST_STREAM(NO_ERROR), rather than finishing the upload.
+    """
+    origin = httpcore2.Origin(b"https", b"example.com", 443)
+    stream = AsyncRecordingMockStream(
+        [
+            hyperframe.frame.SettingsFrame().serialize(),
+            hyperframe.frame.HeadersFrame(
+                stream_id=1,
+                data=hpack.Encoder().encode([(b":status", b"413")]),
+                flags=["END_HEADERS", "END_STREAM"],
+            ).serialize(),
+            hyperframe.frame.HeadersFrame(
+                stream_id=3,
+                data=hpack.Encoder().encode([(b":status", b"200")]),
+                flags=["END_HEADERS"],
+            ).serialize(),
+            hyperframe.frame.DataFrame(stream_id=3, data=b"Hello, world!", flags=["END_STREAM"]).serialize(),
+        ]
+    )
+    async with httpcore2.AsyncHTTP2Connection(origin=origin, stream=stream) as conn:
+        response = await conn.request("POST", "https://example.com/", content=b"x" * 100_000)
+        assert response.status == 413
+
+        reset = hyperframe.frame.RstStreamFrame(stream_id=1, error_code=h2.errors.ErrorCodes.NO_ERROR).serialize()
+        end_stream = hyperframe.frame.DataFrame(stream_id=1, data=b"", flags=["END_STREAM"]).serialize()
+        assert reset in stream.written
+        assert end_stream not in stream.written
+
+        response = await conn.request("GET", "https://example.com/")
+        assert response.status == 200
+
+
+@pytest.mark.anyio
+async def test_http2_connection_with_stream_reset_during_upload() -> None:
+    """
+    A stream reset with an error code during the upload is reported as a remote
+    protocol error, and the connection remains usable.
+    """
+    origin = httpcore2.Origin(b"https", b"example.com", 443)
+    stream = httpcore2.AsyncMockStream(
+        [
+            hyperframe.frame.SettingsFrame().serialize(),
+            hyperframe.frame.RstStreamFrame(stream_id=1, error_code=h2.errors.ErrorCodes.REFUSED_STREAM).serialize(),
+            hyperframe.frame.HeadersFrame(
+                stream_id=3,
+                data=hpack.Encoder().encode([(b":status", b"200")]),
+                flags=["END_HEADERS"],
+            ).serialize(),
+            hyperframe.frame.DataFrame(stream_id=3, data=b"Hello, world!", flags=["END_STREAM"]).serialize(),
+        ]
+    )
+    async with httpcore2.AsyncHTTP2Connection(origin=origin, stream=stream) as conn:
+        with pytest.raises(httpcore2.RemoteProtocolError):
+            await conn.request("POST", "https://example.com/", content=b"x" * 100_000)
+
+        response = await conn.request("GET", "https://example.com/")
+        assert response.status == 200
+
+
+@pytest.mark.anyio
+async def test_http2_response_closed_early() -> None:
+    """
+    Closing a response before its body has been read cancels the stream straight
+    away, so the server stops sending. The connection remains usable.
+    """
+    origin = httpcore2.Origin(b"https", b"example.com", 443)
+    stream = AsyncRecordingMockStream(
+        [
+            hyperframe.frame.SettingsFrame().serialize(),
+            hyperframe.frame.HeadersFrame(
+                stream_id=1,
+                data=hpack.Encoder().encode([(b":status", b"200"), (b"content-length", b"1000000")]),
+                flags=["END_HEADERS"],
+            ).serialize(),
+            hyperframe.frame.DataFrame(stream_id=1, data=b"Hello, world!").serialize(),
+            hyperframe.frame.HeadersFrame(
+                stream_id=3,
+                data=hpack.Encoder().encode([(b":status", b"200")]),
+                flags=["END_HEADERS"],
+            ).serialize(),
+            hyperframe.frame.DataFrame(stream_id=3, data=b"Hello, world!", flags=["END_STREAM"]).serialize(),
+        ]
+    )
+    async with httpcore2.AsyncHTTP2Connection(origin=origin, stream=stream) as conn:
+        async with conn.stream("GET", "https://example.com/") as response:
+            assert response.status == 200
+
+        cancel = hyperframe.frame.RstStreamFrame(stream_id=1, error_code=h2.errors.ErrorCodes.CANCEL).serialize()
+        assert cancel in stream.written
+        assert conn.is_idle()
+
+        response = await conn.request("GET", "https://example.com/")
+        assert response.content == b"Hello, world!"
+
+
+@pytest.mark.anyio
+async def test_http2_response_closed_early_with_broken_connection() -> None:
+    """
+    If the cancel frame cannot be written, closing the response still succeeds,
+    and the connection is no longer offered for reuse.
+    """
+
+    class AsyncBrokenAfterScriptMockStream(httpcore2.AsyncMockStream):
+        """
+        Writes fail once the scripted frames have all been read.
+        """
+
+        async def write(self, buffer: bytes, timeout: float | None = None) -> None:
+            if buffer and not self._buffer:
+                raise httpcore2.WriteError("Connection reset by peer")
+
+    origin = httpcore2.Origin(b"https", b"example.com", 443)
+    stream = AsyncBrokenAfterScriptMockStream(
+        [
+            hyperframe.frame.SettingsFrame().serialize(),
+            hyperframe.frame.HeadersFrame(
+                stream_id=1,
+                data=hpack.Encoder().encode([(b":status", b"200"), (b"content-length", b"1000000")]),
+                flags=["END_HEADERS"],
+            ).serialize(),
+        ],
+        http2=True,
+    )
+    async with httpcore2.AsyncHTTP2Connection(origin=origin, stream=stream) as conn:
+        async with conn.stream("GET", "https://example.com/") as response:
+            assert response.status == 200
+
+        assert not conn.is_available()
+
+
+@pytest.mark.anyio
+async def test_http2_response_iterator_closed_after_response() -> None:
+    """
+    A body iterator left suspended is closed after the response itself. The second
+    close is a no-op.
+    """
+    origin = httpcore2.Origin(b"https", b"example.com", 443)
+    stream = httpcore2.AsyncMockStream(
+        [
+            hyperframe.frame.SettingsFrame().serialize(),
+            hyperframe.frame.HeadersFrame(
+                stream_id=1,
+                data=hpack.Encoder().encode([(b":status", b"200")]),
+                flags=["END_HEADERS"],
+            ).serialize(),
+            hyperframe.frame.DataFrame(stream_id=1, data=b"Hello,").serialize(),
+            hyperframe.frame.DataFrame(stream_id=1, data=b" world!", flags=["END_STREAM"]).serialize(),
+        ]
+    )
+    async with httpcore2.AsyncHTTP2Connection(origin=origin, stream=stream) as conn:
+        async with conn.stream("GET", "https://example.com/") as response:
+            body = response.aiter_stream()
+            assert await anext(body) == b"Hello,"
+        await body.aclose()
+
+        assert conn.is_idle()
+
+
+@pytest.mark.anyio
+async def test_http2_request_failing_before_the_stream_is_open() -> None:
+    """
+    A request can fail before h2 has opened its stream, for example in a trace hook.
+    The connection releases the stream's permit all the same.
+    """
+
+    async def trace(name: str, info: dict[str, typing.Any]) -> None:
+        if name == "http2.send_request_headers.started":
+            raise RuntimeError("Rejected by the trace hook")
+
+    origin = httpcore2.Origin(b"https", b"example.com", 443)
+    stream = httpcore2.AsyncMockStream(
+        [
+            hyperframe.frame.SettingsFrame().serialize(),
+            # The failed request never opened its stream, so the next one is stream 1.
+            hyperframe.frame.HeadersFrame(
+                stream_id=1,
+                data=hpack.Encoder().encode([(b":status", b"200")]),
+                flags=["END_HEADERS"],
+            ).serialize(),
+            hyperframe.frame.DataFrame(stream_id=1, data=b"Hello, world!", flags=["END_STREAM"]).serialize(),
+        ]
+    )
+    async with httpcore2.AsyncHTTP2Connection(origin=origin, stream=stream) as conn:
+        with pytest.raises(RuntimeError):
+            await conn.request("GET", "https://example.com/", extensions={"trace": trace})
+        assert conn.is_idle()
+
         response = await conn.request("GET", "https://example.com/")
         assert response.status == 200
 
