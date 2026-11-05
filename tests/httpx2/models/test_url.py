@@ -239,8 +239,23 @@ def test_url_params() -> None:
     assert url.params == httpx2.QueryParams({"a": "123"})
 
     url = httpx2.URL("https://example.org:123/path/to/somewhere?b=456", params={"a": "123"})
-    assert str(url) == "https://example.org:123/path/to/somewhere?a=123"
-    assert url.params == httpx2.QueryParams({"a": "123"})
+    assert str(url) == "https://example.org:123/path/to/somewhere?b=456&a=123"
+    assert url.params == httpx2.QueryParams("b=456&a=123")
+
+    url = httpx2.URL("https://example.org/?a=old", params={"a": "new"})
+    assert str(url) == "https://example.org/?a=old&a=new"
+
+    url = httpx2.URL("https://example.org/?a=old", params=httpx2.QueryParams("a=new"))
+    assert str(url) == "https://example.org/?a=old&a=new"
+
+    url = httpx2.URL("https://example.org/?a=old", query=b"b=existing", params={"c": "new"})
+    assert str(url) == "https://example.org/?b=existing&c=new"
+
+
+@pytest.mark.parametrize("params", [None, {}, [], (), "", b"", httpx2.QueryParams()])
+def test_url_empty_params_preserve_existing_query(params: object) -> None:
+    url = httpx2.URL("https://example.org/?a=123", params=params)
+    assert str(url) == "https://example.org/?a=123"
 
 
 # Tests for username and password
@@ -541,6 +556,9 @@ def test_url_invalid_type() -> None:
     with pytest.raises(TypeError):
         httpx2.URL(ExternalURLClass())  # type: ignore
 
+    with pytest.raises(TypeError):
+        httpx2.URL(123, params={"a": "b"})  # type: ignore
+
 
 def test_url_with_invalid_component() -> None:
     with pytest.raises(TypeError) as exc:
@@ -709,6 +727,12 @@ def test_url_copywith_query() -> None:
     assert url.path == "/"
     assert url.query == b"a=123"
     assert url.raw_path == b"/?a=123"
+
+
+def test_url_copywith_params_replaces_query() -> None:
+    url = httpx2.URL("https://example.org/?a=123")
+    url = url.copy_with(params={"b": "456"})
+    assert str(url) == "https://example.org/?b=456"
 
 
 def test_url_copywith_raw_path() -> None:

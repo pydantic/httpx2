@@ -114,13 +114,19 @@ class URL:
                     kwargs[key] = value.decode("ascii")
 
             if "params" in kwargs:
-                # Replace any "params" keyword with the raw "query" instead.
-                #
-                # Ensure that empty params use `kwargs["query"] = None` rather
-                # than `kwargs["query"] = ""`, so that generated URLs do not
-                # include an empty trailing "?".
                 params = kwargs.pop("params")
-                kwargs["query"] = None if not params else str(QueryParams(params))
+                if params:
+                    if "query" in kwargs:
+                        query = kwargs["query"]
+                    elif isinstance(url, str):
+                        query = urlparse(url).query
+                    elif isinstance(url, URL):
+                        query = url.query.decode("ascii")
+                    else:
+                        query = None
+
+                    encoded_params = str(QueryParams(params))
+                    kwargs["query"] = f"{query}&{encoded_params}" if query else encoded_params
 
         if isinstance(url, str):
             self._uri_reference = urlparse(url, **kwargs)
@@ -353,6 +359,9 @@ class URL:
         )
         assert url == "https://jo%40email.com:a%20secret@www.example.com"
         """
+        if "params" in kwargs:
+            params = kwargs.pop("params")
+            kwargs["query"] = None if not params else str(QueryParams(params)).encode("ascii")
         return URL(self, **kwargs)
 
     def copy_set_param(self, key: str, value: typing.Any = None) -> URL:
