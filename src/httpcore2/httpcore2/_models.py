@@ -107,6 +107,22 @@ DEFAULT_PORTS = {
 }
 
 
+def format_host(host: bytes) -> bytes:
+    """
+    Wrap an IPv6 address literal in square brackets.
+
+    `URL.host` and `Origin.host` hold the host in the form required to establish
+    a connection, which for an IPv6 address is the bare address. Wherever the
+    host is instead rendered as part of a URL or of an authority, an IPv6
+    address literal must be bracketed, as an `IP-literal`.
+
+    * https://tools.ietf.org/html/rfc3986#section-3.2.2
+    """
+    # A colon cannot occur in a registered name or in an IPv4 address, so its
+    # presence is enough to tell an IPv6 address apart.
+    return b"[%b]" % host if b":" in host else host
+
+
 def include_request_headers(
     headers: list[tuple[bytes, bytes]],
     *,
@@ -118,9 +134,9 @@ def include_request_headers(
     if b"host" not in headers_set:
         default_port = DEFAULT_PORTS.get(url.scheme)
         if url.port is None or url.port == default_port:
-            header_value = url.host
+            header_value = format_host(url.host)
         else:
-            header_value = b"%b:%d" % (url.host, url.port)
+            header_value = b"%b:%d" % (format_host(url.host), url.port)
         headers = [(b"Host", header_value)] + headers
 
     if content is not None and b"content-length" not in headers_set and b"transfer-encoding" not in headers_set:
@@ -171,7 +187,7 @@ class Origin:
 
     def __str__(self) -> str:
         scheme = self.scheme.decode("ascii")
-        host = self.host.decode("ascii")
+        host = format_host(self.host).decode("ascii")
         port = str(self.port)
         return f"{scheme}://{host}:{port}"
 
@@ -296,8 +312,8 @@ class URL:
 
     def __bytes__(self) -> bytes:
         if self.port is None:
-            return b"%b://%b%b" % (self.scheme, self.host, self.target)
-        return b"%b://%b:%d%b" % (self.scheme, self.host, self.port, self.target)
+            return b"%b://%b%b" % (self.scheme, format_host(self.host), self.target)
+        return b"%b://%b:%d%b" % (self.scheme, format_host(self.host), self.port, self.target)
 
     def __repr__(self) -> str:
         return (
