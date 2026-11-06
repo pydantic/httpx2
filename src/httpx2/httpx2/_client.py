@@ -7,7 +7,7 @@ import time
 import typing
 import warnings
 from collections.abc import AsyncGenerator, Generator
-from contextlib import asynccontextmanager, contextmanager
+from contextlib import asynccontextmanager, contextmanager, suppress
 from types import TracebackType
 
 from .__version__ import __version__
@@ -501,18 +501,18 @@ class BaseClient:
 
         try:
             url = URL(location)
+
+            # Handle malformed 'Location' headers that are "absolute" form, have no host.
+            # See: https://github.com/encode/httpx/issues/771
+            if url.scheme and not url.host:
+                url = url.copy_with(host=request.url.host)
+
+            # Facilitate relative 'Location' headers, as allowed by RFC 7231.
+            # (e.g. '/path/to/resource' instead of 'http://domain.tld/path/to/resource')
+            if url.is_relative_url:
+                url = request.url.join(url)
         except InvalidURL as exc:
             raise RemoteProtocolError(f"Invalid URL in location header: {exc}.", request=request) from None
-
-        # Handle malformed 'Location' headers that are "absolute" form, have no host.
-        # See: https://github.com/encode/httpx/issues/771
-        if url.scheme and not url.host:
-            url = url.copy_with(host=request.url.host)
-
-        # Facilitate relative 'Location' headers, as allowed by RFC 7231.
-        # (e.g. '/path/to/resource' instead of 'http://domain.tld/path/to/resource')
-        if url.is_relative_url:
-            url = request.url.join(url)
 
         # Attach previous fragment if needed (RFC 7231 7.1.2)
         if request.url.fragment and not url.fragment:
@@ -1048,13 +1048,13 @@ class Client(BaseClient):
                 if not response.has_redirect_location:
                     return response
 
-                request = self._build_redirect_request(request, response)
-                history = history + [response]
-
                 if follow_redirects:
+                    request = self._build_redirect_request(request, response)
+                    history = history + [response]
                     response.read()
                 else:
-                    response.next_request = request
+                    with suppress(RemoteProtocolError):
+                        response.next_request = self._build_redirect_request(request, response)
                     return response
 
             except BaseException as exc:
@@ -1887,13 +1887,13 @@ class AsyncClient(BaseClient):
                 if not response.has_redirect_location:
                     return response
 
-                request = self._build_redirect_request(request, response)
-                history = history + [response]
-
                 if follow_redirects:
+                    request = self._build_redirect_request(request, response)
+                    history = history + [response]
                     await response.aread()
                 else:
-                    response.next_request = request
+                    with suppress(RemoteProtocolError):
+                        response.next_request = self._build_redirect_request(request, response)
                     return response
 
             except BaseException as exc:
