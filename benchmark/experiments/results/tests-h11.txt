@@ -1,0 +1,8 @@
+/Users/marcelotryle/dev/pydantic/httpx2/.venv/lib/python3.14/site-packages/httpbin/helpers.py:38: SyntaxWarning: "\_" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\_"? A raw string is also an option.
+  \_;`"---"`|//
+/Users/marcelotryle/dev/pydantic/httpx2/.venv/lib/python3.14/site-packages/httpbin/helpers.py:84: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+  \  .-"`  `"-.  /
+/Users/marcelotryle/dev/pydantic/httpx2/.venv/lib/python3.14/site-packages/httpbin/helpers.py:444: SyntaxWarning: "\s" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\s"? A raw string is also an option.
+  match = re.search('\s*(W/)?\"?([^"]*)\"?\s*', part)
+.............                                                                                                                                  [100%]
+13 passed in 3.09s
