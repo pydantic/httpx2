@@ -884,3 +884,305 @@ def test_connection_pool_multiplexes_idle_http2_connection_within_a_pass() -> No
                 nursery.start_soon(fetch, pool)
 
     assert QueueObservingPool.max_queued_after_pass == 0
+
+
+
+@pytest.mark.parametrize("max_connections", [1, 2])
+@pytest.mark.parametrize(
+    "first_hostname, second_hostname, reuse_connection",
+    [
+        (None, None, True),
+        (None, "", True),
+        ("", None, True),
+        ("", "", True),
+        ("first.example", "first.example", True),
+        ("first.example", "second.example", False),
+        ("first.example", None, False),
+        (None, "first.example", False),
+        (None, "192.0.2.1", False),
+    ],
+)
+@pytest.mark.parametrize(
+    "proxy_url, url, handshake",
+    [
+        (None, "https://192.0.2.1/", []),
+        (
+            "socks5://localhost:8080",
+            "https://192.0.2.1/",
+            [b"\x05\x00", b"\x05\x00\x00\x01\x7f\x00\x00\x01\x01\xbb"],
+        ),
+        ("http://localhost:8080", "https://192.0.2.1/", [b"HTTP/1.1 200 Connection established\r\n\r\n"]),
+        ("https://localhost:8080", "https://192.0.2.1/", [b"HTTP/1.1 200 Connection established\r\n\r\n"]),
+        ("https://localhost:8080", "http://192.0.2.1/", []),
+    ],
+)
+def test_connection_pool_reuses_matching_sni_hostname(
+    max_connections: int,
+    first_hostname: str | None,
+    second_hostname: str | None,
+    reuse_connection: bool,
+    proxy_url: str | None,
+    url: str,
+    handshake: list[bytes],
+) -> None:
+    network_backend = httpcore2.MockBackend(handshake + [b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK"] * 4)
+    first_extensions = {} if first_hostname is None else {"sni_hostname": first_hostname}
+    second_extensions = {"sni_hostname": second_hostname}
+
+    with httpcore2.ConnectionPool(
+        network_backend=network_backend,
+        proxy=None if proxy_url is None else httpcore2.Proxy(proxy_url),
+        max_connections=max_connections,
+    ) as pool:
+        first = pool.request("GET", url, extensions=first_extensions)
+        second = pool.request("GET", url, extensions=second_extensions)
+        assert first.content == second.content == b"OK"
+        reused = first.extensions["network_stream"] is second.extensions["network_stream"]
+        assert reused == reuse_connection
+        assert len(pool.connections) == (1 if reused else max_connections)
+
+        third = pool.request("GET", url, extensions=second_extensions)
+        assert third.content == b"OK"
+        assert third.extensions["network_stream"] is second.extensions["network_stream"]
+
+        fourth = pool.request("GET", url, extensions=first_extensions)
+        assert fourth.content == b"OK"
+        reused_first = fourth.extensions["network_stream"] is first.extensions["network_stream"]
+        assert reused_first == (reused or max_connections == 2)
+
+    assert pool.connections == []
+
+
+
+@pytest.mark.parametrize("max_connections", [1, 2])
+@pytest.mark.parametrize("second_hostname", ["first.example", "second.example", None])
+def test_connection_pool_reuses_matching_sni_hostname_http2(
+    max_connections: int, second_hostname: str | None
+) -> None:
+    buffer = [hyperframe.frame.SettingsFrame().serialize()]
+    buffer.extend(
+        hyperframe.frame.HeadersFrame(
+            stream_id=stream_id,
+            data=hpack.Encoder().encode([(b":status", b"200")]),
+            flags=["END_HEADERS", "END_STREAM"],
+        ).serialize()
+        for stream_id in [1, 3]
+    )
+    hostnames: list[str] = []
+
+    def trace(name: str, info: dict[str, typing.Any]) -> None:
+        if name == "connection.start_tls.started":
+            hostnames.append(info["server_hostname"])
+
+    with httpcore2.ConnectionPool(
+        network_backend=httpcore2.MockBackend(buffer, http2=True),
+        max_connections=max_connections,
+        http2=True,
+    ) as pool:
+        for hostname in ["first.example", second_hostname]:
+            response = pool.request(
+                "GET", "https://192.0.2.1/", extensions={"sni_hostname": hostname, "trace": trace}
+            )
+            assert response.status == 200
+
+    expected = ["first.example"]
+    if second_hostname != "first.example":
+        expected.append(second_hostname or "192.0.2.1")
+    assert hostnames == expected
+
+
+
+@pytest.mark.parametrize("first_hostname, second_hostname", [(None, ""), ("", None)])
+def test_connection_pool_multiplexes_default_sni_hostname_http2(
+    first_hostname: str | None, second_hostname: str | None
+) -> None:
+    buffer = [
+        hyperframe.frame.SettingsFrame(settings={hyperframe.frame.SettingsFrame.MAX_CONCURRENT_STREAMS: 2}).serialize()
+    ]
+    buffer.extend(
+        hyperframe.frame.HeadersFrame(
+            stream_id=stream_id,
+            data=hpack.Encoder().encode([(b":status", b"200")]),
+            flags=["END_HEADERS", "END_STREAM"],
+        ).serialize()
+        for stream_id in [1, 3]
+    )
+    first_extensions = {} if first_hostname is None else {"sni_hostname": first_hostname}
+    with httpcore2.ConnectionPool(
+        network_backend=httpcore2.MockBackend(buffer, http2=True), max_connections=1, http2=True
+    ) as pool:
+        with pool.stream("GET", "https://192.0.2.1/", extensions=first_extensions) as first:
+            second = pool.request(
+                "GET",
+                "https://192.0.2.1/",
+                extensions={"sni_hostname": second_hostname, "timeout": {"pool": 0}},
+            )
+            assert first.status == second.status == 200
+            assert first.extensions["network_stream"] is second.extensions["network_stream"]
+
+
+
+@pytest.mark.parametrize("warm_connection", [False, True])
+def test_connection_pool_reserves_http2_connection_for_sni_hostname(warm_connection: bool) -> None:
+    buffer = [hyperframe.frame.SettingsFrame().serialize()]
+    buffer.extend(
+        hyperframe.frame.HeadersFrame(
+            stream_id=stream_id,
+            data=hpack.Encoder().encode([(b":status", b"200")]),
+            flags=["END_HEADERS", "END_STREAM"],
+        ).serialize()
+        for stream_id in [1, 3]
+    )
+    network_backend = httpcore2.MockBackend(buffer, http2=True)
+
+    class ReservedConnection(httpcore2.HTTPConnection):
+        def handle_request(self, request: httpcore2.Request) -> httpcore2.Response:
+            if request.extensions.get("check_reservation"):
+                with pytest.raises(httpcore2.PoolTimeout):
+                    pool.request(
+                        "GET",
+                        "https://192.0.2.1/",
+                        extensions={"sni_hostname": "second.example", "timeout": {"pool": 0}},
+                    )
+            return super().handle_request(request)
+
+    class ReservedConnectionPool(httpcore2.ConnectionPool):
+        def create_connection(self, origin: httpcore2.Origin) -> httpcore2.ConnectionInterface:
+            return ReservedConnection(origin, network_backend=network_backend, http2=True)
+
+    with ReservedConnectionPool(max_connections=1) as pool:
+        if warm_connection:
+            response = pool.request("GET", "https://192.0.2.1/", extensions={"sni_hostname": "first.example"})
+            assert response.status == 200
+        response = pool.request(
+            "GET",
+            "https://192.0.2.1/",
+            extensions={"sni_hostname": "first.example", "check_reservation": True},
+        )
+        assert response.status == 200
+        assert len(pool.connections) == 1
+
+
+
+@pytest.mark.parametrize("hashable", [False, True])
+@pytest.mark.parametrize("second_hostname", ["first.example", "second.example"])
+def test_connection_pool_tracks_custom_connections_by_identity(hashable: bool, second_hostname: str) -> None:
+    network_backend = httpcore2.MockBackend([b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK"] * 3)
+
+    class EqualConnection(httpcore2.HTTPConnection):
+        def __eq__(self, other: object) -> bool:
+            return isinstance(other, EqualConnection)
+
+        def __hash__(self) -> int:
+            return 0
+
+    class UnhashableConnection(httpcore2.HTTPConnection):
+        def __eq__(self, other: object) -> bool:
+            return self is other
+
+    connection_class = EqualConnection if hashable else UnhashableConnection
+
+    class CustomConnectionPool(httpcore2.ConnectionPool):
+        def create_connection(self, origin: httpcore2.Origin) -> httpcore2.ConnectionInterface:
+            return connection_class(origin, network_backend=network_backend)
+
+    with CustomConnectionPool(max_connections=2) as pool:
+        with (
+            pool.stream("GET", "https://192.0.2.1/", extensions={"sni_hostname": "first.example"}) as first,
+            pool.stream("GET", "https://192.0.2.1/", extensions={"sni_hostname": second_hostname}) as second,
+        ):
+            assert len(pool.connections) == 2
+            first_connection, second_connection = pool.connections
+            assert first_connection is not second_connection
+            if hashable:
+                assert first_connection == second_connection
+                assert hash(first_connection) == hash(second_connection)
+            else:
+                assert first_connection != second_connection
+                with pytest.raises(TypeError):
+                    hash(first_connection)
+            with pytest.raises(httpcore2.PoolTimeout):
+                pool.request(
+                    "GET",
+                    "https://192.0.2.1/",
+                    extensions={"sni_hostname": "third.example", "timeout": {"pool": 0}},
+                )
+            first.read()
+            second.read()
+            assert first.content == second.content == b"OK"
+
+        second_reused = first if second_hostname == "first.example" else second
+        for hostname, previous in [("first.example", first), (second_hostname, second_reused)]:
+            response = pool.request("GET", "https://192.0.2.1/", extensions={"sni_hostname": hostname})
+            assert response.content == b"OK"
+            assert response.extensions["network_stream"] is previous.extensions["network_stream"]
+
+        response = pool.request("GET", "https://192.0.2.1/", extensions={"sni_hostname": "third.example"})
+        assert response.content == b"OK"
+        assert len(pool.connections) == 2
+        assert first_connection.is_closed()
+        assert not second_connection.is_closed()
+        assert pool.connections[0] is second_connection
+
+    assert pool.connections == []
+
+
+
+@pytest.mark.parametrize("mutation", ["extensions", "url", "request"])
+def test_connection_pool_snapshots_connection_settings(mutation: str) -> None:
+    network_backend = httpcore2.MockBackend([b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK"] * 2)
+    destinations: list[tuple[str, int]] = []
+    hostnames: list[str] = []
+    sent_requests: list[httpcore2.Request] = []
+
+    def trace(name: str, info: dict[str, typing.Any]) -> None:
+        if name == "connection.connect_tcp.started":
+            destinations.append((info["host"], info["port"]))
+        elif name == "connection.start_tls.started":
+            hostnames.append(info["server_hostname"])
+        elif name == "http11.send_request_headers.started":
+            sent_requests.append(info["request"])
+
+    class CustomRequest(httpcore2.Request):
+        context: str
+
+    request = CustomRequest(
+        "POST",
+        "https://192.0.2.1/",
+        headers={"Host": "first.example", "Content-Length": "4"},
+        content=b"body",
+        extensions={"sni_hostname": "first.example", "trace": trace},
+    )
+    request.context = "caller"
+
+    class MutatingPool(httpcore2.ConnectionPool):
+        def create_connection(self, origin: httpcore2.Origin) -> httpcore2.ConnectionInterface:
+            if mutation == "extensions":
+                request.extensions["sni_hostname"] = "second.example"
+            elif mutation == "url":
+                request.url.host = b"changed.example"
+                request.url.port = 8443
+            else:
+                request.url = httpcore2.URL("https://changed.example:8443/")
+            return super().create_connection(origin)
+
+    with MutatingPool(network_backend=network_backend) as pool:
+        first = pool.handle_request(request)
+        first.read()
+        first.close()
+        assert first.content == b"OK"
+
+        second = pool.request(
+            "GET", "https://192.0.2.1/", extensions={"sni_hostname": "first.example", "trace": trace}
+        )
+        assert second.content == b"OK"
+        assert second.extensions["network_stream"] is first.extensions["network_stream"]
+
+    assert destinations == [("192.0.2.1", 443)]
+    assert hostnames == ["first.example"]
+    sent_request = sent_requests[0]
+    assert isinstance(sent_request, CustomRequest)
+    assert sent_request.context == "caller"
+    assert sent_request.stream is request.stream
+    assert sent_request.extensions["sni_hostname"] == "first.example"
+    assert sent_request.url == httpcore2.URL("https://192.0.2.1/")
