@@ -11,7 +11,7 @@ import chardet
 import pytest
 
 import httpx2
-from httpx2._decoders import _brotli_supports_output_buffer_limit, _load_brotli
+from httpx2._decoders import _brotli_version_supported, _load_brotli
 
 if sys.version_info >= (3, 14):  # pragma: no cover
     from compression import zstd
@@ -110,26 +110,36 @@ def test_brotli() -> None:
     assert response.content == body
 
 
-class _OldBrotliDecompressor:
-    process = staticmethod(lambda data: data)
+class _FakeBrotli:
+    def __init__(self, version: str) -> None:
+        self.__version__ = version
 
 
-class _OldBrotli:
-    Decompressor = _OldBrotliDecompressor
+@pytest.mark.parametrize(
+    ("name", "version", "supported"),
+    [
+        ("brotli", "1.1.0", False),
+        ("brotli", "1.2.0", False),
+        ("brotli", "1.2.1", True),
+        ("brotli", "1.3.0", True),
+        ("brotli", "2.0", True),
+        ("brotli", "1.2.1rc1", False),
+        ("brotli", "", False),
+        ("brotlicffi", "1.2.0.2", False),
+        ("brotlicffi", "1.2.1.0", True),
+        ("brotlicffi", "1.2.1.1", True),
+    ],
+)
+def test_brotli_version_supported(name: str, version: str, supported: bool) -> None:
+    assert _brotli_version_supported(name, _FakeBrotli(version)) is supported
 
 
-class _OldBrotliCFFIDecompressor:
-    decompress = staticmethod(lambda data: data)
+def test_brotli_version_supported_without_version_attribute() -> None:
+    assert not _brotli_version_supported("brotli", object())
 
 
-class _OldBrotliCFFI:
-    Decompressor = _OldBrotliCFFIDecompressor
-
-
-def test_brotli_supports_output_buffer_limit() -> None:
-    assert _brotli_supports_output_buffer_limit(brotli)
-    assert not _brotli_supports_output_buffer_limit(_OldBrotli)
-    assert not _brotli_supports_output_buffer_limit(_OldBrotliCFFI)
+def test_installed_brotli_is_supported() -> None:
+    assert _load_brotli() is brotli
 
 
 def _fake_import(modules: dict[str, typing.Any]) -> typing.Callable[[str], typing.Any]:
@@ -142,19 +152,23 @@ def _fake_import(modules: dict[str, typing.Any]) -> typing.Callable[[str], typin
 
 
 def test_load_brotli_prefers_brotli() -> None:
-    assert _load_brotli(_fake_import({"brotli": brotli, "brotlicffi": _OldBrotliCFFI})) is brotli
+    preferred = _FakeBrotli("1.2.1")
+    modules = {"brotli": preferred, "brotlicffi": _FakeBrotli("1.2.1.0")}
+    assert _load_brotli(_fake_import(modules)) is preferred
 
 
 def test_load_brotli_falls_back_to_brotlicffi_when_brotli_is_too_old() -> None:
-    assert _load_brotli(_fake_import({"brotli": _OldBrotli, "brotlicffi": brotli})) is brotli
+    fallback = _FakeBrotli("1.2.1.0")
+    modules = {"brotli": _FakeBrotli("1.2.0"), "brotlicffi": fallback}
+    assert _load_brotli(_fake_import(modules)) is fallback
 
 
 @pytest.mark.parametrize(
     "modules",
     [
         {},
-        {"brotli": _OldBrotli},
-        {"brotli": _OldBrotli, "brotlicffi": _OldBrotliCFFI},
+        {"brotli": _FakeBrotli("1.2.0")},
+        {"brotli": _FakeBrotli("1.2.0"), "brotlicffi": _FakeBrotli("1.2.0.2")},
     ],
 )
 def test_load_brotli_returns_none_without_a_supported_binding(modules: dict[str, typing.Any]) -> None:

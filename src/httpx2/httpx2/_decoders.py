@@ -16,36 +16,42 @@ import zlib
 
 from ._exceptions import DecodingError
 
+# `BrotliDecoder` passes `output_buffer_limit`, added in brotli 1.2.0 and brotlicffi
+# 1.2.0.0. Releases before brotli 1.2.1 and brotlicffi 1.2.1.0 are vulnerable to
+# CVE-2026-111497 (GHSA-9v8h-qqgm-4m35).
+BROTLI_MIN_VERSIONS = {"brotli": (1, 2, 1), "brotlicffi": (1, 2, 1, 0)}
 
-def _brotli_supports_output_buffer_limit(module: typing.Any) -> bool:
-    """
-    `BrotliDecoder` passes `output_buffer_limit`, which was added in Brotli 1.2.0
-    and brotlicffi 1.2.0.0. The `brotli` extra requires those versions, but an older
-    release can still be importable when httpx2 is installed without the extra.
-    """
-    decompressor = module.Decompressor()
-    method = getattr(decompressor, "decompress", None) or decompressor.process
+
+def _version_tuple(version: str) -> tuple[int, ...] | None:
     try:
-        method(b"", output_buffer_limit=1)
-    except TypeError:
-        return False
-    return True
+        return tuple(int(part) for part in version.split("."))
+    except ValueError:
+        return None
+
+
+def _brotli_version_supported(name: str, module: typing.Any) -> bool:
+    """
+    The `brotli` extra requires the minimum versions, but an older release can
+    still be importable when httpx2 is installed without the extra.
+    """
+    version = _version_tuple(getattr(module, "__version__", ""))
+    return version is not None and version >= BROTLI_MIN_VERSIONS[name]
 
 
 def _load_brotli(import_module: typing.Callable[[str], typing.Any] = importlib.import_module) -> typing.Any:
     """
-    Brotli support is optional. Return the first importable binding that supports
-    `output_buffer_limit`, or `None`.
+    Brotli support is optional. Return the first importable binding that meets
+    `BROTLI_MIN_VERSIONS`, or `None`.
 
     The C bindings in `brotli` are recommended for CPython, and the CFFI bindings in
     `brotlicffi` for PyPy and other environments.
     """
-    for name in ("brotli", "brotlicffi"):
+    for name in BROTLI_MIN_VERSIONS:
         try:
             module = import_module(name)
         except ImportError:
             continue
-        if _brotli_supports_output_buffer_limit(module):
+        if _brotli_version_supported(name, module):
             return module
     return None
 
@@ -191,9 +197,9 @@ class BrotliDecoder(ContentDecoder):
     def __init__(self) -> None:
         if brotli is None:  # pragma: no cover
             raise ImportError(
-                "Using 'BrotliDecoder', but neither of the 'brotlicffi' or 'brotli' "
-                "packages have been installed. "
-                "Make sure to install httpx using `pip install httpx[brotli]`."
+                "Using 'BrotliDecoder', but neither 'brotli>=1.2.1' nor "
+                "'brotlicffi>=1.2.1.0' is installed. "
+                "Make sure to install httpx2 using `pip install httpx2[brotli]`."
             ) from None
 
         self.decompressor = brotli.Decompressor()
