@@ -124,6 +124,27 @@ def test_decoding_bounds_output_chunks(encoding: bytes, compress: typing.Callabl
     assert max(map(len, chunks)) <= 2**20
 
 
+@pytest.mark.parametrize(
+    ("encoding", "compress"),
+    [
+        (b"deflate", zlib.compress),
+        (b"gzip", zlib.compressobj(wbits=zlib.MAX_WBITS | 16).compress),
+        (b"br", brotli.compress),
+        (b"zstd", zstd.compress),
+    ],
+)
+def test_truncated(encoding: bytes, compress: typing.Callable[[bytes], bytes]) -> None:
+    compressed_body = compress(b"test 123")
+    headers = [(b"Content-Encoding", encoding)]
+
+    with pytest.raises(httpx2.DecodingError):
+        httpx2.Response(
+            200,
+            headers=headers,
+            content=compressed_body[: len(compressed_body) // 2],
+        )
+
+
 def test_zstd() -> None:
     body = b"test 123"
     compressed_body = zstd.compress(body)
@@ -146,25 +167,6 @@ def test_zstd_decoding_error() -> None:
             200,
             headers=headers,
             content=compressed_body,
-        )
-
-
-def test_zstd_empty() -> None:
-    headers = [(b"Content-Encoding", b"zstd")]
-    response = httpx2.Response(200, headers=headers, content=b"")
-    assert response.content == b""
-
-
-def test_zstd_truncated() -> None:
-    body = b"test 123"
-    compressed_body = zstd.compress(body)
-
-    headers = [(b"Content-Encoding", b"zstd")]
-    with pytest.raises(httpx2.DecodingError):
-        httpx2.Response(
-            200,
-            headers=headers,
-            content=compressed_body[1:3],
         )
 
 
@@ -222,16 +224,23 @@ def test_zstd_empty_decode_after_eof() -> None:
     assert response.content == body
 
 
-def test_multi() -> None:
+@pytest.mark.parametrize(
+    ("encoding", "first_wbits", "second_wbits"),
+    [
+        (b"deflate, gzip", -zlib.MAX_WBITS, zlib.MAX_WBITS | 16),
+        (b"gzip, deflate", zlib.MAX_WBITS | 16, -zlib.MAX_WBITS),
+    ],
+)
+def test_multi(encoding: bytes, first_wbits: int, second_wbits: int) -> None:
     body = b"test 123"
 
-    deflate_compressor = zlib.compressobj(9, zlib.DEFLATED, -zlib.MAX_WBITS)
-    compressed_body = deflate_compressor.compress(body) + deflate_compressor.flush()
+    compressor1 = zlib.compressobj(9, zlib.DEFLATED, first_wbits)
+    compressed_body = compressor1.compress(body) + compressor1.flush()
 
-    gzip_compressor = zlib.compressobj(9, zlib.DEFLATED, zlib.MAX_WBITS | 16)
-    compressed_body = gzip_compressor.compress(compressed_body) + gzip_compressor.flush()
+    compressor2 = zlib.compressobj(9, zlib.DEFLATED, second_wbits)
+    compressed_body = compressor2.compress(compressed_body) + compressor2.flush()
 
-    headers = [(b"Content-Encoding", b"deflate, gzip")]
+    headers = [(b"Content-Encoding", encoding)]
     response = httpx2.Response(
         200,
         headers=headers,
@@ -327,7 +336,7 @@ async def test_streaming() -> None:
     assert await response.aread() == body
 
 
-@pytest.mark.parametrize("header_value", (b"deflate", b"gzip", b"br", b"identity"))
+@pytest.mark.parametrize("header_value", (b"deflate", b"gzip", b"br", b"identity", b"zstd"))
 def test_empty_content(header_value: bytes) -> None:
     headers = [(b"Content-Encoding", header_value)]
     response = httpx2.Response(
