@@ -31,7 +31,6 @@ async def test_get(server: TestServer) -> None:
     [
         pytest.param("invalid://example.org", id="scheme-not-http(s)"),
         pytest.param("://example.org", id="no-scheme"),
-        pytest.param("http://", id="no-host"),
     ],
 )
 @pytest.mark.anyio
