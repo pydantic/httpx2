@@ -6,7 +6,7 @@ import re
 import time
 from base64 import b64encode
 from collections.abc import AsyncGenerator, Callable, Generator
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING, ClassVar, NamedTuple
 from urllib.request import parse_http_list
 
 from ._exceptions import ProtocolError
@@ -168,7 +168,7 @@ class NetRCAuth(Auth):
 
 class DigestAuth(Auth):
     # Hashes are resolved by name at use time, since FIPS builds may remove or block MD5.
-    _ALGORITHM_TO_HASH_NAME = {
+    _ALGORITHM_TO_HASH_NAME: ClassVar[dict[str, str]] = {
         "MD5": "md5",
         "MD5-SESS": "md5",
         "SHA": "sha1",

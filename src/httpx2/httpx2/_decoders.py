@@ -424,7 +424,7 @@ class LineDecoder:
         if self.buffer:
             # Include any existing buffer in the first portion of the
             # splitlines result.
-            lines = ["".join(self.buffer) + lines[0]] + lines[1:]
+            lines = ["".join(self.buffer) + lines[0], *lines[1:]]
             self.buffer = []
 
         if not trailing_newline:

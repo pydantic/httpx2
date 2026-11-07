@@ -1,5 +1,6 @@
 import logging
-import typing
+from collections.abc import Iterable
+from typing import Any
 
 import hpack
 import hyperframe.frame
@@ -232,7 +233,7 @@ async def test_trace_request() -> None:
 
     called: list[str] = []
 
-    async def trace(name: str, kwargs: dict[str, typing.Any]) -> None:
+    async def trace(name: str, kwargs: dict[str, Any]) -> None:
         called.append(name)
 
     async with httpcore2.AsyncConnectionPool(network_backend=network_backend) as pool:
@@ -334,7 +335,7 @@ async def test_connection_pool_with_http_exception() -> None:
 
     called: list[str] = []
 
-    async def trace(name: str, kwargs: dict[str, typing.Any]) -> None:
+    async def trace(name: str, kwargs: dict[str, Any]) -> None:
         called.append(name)
 
     async with httpcore2.AsyncConnectionPool(network_backend=network_backend) as pool:
@@ -375,7 +376,7 @@ async def test_connection_pool_with_connect_exception() -> None:
             port: int,
             timeout: float | None = None,
             local_address: str | None = None,
-            socket_options: typing.Iterable[httpcore2.SOCKET_OPTION] | None = None,
+            socket_options: Iterable[httpcore2.SOCKET_OPTION] | None = None,
         ) -> httpcore2.AsyncNetworkStream:
             raise httpcore2.ConnectError("Could not connect")
 
@@ -383,7 +384,7 @@ async def test_connection_pool_with_connect_exception() -> None:
 
     called: list[str] = []
 
-    async def trace(name: str, kwargs: dict[str, typing.Any]) -> None:
+    async def trace(name: str, kwargs: dict[str, Any]) -> None:
         called.append(name)
 
     async with httpcore2.AsyncConnectionPool(network_backend=network_backend) as pool:
@@ -760,7 +761,7 @@ async def test_http11_upgrade_connection() -> None:
 
     called: list[str] = []
 
-    async def trace(name: str, kwargs: dict[str, typing.Any]) -> None:
+    async def trace(name: str, kwargs: dict[str, Any]) -> None:
         called.append(name)
 
     async with httpcore2.AsyncConnectionPool(network_backend=network_backend, max_connections=1) as pool:

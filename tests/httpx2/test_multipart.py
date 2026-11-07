@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import io
 import tempfile
-import typing
+from collections.abc import Iterator
+from typing import Any
 
 import pytest
 
@@ -95,7 +96,7 @@ def test_multipart_header_without_boundary(header: str) -> None:
 
 
 @pytest.mark.parametrize(("key"), (b"abc", 1, 2.3, None))
-def test_multipart_invalid_key(key: typing.Any) -> None:
+def test_multipart_invalid_key(key: Any) -> None:
     client = httpx2.Client(transport=httpx2.MockTransport(echo_request_content))
 
     data = {key: "abc"}
@@ -111,7 +112,7 @@ def test_multipart_invalid_key(key: typing.Any) -> None:
 
 
 @pytest.mark.parametrize(("value"), (object(), {"key": "value"}))
-def test_multipart_invalid_value(value: typing.Any) -> None:
+def test_multipart_invalid_value(value: Any) -> None:
     client = httpx2.Client(transport=httpx2.MockTransport(echo_request_content))
 
     data = {"text": value}
@@ -228,7 +229,7 @@ def test_multipart_rejects_control_characters_in_file_header_values(control_char
         httpx2.Request("POST", "https://www.example.com/", files=files)
 
 
-def test_multipart_encode(tmp_path: typing.Any) -> None:
+def test_multipart_encode(tmp_path: Any) -> None:
     path = str(tmp_path / "name.txt")
     with open(path, "wb") as f:
         f.write(b"<file content>")
@@ -408,19 +409,19 @@ def test_multipart_encode_non_seekable_filelike() -> None:
     """
 
     class IteratorIO(io.IOBase):
-        def __init__(self, iterator: typing.Iterator[bytes]) -> None:
+        def __init__(self, iterator: Iterator[bytes]) -> None:
             self._iterator = iterator
 
-        def read(self, *args: typing.Any) -> bytes:
+        def read(self, *args: Any) -> bytes:
             return b"".join(self._iterator)
 
-    def data() -> typing.Iterator[bytes]:
+    def data() -> Iterator[bytes]:
         yield b"Hello"
         yield b"World"
 
     url = "https://www.example.com/"
     headers = {"Content-Type": "multipart/form-data; boundary=BOUNDARY"}
-    fileobj: typing.Any = IteratorIO(data())
+    fileobj: Any = IteratorIO(data())
     files = {"file": fileobj}
 
     request = httpx2.Request("POST", url, headers=headers, files=files)

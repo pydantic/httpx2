@@ -127,7 +127,7 @@ class AsyncHTTPProxy(AsyncConnectionPool):  # pragma: no cover
             password = enforce_bytes(proxy_auth[1], name="proxy_auth")
             userpass = username + b":" + password
             authorization = b"Basic " + base64.b64encode(userpass)
-            self._proxy_headers = [(b"Proxy-Authorization", authorization)] + self._proxy_headers
+            self._proxy_headers = [(b"Proxy-Authorization", authorization), *self._proxy_headers]
 
     def create_connection(self, origin: Origin) -> AsyncConnectionInterface:
         if origin.scheme == b"http":

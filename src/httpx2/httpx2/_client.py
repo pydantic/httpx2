@@ -182,7 +182,7 @@ class BaseClient:
         timeout: TimeoutTypes = DEFAULT_TIMEOUT_CONFIG,
         follow_redirects: bool = False,
         max_redirects: int = DEFAULT_MAX_REDIRECTS,
-        event_hooks: None | (Mapping[str, list[EventHook]]) = None,
+        event_hooks: Mapping[str, list[EventHook]] | None = None,
         base_url: URL | str = "",
         trust_env: bool = True,
         default_encoding: str | Callable[[bytes], str | None] = "utf-8",
@@ -617,12 +617,12 @@ class Client(BaseClient):
         http1: bool = True,
         http2: bool = False,
         proxy: ProxyTypes | None = None,
-        mounts: None | (Mapping[str, BaseTransport | None]) = None,
+        mounts: Mapping[str, BaseTransport | None] | None = None,
         timeout: TimeoutTypes = DEFAULT_TIMEOUT_CONFIG,
         follow_redirects: bool = False,
         limits: Limits = DEFAULT_LIMITS,
         max_redirects: int = DEFAULT_MAX_REDIRECTS,
-        event_hooks: None | (Mapping[str, list[EventHook]]) = None,
+        event_hooks: Mapping[str, list[EventHook]] | None = None,
         base_url: URL | str = "",
         transport: BaseTransport | None = None,
         default_encoding: str | Callable[[bytes], str | None] = "utf-8",
@@ -1045,7 +1045,7 @@ class Client(BaseClient):
 
                 if follow_redirects:
                     request = self._build_redirect_request(request, response)
-                    history = history + [response]
+                    history = [*history, response]
                     response.read()
                 else:
                     with suppress(RemoteProtocolError):
@@ -1453,12 +1453,12 @@ class AsyncClient(BaseClient):
         http1: bool = True,
         http2: bool = False,
         proxy: ProxyTypes | None = None,
-        mounts: None | (Mapping[str, AsyncBaseTransport | None]) = None,
+        mounts: Mapping[str, AsyncBaseTransport | None] | None = None,
         timeout: TimeoutTypes = DEFAULT_TIMEOUT_CONFIG,
         follow_redirects: bool = False,
         limits: Limits = DEFAULT_LIMITS,
         max_redirects: int = DEFAULT_MAX_REDIRECTS,
-        event_hooks: None | (Mapping[str, list[EventHook]]) = None,
+        event_hooks: Mapping[str, list[EventHook]] | None = None,
         base_url: URL | str = "",
         transport: AsyncBaseTransport | None = None,
         trust_env: bool = True,
@@ -1884,7 +1884,7 @@ class AsyncClient(BaseClient):
 
                 if follow_redirects:
                     request = self._build_redirect_request(request, response)
-                    history = history + [response]
+                    history = [*history, response]
                     await response.aread()
                 else:
                     with suppress(RemoteProtocolError):

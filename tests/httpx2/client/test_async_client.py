@@ -2,14 +2,16 @@ from __future__ import annotations
 
 import asyncio
 import sys
-import typing
+from collections.abc import AsyncGenerator, AsyncIterator, Iterator
 from datetime import timedelta
+from types import TracebackType
+from typing import TYPE_CHECKING, Self
 
 import pytest
 
 import httpx2
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from conftest import TestServer
 
 
@@ -88,10 +90,10 @@ def test_abandon_streamed_response(server: TestServer) -> None:
         client = httpx2.AsyncClient()
         request = client.build_request("GET", server.url.copy_with(path="/stream_response"))
         response = await client.send(request, stream=True)
-        generators: list[typing.AsyncGenerator[object, None]] = []
+        generators: list[AsyncGenerator[object, None]] = []
         hooks = sys.get_asyncgen_hooks()
 
-        def firstiter(generator: typing.AsyncGenerator[object, None]) -> None:
+        def firstiter(generator: AsyncGenerator[object, None]) -> None:
             generators.append(generator)
             if hooks.firstiter is not None:
                 hooks.firstiter(generator)
@@ -125,7 +127,7 @@ async def test_access_content_stream_response(server: TestServer) -> None:
 
 @pytest.mark.anyio
 async def test_stream_request(server: TestServer) -> None:
-    async def hello_world() -> typing.AsyncIterator[bytes]:
+    async def hello_world() -> AsyncIterator[bytes]:
         yield b"Hello, "
         yield b"world!"
 
@@ -136,7 +138,7 @@ async def test_stream_request(server: TestServer) -> None:
 
 @pytest.mark.anyio
 async def test_cannot_stream_sync_request(server: TestServer) -> None:
-    def hello_world() -> typing.Iterator[bytes]:  # pragma: no cover
+    def hello_world() -> Iterator[bytes]:  # pragma: no cover
         yield b"Hello, "
         yield b"world!"
 
@@ -229,13 +231,18 @@ async def test_context_managed_transport() -> None:
             # might want to additionally override `__aenter__`/`__aexit__`.
             self.events.append("transport.aclose")
 
-        async def __aenter__(self) -> Transport:
+        async def __aenter__(self) -> Self:
             await super().__aenter__()
             self.events.append("transport.__aenter__")
             return self
 
-        async def __aexit__(self, *args: typing.Any) -> None:
-            await super().__aexit__(*args)
+        async def __aexit__(
+            self,
+            exc_type: type[BaseException] | None = None,
+            exc_value: BaseException | None = None,
+            traceback: TracebackType | None = None,
+        ) -> None:
+            await super().__aexit__(exc_type, exc_value, traceback)
             self.events.append("transport.__aexit__")
 
     transport = Transport()
@@ -263,13 +270,18 @@ async def test_context_managed_transport_and_mount() -> None:
             # might want to additionally override `__aenter__`/`__aexit__`.
             self.events.append(f"{self.name}.aclose")
 
-        async def __aenter__(self) -> Transport:
+        async def __aenter__(self) -> Self:
             await super().__aenter__()
             self.events.append(f"{self.name}.__aenter__")
             return self
 
-        async def __aexit__(self, *args: typing.Any) -> None:
-            await super().__aexit__(*args)
+        async def __aexit__(
+            self,
+            exc_type: type[BaseException] | None = None,
+            exc_value: BaseException | None = None,
+            traceback: TracebackType | None = None,
+        ) -> None:
+            await super().__aexit__(exc_type, exc_value, traceback)
             self.events.append(f"{self.name}.__aexit__")
 
     transport = Transport(name="transport")
@@ -383,7 +395,7 @@ async def test_cancellation_during_stream() -> None:
 
     def response_with_cancel_during_stream(request: httpx2.Request) -> httpx2.Response:
         class CancelledStream(httpx2.AsyncByteStream):
-            async def __aiter__(self) -> typing.AsyncIterator[bytes]:
+            async def __aiter__(self) -> AsyncIterator[bytes]:
                 yield b"Hello"
                 raise KeyboardInterrupt()
                 yield b", world"  # pragma: no cover

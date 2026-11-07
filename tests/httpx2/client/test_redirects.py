@@ -1,4 +1,4 @@
-import typing
+from collections.abc import Iterator
 
 import pytest
 
@@ -390,7 +390,7 @@ def test_cannot_redirect_streaming_body() -> None:
     client = httpx2.Client(transport=ConsumeBodyTransport(redirects))
     url = "https://example.org/redirect_body"
 
-    def streaming_body() -> typing.Iterator[bytes]:
+    def streaming_body() -> Iterator[bytes]:
         yield b"Example request body"  # pragma: no cover
 
     with pytest.raises(httpx2.StreamConsumed):

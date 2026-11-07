@@ -13,7 +13,7 @@ from ._transports import *
 from ._types import *
 from ._urls import *
 
-__all__ = [
+__all__ = [  # noqa: RUF022
     # __version__.py
     "__description__",
     "__title__",

@@ -29,11 +29,11 @@ except ImportError:  # pragma: no cover
 
 
 __all__ = [
-    "AsyncHTTPConnection",
-    "AsyncConnectionPool",
-    "AsyncHTTPProxy",
-    "AsyncHTTP11Connection",
-    "AsyncHTTP2Connection",
     "AsyncConnectionInterface",
+    "AsyncConnectionPool",
+    "AsyncHTTP2Connection",
+    "AsyncHTTP11Connection",
+    "AsyncHTTPConnection",
+    "AsyncHTTPProxy",
     "AsyncSOCKSProxy",
 ]

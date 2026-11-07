@@ -7,10 +7,10 @@ from http.cookiejar import CookieJar
 from typing import IO, TYPE_CHECKING, Any, TypeAlias, TypeVar
 
 if TYPE_CHECKING:
-    from ._auth import Auth  # noqa: F401
-    from ._config import Proxy, Timeout  # noqa: F401
-    from ._models import Cookies, Headers, Request  # noqa: F401
-    from ._urls import URL, QueryParams  # noqa: F401
+    from ._auth import Auth
+    from ._config import Proxy, Timeout
+    from ._models import Cookies, Headers, Request
+    from ._urls import URL, QueryParams
 
 
 AnyStr = TypeVar("AnyStr", bytes, str)
@@ -38,7 +38,7 @@ HeaderTypes: TypeAlias = """
 
 CookieTypes: TypeAlias = "Cookies | CookieJar | dict[str, str] | list[tuple[str, str]]"
 
-TimeoutTypes: TypeAlias = "float | None | tuple[float | None, float | None, float | None, float | None] | Timeout"
+TimeoutTypes: TypeAlias = "float | tuple[float | None, float | None, float | None, float | None] | Timeout | None"
 ProxyTypes: TypeAlias = "URL | str | Proxy"
 CertTypes = str | tuple[str, str] | tuple[str, str, str]
 

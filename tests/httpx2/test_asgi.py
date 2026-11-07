@@ -1,14 +1,15 @@
 import json
-import typing
+from collections.abc import Awaitable, Callable, MutableMapping
+from typing import Any
 
 import pytest
 
 import httpx2
 
-Message = typing.MutableMapping[str, typing.Any]
-Receive = typing.Callable[[], typing.Awaitable[Message]]
-Send = typing.Callable[[typing.MutableMapping[str, typing.Any]], typing.Awaitable[None]]
-Scope = typing.MutableMapping[str, typing.Any]
+Message = MutableMapping[str, Any]
+Receive = Callable[[], Awaitable[Message]]
+Send = Callable[[MutableMapping[str, Any]], Awaitable[None]]
+Scope = MutableMapping[str, Any]
 
 
 async def hello_world(scope: Scope, receive: Receive, send: Send) -> None:

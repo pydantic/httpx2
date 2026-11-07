@@ -94,10 +94,10 @@ class Timeout:
         self,
         timeout: TimeoutTypes | UnsetType = UNSET,
         *,
-        connect: None | float | UnsetType = UNSET,
-        read: None | float | UnsetType = UNSET,
-        write: None | float | UnsetType = UNSET,
-        pool: None | float | UnsetType = UNSET,
+        connect: float | UnsetType | None = UNSET,
+        read: float | UnsetType | None = UNSET,
+        write: float | UnsetType | None = UNSET,
+        pool: float | UnsetType | None = UNSET,
     ) -> None:
         if isinstance(timeout, Timeout):
             # Passed as a single explicit Timeout.
