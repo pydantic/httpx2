@@ -384,7 +384,7 @@ class Headers(MutableMapping[str, str]):
 
     def __eq__(self, other: object) -> bool:
         try:
-            other_headers = Headers(other)
+            other_headers = Headers(other)  # type: ignore[arg-type]
         except ValueError:
             return False
 
