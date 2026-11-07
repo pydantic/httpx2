@@ -139,7 +139,7 @@ class OriginProtocol(asyncio.Protocol):
         if head_end < 0:
             return False
         request_line, _, header_block = bytes(self._buffer[:head_end]).partition(b"\r\n")
-        method, target, _ = request_line.split(b" ", 2)
+        _, target, _ = request_line.split(b" ", 2)
         content_length = 0
         for line in header_block.split(b"\r\n"):
             name, _, value = line.partition(b":")

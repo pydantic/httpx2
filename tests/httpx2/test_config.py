@@ -2,15 +2,15 @@ from __future__ import annotations
 
 import platform
 import ssl
-import typing
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 import trustme
 
 import httpx2
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from conftest import TestServer
 
 

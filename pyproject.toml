@@ -61,6 +61,7 @@ known-first-party = ["httpx2", "httpcore2"]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F403", "F405"]
+"tests/**.py" = ["RUF001", "RUF043"]
 
 [tool.mypy]
 ignore_missing_imports = true

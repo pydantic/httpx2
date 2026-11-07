@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-import typing
+from collections.abc import Iterator
+from typing import TYPE_CHECKING
 
 import pytest
 
 import httpx2
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from conftest import TestServer
 
 
@@ -25,7 +26,7 @@ def test_post(server: TestServer) -> None:
 
 
 def test_post_byte_iterator(server: TestServer) -> None:
-    def data() -> typing.Iterator[bytes]:
+    def data() -> Iterator[bytes]:
         yield b"Hello"
         yield b", "
         yield b"world!"
@@ -37,7 +38,7 @@ def test_post_byte_iterator(server: TestServer) -> None:
 
 def test_post_byte_stream(server: TestServer) -> None:
     class Data(httpx2.SyncByteStream):
-        def __iter__(self) -> typing.Iterator[bytes]:
+        def __iter__(self) -> Iterator[bytes]:
             yield b"Hello"
             yield b", "
             yield b"world!"

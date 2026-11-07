@@ -5,7 +5,8 @@ import pathlib
 import queue
 import tempfile
 import time
-import typing
+from collections.abc import Awaitable, Callable, Iterator
+from typing import Literal, Protocol, cast
 from unittest.mock import MagicMock
 
 import pytest
@@ -15,7 +16,7 @@ from starlette.applications import Starlette
 from starlette.routing import WebSocketRoute
 from starlette.websockets import WebSocket
 
-WebSocketEndpoint = typing.Callable[[WebSocket], typing.Awaitable[None]]
+WebSocketEndpoint = Callable[[WebSocket], Awaitable[None]]
 
 
 @pytest.fixture
@@ -24,18 +25,18 @@ def on_receive_message() -> MagicMock:
 
 
 @pytest.fixture(params=("wsproto", "websockets-sansio"))
-def websocket_implementation(request: pytest.FixtureRequest) -> typing.Literal["wsproto", "websockets-sansio"]:
+def websocket_implementation(request: pytest.FixtureRequest) -> Literal["wsproto", "websockets-sansio"]:
     return request.param  # type: ignore[no-any-return]
 
 
-class ServerFactoryFixture(typing.Protocol):
+class ServerFactoryFixture(Protocol):
     def __call__(self, endpoint: WebSocketEndpoint) -> contextlib.AbstractContextManager[str]: ...
 
 
 @pytest.fixture
-def server_factory(websocket_implementation: typing.Literal["wsproto", "websockets-sansio"]) -> ServerFactoryFixture:
+def server_factory(websocket_implementation: Literal["wsproto", "websockets-sansio"]) -> ServerFactoryFixture:
     @contextlib.contextmanager
-    def _server_factory(endpoint: WebSocketEndpoint) -> typing.Iterator[str]:
+    def _server_factory(endpoint: WebSocketEndpoint) -> Iterator[str]:
         shutdown_queue: queue.Queue[bool] = queue.Queue()
 
         def create_app() -> Starlette:
@@ -59,7 +60,7 @@ def server_factory(websocket_implementation: typing.Literal["wsproto", "websocke
                 while not server.started and not task.done():
                     time.sleep(0.01)
                 if task.done() and task.exception() is not None:  # pragma: no cover
-                    raise typing.cast(BaseException, task.exception())
+                    raise cast(BaseException, task.exception())
                 yield socket
                 server.should_exit = True
                 shutdown_queue.get(True)

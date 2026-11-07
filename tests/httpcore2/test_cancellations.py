@@ -1,4 +1,5 @@
-import typing
+from collections.abc import Iterable
+from typing import Any
 from unittest.mock import patch
 
 import anyio
@@ -78,7 +79,7 @@ class SlowWriteBackend(httpcore2.AsyncNetworkBackend):
         port: int,
         timeout: float | None = None,
         local_address: str | None = None,
-        socket_options: typing.Iterable[httpcore2.SOCKET_OPTION] | None = None,
+        socket_options: Iterable[httpcore2.SOCKET_OPTION] | None = None,
     ) -> httpcore2.AsyncNetworkStream:
         return SlowWriteStream()
 
@@ -93,7 +94,7 @@ class SlowReadBackend(httpcore2.AsyncNetworkBackend):
         port: int,
         timeout: float | None = None,
         local_address: str | None = None,
-        socket_options: typing.Iterable[httpcore2.SOCKET_OPTION] | None = None,
+        socket_options: Iterable[httpcore2.SOCKET_OPTION] | None = None,
     ) -> httpcore2.AsyncNetworkStream:
         return SlowReadStream(self._buffer)
 
@@ -148,7 +149,7 @@ async def test_connection_pool_cancellation_during_waiting_for_connection() -> N
     discarded and no longer remains in the pool.
     """
 
-    async def wait_for_connection(self: typing.Any, *args: typing.Any, **kwargs: typing.Any) -> None:
+    async def wait_for_connection(self: Any, *args: Any, **kwargs: Any) -> None:
         await anyio.sleep(999)
 
     with patch(
@@ -243,7 +244,7 @@ async def test_h2_queued_request_after_stream_limit_decrease(cancel_waiter: bool
         with anyio.fail_after(2):
             async with conn.stream("GET", "https://example.com/a") as response_a:
 
-                async def trace(name: str, info: dict[str, typing.Any]) -> None:
+                async def trace(name: str, info: dict[str, Any]) -> None:
                     if name == "http2.receive_remote_settings.started" and not close_before_settings:
                         await response_a.aclose()
                         await anyio.wait_all_tasks_blocked()

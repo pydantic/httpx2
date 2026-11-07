@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import typing
+from typing import Any
 
 import pytest
 
@@ -258,7 +258,7 @@ def test_unsupported_proxy_scheme() -> None:
 @pytest.mark.parametrize("client_class", [httpx2.Client, httpx2.AsyncClient])
 def test_proxies_environ(
     monkeypatch: pytest.MonkeyPatch,
-    client_class: type[typing.Any],
+    client_class: type[Any],
     url: str,
     env: dict[str, str],
     expected: str | None,

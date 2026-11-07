@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-import typing
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
 import httpx2
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from conftest import TestServer
 
 
@@ -29,7 +30,7 @@ def test_event_hooks() -> None:
     def on_response(response: httpx2.Response) -> None:
         events.append({"event": "response", "headers": dict(response.headers)})
 
-    event_hooks: dict[str, list[typing.Callable[..., typing.Any]]] = {
+    event_hooks: dict[str, list[Callable[..., Any]]] = {
         "request": [on_request],
         "response": [on_response],
     }
@@ -79,7 +80,7 @@ async def test_async_event_hooks() -> None:
     async def on_response(response: httpx2.Response) -> None:
         events.append({"event": "response", "headers": dict(response.headers)})
 
-    event_hooks: dict[str, list[typing.Callable[..., typing.Any]]] = {
+    event_hooks: dict[str, list[Callable[..., Any]]] = {
         "request": [on_request],
         "response": [on_response],
     }
@@ -133,7 +134,7 @@ def test_event_hooks_with_redirect() -> None:
     def on_response(response: httpx2.Response) -> None:
         events.append({"event": "response", "headers": dict(response.headers)})
 
-    event_hooks: dict[str, list[typing.Callable[..., typing.Any]]] = {
+    event_hooks: dict[str, list[Callable[..., Any]]] = {
         "request": [on_request],
         "response": [on_response],
     }
@@ -193,7 +194,7 @@ async def test_async_event_hooks_with_redirect() -> None:
     async def on_response(response: httpx2.Response) -> None:
         events.append({"event": "response", "headers": dict(response.headers)})
 
-    event_hooks: dict[str, list[typing.Callable[..., typing.Any]]] = {
+    event_hooks: dict[str, list[Callable[..., Any]]] = {
         "request": [on_request],
         "response": [on_response],
     }

@@ -5,7 +5,7 @@ Integration tests also exist in tests/client/test_auth.py
 """
 
 import hashlib
-import typing
+from typing import Any
 from urllib.request import parse_keqv_list
 
 import pytest
@@ -305,7 +305,7 @@ def test_digest_auth_unsupported_algorithm() -> None:
         flow.send(response)
 
 
-def fips_blocked_md5(data: bytes = b"") -> typing.Any:
+def fips_blocked_md5(data: bytes = b"") -> Any:
     raise ValueError("[digital envelope routines] unsupported")
 
 
@@ -317,7 +317,7 @@ def fips_blocked_md5(data: bytes = b"") -> typing.Any:
     ],
 )
 def test_digest_auth_md5_unavailable(
-    monkeypatch: pytest.MonkeyPatch, md5: typing.Any, error: type[Exception], match: str
+    monkeypatch: pytest.MonkeyPatch, md5: Any, error: type[Exception], match: str
 ) -> None:
     if md5 is None:
         monkeypatch.delattr(hashlib, "md5", raising=False)

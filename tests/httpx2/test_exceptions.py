@@ -3,7 +3,8 @@ from __future__ import annotations
 import socket
 import ssl
 import threading
-import typing
+from collections.abc import Iterator
+from typing import TYPE_CHECKING
 
 import pytest
 import trustme
@@ -11,7 +12,7 @@ import trustme
 import httpcore2
 import httpx2
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from conftest import TestServer
 
 
@@ -64,7 +65,7 @@ def test_request_attribute() -> None:
 
 
 @pytest.fixture
-def ragged_eof_tls_server(cert_authority: trustme.CA) -> typing.Iterator[int]:
+def ragged_eof_tls_server(cert_authority: trustme.CA) -> Iterator[int]:
     server_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
     cert_authority.issue_cert("localhost").configure_cert(server_context)
 
