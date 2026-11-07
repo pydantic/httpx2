@@ -1,13 +1,10 @@
 from __future__ import annotations
 
 import contextlib
-import typing
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, AsyncIterator
 
 from .._models import (
     URL,
-    Extensions,
-    HeaderTypes,
     Origin,
     Request,
     Response,
@@ -16,6 +13,7 @@ from .._models import (
     enforce_url,
     include_request_headers,
 )
+from .._types import Extensions, HeaderTypes
 
 
 class AsyncRequestInterface:
@@ -25,7 +23,7 @@ class AsyncRequestInterface:
         url: URL | bytes | str,
         *,
         headers: HeaderTypes = None,
-        content: bytes | typing.AsyncIterator[bytes] | None = None,
+        content: bytes | AsyncIterator[bytes] | None = None,
         extensions: Extensions | None = None,
     ) -> Response:
         # Strict type checking on our parameters.
@@ -57,7 +55,7 @@ class AsyncRequestInterface:
         url: URL | bytes | str,
         *,
         headers: HeaderTypes = None,
-        content: bytes | typing.AsyncIterator[bytes] | None = None,
+        content: bytes | AsyncIterator[bytes] | None = None,
         extensions: Extensions | None = None,
     ) -> AsyncGenerator[Response]:
         # Strict type checking on our parameters.

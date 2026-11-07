@@ -4,15 +4,17 @@ import itertools
 import logging
 import ssl
 import types
-import typing
+from collections.abc import Iterable, Iterator
+from typing import Self
 
 from .._backends.auto import AutoBackend
-from .._backends.base import SOCKET_OPTION, AsyncNetworkBackend, AsyncNetworkStream
+from .._backends.base import AsyncNetworkBackend, AsyncNetworkStream
 from .._exceptions import ConnectError, ConnectTimeout
 from .._models import Origin, Request, Response
 from .._ssl import default_ssl_context
 from .._synchronization import AsyncLock
 from .._trace import Trace
+from .._types import SOCKET_OPTION
 from .http11 import AsyncHTTP11Connection
 from .interfaces import AsyncConnectionInterface
 
@@ -22,7 +24,7 @@ RETRIES_BACKOFF_FACTOR = 0.5  # 0s, 0.5s, 1s, 2s, 4s, etc.
 logger = logging.getLogger("httpcore2.connection")
 
 
-def exponential_backoff(factor: float) -> typing.Iterator[float]:
+def exponential_backoff(factor: float) -> Iterator[float]:
     """
     Generate a geometric sequence that has a ratio of 2 and starts with 0.
 
@@ -47,7 +49,7 @@ class AsyncHTTPConnection(AsyncConnectionInterface):
         local_address: str | None = None,
         uds: str | None = None,
         network_backend: AsyncNetworkBackend | None = None,
-        socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
+        socket_options: Iterable[SOCKET_OPTION] | None = None,
     ) -> None:
         self._origin = origin
         self._ssl_context = ssl_context
@@ -195,8 +197,7 @@ class AsyncHTTPConnection(AsyncConnectionInterface):
 
     # These context managers are not used in the standard flow, but are
     # useful for testing or working with connection instances directly.
-
-    async def __aenter__(self) -> AsyncHTTPConnection:
+    async def __aenter__(self) -> Self:
         return self
 
     async def __aexit__(

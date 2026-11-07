@@ -3,13 +3,14 @@ from __future__ import annotations
 import ipaddress
 import os
 import re
-import typing
+from re import Pattern
+from typing import TYPE_CHECKING, Any
 from urllib.request import getproxies
 
 from ._exceptions import InvalidURL
-from ._types import PrimitiveData
+from ._types import AnyStr, PrimitiveData
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from ._urls import URL
 
 
@@ -98,11 +99,11 @@ def to_str(value: str | bytes, encoding: str = "utf-8") -> str:
     return value if isinstance(value, str) else value.decode(encoding)
 
 
-def to_bytes_or_str(value: str, match_type_of: typing.AnyStr) -> typing.AnyStr:
+def to_bytes_or_str(value: str, match_type_of: AnyStr) -> AnyStr:
     return value if isinstance(match_type_of, str) else value.encode()
 
 
-def peek_filelike_length(stream: typing.Any) -> int | None:
+def peek_filelike_length(stream: Any) -> int | None:
     """
     Given a file-like stream object, return its length in number of bytes
     without reading it into memory.
@@ -127,7 +128,7 @@ def peek_filelike_length(stream: typing.Any) -> int | None:
     return length
 
 
-def peek_filelike_remaining_length(stream: typing.Any) -> int | None:
+def peek_filelike_remaining_length(stream: Any) -> int | None:
     """Return the remaining byte length without changing the stream position."""
     try:
         offset: int = stream.tell()
@@ -209,7 +210,7 @@ class URLPattern:
         self.host = "" if url.host == "*" else url.host
         self.port = url.port
         if self.network is not None:
-            self.host_regex: typing.Pattern[str] | None = None
+            self.host_regex: Pattern[str] | None = None
         elif not url.host or url.host == "*":
             self.host_regex = None
         elif url.host.startswith("*."):
@@ -265,7 +266,7 @@ class URLPattern:
     def __lt__(self, other: URLPattern) -> bool:
         return self.priority < other.priority
 
-    def __eq__(self, other: typing.Any) -> bool:
+    def __eq__(self, other: Any) -> bool:
         return isinstance(other, URLPattern) and self.pattern == other.pattern
 
 

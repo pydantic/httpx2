@@ -4,8 +4,8 @@ import enum
 import logging
 import time
 import types
-import typing
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, AsyncIterable
+from typing import Self
 
 import h2.config
 import h2.connection
@@ -245,7 +245,7 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
         if not has_body_headers(request):
             return
 
-        assert isinstance(request.stream, typing.AsyncIterable)
+        assert isinstance(request.stream, AsyncIterable)
         async with safe_async_iterate(request.stream) as iterator:
             async for chunk in iterator:
                 await self._send_stream_data(request, stream_id, chunk)
@@ -536,7 +536,7 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
     # These context managers are not used in the standard flow, but are
     # useful for testing or working with connection instances directly.
 
-    async def __aenter__(self) -> AsyncHTTP2Connection:
+    async def __aenter__(self) -> Self:
         return self
 
     async def __aexit__(

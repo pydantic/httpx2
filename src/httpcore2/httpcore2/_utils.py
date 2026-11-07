@@ -3,7 +3,6 @@ from __future__ import annotations
 import select
 import socket
 import sys
-import typing
 from collections.abc import (
     AsyncIterable,
     AsyncIterator,
@@ -13,8 +12,9 @@ from collections.abc import (
 )
 from contextlib import AbstractAsyncContextManager, aclosing, contextmanager, nullcontext
 from types import AsyncGeneratorType
+from typing import TypeVar
 
-T = typing.TypeVar("T")
+T = TypeVar("T")
 
 
 def is_socket_readable(sock: socket.socket | None) -> bool:

@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import dataclasses
 import os
-import typing
+from typing import TYPE_CHECKING
 
 from ._models import Headers
 from ._types import CertTypes, HeaderTypes, TimeoutTypes
 from ._urls import URL
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     import ssl  # pragma: no cover
 
 __all__ = ["Limits", "Proxy", "Timeout", "create_ssl_context"]

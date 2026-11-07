@@ -8,8 +8,9 @@ import queue
 import secrets
 import sys
 import threading
-import typing
+from collections.abc import AsyncGenerator, Callable, Generator
 from types import TracebackType
+from typing import TYPE_CHECKING, Any, Generic, Literal, Self
 
 if sys.version_info >= (3, 13):
     from queue import ShutDown as QueueShutDown  # pragma: no cover
@@ -45,7 +46,7 @@ from ._exceptions import (
 from ._ping import AsyncPingManager, PingManager
 from ._transport import ASGIWebSocketAsyncNetworkStream
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from httpcore2 import AsyncNetworkStream, NetworkStream
 
     from .._client import AsyncClient, Client, UseClientDefault
@@ -59,9 +60,9 @@ if typing.TYPE_CHECKING:
         TimeoutTypes,
     )
 
-JSONMode = typing.Literal["text", "binary"]
-TaskFunction = typing.TypeVar("TaskFunction")
-TaskResult = typing.TypeVar("TaskResult")
+JSONMode = Literal["text", "binary"]
+TaskFunction = TypeVar("TaskFunction")
+TaskResult = TypeVar("TaskResult")
 SyncSession = TypeVar("SyncSession", bound="WebSocketSession", default="WebSocketSession")
 AsyncSession = TypeVar("AsyncSession", bound="AsyncWebSocketSession", default="AsyncWebSocketSession")
 
@@ -128,7 +129,7 @@ class WebSocketSession:
         assert self._executor is not None
         return self._executor, self._should_close_task
 
-    def __enter__(self) -> WebSocketSession:
+    def __enter__(self) -> Self:
         self._background_receive_task = threading.Thread(
             target=self._background_receive, args=(self._max_message_size_bytes,)
         )
@@ -259,7 +260,7 @@ class WebSocketSession:
         event = wsproto.events.BytesMessage(data=data)
         self.send(event)
 
-    def send_json(self, data: typing.Any, mode: JSONMode = "text") -> None:
+    def send_json(self, data: Any, mode: JSONMode = "text") -> None:
         """
         Send JSON data.
 
@@ -416,7 +417,7 @@ class WebSocketSession:
             return bytes(event.data)
         raise WebSocketInvalidTypeReceived(event)
 
-    def receive_json(self, timeout: float | None = None, mode: JSONMode = "text") -> typing.Any:
+    def receive_json(self, timeout: float | None = None, mode: JSONMode = "text") -> Any:
         """
         Receive JSON data from the server.
 
@@ -585,9 +586,7 @@ class WebSocketSession:
         except (ShouldClose, QueueShutDown):
             pass
 
-    def _wait_until_closed(
-        self, callable: typing.Callable[..., TaskResult], *args: typing.Any, **kwargs: typing.Any
-    ) -> TaskResult:
+    def _wait_until_closed(self, callable: Callable[..., TaskResult], *args: Any, **kwargs: Any) -> TaskResult:
         try:
             executor, should_close_task = self._get_executor_should_close_task()
             todo_task = executor.submit(callable, *args, **kwargs)
@@ -683,7 +682,7 @@ class AsyncWebSocketSession(anyio.AsyncContextManagerMixin):
             self._keepalive_ping_timeout_seconds = keepalive_ping_timeout_seconds
 
     @contextlib.asynccontextmanager
-    async def __asynccontextmanager__(self) -> typing.AsyncGenerator[AsyncWebSocketSession, None]:
+    async def __asynccontextmanager__(self) -> AsyncGenerator[AsyncWebSocketSession, None]:
         self._send_event, self._receive_event = anyio.create_memory_object_stream[
             wsproto.events.Event | HTTPXWSException
         ]()
@@ -813,7 +812,7 @@ class AsyncWebSocketSession(anyio.AsyncContextManagerMixin):
         event = wsproto.events.BytesMessage(data=data)
         await self.send(event)
 
-    async def send_json(self, data: typing.Any, mode: JSONMode = "text") -> None:
+    async def send_json(self, data: Any, mode: JSONMode = "text") -> None:
         """
         Send JSON data.
 
@@ -986,7 +985,7 @@ class AsyncWebSocketSession(anyio.AsyncContextManagerMixin):
             return bytes(event.data)
         raise WebSocketInvalidTypeReceived(event)
 
-    async def receive_json(self, timeout: float | None = None, mode: JSONMode = "text") -> typing.Any:
+    async def receive_json(self, timeout: float | None = None, mode: JSONMode = "text") -> Any:
         """
         Receive JSON data from the server.
 
@@ -1166,7 +1165,7 @@ class AsyncWebSocketSession(anyio.AsyncContextManagerMixin):
 
 def _get_headers(
     subprotocols: list[str] | None,
-) -> dict[str, typing.Any]:
+) -> dict[str, Any]:
     headers = {
         "connection": "upgrade",
         "upgrade": "websocket",
@@ -1178,7 +1177,7 @@ def _get_headers(
     return headers
 
 
-class WebSocketClient(typing.Generic[SyncSession]):
+class WebSocketClient(Generic[SyncSession]):
     """
     A sync WebSocket client.
 
@@ -1244,7 +1243,7 @@ class WebSocketClient(typing.Generic[SyncSession]):
         follow_redirects: bool | UseClientDefault = USE_CLIENT_DEFAULT,
         timeout: TimeoutTypes | UseClientDefault = USE_CLIENT_DEFAULT,
         extensions: RequestExtensions | None = None,
-    ) -> typing.Generator[SyncSession, None, None]:
+    ) -> Generator[SyncSession, None, None]:
         """
         Start a sync WebSocket session.
 
@@ -1327,7 +1326,7 @@ def connect_ws(
     follow_redirects: bool | UseClientDefault = USE_CLIENT_DEFAULT,
     timeout: TimeoutTypes | UseClientDefault = USE_CLIENT_DEFAULT,
     extensions: RequestExtensions | None = None,
-) -> typing.Generator[WebSocketSession, None, None]:
+) -> Generator[WebSocketSession, None, None]:
     """
     Start a sync WebSocket session.
 
@@ -1427,7 +1426,7 @@ def connect_ws(
             yield websocket
 
 
-class AsyncWebSocketClient(typing.Generic[AsyncSession]):
+class AsyncWebSocketClient(Generic[AsyncSession]):
     """
     An async WebSocket client.
 
@@ -1493,7 +1492,7 @@ class AsyncWebSocketClient(typing.Generic[AsyncSession]):
         follow_redirects: bool | UseClientDefault = USE_CLIENT_DEFAULT,
         timeout: TimeoutTypes | UseClientDefault = USE_CLIENT_DEFAULT,
         extensions: RequestExtensions | None = None,
-    ) -> typing.AsyncGenerator[AsyncSession, None]:
+    ) -> AsyncGenerator[AsyncSession, None]:
         """
         Start an async WebSocket session.
 
@@ -1576,7 +1575,7 @@ async def aconnect_ws(
     follow_redirects: bool | UseClientDefault = USE_CLIENT_DEFAULT,
     timeout: TimeoutTypes | UseClientDefault = USE_CLIENT_DEFAULT,
     extensions: RequestExtensions | None = None,
-) -> typing.AsyncGenerator[AsyncWebSocketSession, None]:
+) -> AsyncGenerator[AsyncWebSocketSession, None]:
     """
     Start an async WebSocket session.
 

@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import ssl
 import time
-import typing
+from collections.abc import Iterable
+from typing import Any
 
-SOCKET_OPTION = tuple[int, int, int] | tuple[int, int, bytes | bytearray] | tuple[int, int, None, int]
+from .._types import SOCKET_OPTION
 
 
 class NetworkStream:
@@ -25,7 +26,7 @@ class NetworkStream:
     ) -> NetworkStream:
         raise NotImplementedError()  # pragma: no cover
 
-    def get_extra_info(self, info: str) -> typing.Any:
+    def get_extra_info(self, info: str) -> Any:
         return None  # pragma: no cover
 
 
@@ -36,7 +37,7 @@ class NetworkBackend:
         port: int,
         timeout: float | None = None,
         local_address: str | None = None,
-        socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
+        socket_options: Iterable[SOCKET_OPTION] | None = None,
     ) -> NetworkStream:
         raise NotImplementedError()  # pragma: no cover
 
@@ -44,7 +45,7 @@ class NetworkBackend:
         self,
         path: str,
         timeout: float | None = None,
-        socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
+        socket_options: Iterable[SOCKET_OPTION] | None = None,
     ) -> NetworkStream:
         raise NotImplementedError()  # pragma: no cover
 
@@ -70,7 +71,7 @@ class AsyncNetworkStream:
     ) -> AsyncNetworkStream:
         raise NotImplementedError()  # pragma: no cover
 
-    def get_extra_info(self, info: str) -> typing.Any:
+    def get_extra_info(self, info: str) -> Any:
         return None  # pragma: no cover
 
 
@@ -81,7 +82,7 @@ class AsyncNetworkBackend:
         port: int,
         timeout: float | None = None,
         local_address: str | None = None,
-        socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
+        socket_options: Iterable[SOCKET_OPTION] | None = None,
     ) -> AsyncNetworkStream:
         raise NotImplementedError()  # pragma: no cover
 
@@ -89,7 +90,7 @@ class AsyncNetworkBackend:
         self,
         path: str,
         timeout: float | None = None,
-        socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
+        socket_options: Iterable[SOCKET_OPTION] | None = None,
     ) -> AsyncNetworkStream:
         raise NotImplementedError()  # pragma: no cover
 

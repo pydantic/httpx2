@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import typing
 from collections.abc import Generator
 from contextlib import contextmanager
+from typing import TYPE_CHECKING, Any
 
 from ._client import Client
 from ._config import (
@@ -26,7 +26,7 @@ from ._types import (
 )
 from ._urls import URL
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     import ssl  # pragma: no cover
 
     from .websockets._api import WebSocketSession
@@ -55,7 +55,7 @@ def request(
     content: RequestContent | None = None,
     data: RequestData | None = None,
     files: RequestFiles | None = None,
-    json: typing.Any | None = None,
+    json: Any | None = None,
     headers: HeaderTypes | None = None,
     cookies: CookieTypes | None = None,
     auth: AuthTypes | None = None,
@@ -128,7 +128,7 @@ def stream(
     content: RequestContent | None = None,
     data: RequestData | None = None,
     files: RequestFiles | None = None,
-    json: typing.Any | None = None,
+    json: Any | None = None,
     headers: HeaderTypes | None = None,
     cookies: CookieTypes | None = None,
     auth: AuthTypes | None = None,
@@ -284,7 +284,7 @@ def post(
     content: RequestContent | None = None,
     data: RequestData | None = None,
     files: RequestFiles | None = None,
-    json: typing.Any | None = None,
+    json: Any | None = None,
     params: QueryParamTypes | None = None,
     headers: HeaderTypes | None = None,
     cookies: CookieTypes | None = None,
@@ -325,7 +325,7 @@ def put(
     content: RequestContent | None = None,
     data: RequestData | None = None,
     files: RequestFiles | None = None,
-    json: typing.Any | None = None,
+    json: Any | None = None,
     params: QueryParamTypes | None = None,
     headers: HeaderTypes | None = None,
     cookies: CookieTypes | None = None,
@@ -366,7 +366,7 @@ def patch(
     content: RequestContent | None = None,
     data: RequestData | None = None,
     files: RequestFiles | None = None,
-    json: typing.Any | None = None,
+    json: Any | None = None,
     params: QueryParamTypes | None = None,
     headers: HeaderTypes | None = None,
     cookies: CookieTypes | None = None,
@@ -443,7 +443,7 @@ def query(
     content: RequestContent | None = None,
     data: RequestData | None = None,
     files: RequestFiles | None = None,
-    json: typing.Any | None = None,
+    json: Any | None = None,
     params: QueryParamTypes | None = None,
     headers: HeaderTypes | None = None,
     cookies: CookieTypes | None = None,
