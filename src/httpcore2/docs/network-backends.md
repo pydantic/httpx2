@@ -88,6 +88,21 @@ async def main():
 asyncio.run(main())
 ```
 
+Alternatively, `httpcore2.AsyncIOBackend` is implemented directly on top of `asyncio`, and doesn't use `anyio` for networking.
+
+```python
+import httpcore2
+import asyncio
+
+async def main():
+    network_backend = httpcore2.AsyncIOBackend()
+    async with httpcore2.AsyncConnectionPool(network_backend=network_backend) as http:
+        response = await http.request('GET', 'https://www.example.com')
+        print(response)
+
+asyncio.run(main())
+```
+
 The `AnyIOBackend` will work when running under either `asyncio` or `trio`. However, if you're working with async using the [`trio` framework](https://trio.readthedocs.io/en/stable/), then we recommend using the `httpcore2.TrioBackend`.
 
 This will give you the same kind of networking behavior you'd have using `AnyIOBackend`, but there will be a little less indirection so it will be marginally more efficient and will present cleaner tracebacks in error cases.
@@ -262,6 +277,7 @@ with open("network-recording", "wb") as record_file:
 
 * `httpcore2.SyncBackend`
 * `httpcore2.AnyIOBackend`
+* `httpcore2.AsyncIOBackend`
 * `httpcore2.TrioBackend`
 
 ### Mock Backends

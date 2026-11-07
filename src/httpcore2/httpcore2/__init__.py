@@ -10,6 +10,7 @@ from ._async import (
     AsyncHTTPProxy,
     AsyncSOCKSProxy,
 )
+from ._backends.asyncio import AsyncIOBackend
 from ._backends.base import (
     AsyncNetworkBackend,
     AsyncNetworkStream,
@@ -99,6 +100,7 @@ __all__ = [  # noqa: RUF022
     # network backends, implementations
     "SyncBackend",
     "AnyIOBackend",
+    "AsyncIOBackend",
     "TrioBackend",
     # network backends, mock implementations
     "AsyncMockBackend",
