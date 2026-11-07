@@ -217,7 +217,9 @@ class HTTP2Connection(ConnectionInterface):
         # In order to gracefully handle HTTP/1.1 and HTTP/2 we always require
         # HTTP/1.1 style headers, and map them appropriately if we end up on
         # an HTTP/2 connection.
-        authority = next(v for k, v in request.headers if k.lower() == b"host")
+        authority = next((v for k, v in request.headers if k.lower() == b"host"), None)
+        if authority is None:
+            raise LocalProtocolError("Missing mandatory Host: header")
 
         headers = [
             (b":method", request.method),
