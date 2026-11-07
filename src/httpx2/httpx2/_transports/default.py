@@ -29,7 +29,7 @@ from __future__ import annotations
 import contextlib
 from collections.abc import AsyncIterable, AsyncIterator, Generator, Iterable, Iterator
 from types import TracebackType
-from typing import TYPE_CHECKING, TypeVar
+from typing import TYPE_CHECKING, Self
 
 if TYPE_CHECKING:  # pragma: no cover
     import ssl
@@ -57,9 +57,6 @@ from .._models import Request, Response
 from .._types import AsyncByteStream, CertTypes, ProxyTypes, SyncByteStream
 from .._urls import URL
 from .base import AsyncBaseTransport, BaseTransport
-
-T = TypeVar("T", bound="HTTPTransport")
-A = TypeVar("A", bound="AsyncHTTPTransport")
 
 SOCKET_OPTION = tuple[int, int, int] | tuple[int, int, bytes | bytearray] | tuple[int, int, None, int]
 
@@ -209,7 +206,7 @@ class HTTPTransport(BaseTransport):
                 f"Proxy protocol must be either 'http', 'https', 'socks5', or 'socks5h', but got {proxy.url.scheme!r}."
             )
 
-    def __enter__(self: T) -> T:  # Use generics for subclass support.
+    def __enter__(self) -> Self:
         self._pool.__enter__()
         return self
 
@@ -352,7 +349,7 @@ class AsyncHTTPTransport(AsyncBaseTransport):
                 f"Proxy protocol must be either 'http', 'https', 'socks5', or 'socks5h', but got {proxy.url.scheme!r}."
             )
 
-    async def __aenter__(self: A) -> A:  # Use generics for subclass support.
+    async def __aenter__(self) -> Self:
         await self._pool.__aenter__()
         return self
 

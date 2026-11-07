@@ -5,8 +5,8 @@ from collections.abc import Iterable
 from typing import Any
 
 from .._exceptions import ReadError
+from .._types import SOCKET_OPTION
 from .base import (
-    SOCKET_OPTION,
     AsyncNetworkBackend,
     AsyncNetworkStream,
     NetworkBackend,

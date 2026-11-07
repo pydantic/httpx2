@@ -21,7 +21,7 @@ from collections.abc import (
     ValuesView,
 )
 from http.cookiejar import Cookie, CookieJar
-from typing import Any, AnyStr, TypeVar, overload
+from typing import Any, TypeVar, overload
 
 from ._content import ByteStream, UnattachedStream, encode_request, encode_response
 from ._cookies import IndexedCookieJar
@@ -46,6 +46,7 @@ from ._exceptions import (
 from ._multipart import get_multipart_boundary_from_content_type
 from ._status_codes import codes
 from ._types import (
+    AnyStr,
     AsyncByteStream,
     CookieTypes,
     HeaderTypes,

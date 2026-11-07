@@ -4,11 +4,11 @@ import ipaddress
 import os
 import re
 from re import Pattern
-from typing import TYPE_CHECKING, Any, AnyStr
+from typing import TYPE_CHECKING, Any
 from urllib.request import getproxies
 
 from ._exceptions import InvalidURL
-from ._types import PrimitiveData
+from ._types import AnyStr, PrimitiveData
 
 if TYPE_CHECKING:
     from ._urls import URL

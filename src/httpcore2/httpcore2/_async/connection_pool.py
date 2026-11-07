@@ -6,10 +6,11 @@ import types
 from collections.abc import AsyncGenerator, AsyncIterable, Iterable
 
 from .._backends.auto import AutoBackend
-from .._backends.base import SOCKET_OPTION, AsyncNetworkBackend
+from .._backends.base import AsyncNetworkBackend
 from .._exceptions import ConnectionNotAvailable, UnsupportedProtocol
 from .._models import Origin, Proxy, Request, Response
 from .._synchronization import AsyncEvent, AsyncShieldCancellation, AsyncThreadLock
+from .._types import SOCKET_OPTION
 from .._utils import safe_async_iterate
 from .connection import AsyncHTTPConnection
 from .interfaces import AsyncConnectionInterface, AsyncRequestInterface

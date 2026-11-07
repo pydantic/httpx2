@@ -3,8 +3,9 @@ from __future__ import annotations
 import contextlib
 from collections.abc import Generator, Iterator
 
-from ._models import URL, Extensions, HeaderTypes, Response
+from ._models import URL, Response
 from ._sync.connection_pool import ConnectionPool
+from ._types import Extensions, HeaderTypes
 
 
 def request(

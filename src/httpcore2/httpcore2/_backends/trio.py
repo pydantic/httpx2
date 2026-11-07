@@ -9,14 +9,14 @@ import trio
 from .._exceptions import (
     ConnectError,
     ConnectTimeout,
-    ExceptionMapping,
     ReadError,
     ReadTimeout,
     WriteError,
     WriteTimeout,
     map_exceptions,
 )
-from .base import SOCKET_OPTION, AsyncNetworkBackend, AsyncNetworkStream
+from .._types import SOCKET_OPTION, ExceptionMapping
+from .base import AsyncNetworkBackend, AsyncNetworkStream
 
 
 class TrioStream(AsyncNetworkStream):

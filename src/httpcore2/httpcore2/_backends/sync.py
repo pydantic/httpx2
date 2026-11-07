@@ -10,15 +10,15 @@ from typing import Any, cast
 from .._exceptions import (
     ConnectError,
     ConnectTimeout,
-    ExceptionMapping,
     ReadError,
     ReadTimeout,
     WriteError,
     WriteTimeout,
     map_exceptions,
 )
+from .._types import SOCKET_OPTION, ExceptionMapping
 from .._utils import is_socket_readable
-from .base import SOCKET_OPTION, NetworkBackend, NetworkStream
+from .base import NetworkBackend, NetworkStream
 
 
 class TLSinTLSStream(NetworkStream):  # pragma: no cover

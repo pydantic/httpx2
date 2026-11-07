@@ -5,7 +5,7 @@ import os
 import re
 import time
 from base64 import b64encode
-from collections.abc import AsyncGenerator, Generator
+from collections.abc import AsyncGenerator, Callable, Generator
 from typing import TYPE_CHECKING, NamedTuple
 from urllib.request import parse_http_list
 
@@ -14,7 +14,6 @@ from ._models import Cookies, Request, Response
 from ._utils import to_bytes, to_str
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
     from hashlib import _Hash
 
 __all__ = ["Auth", "BasicAuth", "DigestAuth", "FunctionAuth", "NetRCAuth"]

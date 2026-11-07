@@ -17,8 +17,9 @@ from .._exceptions import (
     WriteTimeout,
     map_exceptions,
 )
+from .._types import SOCKET_OPTION
 from .._utils import is_socket_readable
-from .base import SOCKET_OPTION, AsyncNetworkBackend, AsyncNetworkStream
+from .base import AsyncNetworkBackend, AsyncNetworkStream
 
 
 class AnyIOStream(AsyncNetworkStream):

@@ -3,7 +3,8 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 from .._synchronization import current_async_library
-from .base import SOCKET_OPTION, AsyncNetworkBackend, AsyncNetworkStream
+from .._types import SOCKET_OPTION
+from .base import AsyncNetworkBackend, AsyncNetworkStream
 
 
 class AutoBackend(AsyncNetworkBackend):

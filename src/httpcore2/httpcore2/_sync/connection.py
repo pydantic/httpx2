@@ -7,12 +7,13 @@ import types
 from collections.abc import Iterable, Iterator
 
 from .._backends.sync import SyncBackend
-from .._backends.base import SOCKET_OPTION, NetworkBackend, NetworkStream
+from .._backends.base import NetworkBackend, NetworkStream
 from .._exceptions import ConnectError, ConnectTimeout
 from .._models import Origin, Request, Response
 from .._ssl import default_ssl_context
 from .._synchronization import Lock
 from .._trace import Trace
+from .._types import SOCKET_OPTION
 from .http11 import HTTP11Connection
 from .interfaces import ConnectionInterface
 

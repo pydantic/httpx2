@@ -8,7 +8,7 @@ import warnings
 from collections.abc import AsyncGenerator, AsyncIterator, Callable, Generator, Iterator, Mapping
 from contextlib import asynccontextmanager, contextmanager, suppress
 from types import TracebackType
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, Self
 
 from .__version__ import __version__
 from ._auth import Auth, BasicAuth, FunctionAuth
@@ -61,11 +61,6 @@ if TYPE_CHECKING:
     from .websockets._api import AsyncWebSocketSession, WebSocketSession
 
 __all__ = ["USE_CLIENT_DEFAULT", "AsyncClient", "Client"]
-
-# The type annotation for @classmethod and context managers here follows PEP 484
-# https://www.python.org/dev/peps/pep-0484/#annotating-instance-and-class-methods
-T = TypeVar("T", bound="Client")
-U = TypeVar("U", bound="AsyncClient")
 
 
 def _is_https_redirect(url: URL, location: URL) -> bool:
@@ -1368,7 +1363,7 @@ class Client(BaseClient):
                 if transport is not None:
                     transport.close()
 
-    def __enter__(self: T) -> T:
+    def __enter__(self) -> Self:
         if self._state != ClientState.UNOPENED:
             msg = {
                 ClientState.OPENED: "Cannot open a client instance more than once.",
@@ -2206,7 +2201,7 @@ class AsyncClient(BaseClient):
                 if proxy is not None:
                     await proxy.aclose()
 
-    async def __aenter__(self: U) -> U:
+    async def __aenter__(self) -> Self:
         if self._state != ClientState.UNOPENED:
             msg = {
                 ClientState.OPENED: "Cannot open a client instance more than once.",

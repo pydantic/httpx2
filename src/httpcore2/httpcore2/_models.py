@@ -3,20 +3,13 @@ from __future__ import annotations
 import base64
 import ssl
 import urllib.parse
-from collections.abc import AsyncGenerator, AsyncIterable, Iterable, Iterator, Mapping, MutableMapping, Sequence
+from collections.abc import AsyncGenerator, AsyncIterable, Iterable, Iterator, Mapping, Sequence
 from typing import Any
 
+from ._types import Extensions, HeadersAsMapping, HeadersAsSequence, HeaderTypes
 from ._utils import safe_async_iterate
 
 # Functions for typechecking...
-
-
-ByteOrStr = bytes | str
-HeadersAsSequence = Sequence[tuple[ByteOrStr, ByteOrStr]]
-HeadersAsMapping = Mapping[ByteOrStr, ByteOrStr]
-HeaderTypes = HeadersAsSequence | HeadersAsMapping | None
-
-Extensions = MutableMapping[str, Any]
 
 
 def enforce_bytes(value: bytes | str, *, name: str) -> bytes:

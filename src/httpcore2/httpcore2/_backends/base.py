@@ -5,7 +5,7 @@ import time
 from collections.abc import Iterable
 from typing import Any
 
-SOCKET_OPTION = tuple[int, int, int] | tuple[int, int, bytes | bytearray] | tuple[int, int, None, int]
+from .._types import SOCKET_OPTION
 
 
 class NetworkStream:

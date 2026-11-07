@@ -3,9 +3,9 @@ from __future__ import annotations
 import base64
 import logging
 import ssl
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Iterable, Sequence
 
-from .._backends.base import SOCKET_OPTION, AsyncNetworkBackend
+from .._backends.base import AsyncNetworkBackend
 from .._exceptions import ProxyError
 from .._models import (
     URL,
@@ -19,15 +19,11 @@ from .._models import (
 from .._ssl import default_ssl_context
 from .._synchronization import AsyncLock
 from .._trace import Trace
+from .._types import SOCKET_OPTION, HeadersAsMapping, HeadersAsSequence
 from .connection import AsyncHTTPConnection
 from .connection_pool import AsyncConnectionPool
 from .http11 import AsyncHTTP11Connection
 from .interfaces import AsyncConnectionInterface
-
-ByteOrStr = bytes | str
-HeadersAsSequence = Sequence[tuple[ByteOrStr, ByteOrStr]]
-HeadersAsMapping = Mapping[ByteOrStr, ByteOrStr]
-
 
 logger = logging.getLogger("httpcore2.proxy")
 

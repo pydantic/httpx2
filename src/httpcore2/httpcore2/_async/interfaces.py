@@ -5,8 +5,6 @@ from collections.abc import AsyncGenerator, AsyncIterator
 
 from .._models import (
     URL,
-    Extensions,
-    HeaderTypes,
     Origin,
     Request,
     Response,
@@ -15,6 +13,7 @@ from .._models import (
     enforce_url,
     include_request_headers,
 )
+from .._types import Extensions, HeaderTypes
 
 
 class AsyncRequestInterface:

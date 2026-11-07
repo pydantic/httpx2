@@ -7,12 +7,13 @@ import types
 from collections.abc import Iterable, Iterator
 
 from .._backends.auto import AutoBackend
-from .._backends.base import SOCKET_OPTION, AsyncNetworkBackend, AsyncNetworkStream
+from .._backends.base import AsyncNetworkBackend, AsyncNetworkStream
 from .._exceptions import ConnectError, ConnectTimeout
 from .._models import Origin, Request, Response
 from .._ssl import default_ssl_context
 from .._synchronization import AsyncLock
 from .._trace import Trace
+from .._types import SOCKET_OPTION
 from .http11 import AsyncHTTP11Connection
 from .interfaces import AsyncConnectionInterface
 

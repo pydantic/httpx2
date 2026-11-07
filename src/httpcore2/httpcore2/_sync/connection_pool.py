@@ -6,10 +6,11 @@ import types
 from collections.abc import Generator, Iterable
 
 from .._backends.sync import SyncBackend
-from .._backends.base import SOCKET_OPTION, NetworkBackend
+from .._backends.base import NetworkBackend
 from .._exceptions import ConnectionNotAvailable, UnsupportedProtocol
 from .._models import Origin, Proxy, Request, Response
 from .._synchronization import Event, ShieldCancellation, ThreadLock
+from .._types import SOCKET_OPTION
 from .._utils import safe_iterate
 from .connection import HTTPConnection
 from .interfaces import ConnectionInterface, RequestInterface
