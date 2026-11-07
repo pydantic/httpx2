@@ -6,7 +6,7 @@ import ssl
 import time
 import types
 from collections.abc import AsyncGenerator, AsyncIterable
-from typing import Any
+from typing import Any, Self
 
 import h11
 
@@ -286,7 +286,7 @@ class AsyncHTTP11Connection(AsyncConnectionInterface):
     # These context managers are not used in the standard flow, but are
     # useful for testing or working with connection instances directly.
 
-    async def __aenter__(self) -> AsyncHTTP11Connection:
+    async def __aenter__(self) -> Self:
         return self
 
     async def __aexit__(

@@ -3,7 +3,7 @@ from __future__ import annotations
 import inspect
 import logging
 import types
-from typing import Any
+from typing import Any, Self
 
 from ._models import Request
 
@@ -44,7 +44,7 @@ class Trace:
                 message = f"{name} {args}"
             self.logger.debug(message)
 
-    def __enter__(self) -> Trace:
+    def __enter__(self) -> Self:
         if self.should_trace:
             info = self.kwargs
             self.trace(f"{self.name}.started", info)
@@ -84,7 +84,7 @@ class Trace:
                 message = f"{name} {args}"
             self.logger.debug(message)
 
-    async def __aenter__(self) -> Trace:
+    async def __aenter__(self) -> Self:
         if self.should_trace:
             info = self.kwargs
             await self.atrace(f"{self.name}.started", info)

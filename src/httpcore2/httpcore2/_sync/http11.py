@@ -6,7 +6,7 @@ import ssl
 import time
 import types
 from collections.abc import Generator, Iterable
-from typing import Any
+from typing import Any, Self
 
 import h11
 
@@ -286,7 +286,7 @@ class HTTP11Connection(ConnectionInterface):
     # These context managers are not used in the standard flow, but are
     # useful for testing or working with connection instances directly.
 
-    def __enter__(self) -> HTTP11Connection:
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(

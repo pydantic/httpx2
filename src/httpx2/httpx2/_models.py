@@ -21,7 +21,7 @@ from collections.abc import (
     ValuesView,
 )
 from http.cookiejar import Cookie, CookieJar
-from typing import Any, TypeVar, overload
+from typing import Any, Self, TypeVar, overload
 
 from ._content import ByteStream, UnattachedStream, encode_request, encode_response
 from ._cookies import IndexedCookieJar
@@ -314,7 +314,7 @@ class Headers(MutableMapping[str, str]):
         merged.update(self)
         return merged
 
-    def __ior__(self, other: HeaderTypes) -> Headers:
+    def __ior__(self, other: HeaderTypes) -> Self:
         self.update(other)
         return self
 

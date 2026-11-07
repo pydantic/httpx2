@@ -5,6 +5,7 @@ import logging
 import ssl
 import types
 from collections.abc import Iterable, Iterator
+from typing import Self
 
 from .._backends.auto import AutoBackend
 from .._backends.base import AsyncNetworkBackend, AsyncNetworkStream
@@ -196,8 +197,7 @@ class AsyncHTTPConnection(AsyncConnectionInterface):
 
     # These context managers are not used in the standard flow, but are
     # useful for testing or working with connection instances directly.
-
-    async def __aenter__(self) -> AsyncHTTPConnection:
+    async def __aenter__(self) -> Self:
         return self
 
     async def __aexit__(

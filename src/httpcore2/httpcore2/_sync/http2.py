@@ -5,6 +5,7 @@ import logging
 import time
 import types
 from collections.abc import Generator, Iterable
+from typing import Self
 
 import h2.config
 import h2.connection
@@ -535,7 +536,7 @@ class HTTP2Connection(ConnectionInterface):
     # These context managers are not used in the standard flow, but are
     # useful for testing or working with connection instances directly.
 
-    def __enter__(self) -> HTTP2Connection:
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(

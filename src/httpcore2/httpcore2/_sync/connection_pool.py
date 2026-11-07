@@ -4,6 +4,7 @@ import ssl
 import sys
 import types
 from collections.abc import Generator, Iterable
+from typing import Self
 
 from .._backends.sync import SyncBackend
 from .._backends.base import NetworkBackend
@@ -381,7 +382,7 @@ class ConnectionPool(RequestInterface):
             self._connections = []
         self._close_connections(closing_connections)
 
-    def __enter__(self) -> ConnectionPool:
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(

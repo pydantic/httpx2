@@ -10,7 +10,7 @@ import sys
 import threading
 from collections.abc import AsyncGenerator, Callable, Generator
 from types import TracebackType
-from typing import TYPE_CHECKING, Any, Generic, Literal
+from typing import TYPE_CHECKING, Any, Generic, Literal, Self
 
 if sys.version_info >= (3, 13):
     from queue import ShutDown as QueueShutDown  # pragma: no cover
@@ -129,7 +129,7 @@ class WebSocketSession:
         assert self._executor is not None
         return self._executor, self._should_close_task
 
-    def __enter__(self) -> WebSocketSession:
+    def __enter__(self) -> Self:
         self._background_receive_task = threading.Thread(
             target=self._background_receive, args=(self._max_message_size_bytes,)
         )

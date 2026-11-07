@@ -5,6 +5,7 @@ import logging
 import ssl
 import types
 from collections.abc import Iterable, Iterator
+from typing import Self
 
 from .._backends.sync import SyncBackend
 from .._backends.base import NetworkBackend, NetworkStream
@@ -196,8 +197,7 @@ class HTTPConnection(ConnectionInterface):
 
     # These context managers are not used in the standard flow, but are
     # useful for testing or working with connection instances directly.
-
-    def __enter__(self) -> HTTPConnection:
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(

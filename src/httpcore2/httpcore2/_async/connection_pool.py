@@ -4,6 +4,7 @@ import ssl
 import sys
 import types
 from collections.abc import AsyncGenerator, AsyncIterable, Iterable
+from typing import Self
 
 from .._backends.auto import AutoBackend
 from .._backends.base import AsyncNetworkBackend
@@ -381,7 +382,7 @@ class AsyncConnectionPool(AsyncRequestInterface):
             self._connections = []
         await self._close_connections(closing_connections)
 
-    async def __aenter__(self) -> AsyncConnectionPool:
+    async def __aenter__(self) -> Self:
         return self
 
     async def __aexit__(

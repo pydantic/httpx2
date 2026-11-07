@@ -4,7 +4,7 @@ import contextlib
 import math
 from collections.abc import Awaitable, Callable, Coroutine
 from types import TracebackType
-from typing import Any, cast
+from typing import Any, Self, cast
 
 import anyio
 import wsproto
@@ -210,7 +210,7 @@ class ASGIWebSocketTransport(ASGITransport):
         self._exit_stack: contextlib.AsyncExitStack | None = None
         self._initial_receive_timeout = initial_receive_timeout
 
-    async def __aenter__(self) -> ASGIWebSocketTransport:
+    async def __aenter__(self) -> Self:
         async with contextlib.AsyncExitStack() as stack:
             self._task_group = await stack.enter_async_context(anyio.create_task_group())
             self._exit_stack = stack.pop_all()
