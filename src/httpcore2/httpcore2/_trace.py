@@ -37,7 +37,7 @@ class Trace:
                 )
 
         if self.debug:
-            if not info or "return_value" in info and info["return_value"] is None:
+            if not info or ("return_value" in info and info["return_value"] is None):
                 message = name
             else:
                 args = " ".join([f"{key}={value!r}" for key, value in info.items()])
@@ -77,7 +77,7 @@ class Trace:
             await coro
 
         if self.debug:
-            if not info or "return_value" in info and info["return_value"] is None:
+            if not info or ("return_value" in info and info["return_value"] is None):
                 message = name
             else:
                 args = " ".join([f"{key}={value!r}" for key, value in info.items()])

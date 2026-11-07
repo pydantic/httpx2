@@ -103,7 +103,7 @@ def include_request_headers(
     headers: list[tuple[bytes, bytes]],
     *,
     url: URL,
-    content: None | bytes | Iterable[bytes] | AsyncIterable[bytes],
+    content: bytes | Iterable[bytes] | AsyncIterable[bytes] | None,
 ) -> list[tuple[bytes, bytes]]:
     headers_set = {k.lower() for k, _v in headers}
 
@@ -113,7 +113,7 @@ def include_request_headers(
             header_value = url.host
         else:
             header_value = b"%b:%d" % (url.host, url.port)
-        headers = [(b"Host", header_value)] + headers
+        headers = [(b"Host", header_value), *headers]
 
     if content is not None and b"content-length" not in headers_set and b"transfer-encoding" not in headers_set:
         if isinstance(content, bytes):
@@ -477,6 +477,6 @@ class Proxy:
             userpass = username + b":" + password
             authorization = b"Basic " + base64.b64encode(userpass)
             self.auth: tuple[bytes, bytes] | None = (username, password)
-            self.headers = [(b"Proxy-Authorization", authorization)] + self.headers
+            self.headers = [(b"Proxy-Authorization", authorization), *self.headers]
         else:
             self.auth = None

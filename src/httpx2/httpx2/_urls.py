@@ -614,7 +614,7 @@ class QueryParams(Mapping[str, str]):
         """
         q = QueryParams()
         q._dict = dict(self._dict)
-        q._dict[str(key)] = q.get_list(key) + [primitive_value_to_str(value)]
+        q._dict[str(key)] = [*q.get_list(key), primitive_value_to_str(value)]
         return q
 
     def remove(self, key: str) -> QueryParams:
