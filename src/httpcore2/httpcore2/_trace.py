@@ -3,7 +3,7 @@ from __future__ import annotations
 import inspect
 import logging
 import types
-import typing
+from typing import Any
 
 from ._models import Request
 
@@ -14,18 +14,18 @@ class Trace:
         name: str,
         logger: logging.Logger,
         request: Request | None = None,
-        kwargs: dict[str, typing.Any] | None = None,
+        kwargs: dict[str, Any] | None = None,
     ) -> None:
         self.name = name
         self.logger = logger
         self.trace_extension = None if request is None else request.extensions.get("trace")
         self.debug = self.logger.isEnabledFor(logging.DEBUG)
         self.kwargs = kwargs or {}
-        self.return_value: typing.Any = None
+        self.return_value: Any = None
         self.should_trace = self.debug or self.trace_extension is not None
         self.prefix = self.logger.name.split(".")[-1]
 
-    def trace(self, name: str, info: dict[str, typing.Any]) -> None:
+    def trace(self, name: str, info: dict[str, Any]) -> None:
         if self.trace_extension is not None:
             prefix_and_name = f"{self.prefix}.{name}"
             ret = self.trace_extension(prefix_and_name, info)
@@ -64,7 +64,7 @@ class Trace:
                 info = {"exception": exc_value}
                 self.trace(f"{self.name}.failed", info)
 
-    async def atrace(self, name: str, info: dict[str, typing.Any]) -> None:
+    async def atrace(self, name: str, info: dict[str, Any]) -> None:
         if self.trace_extension is not None:
             prefix_and_name = f"{self.prefix}.{name}"
             coro = self.trace_extension(prefix_and_name, info)

@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import contextlib
-import typing
-from collections.abc import Generator
+from collections.abc import Generator, Iterator
 
 from ._models import URL, Extensions, HeaderTypes, Response
 from ._sync.connection_pool import ConnectionPool
@@ -13,7 +12,7 @@ def request(
     url: URL | bytes | str,
     *,
     headers: HeaderTypes = None,
-    content: bytes | typing.Iterator[bytes] | None = None,
+    content: bytes | Iterator[bytes] | None = None,
     extensions: Extensions | None = None,
 ) -> Response:
     """
@@ -54,7 +53,7 @@ def stream(
     url: URL | bytes | str,
     *,
     headers: HeaderTypes = None,
-    content: bytes | typing.Iterator[bytes] | None = None,
+    content: bytes | Iterator[bytes] | None = None,
     extensions: Extensions | None = None,
 ) -> Generator[Response]:
     """

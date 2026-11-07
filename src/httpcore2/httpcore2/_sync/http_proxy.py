@@ -3,7 +3,7 @@ from __future__ import annotations
 import base64
 import logging
 import ssl
-import typing
+from collections.abc import Iterable, Mapping, Sequence
 
 from .._backends.base import SOCKET_OPTION, NetworkBackend
 from .._exceptions import ProxyError
@@ -25,16 +25,16 @@ from .http11 import HTTP11Connection
 from .interfaces import ConnectionInterface
 
 ByteOrStr = bytes | str
-HeadersAsSequence = typing.Sequence[tuple[ByteOrStr, ByteOrStr]]
-HeadersAsMapping = typing.Mapping[ByteOrStr, ByteOrStr]
+HeadersAsSequence = Sequence[tuple[ByteOrStr, ByteOrStr]]
+HeadersAsMapping = Mapping[ByteOrStr, ByteOrStr]
 
 
 logger = logging.getLogger("httpcore2.proxy")
 
 
 def merge_headers(
-    default_headers: typing.Sequence[tuple[bytes, bytes]] | None = None,
-    override_headers: typing.Sequence[tuple[bytes, bytes]] | None = None,
+    default_headers: Sequence[tuple[bytes, bytes]] | None = None,
+    override_headers: Sequence[tuple[bytes, bytes]] | None = None,
 ) -> list[tuple[bytes, bytes]]:
     """
     Append default_headers and override_headers, de-duplicating if a key exists
@@ -68,7 +68,7 @@ class HTTPProxy(ConnectionPool):  # pragma: no cover
         local_address: str | None = None,
         uds: str | None = None,
         network_backend: NetworkBackend | None = None,
-        socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
+        socket_options: Iterable[SOCKET_OPTION] | None = None,
     ) -> None:
         """
         A connection pool for making HTTP requests.
@@ -164,7 +164,7 @@ class ForwardHTTPConnection(ConnectionInterface):
         proxy_headers: HeadersAsMapping | HeadersAsSequence | None = None,
         keepalive_expiry: float | None = None,
         network_backend: NetworkBackend | None = None,
-        socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
+        socket_options: Iterable[SOCKET_OPTION] | None = None,
         proxy_ssl_context: ssl.SSLContext | None = None,
     ) -> None:
         self._connection = HTTPConnection(
@@ -232,12 +232,12 @@ class TunnelHTTPConnection(ConnectionInterface):
         remote_origin: Origin,
         ssl_context: ssl.SSLContext | None = None,
         proxy_ssl_context: ssl.SSLContext | None = None,
-        proxy_headers: typing.Sequence[tuple[bytes, bytes]] | None = None,
+        proxy_headers: Sequence[tuple[bytes, bytes]] | None = None,
         keepalive_expiry: float | None = None,
         http1: bool = True,
         http2: bool = False,
         network_backend: NetworkBackend | None = None,
-        socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
+        socket_options: Iterable[SOCKET_OPTION] | None = None,
     ) -> None:
         self._connection: ConnectionInterface = HTTPConnection(
             origin=proxy_origin,

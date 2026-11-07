@@ -5,8 +5,8 @@ import logging
 import ssl
 import time
 import types
-import typing
-from collections.abc import Generator
+from collections.abc import Generator, Iterable
+from typing import Any
 
 import h11
 
@@ -142,7 +142,7 @@ class HTTP11Connection(ConnectionInterface):
         timeouts = request.extensions.get("timeout", {})
         timeout = timeouts.get("write", None)
 
-        assert isinstance(request.stream, typing.Iterable)
+        assert isinstance(request.stream, Iterable)
         with safe_iterate(request.stream) as iterator:
             for chunk in iterator:
                 event = h11.Data(data=chunk)
@@ -353,5 +353,5 @@ class HTTP11UpgradeStream(NetworkStream):
     ) -> NetworkStream:
         return self._stream.start_tls(ssl_context, server_hostname, timeout)
 
-    def get_extra_info(self, info: str) -> typing.Any:
+    def get_extra_info(self, info: str) -> Any:
         return self._stream.get_extra_info(info)

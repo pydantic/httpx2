@@ -4,7 +4,8 @@ import functools
 import socket
 import ssl
 import sys
-import typing
+from collections.abc import Callable, Iterable
+from typing import Any, cast
 
 from .._exceptions import (
     ConnectError,
@@ -53,8 +54,8 @@ class TLSinTLSStream(NetworkStream):  # pragma: no cover
 
     def _perform_io(
         self,
-        func: typing.Callable[..., typing.Any],
-    ) -> typing.Any:
+        func: Callable[..., Any],
+    ) -> Any:
         ret = None
 
         while True:
@@ -80,7 +81,7 @@ class TLSinTLSStream(NetworkStream):  # pragma: no cover
         exc_map: ExceptionMapping = {socket.timeout: ReadTimeout, OSError: ReadError}
         with map_exceptions(exc_map):
             self._sock.settimeout(timeout)
-            return typing.cast(bytes, self._perform_io(functools.partial(self.ssl_obj.read, max_bytes)))
+            return cast(bytes, self._perform_io(functools.partial(self.ssl_obj.read, max_bytes)))
 
     def write(self, buffer: bytes, timeout: float | None = None) -> None:
         exc_map: ExceptionMapping = {socket.timeout: WriteTimeout, OSError: WriteError}
@@ -102,7 +103,7 @@ class TLSinTLSStream(NetworkStream):  # pragma: no cover
     ) -> NetworkStream:
         raise NotImplementedError()
 
-    def get_extra_info(self, info: str) -> typing.Any:
+    def get_extra_info(self, info: str) -> Any:
         if info == "ssl_object":
             return self.ssl_obj
         if info == "client_addr":
@@ -166,7 +167,7 @@ class SyncStream(NetworkStream):
                 raise exc
         return SyncStream(sock)
 
-    def get_extra_info(self, info: str) -> typing.Any:
+    def get_extra_info(self, info: str) -> Any:
         if info == "ssl_object" and isinstance(self._sock, ssl.SSLSocket):
             return self._sock._sslobj  # type: ignore
         if info == "client_addr":
@@ -187,7 +188,7 @@ class SyncBackend(NetworkBackend):
         port: int,
         timeout: float | None = None,
         local_address: str | None = None,
-        socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
+        socket_options: Iterable[SOCKET_OPTION] | None = None,
     ) -> NetworkStream:
         # Note that we automatically include `TCP_NODELAY`
         # in addition to any other custom socket options.
@@ -215,7 +216,7 @@ class SyncBackend(NetworkBackend):
         self,
         path: str,
         timeout: float | None = None,
-        socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
+        socket_options: Iterable[SOCKET_OPTION] | None = None,
     ) -> NetworkStream:  # pragma: no cover
         if sys.platform == "win32":
             raise RuntimeError("Attempted to connect to a UNIX socket on a Windows system.")

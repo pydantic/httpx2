@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import contextlib
-import typing
-from collections.abc import Generator
+from collections.abc import Generator, Iterator
 
 from .._models import (
     URL,
@@ -25,7 +24,7 @@ class RequestInterface:
         url: URL | bytes | str,
         *,
         headers: HeaderTypes = None,
-        content: bytes | typing.Iterator[bytes] | None = None,
+        content: bytes | Iterator[bytes] | None = None,
         extensions: Extensions | None = None,
     ) -> Response:
         # Strict type checking on our parameters.
@@ -57,7 +56,7 @@ class RequestInterface:
         url: URL | bytes | str,
         *,
         headers: HeaderTypes = None,
-        content: bytes | typing.Iterator[bytes] | None = None,
+        content: bytes | Iterator[bytes] | None = None,
         extensions: Extensions | None = None,
     ) -> Generator[Response]:
         # Strict type checking on our parameters.

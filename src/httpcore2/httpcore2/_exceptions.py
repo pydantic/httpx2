@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import contextlib
-import typing
-from collections.abc import Generator
+from collections.abc import Generator, Mapping
 
-ExceptionMapping = typing.Mapping[type[Exception], type[Exception]]
+ExceptionMapping = Mapping[type[Exception], type[Exception]]
 
 
 @contextlib.contextmanager

@@ -4,8 +4,7 @@ import enum
 import logging
 import time
 import types
-import typing
-from collections.abc import Generator
+from collections.abc import Generator, Iterable
 
 import h2.config
 import h2.connection
@@ -245,7 +244,7 @@ class HTTP2Connection(ConnectionInterface):
         if not has_body_headers(request):
             return
 
-        assert isinstance(request.stream, typing.Iterable)
+        assert isinstance(request.stream, Iterable)
         with safe_iterate(request.stream) as iterator:
             for chunk in iterator:
                 self._send_stream_data(request, stream_id, chunk)

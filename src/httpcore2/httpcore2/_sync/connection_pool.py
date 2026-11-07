@@ -3,8 +3,7 @@ from __future__ import annotations
 import ssl
 import sys
 import types
-import typing
-from collections.abc import Generator
+from collections.abc import Generator, Iterable
 
 from .._backends.sync import SyncBackend
 from .._backends.base import SOCKET_OPTION, NetworkBackend
@@ -58,7 +57,7 @@ class ConnectionPool(RequestInterface):
         local_address: str | None = None,
         uds: str | None = None,
         network_backend: NetworkBackend | None = None,
-        socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
+        socket_options: Iterable[SOCKET_OPTION] | None = None,
     ) -> None:
         """
         A connection pool for making HTTP requests.
@@ -243,7 +242,7 @@ class ConnectionPool(RequestInterface):
 
         # Return the response. Note that in this case we still have to manage
         # the point at which the response is closed.
-        assert isinstance(response.stream, typing.Iterable)
+        assert isinstance(response.stream, Iterable)
         return Response(
             status=response.status,
             headers=response.headers,
@@ -412,7 +411,7 @@ class ConnectionPool(RequestInterface):
 class PoolByteStream:
     def __init__(
         self,
-        stream: typing.Iterable[bytes],
+        stream: Iterable[bytes],
         pool_request: PoolRequest,
         pool: ConnectionPool,
     ) -> None:

@@ -3,8 +3,7 @@ from __future__ import annotations
 import ssl
 import sys
 import types
-import typing
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, AsyncIterable, Iterable
 
 from .._backends.auto import AutoBackend
 from .._backends.base import SOCKET_OPTION, AsyncNetworkBackend
@@ -58,7 +57,7 @@ class AsyncConnectionPool(AsyncRequestInterface):
         local_address: str | None = None,
         uds: str | None = None,
         network_backend: AsyncNetworkBackend | None = None,
-        socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
+        socket_options: Iterable[SOCKET_OPTION] | None = None,
     ) -> None:
         """
         A connection pool for making HTTP requests.
@@ -243,7 +242,7 @@ class AsyncConnectionPool(AsyncRequestInterface):
 
         # Return the response. Note that in this case we still have to manage
         # the point at which the response is closed.
-        assert isinstance(response.stream, typing.AsyncIterable)
+        assert isinstance(response.stream, AsyncIterable)
         return Response(
             status=response.status,
             headers=response.headers,
@@ -412,7 +411,7 @@ class AsyncConnectionPool(AsyncRequestInterface):
 class PoolByteStream:
     def __init__(
         self,
-        stream: typing.AsyncIterable[bytes],
+        stream: AsyncIterable[bytes],
         pool_request: AsyncPoolRequest,
         pool: AsyncConnectionPool,
     ) -> None:

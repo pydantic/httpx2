@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import ssl
-import typing
+from collections.abc import Iterable
+from typing import Any
 
 import trio
 
@@ -78,7 +79,7 @@ class TrioStream(AsyncNetworkStream):
                 raise exc
         return TrioStream(ssl_stream)
 
-    def get_extra_info(self, info: str) -> typing.Any:
+    def get_extra_info(self, info: str) -> Any:
         if info == "ssl_object" and isinstance(self._stream, trio.SSLStream):
             # Type checkers cannot see `_ssl_object` attribute because trio._ssl.SSLStream uses __getattr__/__setattr__.
             # Tracked at https://github.com/python-trio/trio/issues/542
@@ -113,7 +114,7 @@ class TrioBackend(AsyncNetworkBackend):
         port: int,
         timeout: float | None = None,
         local_address: str | None = None,
-        socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
+        socket_options: Iterable[SOCKET_OPTION] | None = None,
     ) -> AsyncNetworkStream:
         # By default for TCP sockets, trio enables TCP_NODELAY.
         # https://trio.readthedocs.io/en/stable/reference-io.html#trio.SocketStream
@@ -136,7 +137,7 @@ class TrioBackend(AsyncNetworkBackend):
         self,
         path: str,
         timeout: float | None = None,
-        socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
+        socket_options: Iterable[SOCKET_OPTION] | None = None,
     ) -> AsyncNetworkStream:  # pragma: no cover
         if socket_options is None:
             socket_options = []

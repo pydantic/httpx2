@@ -4,8 +4,7 @@ import enum
 import logging
 import time
 import types
-import typing
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, AsyncIterable
 
 import h2.config
 import h2.connection
@@ -245,7 +244,7 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
         if not has_body_headers(request):
             return
 
-        assert isinstance(request.stream, typing.AsyncIterable)
+        assert isinstance(request.stream, AsyncIterable)
         async with safe_async_iterate(request.stream) as iterator:
             async for chunk in iterator:
                 await self._send_stream_data(request, stream_id, chunk)
