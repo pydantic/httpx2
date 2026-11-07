@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import ipaddress
 import sys
-import typing
+from collections.abc import ItemsView, Iterator, KeysView, Mapping, ValuesView
 from dataclasses import dataclass
+from typing import Any
 from urllib.parse import parse_qs, unquote, urlencode
 
 import idna
@@ -83,7 +84,7 @@ class URL:
       themselves.
     """
 
-    def __init__(self, url: URL | str = "", **kwargs: typing.Any) -> None:
+    def __init__(self, url: URL | str = "", **kwargs: Any) -> None:
         if kwargs:
             allowed = {
                 "scheme": str,
@@ -340,7 +341,7 @@ class URL:
         """
         return Origin(self)
 
-    def copy_with(self, **kwargs: typing.Any) -> URL:
+    def copy_with(self, **kwargs: Any) -> URL:
         """
         Copy this URL, returning a new URL with some components altered.
         Accepts the same set of parameters as the components that are made
@@ -355,10 +356,10 @@ class URL:
         """
         return URL(self, **kwargs)
 
-    def copy_set_param(self, key: str, value: typing.Any = None) -> URL:
+    def copy_set_param(self, key: str, value: Any = None) -> URL:
         return self.copy_with(params=self.params.set(key, value))
 
-    def copy_add_param(self, key: str, value: typing.Any = None) -> URL:
+    def copy_add_param(self, key: str, value: Any = None) -> URL:
         return self.copy_with(params=self.params.add(key, value))
 
     def copy_remove_param(self, key: str) -> URL:
@@ -384,7 +385,7 @@ class URL:
     def __hash__(self) -> int:
         return hash(str(self))
 
-    def __eq__(self, other: typing.Any) -> bool:
+    def __eq__(self, other: Any) -> bool:
         return isinstance(other, (URL, str)) and str(self) == str(URL(other))
 
     def __str__(self) -> str:
@@ -475,12 +476,12 @@ class Origin:
         object.__setattr__(self, "port", port)
 
 
-class QueryParams(typing.Mapping[str, str]):
+class QueryParams(Mapping[str, str]):
     """
     URL query parameters, as a multi-dict.
     """
 
-    def __init__(self, *args: QueryParamTypes | None, **kwargs: typing.Any) -> None:
+    def __init__(self, *args: QueryParamTypes | None, **kwargs: Any) -> None:
         assert len(args) < 2, "Too many arguments."
         assert not (args and kwargs), "Cannot mix named and unnamed arguments."
 
@@ -492,7 +493,7 @@ class QueryParams(typing.Mapping[str, str]):
         elif isinstance(value, QueryParams):
             self._dict = {k: list(v) for k, v in value._dict.items()}
         else:
-            dict_value: dict[typing.Any, list[typing.Any]] = {}
+            dict_value: dict[Any, list[Any]] = {}
             if isinstance(value, (list, tuple)):
                 # Convert list inputs like:
                 #     [("a", "123"), ("a", "456"), ("b", "789")]
@@ -512,7 +513,7 @@ class QueryParams(typing.Mapping[str, str]):
             # representations, and coerce `None` values to the empty string.
             self._dict = {str(k): [primitive_value_to_str(item) for item in v] for k, v in dict_value.items()}
 
-    def keys(self) -> typing.KeysView[str]:
+    def keys(self) -> KeysView[str]:
         """
         Return all the keys in the query params.
 
@@ -523,7 +524,7 @@ class QueryParams(typing.Mapping[str, str]):
         """
         return self._dict.keys()
 
-    def values(self) -> typing.ValuesView[str]:
+    def values(self) -> ValuesView[str]:
         """
         Return all the values in the query params. If a key occurs more than once
         only the first item for that key is returned.
@@ -535,7 +536,7 @@ class QueryParams(typing.Mapping[str, str]):
         """
         return {k: v[0] for k, v in self._dict.items()}.values()
 
-    def items(self) -> typing.ItemsView[str, str]:
+    def items(self) -> ItemsView[str, str]:
         """
         Return all items in the query params. If a key occurs more than once
         only the first item for that key is returned.
@@ -561,7 +562,7 @@ class QueryParams(typing.Mapping[str, str]):
             multi_items.extend([(k, i) for i in v])
         return multi_items
 
-    def get(self, key: typing.Any, default: typing.Any = None) -> typing.Any:
+    def get(self, key: Any, default: Any = None) -> Any:
         """
         Get a value from the query param for a given key. If the key occurs
         more than once, then only the first value is returned.
@@ -586,7 +587,7 @@ class QueryParams(typing.Mapping[str, str]):
         """
         return list(self._dict.get(str(key), []))
 
-    def set(self, key: str, value: typing.Any = None) -> QueryParams:
+    def set(self, key: str, value: Any = None) -> QueryParams:
         """
         Return a new QueryParams instance, setting the value of a key.
 
@@ -601,7 +602,7 @@ class QueryParams(typing.Mapping[str, str]):
         q._dict[str(key)] = [primitive_value_to_str(value)]
         return q
 
-    def add(self, key: str, value: typing.Any = None) -> QueryParams:
+    def add(self, key: str, value: Any = None) -> QueryParams:
         """
         Return a new QueryParams instance, setting or appending the value of a key.
 
@@ -649,13 +650,13 @@ class QueryParams(typing.Mapping[str, str]):
         q._dict = {**self._dict, **q._dict}
         return q
 
-    def __getitem__(self, key: typing.Any) -> str:
+    def __getitem__(self, key: Any) -> str:
         return self._dict[key][0]
 
-    def __contains__(self, key: typing.Any) -> bool:
+    def __contains__(self, key: Any) -> bool:
         return key in self._dict
 
-    def __iter__(self) -> typing.Iterator[typing.Any]:
+    def __iter__(self) -> Iterator[Any]:
         return iter(self.keys())
 
     def __len__(self) -> int:
@@ -667,7 +668,7 @@ class QueryParams(typing.Mapping[str, str]):
     def __hash__(self) -> int:
         return hash(str(self))
 
-    def __eq__(self, other: typing.Any) -> bool:
+    def __eq__(self, other: Any) -> bool:
         if not isinstance(other, self.__class__):
             return False
         return sorted(self.multi_items()) == sorted(other.multi_items())

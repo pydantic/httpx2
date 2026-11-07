@@ -27,11 +27,11 @@ client = httpx2.Client(transport=transport)
 from __future__ import annotations
 
 import contextlib
-import typing
-from collections.abc import Generator
+from collections.abc import AsyncIterable, AsyncIterator, Generator, Iterable, Iterator
 from types import TracebackType
+from typing import TYPE_CHECKING, TypeVar
 
-if typing.TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:  # pragma: no cover
     import ssl
 
     import httpx2
@@ -58,8 +58,8 @@ from .._types import AsyncByteStream, CertTypes, ProxyTypes, SyncByteStream
 from .._urls import URL
 from .base import AsyncBaseTransport, BaseTransport
 
-T = typing.TypeVar("T", bound="HTTPTransport")
-A = typing.TypeVar("A", bound="AsyncHTTPTransport")
+T = TypeVar("T", bound="HTTPTransport")
+A = TypeVar("A", bound="AsyncHTTPTransport")
 
 SOCKET_OPTION = tuple[int, int, int] | tuple[int, int, bytes | bytearray] | tuple[int, int, None, int]
 
@@ -116,10 +116,10 @@ def map_httpcore_exceptions() -> Generator[None]:
 
 
 class ResponseStream(SyncByteStream):
-    def __init__(self, httpcore_stream: typing.Iterable[bytes]) -> None:
+    def __init__(self, httpcore_stream: Iterable[bytes]) -> None:
         self._httpcore_stream = httpcore_stream
 
-    def __iter__(self) -> typing.Iterator[bytes]:
+    def __iter__(self) -> Iterator[bytes]:
         with map_httpcore_exceptions():
             yield from self._httpcore_stream
 
@@ -141,7 +141,7 @@ class HTTPTransport(BaseTransport):
         uds: str | None = None,
         local_address: str | None = None,
         retries: int = 0,
-        socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
+        socket_options: Iterable[SOCKET_OPTION] | None = None,
     ) -> None:
         import httpcore2
 
@@ -244,7 +244,7 @@ class HTTPTransport(BaseTransport):
         with map_httpcore_exceptions():
             resp = self._pool.handle_request(req)
 
-        assert isinstance(resp.stream, typing.Iterable)
+        assert isinstance(resp.stream, Iterable)
 
         return Response(
             status_code=resp.status,
@@ -258,10 +258,10 @@ class HTTPTransport(BaseTransport):
 
 
 class AsyncResponseStream(AsyncByteStream):
-    def __init__(self, httpcore_stream: typing.AsyncIterable[bytes]) -> None:
+    def __init__(self, httpcore_stream: AsyncIterable[bytes]) -> None:
         self._httpcore_stream = httpcore_stream
 
-    async def __aiter__(self) -> typing.AsyncIterator[bytes]:
+    async def __aiter__(self) -> AsyncIterator[bytes]:
         with map_httpcore_exceptions():
             async for part in self._httpcore_stream:
                 yield part
@@ -284,7 +284,7 @@ class AsyncHTTPTransport(AsyncBaseTransport):
         uds: str | None = None,
         local_address: str | None = None,
         retries: int = 0,
-        socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
+        socket_options: Iterable[SOCKET_OPTION] | None = None,
     ) -> None:
         import httpcore2
 
@@ -387,7 +387,7 @@ class AsyncHTTPTransport(AsyncBaseTransport):
         with map_httpcore_exceptions():
             resp = await self._pool.handle_async_request(req)
 
-        assert isinstance(resp.stream, typing.AsyncIterable)
+        assert isinstance(resp.stream, AsyncIterable)
 
         return Response(
             status_code=resp.status,

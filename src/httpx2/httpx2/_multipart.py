@@ -4,8 +4,9 @@ import io
 import mimetypes
 import os
 import re
-import typing
+from collections.abc import AsyncIterator, Iterator, Mapping
 from pathlib import Path
+from re import Match
 
 from ._types import (
     AsyncByteStream,
@@ -33,7 +34,7 @@ def _format_form_param(name: str, value: str) -> bytes:
     Encode a name/value pair within a multipart form.
     """
 
-    def replacer(match: typing.Match[str]) -> str:
+    def replacer(match: Match[str]) -> str:
         return _HTML5_FORM_ENCODING_REPLACEMENTS[match.group(0)]
 
     value = _HTML5_FORM_ENCODING_RE.sub(replacer, value)
@@ -96,7 +97,7 @@ class DataField:
         data = self.render_data()
         return len(headers) + len(data)
 
-    def render(self) -> typing.Iterator[bytes]:
+    def render(self) -> Iterator[bytes]:
         yield self.render_headers()
         yield self.render_data()
 
@@ -189,7 +190,7 @@ class FileField:
 
         return self._headers
 
-    def render_data(self) -> typing.Iterator[bytes]:
+    def render_data(self) -> Iterator[bytes]:
         if isinstance(self.file, (str, bytes)):
             yield to_bytes(self.file)
             return
@@ -205,7 +206,7 @@ class FileField:
             yield to_bytes(chunk)
             chunk = self.file.read(self.CHUNK_SIZE)
 
-    def render(self) -> typing.Iterator[bytes]:
+    def render(self) -> Iterator[bytes]:
         yield self.render_headers()
         yield from self.render_data()
 
@@ -228,7 +229,7 @@ class MultipartStream(SyncByteStream, AsyncByteStream):
         self.content_type = f"multipart/form-data; boundary={boundary.decode('ascii')}"
         self.fields = list(self._iter_fields(data, files))
 
-    def _iter_fields(self, data: RequestData, files: RequestFiles) -> typing.Iterator[FileField | DataField]:
+    def _iter_fields(self, data: RequestData, files: RequestFiles) -> Iterator[FileField | DataField]:
         for name, value in data.items():
             if isinstance(value, (tuple, list)):
                 for item in value:
@@ -236,11 +237,11 @@ class MultipartStream(SyncByteStream, AsyncByteStream):
             else:
                 yield DataField(name=name, value=value)
 
-        file_items = files.items() if isinstance(files, typing.Mapping) else files
+        file_items = files.items() if isinstance(files, Mapping) else files
         for name, value in file_items:
             yield FileField(name=name, value=value)
 
-    def iter_chunks(self) -> typing.Iterator[bytes]:
+    def iter_chunks(self) -> Iterator[bytes]:
         for field in self.fields:
             yield b"--%s\r\n" % self.boundary
             yield from field.render()
@@ -276,9 +277,9 @@ class MultipartStream(SyncByteStream, AsyncByteStream):
             return {"Transfer-Encoding": "chunked", "Content-Type": content_type}
         return {"Content-Length": str(content_length), "Content-Type": content_type}
 
-    def __iter__(self) -> typing.Iterator[bytes]:
+    def __iter__(self) -> Iterator[bytes]:
         yield from self.iter_chunks()
 
-    async def __aiter__(self) -> typing.AsyncIterator[bytes]:
+    async def __aiter__(self) -> AsyncIterator[bytes]:
         for chunk in self.iter_chunks():
             yield chunk

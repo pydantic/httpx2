@@ -4,11 +4,11 @@ import datetime
 import enum
 import logging
 import time
-import typing
 import warnings
-from collections.abc import AsyncGenerator, Generator
+from collections.abc import AsyncGenerator, AsyncIterator, Callable, Generator, Iterator, Mapping
 from contextlib import asynccontextmanager, contextmanager, suppress
 from types import TracebackType
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from .__version__ import __version__
 from ._auth import Auth, BasicAuth, FunctionAuth
@@ -55,7 +55,7 @@ from ._types import (
 from ._urls import URL, QueryParams
 from ._utils import URLPattern, get_environment_proxies
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     import ssl  # pragma: no cover
 
     from .websockets._api import AsyncWebSocketSession, WebSocketSession
@@ -64,8 +64,8 @@ __all__ = ["USE_CLIENT_DEFAULT", "AsyncClient", "Client"]
 
 # The type annotation for @classmethod and context managers here follows PEP 484
 # https://www.python.org/dev/peps/pep-0484/#annotating-instance-and-class-methods
-T = typing.TypeVar("T", bound="Client")
-U = typing.TypeVar("U", bound="AsyncClient")
+T = TypeVar("T", bound="Client")
+U = TypeVar("U", bound="AsyncClient")
 
 
 def _is_https_redirect(url: URL, location: URL) -> bool:
@@ -139,7 +139,7 @@ class BoundSyncStream(SyncByteStream):
         self._start = start
         self.elapsed: datetime.timedelta | None = None
 
-    def __iter__(self) -> typing.Iterator[bytes]:
+    def __iter__(self) -> Iterator[bytes]:
         yield from self._stream
 
     def close(self) -> None:
@@ -159,7 +159,7 @@ class BoundAsyncStream(AsyncByteStream):
         self._start = start
         self.elapsed: datetime.timedelta | None = None
 
-    async def __aiter__(self) -> typing.AsyncIterator[bytes]:
+    async def __aiter__(self) -> AsyncIterator[bytes]:
         stream = self._stream.__aiter__()
         try:
             async for chunk in stream:
@@ -173,7 +173,7 @@ class BoundAsyncStream(AsyncByteStream):
         await self._stream.aclose()
 
 
-EventHook = typing.Callable[..., typing.Any]
+EventHook = Callable[..., Any]
 
 
 class BaseClient:
@@ -187,10 +187,10 @@ class BaseClient:
         timeout: TimeoutTypes = DEFAULT_TIMEOUT_CONFIG,
         follow_redirects: bool = False,
         max_redirects: int = DEFAULT_MAX_REDIRECTS,
-        event_hooks: None | (typing.Mapping[str, list[EventHook]]) = None,
+        event_hooks: None | (Mapping[str, list[EventHook]]) = None,
         base_url: URL | str = "",
         trust_env: bool = True,
-        default_encoding: str | typing.Callable[[bytes], str | None] = "utf-8",
+        default_encoding: str | Callable[[bytes], str | None] = "utf-8",
     ) -> None:
         event_hooks = {} if event_hooks is None else event_hooks
 
@@ -331,7 +331,7 @@ class BaseClient:
         content: RequestContent | None = None,
         data: RequestData | None = None,
         files: RequestFiles | None = None,
-        json: typing.Any | None = None,
+        json: Any | None = None,
         params: QueryParamTypes | None = None,
         headers: HeaderTypes | None = None,
         cookies: CookieTypes | None = None,
@@ -622,15 +622,15 @@ class Client(BaseClient):
         http1: bool = True,
         http2: bool = False,
         proxy: ProxyTypes | None = None,
-        mounts: None | (typing.Mapping[str, BaseTransport | None]) = None,
+        mounts: None | (Mapping[str, BaseTransport | None]) = None,
         timeout: TimeoutTypes = DEFAULT_TIMEOUT_CONFIG,
         follow_redirects: bool = False,
         limits: Limits = DEFAULT_LIMITS,
         max_redirects: int = DEFAULT_MAX_REDIRECTS,
-        event_hooks: None | (typing.Mapping[str, list[EventHook]]) = None,
+        event_hooks: None | (Mapping[str, list[EventHook]]) = None,
         base_url: URL | str = "",
         transport: BaseTransport | None = None,
-        default_encoding: str | typing.Callable[[bytes], str | None] = "utf-8",
+        default_encoding: str | Callable[[bytes], str | None] = "utf-8",
     ) -> None:
         super().__init__(
             auth=auth,
@@ -747,7 +747,7 @@ class Client(BaseClient):
         content: RequestContent | None = None,
         data: RequestData | None = None,
         files: RequestFiles | None = None,
-        json: typing.Any | None = None,
+        json: Any | None = None,
         params: QueryParamTypes | None = None,
         headers: HeaderTypes | None = None,
         cookies: CookieTypes | None = None,
@@ -804,7 +804,7 @@ class Client(BaseClient):
         content: RequestContent | None = None,
         data: RequestData | None = None,
         files: RequestFiles | None = None,
-        json: typing.Any | None = None,
+        json: Any | None = None,
         params: QueryParamTypes | None = None,
         headers: HeaderTypes | None = None,
         cookies: CookieTypes | None = None,
@@ -856,7 +856,7 @@ class Client(BaseClient):
         content: RequestContent | None = None,
         data: RequestData | None = None,
         files: RequestFiles | None = None,
-        json: typing.Any | None = None,
+        json: Any | None = None,
         params: QueryParamTypes | None = None,
         headers: HeaderTypes | None = None,
         cookies: CookieTypes | None = None,
@@ -1186,7 +1186,7 @@ class Client(BaseClient):
         content: RequestContent | None = None,
         data: RequestData | None = None,
         files: RequestFiles | None = None,
-        json: typing.Any | None = None,
+        json: Any | None = None,
         params: QueryParamTypes | None = None,
         headers: HeaderTypes | None = None,
         cookies: CookieTypes | None = None,
@@ -1223,7 +1223,7 @@ class Client(BaseClient):
         content: RequestContent | None = None,
         data: RequestData | None = None,
         files: RequestFiles | None = None,
-        json: typing.Any | None = None,
+        json: Any | None = None,
         params: QueryParamTypes | None = None,
         headers: HeaderTypes | None = None,
         cookies: CookieTypes | None = None,
@@ -1260,7 +1260,7 @@ class Client(BaseClient):
         content: RequestContent | None = None,
         data: RequestData | None = None,
         files: RequestFiles | None = None,
-        json: typing.Any | None = None,
+        json: Any | None = None,
         params: QueryParamTypes | None = None,
         headers: HeaderTypes | None = None,
         cookies: CookieTypes | None = None,
@@ -1326,7 +1326,7 @@ class Client(BaseClient):
         content: RequestContent | None = None,
         data: RequestData | None = None,
         files: RequestFiles | None = None,
-        json: typing.Any | None = None,
+        json: Any | None = None,
         params: QueryParamTypes | None = None,
         headers: HeaderTypes | None = None,
         cookies: CookieTypes | None = None,
@@ -1458,16 +1458,16 @@ class AsyncClient(BaseClient):
         http1: bool = True,
         http2: bool = False,
         proxy: ProxyTypes | None = None,
-        mounts: None | (typing.Mapping[str, AsyncBaseTransport | None]) = None,
+        mounts: None | (Mapping[str, AsyncBaseTransport | None]) = None,
         timeout: TimeoutTypes = DEFAULT_TIMEOUT_CONFIG,
         follow_redirects: bool = False,
         limits: Limits = DEFAULT_LIMITS,
         max_redirects: int = DEFAULT_MAX_REDIRECTS,
-        event_hooks: None | (typing.Mapping[str, list[EventHook]]) = None,
+        event_hooks: None | (Mapping[str, list[EventHook]]) = None,
         base_url: URL | str = "",
         transport: AsyncBaseTransport | None = None,
         trust_env: bool = True,
-        default_encoding: str | typing.Callable[[bytes], str | None] = "utf-8",
+        default_encoding: str | Callable[[bytes], str | None] = "utf-8",
     ) -> None:
         super().__init__(
             auth=auth,
@@ -1584,7 +1584,7 @@ class AsyncClient(BaseClient):
         content: RequestContent | None = None,
         data: RequestData | None = None,
         files: RequestFiles | None = None,
-        json: typing.Any | None = None,
+        json: Any | None = None,
         params: QueryParamTypes | None = None,
         headers: HeaderTypes | None = None,
         cookies: CookieTypes | None = None,
@@ -1642,7 +1642,7 @@ class AsyncClient(BaseClient):
         content: RequestContent | None = None,
         data: RequestData | None = None,
         files: RequestFiles | None = None,
-        json: typing.Any | None = None,
+        json: Any | None = None,
         params: QueryParamTypes | None = None,
         headers: HeaderTypes | None = None,
         cookies: CookieTypes | None = None,
@@ -1694,7 +1694,7 @@ class AsyncClient(BaseClient):
         content: RequestContent | None = None,
         data: RequestData | None = None,
         files: RequestFiles | None = None,
-        json: typing.Any | None = None,
+        json: Any | None = None,
         params: QueryParamTypes | None = None,
         headers: HeaderTypes | None = None,
         cookies: CookieTypes | None = None,
@@ -2024,7 +2024,7 @@ class AsyncClient(BaseClient):
         content: RequestContent | None = None,
         data: RequestData | None = None,
         files: RequestFiles | None = None,
-        json: typing.Any | None = None,
+        json: Any | None = None,
         params: QueryParamTypes | None = None,
         headers: HeaderTypes | None = None,
         cookies: CookieTypes | None = None,
@@ -2061,7 +2061,7 @@ class AsyncClient(BaseClient):
         content: RequestContent | None = None,
         data: RequestData | None = None,
         files: RequestFiles | None = None,
-        json: typing.Any | None = None,
+        json: Any | None = None,
         params: QueryParamTypes | None = None,
         headers: HeaderTypes | None = None,
         cookies: CookieTypes | None = None,
@@ -2098,7 +2098,7 @@ class AsyncClient(BaseClient):
         content: RequestContent | None = None,
         data: RequestData | None = None,
         files: RequestFiles | None = None,
-        json: typing.Any | None = None,
+        json: Any | None = None,
         params: QueryParamTypes | None = None,
         headers: HeaderTypes | None = None,
         cookies: CookieTypes | None = None,
@@ -2164,7 +2164,7 @@ class AsyncClient(BaseClient):
         content: RequestContent | None = None,
         data: RequestData | None = None,
         files: RequestFiles | None = None,
-        json: typing.Any | None = None,
+        json: Any | None = None,
         params: QueryParamTypes | None = None,
         headers: HeaderTypes | None = None,
         cookies: CookieTypes | None = None,

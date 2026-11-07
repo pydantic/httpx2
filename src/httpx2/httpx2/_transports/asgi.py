@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-import typing
+from collections.abc import AsyncIterator, Awaitable, Callable, MutableMapping
+from typing import TYPE_CHECKING, Any
 
 from .._models import Request, Response
 from .._types import AsyncByteStream
 from .base import AsyncBaseTransport
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     import asyncio
 
     import trio
@@ -14,10 +15,10 @@ if typing.TYPE_CHECKING:
     Event = asyncio.Event | trio.Event
 
 
-_Message = typing.MutableMapping[str, typing.Any]
-_Receive = typing.Callable[[], typing.Awaitable[_Message]]
-_Send = typing.Callable[[typing.MutableMapping[str, typing.Any]], typing.Awaitable[None]]
-_ASGIApp = typing.Callable[[typing.MutableMapping[str, typing.Any], _Receive, _Send], typing.Awaitable[None]]
+_Message = MutableMapping[str, Any]
+_Receive = Callable[[], Awaitable[_Message]]
+_Send = Callable[[MutableMapping[str, Any]], Awaitable[None]]
+_ASGIApp = Callable[[MutableMapping[str, Any], _Receive, _Send], Awaitable[None]]
 
 __all__ = ["ASGITransport"]
 
@@ -52,7 +53,7 @@ class ASGIResponseStream(AsyncByteStream):
     def __init__(self, body: list[bytes]) -> None:
         self._body = body
 
-    async def __aiter__(self) -> typing.AsyncIterator[bytes]:
+    async def __aiter__(self) -> AsyncIterator[bytes]:
         yield b"".join(self._body)
 
 
@@ -122,7 +123,7 @@ class ASGITransport(AsyncBaseTransport):
 
         # ASGI callables.
 
-        async def receive() -> dict[str, typing.Any]:
+        async def receive() -> dict[str, Any]:
             nonlocal request_complete
 
             if request_complete:
@@ -136,7 +137,7 @@ class ASGITransport(AsyncBaseTransport):
                 return {"type": "http.request", "body": b"", "more_body": False}
             return {"type": "http.request", "body": body, "more_body": True}
 
-        async def send(message: typing.MutableMapping[str, typing.Any]) -> None:
+        async def send(message: MutableMapping[str, Any]) -> None:
             nonlocal status_code, response_headers, response_started
 
             if message["type"] == "http.response.start":

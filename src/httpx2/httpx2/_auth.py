@@ -4,15 +4,16 @@ import hashlib
 import os
 import re
 import time
-import typing
 from base64 import b64encode
+from collections.abc import AsyncGenerator, Generator
+from typing import TYPE_CHECKING, NamedTuple
 from urllib.request import parse_http_list
 
 from ._exceptions import ProtocolError
 from ._models import Cookies, Request, Response
 from ._utils import to_bytes, to_str
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from collections.abc import Callable
     from hashlib import _Hash
 
@@ -35,7 +36,7 @@ class Auth:
     requires_request_body = False
     requires_response_body = False
 
-    def auth_flow(self, request: Request) -> typing.Generator[Request, Response, None]:
+    def auth_flow(self, request: Request) -> Generator[Request, Response, None]:
         """
         Execute the authentication flow.
 
@@ -59,7 +60,7 @@ class Auth:
         """
         yield request
 
-    def sync_auth_flow(self, request: Request) -> typing.Generator[Request, Response, None]:
+    def sync_auth_flow(self, request: Request) -> Generator[Request, Response, None]:
         """
         Execute the authentication flow synchronously.
 
@@ -82,7 +83,7 @@ class Auth:
             except StopIteration:
                 break
 
-    async def async_auth_flow(self, request: Request) -> typing.AsyncGenerator[Request, Response]:
+    async def async_auth_flow(self, request: Request) -> AsyncGenerator[Request, Response]:
         """
         Execute the authentication flow asynchronously.
 
@@ -112,10 +113,10 @@ class FunctionAuth(Auth):
     that takes the request, and returns a new, modified request.
     """
 
-    def __init__(self, func: typing.Callable[[Request], Request]) -> None:
+    def __init__(self, func: Callable[[Request], Request]) -> None:
         self._func = func
 
-    def auth_flow(self, request: Request) -> typing.Generator[Request, Response, None]:
+    def auth_flow(self, request: Request) -> Generator[Request, Response, None]:
         yield self._func(request)
 
 
@@ -128,7 +129,7 @@ class BasicAuth(Auth):
     def __init__(self, username: str | bytes, password: str | bytes) -> None:
         self._auth_header = self._build_auth_header(username, password)
 
-    def auth_flow(self, request: Request) -> typing.Generator[Request, Response, None]:
+    def auth_flow(self, request: Request) -> Generator[Request, Response, None]:
         request.headers["Authorization"] = self._auth_header
         yield request
 
@@ -150,7 +151,7 @@ class NetRCAuth(Auth):
 
         self._netrc_info = netrc.netrc(file)
 
-    def auth_flow(self, request: Request) -> typing.Generator[Request, Response, None]:
+    def auth_flow(self, request: Request) -> Generator[Request, Response, None]:
         auth_info = self._netrc_info.authenticators(request.url.host)
         if auth_info is None or not auth_info[2]:
             # The netrc file did not have authentication credentials for this host.
@@ -185,7 +186,7 @@ class DigestAuth(Auth):
         self._last_challenge: _DigestAuthChallenge | None = None
         self._nonce_count = 1
 
-    def auth_flow(self, request: Request) -> typing.Generator[Request, Response, None]:
+    def auth_flow(self, request: Request) -> Generator[Request, Response, None]:
         if self._last_challenge:
             request.headers["Authorization"] = self._build_auth_header(request, self._last_challenge)
 
@@ -327,7 +328,7 @@ class DigestAuth(Auth):
         raise ProtocolError(message, request=request)
 
 
-class _DigestAuthChallenge(typing.NamedTuple):
+class _DigestAuthChallenge(NamedTuple):
     realm: bytes
     nonce: bytes
     algorithm: str

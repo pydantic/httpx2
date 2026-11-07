@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import ipaddress
 import re
-import typing
+from typing import NamedTuple
 
 import idna
 
@@ -143,7 +143,7 @@ IPv4_STYLE_HOSTNAME = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$")
 IPv6_STYLE_HOSTNAME = re.compile(r"^\[.*\]$")
 
 
-class ParseResult(typing.NamedTuple):
+class ParseResult(NamedTuple):
     scheme: str
     userinfo: str
     host: str

@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-import typing
 from types import TracebackType
+from typing import TypeVar
 
 from .._models import Request, Response
 
 # TODO(Marcelo): When Python 3.10 reaches EOF, we can use `typing.Self` instead of defining those two.
-T = typing.TypeVar("T", bound="BaseTransport")
-A = typing.TypeVar("A", bound="AsyncBaseTransport")
+T = TypeVar("T", bound="BaseTransport")
+A = TypeVar("A", bound="AsyncBaseTransport")
 
 __all__ = ["AsyncBaseTransport", "BaseTransport"]
 
