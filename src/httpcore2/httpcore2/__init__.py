@@ -70,7 +70,7 @@ except ImportError:  # pragma: no cover
             raise RuntimeError(msg)
 
 
-__all__ = [
+__all__ = [  # noqa: RUF022
     # top-level requests
     "request",
     "stream",

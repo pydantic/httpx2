@@ -19,8 +19,8 @@ else:
 __all__ = [
     "ASGITransport",
     "AsyncBaseTransport",
-    "BaseTransport",
     "AsyncHTTPTransport",
+    "BaseTransport",
     "HTTPTransport",
     "MockTransport",
     "WSGITransport",

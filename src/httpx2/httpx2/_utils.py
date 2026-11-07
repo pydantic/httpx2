@@ -266,7 +266,7 @@ class URLPattern:
     def __lt__(self, other: URLPattern) -> bool:
         return self.priority < other.priority
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         return isinstance(other, URLPattern) and self.pattern == other.pattern
 
 

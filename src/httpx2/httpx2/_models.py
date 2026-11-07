@@ -382,7 +382,7 @@ class Headers(MutableMapping[str, str]):
     def __len__(self) -> int:
         return len(self._list)
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         try:
             other_headers = Headers(other)
         except ValueError:

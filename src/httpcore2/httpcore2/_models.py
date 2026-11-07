@@ -4,7 +4,6 @@ import base64
 import ssl
 import urllib.parse
 from collections.abc import AsyncGenerator, AsyncIterable, Iterable, Iterator, Mapping, Sequence
-from typing import Any
 
 from ._types import Extensions, HeadersAsMapping, HeadersAsSequence, HeaderTypes
 from ._utils import safe_async_iterate
@@ -154,7 +153,7 @@ class Origin:
         self.host = host
         self.port = port
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         return (
             isinstance(other, Origin)
             and self.scheme == other.scheme
@@ -278,7 +277,7 @@ class URL:
         }[self.scheme]
         return Origin(scheme=self.scheme, host=self.host, port=self.port or default_port)
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         return (
             isinstance(other, URL)
             and other.scheme == self.scheme

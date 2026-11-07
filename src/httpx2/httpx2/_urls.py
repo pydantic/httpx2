@@ -385,7 +385,7 @@ class URL:
     def __hash__(self) -> int:
         return hash(str(self))
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         return isinstance(other, (URL, str)) and str(self) == str(URL(other))
 
     def __str__(self) -> str:
@@ -422,7 +422,7 @@ class URL:
     def raw(self) -> tuple[bytes, bytes, int, bytes]:  # pragma: no cover
         import collections
 
-        RawURL = collections.namedtuple("RawURL", ["raw_scheme", "raw_host", "port", "raw_path"])
+        RawURL = collections.namedtuple("RawURL", ["raw_scheme", "raw_host", "port", "raw_path"])  # noqa: PYI024
         return RawURL(
             raw_scheme=self.raw_scheme,
             raw_host=self.raw_host,
@@ -668,7 +668,7 @@ class QueryParams(Mapping[str, str]):
     def __hash__(self) -> int:
         return hash(str(self))
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, self.__class__):
             return False
         return sorted(self.multi_items()) == sorted(other.multi_items())
