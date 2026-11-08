@@ -101,7 +101,8 @@ class WSGITransport(BaseTransport):
             "wsgi.run_once": False,
             "REQUEST_METHOD": request.method,
             "SCRIPT_NAME": self.script_name,
-            "PATH_INFO": request.url.path,
+            # PEP 3333 native strings carry the raw bytes as latin-1.
+            "PATH_INFO": request.url.path.encode("utf-8").decode("latin-1"),
             "QUERY_STRING": request.url.query.decode("ascii"),
             "SERVER_NAME": request.url.host,
             "SERVER_PORT": str(port),
@@ -114,7 +115,7 @@ class WSGITransport(BaseTransport):
             key = header_key.decode("ascii").upper().replace("-", "_")
             if key not in ("CONTENT_TYPE", "CONTENT_LENGTH"):
                 key = "HTTP_" + key
-            environ[key] = header_value.decode("ascii")
+            environ[key] = header_value.decode("latin-1")
 
         seen_status = None
         seen_response_headers = None
@@ -141,6 +142,6 @@ class WSGITransport(BaseTransport):
             raise seen_exc_info[1]
 
         status_code = int(seen_status.split()[0])
-        headers = [(key.encode("ascii"), value.encode("ascii")) for key, value in seen_response_headers]
+        headers = [(key.encode("ascii"), value.encode("latin-1")) for key, value in seen_response_headers]
 
         return Response(status_code, headers=headers, stream=stream)
