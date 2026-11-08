@@ -227,8 +227,8 @@ def test_wsgi_non_ascii() -> None:
 
     transport = httpx2.WSGITransport(app=app)
     with httpx2.Client(transport=transport, base_url="http://testserver") as client:
-        response = client.get("/caf%C3%A9/\u20ac", headers={b"X-Name": b"caf\xe9"})
+        response = client.get("/caf%C3%A9/\u20ac/%FF?q=1", headers={b"X-Name": b"caf\xe9"})
 
-    assert environ["PATH_INFO"].encode("latin-1").decode("utf-8") == "/caf\xe9/\u20ac"
+    assert environ["PATH_INFO"] == "/caf\xc3\xa9/\xe2\x82\xac/\xff"
     assert environ["HTTP_X_NAME"] == "caf\xe9"
     assert response.headers.raw[0] == (b"X-Name", b"caf\xe9")

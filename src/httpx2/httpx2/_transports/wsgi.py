@@ -5,6 +5,7 @@ import itertools
 import sys
 from collections.abc import Callable, Iterable, Iterator
 from typing import TYPE_CHECKING, Any, TextIO, TypeVar
+from urllib.parse import unquote_to_bytes
 
 from .._models import Request, Response
 from .._types import SyncByteStream
@@ -102,7 +103,7 @@ class WSGITransport(BaseTransport):
             "REQUEST_METHOD": request.method,
             "SCRIPT_NAME": self.script_name,
             # PEP 3333 native strings carry the raw bytes as latin-1.
-            "PATH_INFO": request.url.path.encode("utf-8").decode("latin-1"),
+            "PATH_INFO": unquote_to_bytes(request.url.raw_path.partition(b"?")[0]).decode("latin-1"),
             "QUERY_STRING": request.url.query.decode("ascii"),
             "SERVER_NAME": request.url.host,
             "SERVER_PORT": str(port),
