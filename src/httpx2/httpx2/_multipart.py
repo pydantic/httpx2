@@ -97,10 +97,6 @@ class DataField:
         data = self.render_data()
         return len(headers) + len(data)
 
-    def render(self) -> Iterator[bytes]:
-        yield self.render_headers()
-        yield self.render_data()
-
 
 class FileField:
     """
@@ -206,10 +202,6 @@ class FileField:
             yield to_bytes(chunk)
             chunk = self.file.read(self.CHUNK_SIZE)
 
-    def render(self) -> Iterator[bytes]:
-        yield self.render_headers()
-        yield from self.render_data()
-
 
 class MultipartStream(SyncByteStream, AsyncByteStream):
     """
@@ -242,11 +234,21 @@ class MultipartStream(SyncByteStream, AsyncByteStream):
             yield FileField(name=name, value=value)
 
     def iter_chunks(self) -> Iterator[bytes]:
+        # Every chunk ends up as its own socket write, so join everything except file data.
+        pending: list[bytes] = []
         for field in self.fields:
-            yield b"--%s\r\n" % self.boundary
-            yield from field.render()
-            yield b"\r\n"
-        yield b"--%s--\r\n" % self.boundary
+            pending += [b"--%s\r\n" % self.boundary, field.render_headers()]
+            if isinstance(field, DataField):
+                pending.append(field.render_data())
+            else:
+                for chunk in field.render_data():
+                    if pending:
+                        yield b"".join(pending)
+                        pending = []
+                    yield chunk
+            pending.append(b"\r\n")
+        pending.append(b"--%s--\r\n" % self.boundary)
+        yield b"".join(pending)
 
     def get_content_length(self) -> int | None:
         """

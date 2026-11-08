@@ -442,6 +442,17 @@ def test_multipart_encode_non_seekable_filelike() -> None:
     )
 
 
+def test_multipart_joins_chunks_around_file_data() -> None:
+    with tempfile.TemporaryFile() as upload:
+        upload.write(b"Hello, world!")
+        request = httpx2.Request("POST", "https://www.example.com/", data={"a": "1", "b": "2"}, files={"file": upload})
+        assert isinstance(request.stream, httpx2.SyncByteStream)
+        chunks = list(request.stream)
+        assert len(chunks) == 3
+        assert chunks[1] == b"Hello, world!"
+        assert b"".join(chunks) == request.read()
+
+
 def test_multipart_rewinds_files() -> None:
     with tempfile.TemporaryFile() as upload:
         upload.write(b"Hello, world!")
