@@ -230,6 +230,9 @@ class URLPattern:
         if self.scheme and self.scheme != other.scheme:
             return False
         if self.network is not None:
+            # IP literals start with a digit or contain ":". Skip the raise in `ip_address()` for hostnames.
+            if not ("0" <= other.host[:1] <= "9" or ":" in other.host):
+                return False
             try:
                 other_address = ipaddress.ip_address(other.host)
             except ValueError:
