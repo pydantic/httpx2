@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import gzip
 import io
+import os
 import tempfile
 from collections.abc import Iterator
 from typing import Any
@@ -440,6 +442,30 @@ def test_multipart_encode_non_seekable_filelike() -> None:
         b"HelloWorld\r\n"
         b"--BOUNDARY--\r\n"
     )
+
+
+def test_multipart_encode_gzip_file() -> None:
+    content = b"0123456789" * 100
+    with tempfile.TemporaryFile() as raw:
+        raw.write(gzip.compress(content))
+        raw.seek(0)
+        with gzip.GzipFile(fileobj=raw, mode="rb") as file:
+            files: Any = {"file": file}
+            request = httpx2.Request("POST", "https://www.example.com/", files=files)
+            body = request.read()
+            assert int(request.headers["Content-Length"]) == len(body)
+            assert content in body
+
+
+def test_multipart_encode_pipe() -> None:
+    read_fd, write_fd = os.pipe()
+    with os.fdopen(read_fd, "rb") as file:
+        with os.fdopen(write_fd, "wb") as writer:
+            writer.write(b"0123456789")
+        request = httpx2.Request("POST", "https://www.example.com/", files={"file": file})
+        assert request.headers["Transfer-Encoding"] == "chunked"
+        assert "Content-Length" not in request.headers
+        assert b"0123456789" in request.read()
 
 
 def test_multipart_rewinds_files() -> None:
