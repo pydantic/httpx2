@@ -79,7 +79,7 @@ class AnyIOStream(AsyncNetworkStream):
                         standard_compatible=False,
                         server_side=False,
                     )
-            except Exception as exc:  # pragma: no cover
+            except BaseException as exc:  # pragma: no cover
                 await self.aclose()
                 raise exc
         return AnyIOStream(ssl_stream)
@@ -122,9 +122,13 @@ class AnyIOBackend(AsyncNetworkBackend):
                     remote_port=port,
                     local_host=local_address,
                 )
-                # By default TCP sockets opened in `asyncio` include TCP_NODELAY.
+            # By default TCP sockets opened in `asyncio` include TCP_NODELAY.
+            try:
                 for option in socket_options:
                     stream._raw_socket.setsockopt(*option)  # type: ignore[attr-defined] # pragma: no cover
+            except BaseException as exc:
+                await stream.aclose()
+                raise exc
         return AnyIOStream(stream)
 
     async def connect_unix_socket(
@@ -143,8 +147,12 @@ class AnyIOBackend(AsyncNetworkBackend):
         with map_exceptions(exc_map):
             with anyio.fail_after(timeout):
                 stream: anyio.abc.ByteStream = await anyio.connect_unix(path)
+            try:
                 for option in socket_options:
                     stream._raw_socket.setsockopt(*option)  # type: ignore[attr-defined] # pragma: no cover
+            except BaseException as exc:
+                await stream.aclose()
+                raise exc
         return AnyIOStream(stream)
 
     async def sleep(self, seconds: float) -> None:

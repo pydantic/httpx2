@@ -162,7 +162,7 @@ class SyncStream(NetworkStream):
                 else:
                     self._sock.settimeout(timeout)
                     sock = ssl_context.wrap_socket(self._sock, server_hostname=server_hostname)
-            except Exception as exc:  # pragma: no cover
+            except BaseException as exc:  # pragma: no cover
                 self.close()
                 raise exc
         return SyncStream(sock)
@@ -207,9 +207,13 @@ class SyncBackend(NetworkBackend):
                 timeout,
                 source_address=source_address,
             )
-            for option in socket_options:
-                sock.setsockopt(*option)  # pragma: no cover
-            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            try:
+                for option in socket_options:
+                    sock.setsockopt(*option)  # pragma: no cover
+                sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            except BaseException as exc:  # pragma: no cover
+                sock.close()
+                raise exc
         return SyncStream(sock)
 
     def connect_unix_socket(
@@ -229,8 +233,12 @@ class SyncBackend(NetworkBackend):
         }
         with map_exceptions(exc_map):
             sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            for option in socket_options:
-                sock.setsockopt(*option)
-            sock.settimeout(timeout)
-            sock.connect(path)
+            try:
+                for option in socket_options:
+                    sock.setsockopt(*option)
+                sock.settimeout(timeout)
+                sock.connect(path)
+            except BaseException as exc:
+                sock.close()
+                raise exc
         return SyncStream(sock)
