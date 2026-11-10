@@ -14,7 +14,7 @@ fallback-version = "0.0.0"
 [project]
 name = "httpx2"
 description = "The next generation HTTP client."
-license = "BSD-3-Clause"
+license = "BSD-3-Clause AND MIT"
 requires-python = ">=3.11"
 authors = [
     { name = "Tom Christie", email = "tom@tomchristie.com" },
