@@ -886,6 +886,7 @@ async def test_connection_pool_multiplexes_idle_http2_connection_within_a_pass()
 
     assert QueueObservingPool.max_queued_after_pass == 0
 
+
 class InterruptedClose(BaseException):
     """Simulate a non-Exception failure during response stream closure."""
 
@@ -908,9 +909,7 @@ async def test_retry_real_stream(http2: bool, failures: int, error_type: type[Ba
         ]
         network_backend = httpcore2.AsyncMockBackend(buffer=buffer, http2=True)
     else:
-        network_backend = httpcore2.AsyncMockBackend(
-            [b"HTTP/1.1 200 OK\r\n", b"Content-Length: 0\r\n", b"\r\n"]
-        )
+        network_backend = httpcore2.AsyncMockBackend([b"HTTP/1.1 200 OK\r\n", b"Content-Length: 0\r\n", b"\r\n"])
 
     attempts = 0
 
