@@ -36,6 +36,7 @@ def test_sync_stream_close_can_retry_after_failure() -> None:
     pool_request = PoolRequest(httpcore2.Request("GET", "http://example.test/"))
     pool._requests.append(pool_request)
     inner = FailingOnceStream()
+    assert list(inner) == []
     stream = SyncPoolByteStream(inner, pool_request, pool)
 
     with pytest.raises(OSError, match="stream close failed"):
@@ -58,6 +59,7 @@ async def test_async_stream_close_can_retry_after_failure() -> None:
     pool_request = AsyncPoolRequest(httpcore2.Request("GET", "http://example.test/"))
     pool._requests.append(pool_request)
     inner = FailingOnceStream()
+    assert [chunk async for chunk in inner] == []
     stream = AsyncPoolByteStream(inner, pool_request, pool)
 
     with pytest.raises(OSError, match="stream close failed"):
