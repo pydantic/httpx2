@@ -1082,8 +1082,15 @@ class Response:
 
         if not self.is_closed:
             self.is_closed = True
-            with request_context(request=self._request):
-                await self.stream.aclose()
+            try:
+                with request_context(request=self._request):
+                    await self.stream.aclose()
+            except BaseException:
+                # A close cut short, such as the one `aiter_raw` runs while unwinding a
+                # cancelled read, leaves the stream open. Clear the flag so that a later
+                # `aclose()` finishes the close instead of returning early.
+                self.is_closed = False
+                raise
 
 
 class Cookies(MutableMapping[str, str]):

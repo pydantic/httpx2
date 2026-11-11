@@ -3,10 +3,12 @@ from __future__ import annotations
 import asyncio
 import sys
 from collections.abc import AsyncGenerator, AsyncIterator, Iterator
+from contextlib import AsyncExitStack
 from datetime import timedelta
 from types import TracebackType
 from typing import TYPE_CHECKING, Self
 
+import anyio
 import pytest
 
 import httpx2
@@ -112,6 +114,49 @@ def test_abandon_streamed_response(server: TestServer) -> None:
                 await client.aclose()
 
     asyncio.run(request())
+
+
+class StalledStream(httpx2.AsyncByteStream):
+    """
+    A transport stream that stalls mid-body, and counts the closes that ran to completion.
+    """
+
+    def __init__(self) -> None:
+        self.closes = 0
+
+    async def __aiter__(self) -> AsyncIterator[bytes]:
+        yield b"Hello, "
+        await anyio.sleep_forever()
+
+    async def aclose(self) -> None:
+        # Awaits like a real transport close, so an expired cancel scope cuts it short.
+        await anyio.sleep(0)
+        self.closes += 1
+
+
+@pytest.mark.anyio
+async def test_cancelled_stream_close_is_retried_by_the_client_context() -> None:
+    stream = StalledStream()
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(200, stream=stream)
+
+    response: httpx2.Response | None = None
+    stack = AsyncExitStack()
+    try:
+        client = await stack.enter_async_context(httpx2.AsyncClient(transport=httpx2.MockTransport(handler)))
+        with anyio.move_on_after(0.01):
+            response = await stack.enter_async_context(client.stream("GET", "https://example.test/"))
+            async for _chunk in response.aiter_raw():
+                pass
+    finally:
+        # A caller closes once its deadline has expired, which is where the retry happens.
+        with anyio.CancelScope(shield=True):
+            await stack.aclose()
+
+    assert response is not None
+    assert response.is_closed
+    assert stream.closes == 1
 
 
 @pytest.mark.anyio

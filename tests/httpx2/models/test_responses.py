@@ -5,6 +5,7 @@ import json
 import pickle
 from collections.abc import AsyncIterator, Iterator
 
+import anyio
 import chardet
 import pytest
 
@@ -760,6 +761,66 @@ async def test_cannot_aread_after_response_closed() -> None:
     await response.aclose()
     with pytest.raises(httpx2.StreamClosed):
         await response.aread()
+
+
+class RecordingAsyncStream(httpx2.AsyncByteStream):
+    """
+    A transport stream that stalls mid-body, and counts the closes that ran to completion.
+    """
+
+    def __init__(self, fail_first_close: bool = False) -> None:
+        self.fail_first_close = fail_first_close
+        self.close_attempts = 0
+        self.closes = 0
+
+    async def __aiter__(self) -> AsyncIterator[bytes]:
+        yield b"Hello, "
+        await anyio.sleep_forever()
+
+    async def aclose(self) -> None:
+        self.close_attempts += 1
+        if self.fail_first_close and self.close_attempts == 1:
+            raise OSError("close failed")
+        # Awaits like a real transport close, so an expired cancel scope cuts it short.
+        await anyio.sleep(0)
+        self.closes += 1
+
+
+@pytest.mark.anyio
+async def test_cancelled_close_is_retried_by_a_later_aclose() -> None:
+    stream = RecordingAsyncStream()
+    response = httpx2.Response(200, stream=stream)
+
+    with anyio.move_on_after(0.01):
+        async for chunk in response.aiter_raw():
+            assert chunk == b"Hello, "
+
+    # The cancellation interrupted the close that `aiter_raw` runs on the way out. The
+    # response must not claim to be closed, so that the caller can finish the close.
+    assert not response.is_closed
+    assert stream.close_attempts == 1
+    assert stream.closes == 0
+
+    await response.aclose()
+    assert response.is_closed
+    assert stream.closes == 1
+
+
+@pytest.mark.anyio
+async def test_failed_close_is_retried_by_a_later_aclose() -> None:
+    stream = RecordingAsyncStream(fail_first_close=True)
+    response = httpx2.Response(200, stream=stream)
+
+    with pytest.raises(OSError, match="close failed"):
+        await response.aclose()
+
+    assert not response.is_closed
+    assert stream.closes == 0
+
+    await response.aclose()
+    assert response.is_closed
+    assert stream.close_attempts == 2
+    assert stream.closes == 1
 
 
 @pytest.mark.anyio
