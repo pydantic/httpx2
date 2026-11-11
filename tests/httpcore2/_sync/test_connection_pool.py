@@ -890,7 +890,7 @@ class InterruptedClose(BaseException):
     """Simulate a non-Exception failure during response stream closure."""
 
 
-@pytest.mark.anyio
+
 @pytest.mark.parametrize("http2", [False, True])
 @pytest.mark.parametrize("failures", [1, 2])
 @pytest.mark.parametrize("error_type", [OSError, InterruptedClose])
