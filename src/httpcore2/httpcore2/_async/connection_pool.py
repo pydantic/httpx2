@@ -430,9 +430,14 @@ class PoolByteStream:
     async def aclose(self) -> None:
         if not self._closed:
             self._closed = True
-            with AsyncShieldCancellation():
-                if hasattr(self._stream, "aclose"):
-                    await self._stream.aclose()
+            try:
+                with AsyncShieldCancellation():
+                    if hasattr(self._stream, "aclose"):
+                        await self._stream.aclose()
+            except BaseException:
+                # Keep the pool request registered until the inner stream closes.
+                self._closed = False
+                raise
 
             with self._pool._optional_thread_lock:
                 self._pool._requests.remove(self._pool_request)
