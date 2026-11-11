@@ -6,7 +6,7 @@ import pytest
 
 import httpcore2
 from httpcore2._async.connection_pool import AsyncPoolRequest, PoolByteStream as AsyncPoolByteStream
-from httpcore2._sync.connection_pool import PoolRequest, PoolByteStream as SyncPoolByteStream
+from httpcore2._sync.connection_pool import PoolByteStream as SyncPoolByteStream, PoolRequest
 
 
 class FailingOnceStream:
