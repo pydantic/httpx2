@@ -768,7 +768,8 @@ class RecordingAsyncStream(httpx2.AsyncByteStream):
     A transport stream that stalls mid-body, and counts the closes that ran to completion.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, fail_first_close: bool = False) -> None:
+        self.fail_first_close = fail_first_close
         self.close_attempts = 0
         self.closes = 0
 
@@ -778,27 +779,10 @@ class RecordingAsyncStream(httpx2.AsyncByteStream):
 
     async def aclose(self) -> None:
         self.close_attempts += 1
+        if self.fail_first_close and self.close_attempts == 1:
+            raise OSError("close failed")
         # Awaits like a real transport close, so an expired cancel scope cuts it short.
         await anyio.sleep(0)
-        self.closes += 1
-
-
-class FailingAsyncStream(httpx2.AsyncByteStream):
-    """
-    A transport stream whose first close raises, and whose later closes complete.
-    """
-
-    def __init__(self) -> None:
-        self.close_attempts = 0
-        self.closes = 0
-
-    async def __aiter__(self) -> AsyncIterator[bytes]:
-        yield b"Hello, "
-
-    async def aclose(self) -> None:
-        self.close_attempts += 1
-        if self.close_attempts == 1:
-            raise OSError("close failed")
         self.closes += 1
 
 
@@ -824,7 +808,7 @@ async def test_cancelled_close_is_retried_by_a_later_aclose() -> None:
 
 @pytest.mark.anyio
 async def test_failed_close_is_retried_by_a_later_aclose() -> None:
-    stream = FailingAsyncStream()
+    stream = RecordingAsyncStream(fail_first_close=True)
     response = httpx2.Response(200, stream=stream)
 
     with pytest.raises(OSError, match="close failed"):
