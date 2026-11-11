@@ -885,3 +885,61 @@ def test_connection_pool_multiplexes_idle_http2_connection_within_a_pass() -> No
                 nursery.start_soon(fetch, pool)
 
     assert QueueObservingPool.max_queued_after_pass == 0
+
+class InterruptedClose(BaseException):
+    """Simulate a non-Exception failure during response stream closure."""
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("http2", [False, True])
+@pytest.mark.parametrize("failures", [1, 2])
+@pytest.mark.parametrize("error_type", [OSError, InterruptedClose])
+def test_retry_real_stream(http2: bool, failures: int, error_type: type[BaseException]) -> None:
+    """A failed real HTTP stream close should be retried before releasing the pool request."""
+    if http2:
+        buffer = [
+            hyperframe.frame.SettingsFrame().serialize(),
+            hyperframe.frame.HeadersFrame(
+                stream_id=1,
+                data=hpack.Encoder().encode([(b":status", b"200")]),
+                flags=["END_HEADERS"],
+            ).serialize(),
+            hyperframe.frame.DataFrame(stream_id=1, data=b"", flags=["END_STREAM"]).serialize(),
+        ]
+        network_backend = httpcore2.MockBackend(buffer=buffer, http2=True)
+    else:
+        network_backend = httpcore2.MockBackend(
+            [b"HTTP/1.1 200 OK\r\n", b"Content-Length: 0\r\n", b"\r\n"]
+        )
+
+    attempts = 0
+
+    def trace(name: str, _kwargs: dict[str, Any]) -> None:
+        nonlocal attempts
+        if name.endswith(".response_closed.started"):
+            attempts += 1
+            if attempts <= failures:
+                raise error_type("response close failed")
+
+    with httpcore2.ConnectionPool(network_backend=network_backend, http2=http2) as pool:
+        request = httpcore2.Request("GET", "https://example.com/", extensions={"trace": trace})
+        response = pool.handle_async_request(request)
+        close = getattr(response.stream, "close")
+        inner_stream = getattr(response.stream, "_stream")
+
+        for attempt in range(failures):
+            with pytest.raises(error_type, match="response close failed"):
+                close()
+            assert attempts == attempt + 1
+            assert not inner_stream._closed
+            assert len(pool._requests) == 1
+            assert pool.connections and not pool.connections[0].is_idle()
+
+        close()
+        assert attempts == failures + 1
+        assert inner_stream._closed
+        assert pool._requests == []
+        assert all(connection.is_idle() for connection in pool.connections)
+
+        close()
+        assert attempts == failures + 1
