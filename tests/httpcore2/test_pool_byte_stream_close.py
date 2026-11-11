@@ -66,9 +66,7 @@ def test_sync_stream_close_can_retry_after_failure(failures: int, error_type: ty
 @pytest.mark.anyio
 @pytest.mark.parametrize("failures", [1, 2])
 @pytest.mark.parametrize("error_type", [OSError, InterruptedClose])
-async def test_async_stream_close_can_retry_after_failure(
-    failures: int, error_type: type[BaseException]
-) -> None:
+async def test_async_stream_close_can_retry_after_failure(failures: int, error_type: type[BaseException]) -> None:
     pool = httpcore2.AsyncConnectionPool()
     pool_request = AsyncPoolRequest(httpcore2.Request("GET", "http://example.test/"))
     pool._requests.append(pool_request)
