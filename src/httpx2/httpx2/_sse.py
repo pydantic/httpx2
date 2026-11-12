@@ -36,12 +36,21 @@ from ._config import DEFAULT_MAX_EVENT_SIZE_BYTES
 from ._exceptions import TransportError, request_context
 from ._models import Response
 
-__all__ = ["EventSource", "SSEError", "ServerSentEvent"]
+__all__ = ["EventSource", "SSEError", "SSEEventTooLarge", "ServerSentEvent"]
 
 
 class SSEError(TransportError):
     """
     An error that occurred while connecting to a server-sent events endpoint.
+    """
+
+
+class SSEEventTooLarge(SSEError):
+    """
+    A server-sent event exceeded the configured size limit.
+
+    Unlike a network failure, retrying the same event without changing the limit
+    will not succeed.
     """
 
 
@@ -121,7 +130,7 @@ class _SSEEventDecoder:
 
     def _check_size(self, pending_size: int = 0) -> None:
         if self._max_event_size is not None and self._event_size + pending_size > self._max_event_size:
-            raise SSEError(f"Server-sent event exceeded the {self._max_event_size} byte limit.")
+            raise SSEEventTooLarge(f"Server-sent event exceeded the {self._max_event_size} byte limit.")
 
 
 class _SSELineDecoder:
