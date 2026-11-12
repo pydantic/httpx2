@@ -923,8 +923,8 @@ async def test_retry_real_stream(http2: bool, failures: int, error_type: type[Ba
     async with httpcore2.AsyncConnectionPool(network_backend=network_backend, http2=http2) as pool:
         request = httpcore2.Request("GET", "https://example.com/", extensions={"trace": trace})
         response = await pool.handle_async_request(request)
-        close = getattr(response.stream, "aclose")
-        inner_stream = getattr(response.stream, "_stream")
+        close = response.stream.aclose  # type: ignore[union-attr]
+        inner_stream = response.stream._stream  # type: ignore[union-attr]
 
         for attempt in range(failures):
             with pytest.raises(error_type, match="response close failed"):

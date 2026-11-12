@@ -923,8 +923,8 @@ def test_retry_real_stream(http2: bool, failures: int, error_type: type[BaseExce
     with httpcore2.ConnectionPool(network_backend=network_backend, http2=http2) as pool:
         request = httpcore2.Request("GET", "https://example.com/", extensions={"trace": trace})
         response = pool.handle_request(request)
-        close = getattr(response.stream, "close")
-        inner_stream = getattr(response.stream, "_stream")
+        close = response.stream.close  # type: ignore[union-attr]
+        inner_stream = response.stream._stream  # type: ignore[union-attr]
 
         for attempt in range(failures):
             with pytest.raises(error_type, match="response close failed"):
