@@ -64,6 +64,61 @@ def test_digest_auth_with_401() -> None:
         flow.send(response)
 
 
+@pytest.mark.parametrize("header_name", ["WWW-Authenticate", "X-WWW-Authenticate"])
+def test_digest_auth_accepts_standard_and_fallback_headers(header_name: str) -> None:
+    auth = httpx2.DigestAuth(username="user", password="pass")
+    request = httpx2.Request("GET", "https://example.com")
+    flow = auth.sync_auth_flow(request)
+    first_request = next(flow)
+    assert "Authorization" not in first_request.headers
+
+    response = httpx2.Response(
+        status_code=401,
+        headers={header_name: 'Digest realm="inverter", nonce="abc", qop="auth"'},
+        request=request,
+    )
+    authenticated = flow.send(response)
+    assert authenticated.headers["Authorization"].startswith("Digest ")
+    assert 'realm="inverter"' in authenticated.headers["Authorization"]
+
+    with pytest.raises(StopIteration):
+        flow.send(httpx2.Response(200))
+
+
+def test_digest_auth_prefers_standard_header_over_fallback() -> None:
+    auth = httpx2.DigestAuth(username="user", password="pass")
+    request = httpx2.Request("GET", "https://example.com")
+    flow = auth.sync_auth_flow(request)
+    next(flow)
+
+    response = httpx2.Response(
+        status_code=401,
+        headers={
+            "WWW-Authenticate": 'Digest realm="standard", nonce="first", qop="auth"',
+            "X-WWW-Authenticate": 'Digest realm="fallback", nonce="second", qop="auth"',
+        },
+        request=request,
+    )
+    authenticated = flow.send(response)
+    assert 'realm="standard"' in authenticated.headers["Authorization"]
+    assert 'nonce="first"' in authenticated.headers["Authorization"]
+
+
+@pytest.mark.parametrize(
+    ("status_code", "auth_header"),
+    [(200, 'Digest realm="r", nonce="n"'), (401, "Basic realm=legacy")],
+)
+def test_digest_auth_ignores_fallback_without_valid_challenge(status_code: int, auth_header: str) -> None:
+    auth = httpx2.DigestAuth(username="user", password="pass")
+    request = httpx2.Request("GET", "https://example.com")
+    flow = auth.sync_auth_flow(request)
+    next(flow)
+    response = httpx2.Response(status_code, headers={"X-WWW-Authenticate": auth_header}, request=request)
+
+    with pytest.raises(StopIteration):
+        flow.send(response)
+
+
 def test_digest_auth_challenge_parameters_are_case_and_whitespace_insensitive() -> None:
     auth = httpx2.DigestAuth(username="user", password="pass")
     request = httpx2.Request("GET", "https://www.example.com")

@@ -191,12 +191,20 @@ class DigestAuth(Auth):
 
         response = yield request
 
-        if response.status_code != 401 or "www-authenticate" not in response.headers:
+        if response.status_code != 401:
             # If the response is not a 401 then we don't
             # need to build an authenticated request.
             return
 
-        for auth_header in response.headers.get_list("www-authenticate"):
+        # Some devices send a non-standard X-WWW-Authenticate challenge.
+        # Prefer the standard header whenever both are present.
+        auth_header_name = "www-authenticate"
+        if auth_header_name not in response.headers:
+            auth_header_name = "x-www-authenticate"
+            if auth_header_name not in response.headers:
+                return
+
+        for auth_header in response.headers.get_list(auth_header_name):
             if auth_header.lower().startswith("digest "):
                 break
         else:
