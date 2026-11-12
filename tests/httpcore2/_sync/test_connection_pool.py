@@ -922,7 +922,9 @@ def test_retry_real_stream(http2: bool, failures: int, error_type: type[BaseExce
                 raise error_type("response close failed")
 
     with httpcore2.ConnectionPool(network_backend=network_backend, http2=http2) as pool:
-        request = httpcore2.Request("GET", "https://example.com/", extensions={"trace": trace})
+        request = httpcore2.Request(
+            "GET", "https://example.com/", headers=[(b"host", b"example.com")], extensions={"trace": trace}
+        )
         response = pool.handle_request(request)
         armed = True
         close = response.stream.close  # type: ignore[union-attr]

@@ -922,7 +922,9 @@ async def test_retry_real_stream(http2: bool, failures: int, error_type: type[Ba
                 raise error_type("response close failed")
 
     async with httpcore2.AsyncConnectionPool(network_backend=network_backend, http2=http2) as pool:
-        request = httpcore2.Request("GET", "https://example.com/", extensions={"trace": trace})
+        request = httpcore2.Request(
+            "GET", "https://example.com/", headers=[(b"host", b"example.com")], extensions={"trace": trace}
+        )
         response = await pool.handle_async_request(request)
         armed = True
         close = response.stream.aclose  # type: ignore[union-attr]
