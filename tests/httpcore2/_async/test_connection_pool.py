@@ -912,10 +912,11 @@ async def test_retry_real_stream(http2: bool, failures: int, error_type: type[Ba
         network_backend = httpcore2.AsyncMockBackend([b"HTTP/1.1 200 OK\r\n", b"Content-Length: 0\r\n", b"\r\n"])
 
     attempts = 0
+    armed = False
 
     async def trace(name: str, _kwargs: dict[str, Any]) -> None:
         nonlocal attempts
-        if name.endswith(".response_closed.started"):
+        if armed and name.endswith(".response_closed.started"):
             attempts += 1
             if attempts <= failures:
                 raise error_type("response close failed")
@@ -923,6 +924,7 @@ async def test_retry_real_stream(http2: bool, failures: int, error_type: type[Ba
     async with httpcore2.AsyncConnectionPool(network_backend=network_backend, http2=http2) as pool:
         request = httpcore2.Request("GET", "https://example.com/", extensions={"trace": trace})
         response = await pool.handle_async_request(request)
+        armed = True
         close = response.stream.aclose  # type: ignore[union-attr]
         inner_stream = response.stream._stream  # type: ignore[union-attr]
 

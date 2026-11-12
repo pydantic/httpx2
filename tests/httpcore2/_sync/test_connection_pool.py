@@ -912,10 +912,11 @@ def test_retry_real_stream(http2: bool, failures: int, error_type: type[BaseExce
         network_backend = httpcore2.MockBackend([b"HTTP/1.1 200 OK\r\n", b"Content-Length: 0\r\n", b"\r\n"])
 
     attempts = 0
+    armed = False
 
     def trace(name: str, _kwargs: dict[str, Any]) -> None:
         nonlocal attempts
-        if name.endswith(".response_closed.started"):
+        if armed and name.endswith(".response_closed.started"):
             attempts += 1
             if attempts <= failures:
                 raise error_type("response close failed")
@@ -923,6 +924,7 @@ def test_retry_real_stream(http2: bool, failures: int, error_type: type[BaseExce
     with httpcore2.ConnectionPool(network_backend=network_backend, http2=http2) as pool:
         request = httpcore2.Request("GET", "https://example.com/", extensions={"trace": trace})
         response = pool.handle_request(request)
+        armed = True
         close = response.stream.close  # type: ignore[union-attr]
         inner_stream = response.stream._stream  # type: ignore[union-attr]
 
