@@ -1,3 +1,6 @@
+from unittest.mock import AsyncMock
+
+import h2.events
 import h2.settings
 import hpack
 import hyperframe.frame
@@ -542,3 +545,34 @@ async def test_http2_remote_max_streams_decrease_below_in_flight(limits: list[in
         assert response_c.status == 200
         assert response_c.content == b"response c"
         assert conn.is_idle()
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("ready", ["stream", "flow"])
+async def test_http2_reader_does_not_read_again_after_condition_is_ready(
+    monkeypatch: pytest.MonkeyPatch, ready: str
+) -> None:
+    """A newly claimed reader must recheck buffered events and flow control."""
+    conn = httpcore2.AsyncHTTP2Connection(
+        origin=httpcore2.Origin(b"https", b"example.com", 443),
+        stream=httpcore2.AsyncMockStream([], http2=True),
+    )
+    conn._events = {1: []}
+    if ready == "stream":
+        conn._events[1].append(h2.events.StreamEnded(stream_id=1))
+    else:
+        monkeypatch.setattr(conn._h2_state, "local_flow_control_window", lambda _stream_id: 1)
+
+    read_mock = AsyncMock()
+    write_mock = AsyncMock()
+    monkeypatch.setattr(conn, "_receive_events", read_mock)
+    monkeypatch.setattr(conn, "_write_outgoing_data", write_mock)
+
+    request = httpcore2.Request("GET", "https://example.com/")
+    await conn._read_and_dispatch(
+        request,
+        stream_id=1 if ready == "stream" else None,
+        flow_stream_id=1 if ready == "flow" else None,
+    )
+    read_mock.assert_not_called()
+    write_mock.assert_not_called()
