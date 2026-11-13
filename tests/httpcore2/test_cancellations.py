@@ -1,3 +1,5 @@
+import asyncio
+import ssl
 from collections.abc import Iterable
 from typing import Any
 from unittest.mock import patch
@@ -9,6 +11,7 @@ import pytest
 from trio.testing import MockClock
 
 import httpcore2
+from httpcore2._backends.anyio import AnyIOStream
 
 
 @pytest.fixture(params=["asyncio", "trio"])
@@ -16,6 +19,91 @@ def anyio_backend(request: pytest.FixtureRequest) -> str | tuple[str, dict[str, 
     if request.param == "trio":
         return "trio", {"clock": MockClock(autojump_threshold=0)}
     return "asyncio"
+
+
+class StalledTLSStream(anyio.abc.ByteStream):
+    def __init__(self) -> None:
+        self.read_started = anyio.Event()
+        self.closed = False
+
+    async def send(self, item: bytes) -> None:
+        pass
+
+    async def receive(self, max_bytes: int = 65536) -> bytes:
+        self.read_started.set()
+        await anyio.sleep_forever()
+        raise AssertionError("TLS handshake unexpectedly resumed")  # pragma: no cover
+
+    async def send_eof(self) -> None:
+        pass
+
+    async def aclose(self) -> None:
+        # Closing a stream may yield before releasing its underlying resources.
+        await anyio.lowlevel.checkpoint()
+        self.closed = True
+
+
+@pytest.mark.anyio
+async def test_anyio_tls_cancellation_closes_stream() -> None:
+    stream = StalledTLSStream()
+    scope = anyio.CancelScope()
+
+    async def cancel_handshake() -> None:
+        await stream.read_started.wait()
+        scope.cancel()
+
+    async with anyio.create_task_group() as task_group:
+        task_group.start_soon(cancel_handshake)
+        with scope:
+            with pytest.raises(anyio.get_cancelled_exc_class()):
+                await AnyIOStream(stream).start_tls(
+                    ssl.create_default_context(), server_hostname="example.com", timeout=10
+                )
+
+    assert stream.closed
+
+
+@pytest.mark.anyio
+async def test_anyio_tls_asyncio_deadline_closes_stream(anyio_backend_name: str) -> None:
+    if anyio_backend_name != "asyncio":
+        pytest.skip("asyncio deadlines require the asyncio backend")
+
+    stream = StalledTLSStream()
+    deadline = asyncio.timeout(None)
+
+    async def expire_deadline() -> None:
+        await stream.read_started.wait()
+        deadline.reschedule(asyncio.get_running_loop().time())
+
+    async with anyio.create_task_group() as task_group:
+        task_group.start_soon(expire_deadline)
+        with pytest.raises(TimeoutError):
+            async with deadline:
+                await AnyIOStream(stream).start_tls(
+                    ssl.create_default_context(), server_hostname="example.com", timeout=10
+                )
+
+    assert stream.closed
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    "error, expected",
+    [
+        (ssl.SSLError("handshake failed"), httpcore2.ConnectError),
+        (anyio.BrokenResourceError(), httpcore2.ConnectError),
+        (anyio.EndOfStream(), httpcore2.ConnectError),
+        (TimeoutError(), httpcore2.ConnectTimeout),
+    ],
+)
+async def test_anyio_tls_failure_closes_stream(error: Exception, expected: type[Exception]) -> None:
+    stream = StalledTLSStream()
+
+    with patch("anyio.streams.tls.TLSStream.wrap", side_effect=error), pytest.raises(expected) as exc_info:
+        await AnyIOStream(stream).start_tls(ssl.create_default_context(), server_hostname="example.com")
+
+    assert exc_info.value.__cause__ is error
+    assert stream.closed
 
 
 class SlowWriteStream(httpcore2.AsyncNetworkStream):
