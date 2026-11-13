@@ -87,6 +87,7 @@ __all__ = [  # noqa: RUF022
     "EventSource",
     "ServerSentEvent",
     "SSEError",
+    "SSEEventTooLarge",
     # _status_codes.py
     "codes",
     # _transports

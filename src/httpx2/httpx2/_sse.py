@@ -29,19 +29,28 @@ SOFTWARE.
 from __future__ import annotations
 
 import json as jsonlib
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator, Callable, Iterator
 from dataclasses import dataclass
 
 from ._config import DEFAULT_MAX_EVENT_SIZE_BYTES
 from ._exceptions import TransportError, request_context
 from ._models import Response
 
-__all__ = ["EventSource", "SSEError", "ServerSentEvent"]
+__all__ = ["EventSource", "SSEError", "SSEEventTooLarge", "ServerSentEvent"]
 
 
 class SSEError(TransportError):
     """
     An error that occurred while connecting to a server-sent events endpoint.
+    """
+
+
+class SSEEventTooLarge(SSEError):
+    """
+    A server-sent event exceeded the configured size limit.
+
+    Unlike a network failure, retrying the same event without changing the limit
+    will not succeed.
     """
 
 
@@ -121,11 +130,12 @@ class _SSEEventDecoder:
 
     def _check_size(self, pending_size: int = 0) -> None:
         if self._max_event_size is not None and self._event_size + pending_size > self._max_event_size:
-            raise SSEError(f"Server-sent event exceeded the {self._max_event_size} byte limit.")
+            raise SSEEventTooLarge(f"Server-sent event exceeded the {self._max_event_size} byte limit.")
 
 
 class _SSELineDecoder:
-    def __init__(self) -> None:
+    def __init__(self, check_pending: Callable[[int], None]) -> None:
+        self._check_pending = check_pending
         self._parts: list[str] = []
         self._pending_size = 0
         self._trailing_cr = False
@@ -134,7 +144,7 @@ class _SSELineDecoder:
     def pending_size(self) -> int:
         return self._pending_size
 
-    def decode(self, text: str) -> list[str]:
+    def decode(self, text: str) -> Iterator[str]:
         if self._trailing_cr:
             text = "\r" + text
             self._trailing_cr = False
@@ -143,29 +153,32 @@ class _SSELineDecoder:
             text = text[:-1]
 
         text = text.replace("\r\n", "\n").replace("\r", "\n")
-        if "\n" not in text:
-            self._append(text)
-            return []
-
-        lines = text.split("\n")
-        self._append(lines[0])
-        lines[0] = self._consume_pending()
-        self._append(lines.pop())
-        return lines
+        # Emit lines as they are found instead of splitting and buffering the
+        # whole decoded chunk. A chunk may contain several independent events.
+        start = 0
+        while (end := text.find("\n", start)) != -1:
+            self._append(text[start:end])
+            yield self._consume_pending()
+            start = end + 1
+        self._append(text[start:])
 
     def flush(self) -> list[str]:
         if self._trailing_cr:
-            self._append("\n")
             self._trailing_cr = False
+            return [self._consume_pending(), ""]
         buffer = self._consume_pending()
         if not buffer:
             return []
-        return buffer.split("\n")
+        return [buffer]
 
     def _append(self, text: str) -> None:
         if text:
+            # Reject an oversized line before retaining it in the parser.
+            # Completed lines are checked before their content is decoded.
+            pending_size = self._pending_size + len(text.encode("utf-8"))
+            self._check_pending(pending_size)
             self._parts.append(text)
-            self._pending_size += len(text.encode("utf-8"))
+            self._pending_size = pending_size
 
     def _consume_pending(self) -> str:
         pending = "".join(self._parts)
@@ -177,7 +190,7 @@ class _SSELineDecoder:
 class _SSEParser:
     def __init__(self, max_event_size: int | None = None) -> None:
         self._event_decoder = _SSEEventDecoder(max_event_size)
-        self._line_decoder = _SSELineDecoder()
+        self._line_decoder = _SSELineDecoder(self._event_decoder.check_pending)
 
     def decode(self, text: str) -> Iterator[ServerSentEvent]:
         yield from self._decode_lines(self._line_decoder.decode(text))
@@ -186,7 +199,7 @@ class _SSEParser:
     def flush(self) -> Iterator[ServerSentEvent]:
         yield from self._decode_lines(self._line_decoder.flush())
 
-    def _decode_lines(self, lines: list[str]) -> Iterator[ServerSentEvent]:
+    def _decode_lines(self, lines: Iterator[str] | list[str]) -> Iterator[ServerSentEvent]:
         for line in lines:
             sse = self._event_decoder.decode(line)
             if sse is not None:
