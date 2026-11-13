@@ -36,7 +36,7 @@ class StalledTLSStream(anyio.abc.ByteStream):
         raise AssertionError("TLS handshake unexpectedly resumed")  # pragma: no cover
 
     async def send_eof(self) -> None:
-        pass
+        raise NotImplementedError
 
     async def aclose(self) -> None:
         # Closing a stream may yield before releasing its underlying resources.
