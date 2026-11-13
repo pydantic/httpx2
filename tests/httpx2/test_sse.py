@@ -5,6 +5,7 @@ from collections.abc import AsyncIterator, Iterator
 import pytest
 
 import httpx2
+from httpx2._sse import _SSEParser
 
 SSE_BODY = b": this is a comment\nevent: ping\ndata: hello\nid: 1\nretry: 500\n\ndata: first\ndata: second\n\n"
 
@@ -339,6 +340,17 @@ def test_max_event_size_rejects_single_large_data_line() -> None:
         with client.sse("http://testserver/sse", max_event_size=4096) as source:
             with pytest.raises(httpx2.SSEError, match="4096 byte limit"):
                 list(source)
+
+
+@pytest.mark.parametrize("terminator", ["", "\n\n"])
+def test_max_event_size_does_not_buffer_oversized_incoming_chunk(terminator: str) -> None:
+    """A single large transport chunk must not be saved before the limit is checked."""
+    parser = _SSEParser(max_event_size=64)
+    with pytest.raises(httpx2.SSEEventTooLarge, match="64 byte limit"):
+        list(parser.decode("data: " + "x" * 100_000 + terminator))
+
+    assert parser._line_decoder.pending_size <= 64
+    assert sum(len(part.encode("utf-8")) for part in parser._line_decoder._parts) <= 64
 
 
 def test_max_event_size_ignores_keepalive_comments() -> None:
