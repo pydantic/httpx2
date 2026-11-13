@@ -50,7 +50,7 @@ async def test_completed_stream_is_not_blocked_by_another_network_read(monkeypat
     async with anyio.create_task_group() as tasks:
         tasks.start_soon(consume, 1)
         await first_read_started.wait()
-        # Stream 3 queues ahead of stream 5 for the connection's read lock.
+        # Stream 3 waits for the in-flight read to finish, ahead of stream 5.
         tasks.start_soon(consume, 3)
         await anyio.sleep(0)
         tasks.start_soon(consume, 5)
