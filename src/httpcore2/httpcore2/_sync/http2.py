@@ -16,7 +16,13 @@ import h2.settings
 from .._backends.base import NetworkStream
 from .._exceptions import ConnectionNotAvailable, LocalProtocolError, RemoteProtocolError
 from .._models import Origin, Request, Response
-from .._synchronization import Lock, Semaphore, ShieldCancellation
+from .._synchronization import (
+    Event,
+    Lock,
+    Semaphore,
+    ShieldCancellation,
+    ThreadLock,
+)
 from .._trace import Trace
 from .._utils import safe_iterate
 from .interfaces import ConnectionInterface
@@ -55,6 +61,10 @@ class HTTP2Connection(ConnectionInterface):
         self._state_lock = Lock()
         self._read_lock = Lock()
         self._write_lock = Lock()
+        # Waiting streams need to be notified after a network read, without
+        # being required to acquire the read lock ahead of the next socket read.
+        self._read_event_lock = ThreadLock()
+        self._read_event: Event | None = None
         self._sent_connection_init = False
         self._used_all_stream_ids = False
         self._connection_error = False
@@ -311,6 +321,44 @@ class HTTP2Connection(ConnectionInterface):
             elif isinstance(event, h2.events.StreamEnded):
                 break
 
+    def _read_and_dispatch(
+        self, request: Request, stream_id: int | None = None, *, flow_stream_id: int | None = None
+    ) -> None:
+        """Allow queued streams to proceed without waiting for another socket read.
+
+        Exactly one caller reads from the network. Other callers wait for its
+        dispatch to finish, not for the read lock: the next reader may otherwise
+        block in network I/O while their stream already has queued events.
+        """
+        with self._read_event_lock:
+            done = self._read_event
+            if done is None:
+                done = Event()
+                self._read_event = done
+                leader = True
+            else:
+                leader = False
+
+        if not leader:
+            done.wait()
+            return
+
+        try:
+            with self._read_lock:
+                # The stream/window may have become ready before this caller
+                # acquired the read lock. Never block on an unneeded read.
+                if stream_id is not None and self._events.get(stream_id):
+                    return
+                if flow_stream_id is not None and self._h2_state.local_flow_control_window(flow_stream_id) > 0:
+                    return
+                self._receive_events(request, stream_id)
+        finally:
+            with self._read_event_lock:
+                self._read_event = None
+                done.set()
+
+        self._write_outgoing_data(request)
+
     def _receive_stream_event(
         self, request: Request, stream_id: int
     ) -> h2.events.ResponseReceived | h2.events.DataReceived | h2.events.StreamEnded:
@@ -320,10 +368,7 @@ class HTTP2Connection(ConnectionInterface):
         Will read more data from the network if required.
         """
         while not self._events.get(stream_id):
-            with self._read_lock:
-                if not self._events.get(stream_id):
-                    self._receive_events(request, stream_id)
-            self._write_outgoing_data(request)
+            self._read_and_dispatch(request, stream_id)
         event = self._events[stream_id].pop(0)
         if isinstance(event, h2.events.StreamReset):
             raise RemoteProtocolError(event)
@@ -488,11 +533,7 @@ class HTTP2Connection(ConnectionInterface):
             flow = min(local_flow, max_frame_size)
             if flow > 0:
                 return flow
-            with self._read_lock:
-                if self._h2_state.local_flow_control_window(stream_id) > 0:
-                    continue
-                self._receive_events(request)
-            self._write_outgoing_data(request)
+            self._read_and_dispatch(request, flow_stream_id=stream_id)
 
     # Interface for connection pooling...
 
