@@ -81,7 +81,11 @@ class AnyIOStream(AsyncNetworkStream):
                     )
             except BaseException:
                 with anyio.CancelScope(shield=True):
-                    await self.aclose()
+                    try:
+                        await self.aclose()
+                    except Exception:
+                        # Preserve the handshake exception if cleanup fails.
+                        pass
                 raise
         return AnyIOStream(ssl_stream)
 

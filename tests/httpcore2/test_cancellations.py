@@ -22,9 +22,10 @@ def anyio_backend(request: pytest.FixtureRequest) -> str | tuple[str, dict[str, 
 
 
 class StalledTLSStream(anyio.abc.ByteStream):
-    def __init__(self) -> None:
+    def __init__(self, close_error: Exception | None = None) -> None:
         self.read_started = anyio.Event()
         self.closed = False
+        self.close_error = close_error
 
     async def send(self, item: bytes) -> None:
         pass
@@ -41,11 +42,14 @@ class StalledTLSStream(anyio.abc.ByteStream):
         # Closing a stream may yield before releasing its underlying resources.
         await anyio.lowlevel.checkpoint()
         self.closed = True
+        if self.close_error is not None:
+            raise self.close_error
 
 
 @pytest.mark.anyio
-async def test_anyio_tls_cancellation_closes_stream() -> None:
-    stream = StalledTLSStream()
+@pytest.mark.parametrize("close_error", [None, anyio.BrokenResourceError("close failed")])
+async def test_anyio_tls_cancellation_closes_stream(close_error: Exception | None) -> None:
+    stream = StalledTLSStream(close_error=close_error)
     scope = anyio.CancelScope()
 
     async def cancel_handshake() -> None:
@@ -64,11 +68,12 @@ async def test_anyio_tls_cancellation_closes_stream() -> None:
 
 
 @pytest.mark.anyio
-async def test_anyio_tls_asyncio_deadline_closes_stream(anyio_backend_name: str) -> None:
+@pytest.mark.parametrize("close_error", [None, anyio.BrokenResourceError("close failed")])
+async def test_anyio_tls_asyncio_deadline_closes_stream(anyio_backend_name: str, close_error: Exception | None) -> None:
     if anyio_backend_name != "asyncio":
         pytest.skip("asyncio deadlines require the asyncio backend")
 
-    stream = StalledTLSStream()
+    stream = StalledTLSStream(close_error=close_error)
     deadline = asyncio.timeout(None)
 
     async def expire_deadline() -> None:
@@ -87,6 +92,7 @@ async def test_anyio_tls_asyncio_deadline_closes_stream(anyio_backend_name: str)
 
 
 @pytest.mark.anyio
+@pytest.mark.parametrize("close_error", [None, anyio.BrokenResourceError("close failed")])
 @pytest.mark.parametrize(
     "error, expected",
     [
@@ -96,8 +102,10 @@ async def test_anyio_tls_asyncio_deadline_closes_stream(anyio_backend_name: str)
         (TimeoutError(), httpcore2.ConnectTimeout),
     ],
 )
-async def test_anyio_tls_failure_closes_stream(error: Exception, expected: type[Exception]) -> None:
-    stream = StalledTLSStream()
+async def test_anyio_tls_failure_closes_stream(
+    error: Exception, expected: type[Exception], close_error: Exception | None
+) -> None:
+    stream = StalledTLSStream(close_error=close_error)
 
     with patch("anyio.streams.tls.TLSStream.wrap", side_effect=error), pytest.raises(expected) as exc_info:
         await AnyIOStream(stream).start_tls(ssl.create_default_context(), server_hostname="example.com")
