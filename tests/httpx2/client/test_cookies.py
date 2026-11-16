@@ -268,3 +268,19 @@ def test_cookie_jar_sees_a_bounded_request_path() -> None:
 def test_relative_url_cookies_still_raise() -> None:
     with pytest.raises(ValueError, match="unknown url type"):
         httpx2.Cookies().set_cookie_header(httpx2.Request("GET", "/echo_cookies"))
+
+
+def test_cookie_policy_sees_url_without_query() -> None:
+    urls: list[str] = []
+
+    class RecordingPolicy(DefaultCookiePolicy):
+        def set_ok(self, cookie: Cookie, request: urllib.request.Request) -> bool:
+            urls.append(request.get_full_url())
+            return super().set_ok(cookie, request)
+
+    client = httpx2.Client(transport=httpx2.MockTransport(get_and_set_cookies))
+    client.cookies.jar.set_policy(RecordingPolicy())
+
+    client.get("http://user:secret@example.org/set_cookie?q=1#frag")
+
+    assert urls == ["http://example.org/set_cookie"]
