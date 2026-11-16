@@ -12,6 +12,10 @@ __all__ = ["IndexedCookieJar"]
 # longer hosts fall back to scanning every stored domain.
 MAX_HOST_LENGTH = 255
 
+# [RFC 6265bis](https://httpwg.org/http-extensions/draft-ietf-httpbis-rfc6265bis.html) ignores a `Path` longer
+# than 1024 octets, so the jar never needs more of the request path than that.
+MAX_PATH_LENGTH = 1024
+
 
 class IndexedCookieJar(CookieJar):
     """

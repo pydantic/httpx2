@@ -24,7 +24,7 @@ from http.cookiejar import Cookie, CookieJar
 from typing import Any, Self, TypeVar, overload
 
 from ._content import ByteStream, UnattachedStream, encode_request, encode_response
-from ._cookies import IndexedCookieJar
+from ._cookies import MAX_PATH_LENGTH, IndexedCookieJar
 from ._decoders import (
     ByteChunker,
     ContentDecoder,
@@ -1261,13 +1261,12 @@ class Cookies(MutableMapping[str, str]):
         """
 
         def __init__(self, request: Request) -> None:
-            # The jar copies the URL's host and path into every cookie, so drop userinfo and cap the path.
-            # Cutting after a `/` keeps every cookie path of up to 1024 bytes matching, the `Path` limit in
-            # [RFC 6265bis](https://httpwg.org/http-extensions/draft-ietf-httpbis-rfc6265bis.html).
-            path = request.url.raw_path.partition(b"?")[0]
-            self.directory_cut = path.rfind(b"/") > 1024
-            if len(path) > 1024:
-                path = path[: path.rfind(b"/", 0, 1025) + 1]
+            # The jar copies the URL's host and path into every cookie, so it gets no userinfo and a bounded path.
+            full_path = request.url.raw_path.partition(b"?")[0]
+            path = full_path
+            if len(path) > MAX_PATH_LENGTH:
+                path = path[: path.rfind(b"/", 0, MAX_PATH_LENGTH + 1) + 1]
+            self.directory_cut = b"/" in full_path[len(path) :]
             scheme = f"{request.url.scheme}:" if request.url.scheme else ""
             netloc = request.url.netloc.decode("ascii")
             super().__init__(

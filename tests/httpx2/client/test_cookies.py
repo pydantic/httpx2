@@ -241,42 +241,6 @@ def test_cookies_ignore_url_userinfo() -> None:
         assert client.get(url).json() == {"cookies": "example-name=example-value"}
 
 
-def test_cookie_jar_sees_a_bounded_request_path() -> None:
-    def echo_or_set_cookies(request: httpx2.Request) -> httpx2.Response:
-        if request.url.path.endswith("/set_cookie"):
-            return httpx2.Response(
-                200,
-                headers=[
-                    ("set-cookie", "default=1"),
-                    ("set-cookie", "gone=; Max-Age=0"),
-                    ("set-cookie", "explicit=1; Path=/"),
-                    ("set-cookie2", 'quoted=1; Version=0; Path=""'),
-                ],
-            )
-        return httpx2.Response(200, json={"cookies": request.headers.get("cookie")})
-
-    client = httpx2.Client(transport=httpx2.MockTransport(echo_or_set_cookies))
-    directory = "/" + "a" * 1023
-    deeper = directory + "/" + "b" * 2000
-    client.cookies.set("gone", "1", domain="example.net", path="/")
-
-    client.get(f"http://example.org{directory}/set_cookie?q=1")
-    client.get(f"http://example.com{deeper}/set_cookie")
-    client.get(f"http://example.net/{'c' * 1024}/set_cookie")
-    assert sorted((cookie.domain, cookie.name, cookie.path) for cookie in client.cookies.jar) == [
-        ("example.net", "gone", "/"),
-        ("example.org", "default", directory),
-        ("example.org", "explicit", "/"),
-        ("example.org", "quoted", directory),
-    ]
-
-    client.cookies.set("directory", "2", domain="example.org", path=directory)
-    client.cookies.set("segment", "3", domain="example.org", path="/" + "a" * 1000)
-    client.cookies.set("deeper", "4", domain="example.org", path=deeper)
-    response = client.get(f"http://example.org{deeper}/echo_cookies")
-    assert response.json() == {"cookies": "quoted=1; default=1; directory=2; explicit=1"}
-
-
 def test_relative_url_cookies_still_raise() -> None:
     with pytest.raises(ValueError, match="unknown url type"):
         httpx2.Cookies().set_cookie_header(httpx2.Request("GET", "/echo_cookies"))

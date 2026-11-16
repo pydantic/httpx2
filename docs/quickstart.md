@@ -417,6 +417,16 @@ with additional API for accessing cookies by their domain or path.
 {'cookies': {'cookie_on_domain': 'hello, there!'}}
 ```
 
+!!! note "Cookies see at most 1024 bytes of the URL path"
+    Cookies are matched against the scheme, host, and path of the request URL. Userinfo, the query string, and
+    the fragment play no part, so `http://user:pass@example.org/` and `http://example.org/` share cookies.
+
+    A cookie with a `Path` longer than 1024 bytes is not sent. That is the limit browsers apply.
+
+    A response to a URL whose directory is longer than 1024 bytes sets no cookies. A cookie with no `Path` is
+    scoped to the directory of the request. Scoping it to a shorter parent instead would send it to more URLs
+    than the server intended.
+
 ## Redirection and History
 
 By default, HTTPX will **not** follow redirects for all HTTP methods, although
