@@ -44,6 +44,7 @@ def test_socks5_request() -> None:
         assert proxy.connections[0].is_idle()
         assert proxy.connections[0].is_available()
         assert not proxy.connections[0].is_closed()
+        assert not proxy.connections[0].has_expired()
         assert not proxy.connections[0].has_expired_without_socket()
 
         # A connection on a tunneled proxy can only handle HTTPS requests to the same origin.
