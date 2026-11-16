@@ -151,6 +151,11 @@ def test_timeout_missing_default() -> None:
         httpx2.Timeout(pool=60.0)
 
 
+def test_timeout_from_unsupported_type() -> None:
+    with pytest.raises(TypeError, match="got <class 'object'>"):
+        httpx2.Timeout(object())  # type: ignore[arg-type]
+
+
 def test_timeout_from_tuple() -> None:
     timeout = httpx2.Timeout(timeout=(5.0, 5.0, 5.0, 5.0))
     assert timeout == httpx2.Timeout(timeout=5.0)
