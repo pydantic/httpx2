@@ -24,7 +24,7 @@ from http.cookiejar import Cookie, CookieJar
 from typing import Any, Self, TypeVar, overload
 
 from ._content import ByteStream, UnattachedStream, encode_request, encode_response
-from ._cookies import IndexedCookieJar
+from ._cookies import MAX_PATH_LENGTH, IndexedCookieJar
 from ._decoders import (
     ByteChunker,
     ContentDecoder,
@@ -1115,6 +1115,11 @@ class Cookies(MutableMapping[str, str]):
         if "set-cookie" not in response.headers and "set-cookie2" not in response.headers:
             return
 
+        # The jar would default cookies to a parent of the cut path, widening what they set or delete.
+        path = response.request.url.raw_path.partition(b"?")[0]
+        if path.rfind(b"/") > MAX_PATH_LENGTH:
+            return
+
         urllib_response = self._CookieCompatResponse(response)
         urllib_request = self._CookieCompatRequest(response.request)
 
@@ -1257,8 +1262,14 @@ class Cookies(MutableMapping[str, str]):
         """
 
         def __init__(self, request: Request) -> None:
+            # The jar copies the URL's host and path into every cookie, so it gets no userinfo and a bounded path.
+            path = request.url.raw_path.partition(b"?")[0]
+            if len(path) > MAX_PATH_LENGTH:
+                path = path[: path.rfind(b"/", 0, MAX_PATH_LENGTH + 1) + 1]
+            scheme = f"{request.url.scheme}:" if request.url.scheme else ""
+            netloc = request.url.netloc.decode("ascii")
             super().__init__(
-                url=str(request.url),
+                url=f"{scheme}//{netloc}{path.decode('ascii')}" if netloc else f"{scheme}{path.decode('ascii')}",
                 headers=dict(request.headers),
                 method=request.method,
             )
