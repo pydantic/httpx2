@@ -1051,6 +1051,6 @@ def test_elapsed_defaults_to_zero_for_explicitly_closed_response() -> None:
     response = httpx2.Response(200, content=iter([b"done"]))
     with pytest.raises(RuntimeError):
         response.elapsed  # noqa: B018
-    response.read()
+    response.close()
     assert response.is_closed
     assert response.elapsed == datetime.timedelta(0)
