@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 import os
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, SupportsFloat
 
 from ._models import Headers
 from ._types import CertTypes, HeaderTypes, TimeoutTypes
@@ -128,6 +128,10 @@ class Timeout:
         else:
             if isinstance(timeout, UnsetType):
                 raise ValueError("httpx2.Timeout must either include a default, or set all four parameters explicitly.")
+            if timeout is not None and not isinstance(timeout, SupportsFloat):
+                raise TypeError(
+                    f"Invalid timeout: expected a number, `None`, a tuple or `httpx2.Timeout`, got {type(timeout)!r}."
+                )
             self.connect = timeout if isinstance(connect, UnsetType) else connect
             self.read = timeout if isinstance(read, UnsetType) else read
             self.write = timeout if isinstance(write, UnsetType) else write
