@@ -990,12 +990,49 @@ class Response:
                 self._content = b"".join([part async for part in parts])
         return self._content
 
-    def aiter_bytes(self, chunk_size: int | None = None) -> AsyncGenerator[bytes, None]:
+    async def aiter_bytes(self, chunk_size: int | None = None) -> AsyncGenerator[bytes, None]:
         """
         A byte-iterator over the decoded response content.
         This allows us to handle gzip, deflate, brotli, and zstd encoded responses.
         """
-        return self._aiter_stream(chunk_size, decode=True)
+        if hasattr(self, "_content"):
+            chunk_size = len(self._content) if chunk_size is None else chunk_size
+            for i in range(0, len(self._content), max(chunk_size, 1)):
+                yield self._content[i : i + chunk_size]
+            return
+
+        decoder = self._get_content_decoder()
+        if self.is_stream_consumed:
+            raise StreamConsumed()
+        if self.is_closed:
+            raise StreamClosed()
+        if not isinstance(self.stream, AsyncByteStream):
+            raise RuntimeError("Attempted to call an async iterator on a sync stream.")
+
+        self.is_stream_consumed = True
+        self._num_bytes_downloaded = 0
+        chunker = ByteChunker(chunk_size=chunk_size)
+
+        # Reads the stream itself: closing a nested `aiter_raw()` races with asyncio finalizing it.
+        stream = self.stream.__aiter__()
+        try:
+            with request_context(request=self._request):
+                async for raw_stream_bytes in stream:
+                    if not raw_stream_bytes:
+                        continue  # an empty first chunk would defeat `DeflateDecoder`'s raw-deflate fallback
+                    self._num_bytes_downloaded += len(raw_stream_bytes)
+                    for decoded in decoder.decode(raw_stream_bytes):
+                        for chunk in chunker.decode(decoded):
+                            yield chunk
+                for decoded in decoder.flush():
+                    for chunk in chunker.decode(decoded):
+                        yield chunk  # pragma: no cover
+                for chunk in chunker.flush():
+                    yield chunk
+        finally:
+            if isinstance(stream, AsyncGenerator):
+                await stream.aclose()
+            await self.aclose()
 
     async def aiter_text(self, chunk_size: int | None = None) -> AsyncIterator[str]:
         """
@@ -1025,20 +1062,10 @@ class Response:
             for line in decoder.flush():
                 yield line
 
-    def aiter_raw(self, chunk_size: int | None = None) -> AsyncGenerator[bytes, None]:
+    async def aiter_raw(self, chunk_size: int | None = None) -> AsyncGenerator[bytes, None]:
         """
         A byte-iterator over the raw response content.
         """
-        return self._aiter_stream(chunk_size, decode=False)
-
-    # Shared, not nested: asyncio closes all async generators concurrently at shutdown, so nesting races.
-    async def _aiter_stream(self, chunk_size: int | None, decode: bool) -> AsyncGenerator[bytes, None]:
-        if decode and hasattr(self, "_content"):
-            chunk_size = len(self._content) if chunk_size is None else chunk_size
-            for i in range(0, len(self._content), max(chunk_size, 1)):
-                yield self._content[i : i + chunk_size]
-            return
-        decoder = self._get_content_decoder() if decode else IdentityDecoder()
         if self.is_stream_consumed:
             raise StreamConsumed()
         if self.is_closed:
@@ -1054,17 +1081,12 @@ class Response:
         try:
             with request_context(request=self._request):
                 async for raw_stream_bytes in stream:
-                    if not raw_stream_bytes:
-                        continue  # an empty first chunk would defeat `DeflateDecoder`'s raw-deflate fallback
                     self._num_bytes_downloaded += len(raw_stream_bytes)
-                    for decoded in decoder.decode(raw_stream_bytes):
-                        for chunk in chunker.decode(decoded):
-                            yield chunk
-                for decoded in decoder.flush():
-                    for chunk in chunker.decode(decoded):
-                        yield chunk  # pragma: no cover
-                for chunk in chunker.flush():
-                    yield chunk
+                    for chunk in chunker.decode(raw_stream_bytes):
+                        yield chunk
+
+            for chunk in chunker.flush():
+                yield chunk
         finally:
             if isinstance(stream, AsyncGenerator):
                 await stream.aclose()
