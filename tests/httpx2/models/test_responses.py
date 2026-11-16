@@ -1039,3 +1039,18 @@ def test_response_decode_text_using_explicit_encoding() -> None:
     assert response.reason_phrase == "OK"
     assert response.encoding == "cp1252"
     assert response.text == text
+
+
+def test_elapsed_defaults_to_zero_for_preloaded_response() -> None:
+    response = httpx2.Response(200, text="Already complete")
+    assert response.is_closed
+    assert response.elapsed == datetime.timedelta(0)
+
+
+def test_elapsed_defaults_to_zero_for_explicitly_closed_response() -> None:
+    response = httpx2.Response(200, content=iter([b"done"]))
+    with pytest.raises(RuntimeError):
+        response.elapsed  # noqa: B018
+    response.read()
+    assert response.is_closed
+    assert response.elapsed == datetime.timedelta(0)

@@ -421,3 +421,26 @@ async def test_server_extensions(server: TestServer) -> None:
         response = await client.get(url)
     assert response.status_code == 200
     assert response.extensions["http_version"] == b"HTTP/1.1"
+
+
+@pytest.mark.anyio
+async def test_mock_transport_closed_response_has_elapsed() -> None:
+    async with httpx2.AsyncClient(
+        transport=httpx2.MockTransport(lambda r: httpx2.Response(200, text="done"))
+    ) as client:
+        response = await client.get("http://example.com")
+    assert response.content == b"done"
+    assert response.elapsed == timedelta(0)
+
+
+@pytest.mark.anyio
+async def test_mock_transport_streaming_elapsed_is_measured() -> None:
+    async def stream() -> AsyncIterator[bytes]:
+        yield b"streamed"
+
+    async with httpx2.AsyncClient(
+        transport=httpx2.MockTransport(lambda r: httpx2.Response(200, content=stream()))
+    ) as client:
+        response = await client.get("http://example.com")
+    assert response.content == b"streamed"
+    assert response.elapsed > timedelta(0)

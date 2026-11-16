@@ -609,6 +609,10 @@ class Response:
             stream_elapsed: datetime.timedelta | None = getattr(self.stream, "elapsed", None)
             if stream_elapsed is not None:
                 return stream_elapsed
+            if self.is_closed:
+                # Manually constructed responses have no transport timer.
+                # Treat a completed response without one as instantaneous.
+                return datetime.timedelta(0)
             raise RuntimeError("'.elapsed' may only be accessed after the response has been read or closed.")
         return self._elapsed
 

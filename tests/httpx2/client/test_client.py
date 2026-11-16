@@ -481,3 +481,31 @@ def test_client_decode_text_using_explicit_encoding() -> None:
         assert response.reason_phrase == "OK"
         assert response.encoding == "Windows-1252"
         assert response.text == text
+
+
+def test_mock_transport_closed_response_has_elapsed() -> None:
+    with httpx2.Client(transport=httpx2.MockTransport(hello_world)) as client:
+        response = client.get("http://example.com")
+    assert response.content == b"Hello, world!"
+    assert response.elapsed == timedelta(0)
+
+
+def test_mock_transport_respects_explicit_elapsed() -> None:
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        response = httpx2.Response(200, text="done")
+        response.elapsed = timedelta(seconds=3)
+        return response
+
+    with httpx2.Client(transport=httpx2.MockTransport(handler)) as client:
+        response = client.get("http://example.com")
+    assert response.elapsed == timedelta(seconds=3)
+
+
+def test_mock_transport_streaming_elapsed_is_measured() -> None:
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(200, content=iter([b"streamed"]))
+
+    with httpx2.Client(transport=httpx2.MockTransport(handler)) as client:
+        response = client.get("http://example.com")
+    assert response.content == b"streamed"
+    assert response.elapsed > timedelta(0)
