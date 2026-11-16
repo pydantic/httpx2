@@ -885,3 +885,37 @@ def test_connection_pool_multiplexes_idle_http2_connection_within_a_pass() -> No
                 nursery.start_soon(fetch, pool)
 
     assert QueueObservingPool.max_queued_after_pass == 0
+
+
+
+def test_connection_pool_retries_failed_stream_close() -> None:
+    backend = httpcore2.MockBackend([b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n"])
+    with httpcore2.ConnectionPool(network_backend=backend) as pool:
+        response = pool.handle_request(
+            httpcore2.Request("GET", "http://example.com/", headers={"Host": "example.com"})
+        )
+        stream: Any = response.stream
+        original = stream._stream
+
+        class FailingOnce:
+            def __init__(self) -> None:
+                self.calls = 0
+
+            def close(self) -> None:
+                self.calls += 1
+                if self.calls == 1:
+                    raise OSError("close failed")
+                original.close()
+
+        flaky = FailingOnce()
+        stream._stream = flaky
+        with pytest.raises(OSError, match="close failed"):
+            stream.close()
+        assert flaky.calls == 1
+        assert len(pool._requests) == 1
+
+        stream.close()
+        assert flaky.calls == 2
+        assert pool._requests == []
+        stream.close()
+        assert flaky.calls == 2
