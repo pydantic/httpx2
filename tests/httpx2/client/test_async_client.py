@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import asyncio
 import sys
-from collections.abc import AsyncGenerator, AsyncIterator, Iterator
+from collections.abc import AsyncGenerator, AsyncIterator, Callable, Iterator
 from datetime import timedelta
 from types import TracebackType
-from typing import TYPE_CHECKING, Self
+from typing import TYPE_CHECKING, Any, Self
 
 import pytest
 
@@ -110,6 +110,32 @@ def test_abandon_streamed_response(server: TestServer) -> None:
             finally:
                 await response.aclose()
                 await client.aclose()
+
+    asyncio.run(request())
+
+
+@pytest.mark.parametrize(
+    "iterate",
+    [httpx2.Response.aiter_raw, httpx2.Response.aiter_bytes, httpx2.Response.aiter_text, httpx2.Response.aiter_lines],
+)
+def test_streamed_responses_open_at_event_loop_shutdown(
+    server: TestServer, iterate: Callable[[httpx2.Response], AsyncIterator[bytes | str]]
+) -> None:
+    errors: list[dict[str, Any]] = []
+    streams: list[AsyncIterator[bytes | str]] = []
+
+    async def request() -> None:
+        loop = asyncio.get_running_loop()
+        loop.set_exception_handler(lambda loop, context: errors.append(context))
+        client = httpx2.AsyncClient()
+        for _ in range(5):
+            request = client.build_request("GET", server.url.copy_with(path="/stream_response"))
+            response = await client.send(request, stream=True)
+            stream = iterate(response)
+            await anext(stream)
+            streams.append(stream)
+        await loop.shutdown_asyncgens()
+        assert errors == []
 
     asyncio.run(request())
 

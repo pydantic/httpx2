@@ -999,20 +999,40 @@ class Response:
             chunk_size = len(self._content) if chunk_size is None else chunk_size
             for i in range(0, len(self._content), max(chunk_size, 1)):
                 yield self._content[i : i + chunk_size]
-        else:
-            decoder = self._get_content_decoder()
-            chunker = ByteChunker(chunk_size=chunk_size)
+            return
+
+        decoder = self._get_content_decoder()
+        if self.is_stream_consumed:
+            raise StreamConsumed()
+        if self.is_closed:
+            raise StreamClosed()
+        if not isinstance(self.stream, AsyncByteStream):
+            raise RuntimeError("Attempted to call an async iterator on a sync stream.")
+
+        self.is_stream_consumed = True
+        self._num_bytes_downloaded = 0
+        chunker = ByteChunker(chunk_size=chunk_size)
+
+        # Reads the stream itself: closing a nested `aiter_raw()` races with asyncio finalizing it.
+        stream = self.stream.__aiter__()
+        try:
             with request_context(request=self._request):
-                async with contextlib.aclosing(self.aiter_raw()) as raw_stream:
-                    async for raw_bytes in raw_stream:
-                        for decoded in decoder.decode(raw_bytes):
-                            for chunk in chunker.decode(decoded):
-                                yield chunk
+                async for raw_stream_bytes in stream:
+                    if not raw_stream_bytes:
+                        continue  # an empty first chunk would defeat `DeflateDecoder`'s raw-deflate fallback
+                    self._num_bytes_downloaded += len(raw_stream_bytes)
+                    for decoded in decoder.decode(raw_stream_bytes):
+                        for chunk in chunker.decode(decoded):
+                            yield chunk
                 for decoded in decoder.flush():
                     for chunk in chunker.decode(decoded):
                         yield chunk  # pragma: no cover
                 for chunk in chunker.flush():
                     yield chunk
+        finally:
+            if isinstance(stream, AsyncGenerator):
+                await stream.aclose()
+            await self.aclose()
 
     async def aiter_text(self, chunk_size: int | None = None) -> AsyncIterator[str]:
         """

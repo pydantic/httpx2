@@ -3,7 +3,7 @@ from __future__ import annotations
 import ssl
 import sys
 import types
-from collections.abc import Generator, Iterable
+from collections.abc import Iterable, Iterator
 from typing import Self
 
 from .._backends.sync import SyncBackend
@@ -12,7 +12,6 @@ from .._exceptions import ConnectionNotAvailable, UnsupportedProtocol
 from .._models import Origin, Proxy, Request, Response
 from .._synchronization import Event, ShieldCancellation, ThreadLock
 from .._types import SOCKET_OPTION
-from .._utils import safe_iterate
 from .connection import HTTPConnection
 from .interfaces import ConnectionInterface, RequestInterface
 
@@ -422,10 +421,8 @@ class PoolByteStream:
         self._pool = pool
         self._closed = False
 
-    def __iter__(self) -> Generator[bytes]:
-        with safe_iterate(self._stream) as iterator:
-            for chunk in iterator:
-                yield chunk
+    def __iter__(self) -> Iterator[bytes]:
+        return self._stream.__iter__()
 
     def close(self) -> None:
         if not self._closed:

@@ -503,6 +503,9 @@ async def test_aiter_raw_on_sync() -> None:
     with pytest.raises(RuntimeError):
         [part async for part in response.aiter_raw()]
 
+    with pytest.raises(RuntimeError):
+        [part async for part in response.aiter_bytes()]
+
 
 @pytest.mark.anyio
 async def test_aclose_on_sync() -> None:
@@ -738,6 +741,9 @@ async def test_cannot_aread_after_stream_consumed() -> None:
     with pytest.raises(httpx2.StreamConsumed):
         await response.aread()
 
+    with pytest.raises(httpx2.StreamConsumed):
+        await anext(response.aiter_raw())
+
 
 def test_cannot_read_after_response_closed() -> None:
     response = httpx2.Response(
@@ -760,6 +766,9 @@ async def test_cannot_aread_after_response_closed() -> None:
     await response.aclose()
     with pytest.raises(httpx2.StreamClosed):
         await response.aread()
+
+    with pytest.raises(httpx2.StreamClosed):
+        await anext(response.aiter_raw())
 
 
 @pytest.mark.anyio
