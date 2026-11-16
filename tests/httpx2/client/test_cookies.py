@@ -244,12 +244,21 @@ def test_cookies_ignore_url_userinfo() -> None:
 def test_cookie_jar_sees_a_bounded_request_path() -> None:
     def echo_or_set_cookies(request: httpx2.Request) -> httpx2.Response:
         if request.url.path.endswith("/set_cookie"):
-            return httpx2.Response(200, headers=[("set-cookie", "default=1"), ("set-cookie", "explicit=1; Path=/")])
+            return httpx2.Response(
+                200,
+                headers=[
+                    ("set-cookie", "default=1"),
+                    ("set-cookie", "empty=1; Path="),
+                    ("set-cookie", "gone=; Max-Age=0"),
+                    ("set-cookie", "explicit=1; Path=/"),
+                ],
+            )
         return httpx2.Response(200, json={"cookies": request.headers.get("cookie")})
 
     client = httpx2.Client(transport=httpx2.MockTransport(echo_or_set_cookies))
     directory = "/" + "a" * 1023
     deeper = directory + "/" + "b" * 2000
+    client.cookies.set("gone", "1", domain="example.net", path="/")
 
     client.get(f"http://example.org{directory}/set_cookie?q=1")
     client.get(f"http://example.com{deeper}/set_cookie")
@@ -257,7 +266,9 @@ def test_cookie_jar_sees_a_bounded_request_path() -> None:
     assert sorted((cookie.domain, cookie.name, cookie.path) for cookie in client.cookies.jar) == [
         ("example.com", "explicit", "/"),
         ("example.net", "explicit", "/"),
+        ("example.net", "gone", "/"),
         ("example.org", "default", directory),
+        ("example.org", "empty", directory),
         ("example.org", "explicit", "/"),
     ]
 
@@ -265,7 +276,7 @@ def test_cookie_jar_sees_a_bounded_request_path() -> None:
     client.cookies.set("segment", "3", domain="example.org", path="/" + "a" * 1000)
     client.cookies.set("deeper", "4", domain="example.org", path=deeper)
     response = client.get(f"http://example.org{deeper}/echo_cookies")
-    assert response.json() == {"cookies": "default=1; directory=2; explicit=1"}
+    assert response.json() == {"cookies": "default=1; empty=1; directory=2; explicit=1"}
 
 
 def test_relative_url_cookies_still_raise() -> None:

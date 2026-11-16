@@ -1115,15 +1115,9 @@ class Cookies(MutableMapping[str, str]):
         if "set-cookie" not in response.headers and "set-cookie2" not in response.headers:
             return
 
-        urllib_response = self._CookieCompatResponse(response)
         urllib_request = self._CookieCompatRequest(response.request)
-
-        if urllib_request.directory_cut:
-            # The jar would default these cookies to a parent directory, widening their scope.
-            for cookie in self.jar.make_cookies(urllib_response, urllib_request):  # type: ignore
-                if cookie.path_specified:
-                    self.jar.set_cookie_if_ok(cookie, urllib_request)
-            return
+        # Cookies without `Path` would default to a parent of the cut path, widening what they set or delete.
+        urllib_response = self._CookieCompatResponse(response, explicit_path_only=urllib_request.directory_cut)
 
         self.jar.extract_cookies(urllib_response, urllib_request)  # type: ignore
 
@@ -1290,12 +1284,18 @@ class Cookies(MutableMapping[str, str]):
         for use with `CookieJar` operations.
         """
 
-        def __init__(self, response: Response) -> None:
+        def __init__(self, response: Response, explicit_path_only: bool) -> None:
             self.response = response
+            self.explicit_path_only = explicit_path_only
 
         def info(self) -> email.message.Message:
             info = email.message.Message()
             for key, value in self.response.headers.multi_items():
+                if self.explicit_path_only and key in ("set-cookie", "set-cookie2"):
+                    # Like `http.cookiejar`, only the first `Path` attribute counts, and an empty one is no `Path`.
+                    attributes = (part.partition("=") for part in value.split(";")[1:])
+                    if not next((v.strip() for k, _, v in attributes if k.strip().lower() == "path"), ""):
+                        continue
                 # Note that setting `info[key]` here is an "append" operation,
                 # not a "replace" operation.
                 # https://docs.python.org/3/library/email.compat32-message.html#email.message.Message.__setitem__
