@@ -6,14 +6,15 @@ on:
   pull_request:
     branches: ["main"]
 
-permissions:
-  id-token: write
-  contents: read
+permissions: {}
 
 jobs:
   benchmarks:
     name: Run benchmarks
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # CodSpeed OIDC authentication
     steps:
       - uses: actions/checkout@v7.0.1
         with:
@@ -38,6 +39,9 @@ jobs:
   memory-benchmarks:
     name: Run memory benchmarks
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # CodSpeed OIDC authentication
     steps:
       - uses: actions/checkout@v7.0.1
         with:
