@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2.16.2 (November 16th, 2026)
+
+### Fixed
+
+* Restore the `Union` form of the type aliases in `httpx2._types`, such as `QueryParamTypes` and `HeaderTypes`. In `2.16.1` they were strings, so `Optional[QueryParamTypes]` raised `SyntaxError` and `QueryParamTypes | None` raised `TypeError` at runtime.
+  ([#1346](https://github.com/pydantic/httpx2/pull/1346))
+
 ## 2.16.1 (November 16th, 2026)
 
 ### Fixed
