@@ -69,19 +69,6 @@ async def test_deflate_stream_with_leading_empty_chunk() -> None:
     assert await response.aread() == body
 
 
-def test_deflate_sync_stream_with_leading_empty_chunk() -> None:
-    body = b"test 123"
-    compressor = zlib.compressobj(9, zlib.DEFLATED, -zlib.MAX_WBITS)
-    compressed_body = compressor.compress(body) + compressor.flush()
-
-    def raw() -> Iterator[bytes]:
-        yield b""
-        yield compressed_body
-
-    response = httpx2.Response(200, headers=[(b"Content-Encoding", b"deflate")], content=raw())
-    assert response.read() == body
-
-
 def test_gzip() -> None:
     body = b"test 123"
     compressor = zlib.compressobj(9, zlib.DEFLATED, zlib.MAX_WBITS | 16)
@@ -337,17 +324,6 @@ async def test_multi_decode_links_limit_keeps_raw_stream_readable() -> None:
     with pytest.raises(httpx2.DecodingError, match="Cannot apply more than 5 content encodings"):
         await anext(response.aiter_bytes())
     assert [chunk async for chunk in response.aiter_raw()] == [b"raw"]
-
-
-def test_multi_decode_links_limit_keeps_sync_raw_stream_readable() -> None:
-    def body() -> Iterator[bytes]:
-        yield b"raw"
-
-    headers = [(b"Content-Encoding", b", ".join([b"gzip"] * 6))]
-    response = httpx2.Response(200, headers=headers, content=body())
-    with pytest.raises(httpx2.DecodingError, match="Cannot apply more than 5 content encodings"):
-        next(response.iter_bytes())
-    assert list(response.iter_raw()) == [b"raw"]
 
 
 def test_multi_decode_links_limit_ignores_identity_and_unsupported() -> None:

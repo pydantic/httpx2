@@ -895,7 +895,23 @@ class Response:
         A byte-iterator over the decoded response content.
         This allows us to handle gzip, deflate, brotli, and zstd encoded responses.
         """
-        return self._iter_stream(chunk_size, decode=True)
+        if hasattr(self, "_content"):
+            chunk_size = len(self._content) if chunk_size is None else chunk_size
+            for i in range(0, len(self._content), max(chunk_size, 1)):
+                yield self._content[i : i + chunk_size]
+        else:
+            decoder = self._get_content_decoder()
+            chunker = ByteChunker(chunk_size=chunk_size)
+            with request_context(request=self._request):
+                for raw_bytes in self.iter_raw():
+                    for decoded in decoder.decode(raw_bytes):
+                        for chunk in chunker.decode(decoded):
+                            yield chunk
+                for decoded in decoder.flush():
+                    for chunk in chunker.decode(decoded):
+                        yield chunk  # pragma: no cover
+                for chunk in chunker.flush():
+                    yield chunk
 
     def iter_text(self, chunk_size: int | None = None) -> Iterator[str]:
         """
@@ -929,16 +945,6 @@ class Response:
         """
         A byte-iterator over the raw response content.
         """
-        return self._iter_stream(chunk_size, decode=False)
-
-    # Mirrors `_aiter_stream`.
-    def _iter_stream(self, chunk_size: int | None, decode: bool) -> Iterator[bytes]:
-        if decode and hasattr(self, "_content"):
-            chunk_size = len(self._content) if chunk_size is None else chunk_size
-            for i in range(0, len(self._content), max(chunk_size, 1)):
-                yield self._content[i : i + chunk_size]
-            return
-        decoder = self._get_content_decoder() if decode else IdentityDecoder()
         if self.is_stream_consumed:
             raise StreamConsumed()
         if self.is_closed:
@@ -953,17 +959,12 @@ class Response:
         try:
             with request_context(request=self._request):
                 for raw_stream_bytes in self.stream:
-                    if not raw_stream_bytes:
-                        continue  # an empty first chunk would defeat `DeflateDecoder`'s raw-deflate fallback
                     self._num_bytes_downloaded += len(raw_stream_bytes)
-                    for decoded in decoder.decode(raw_stream_bytes):
-                        for chunk in chunker.decode(decoded):
-                            yield chunk
-                for decoded in decoder.flush():
-                    for chunk in chunker.decode(decoded):
-                        yield chunk  # pragma: no cover
-                for chunk in chunker.flush():
-                    yield chunk
+                    for chunk in chunker.decode(raw_stream_bytes):
+                        yield chunk
+
+            for chunk in chunker.flush():
+                yield chunk
         finally:
             self.close()
 
