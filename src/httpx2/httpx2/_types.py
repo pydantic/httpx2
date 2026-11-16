@@ -4,7 +4,7 @@ Type definitions for type checking purposes.
 
 from collections.abc import AsyncIterable, AsyncIterator, Callable, Iterable, Iterator, Mapping, Sequence
 from http.cookiejar import CookieJar
-from typing import IO, TYPE_CHECKING, Any, TypeAlias, TypeVar
+from typing import IO, TYPE_CHECKING, Any, TypeVar, Union
 
 if TYPE_CHECKING:
     from ._auth import Auth
@@ -17,32 +17,32 @@ AnyStr = TypeVar("AnyStr", bytes, str)
 
 PrimitiveData = str | int | float | bool | None
 
-URLTypes: TypeAlias = "URL | str"
+URLTypes = Union["URL", str]
 
-QueryParamTypes: TypeAlias = """
-    QueryParams
-    | Mapping[str, PrimitiveData | Sequence[PrimitiveData]]
-    | list[tuple[str, PrimitiveData]]
-    | tuple[tuple[str, PrimitiveData], ...]
-    | str
-    | bytes
-"""
+QueryParamTypes = Union[
+    "QueryParams",
+    Mapping[str, PrimitiveData | Sequence[PrimitiveData]],
+    list[tuple[str, PrimitiveData]],
+    tuple[tuple[str, PrimitiveData], ...],
+    str,
+    bytes,
+]
 
-HeaderTypes: TypeAlias = """
-    Headers
-    | Mapping[str, str]
-    | Mapping[bytes, bytes]
-    | Sequence[tuple[str, str]]
-    | Sequence[tuple[bytes, bytes]]
-"""
+HeaderTypes = Union[
+    "Headers",
+    Mapping[str, str],
+    Mapping[bytes, bytes],
+    Sequence[tuple[str, str]],
+    Sequence[tuple[bytes, bytes]],
+]
 
-CookieTypes: TypeAlias = "Cookies | CookieJar | dict[str, str] | list[tuple[str, str]]"
+CookieTypes = Union["Cookies", CookieJar, dict[str, str], list[tuple[str, str]]]
 
-TimeoutTypes: TypeAlias = "float | tuple[float | None, float | None, float | None, float | None] | Timeout | None"
-ProxyTypes: TypeAlias = "URL | str | Proxy"
+TimeoutTypes = Union[float | None, tuple[float | None, float | None, float | None, float | None], "Timeout"]
+ProxyTypes = Union["URL", str, "Proxy"]
 CertTypes = str | tuple[str, str] | tuple[str, str, str]
 
-AuthTypes: TypeAlias = "tuple[str | bytes, str | bytes] | Callable[[Request], Request] | Auth"
+AuthTypes = Union[tuple[str | bytes, str | bytes], Callable[["Request"], "Request"], "Auth"]
 
 RequestContent = str | bytes | Iterable[bytes] | AsyncIterable[bytes]
 ResponseContent = str | bytes | Iterable[bytes] | AsyncIterable[bytes]
