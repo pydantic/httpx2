@@ -1115,12 +1115,13 @@ class Cookies(MutableMapping[str, str]):
         if "set-cookie" not in response.headers and "set-cookie2" not in response.headers:
             return
 
+        # The jar would default cookies to a parent of the cut path, widening what they set or delete.
+        path = response.request.url.raw_path.partition(b"?")[0]
+        if path.rfind(b"/") > MAX_PATH_LENGTH:
+            return
+
         urllib_response = self._CookieCompatResponse(response)
         urllib_request = self._CookieCompatRequest(response.request)
-
-        # The jar would default cookies to a parent of the cut path, widening what they set or delete.
-        if urllib_request.directory_cut:
-            return
 
         self.jar.extract_cookies(urllib_response, urllib_request)  # type: ignore
 
@@ -1262,11 +1263,9 @@ class Cookies(MutableMapping[str, str]):
 
         def __init__(self, request: Request) -> None:
             # The jar copies the URL's host and path into every cookie, so it gets no userinfo and a bounded path.
-            full_path = request.url.raw_path.partition(b"?")[0]
-            path = full_path
+            path = request.url.raw_path.partition(b"?")[0]
             if len(path) > MAX_PATH_LENGTH:
                 path = path[: path.rfind(b"/", 0, MAX_PATH_LENGTH + 1) + 1]
-            self.directory_cut = b"/" in full_path[len(path) :]
             scheme = f"{request.url.scheme}:" if request.url.scheme else ""
             netloc = request.url.netloc.decode("ascii")
             super().__init__(
