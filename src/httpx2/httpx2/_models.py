@@ -1118,6 +1118,13 @@ class Cookies(MutableMapping[str, str]):
         urllib_response = self._CookieCompatResponse(response)
         urllib_request = self._CookieCompatRequest(response.request)
 
+        if urllib_request.directory_cut:
+            # The jar would default these cookies to a parent directory, widening their scope.
+            for cookie in self.jar.make_cookies(urllib_response, urllib_request):  # type: ignore
+                if cookie.path_specified:
+                    self.jar.set_cookie_if_ok(cookie, urllib_request)
+            return
+
         self.jar.extract_cookies(urllib_response, urllib_request)  # type: ignore
 
     def set_cookie_header(self, request: Request) -> None:
@@ -1261,6 +1268,7 @@ class Cookies(MutableMapping[str, str]):
             # Cutting after a `/` keeps every cookie path of up to 1024 bytes matching, the `Path` limit in
             # [RFC 6265bis](https://httpwg.org/http-extensions/draft-ietf-httpbis-rfc6265bis.html).
             path = request.url.raw_path.partition(b"?")[0]
+            self.directory_cut = path.rfind(b"/") > 1024
             if len(path) > 1024:
                 path = path[: path.rfind(b"/", 0, 1025) + 1]
             scheme = f"{request.url.scheme}:" if request.url.scheme else ""
