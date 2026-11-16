@@ -1059,3 +1059,34 @@ async def test_legacy_connection_expiry_fallback_runs_through_pool() -> None:
     assert conn.info() == "legacy expiry interface"
     await response.aclose()
     await pool.aclose()
+
+
+def test_multiplexed_reservation_is_recorded_within_assignment_pass() -> None:
+    connection = Mock(spec=httpcore2.AsyncConnectionInterface)
+    connection.is_closed.return_value = False
+    connection.is_connected.return_value = True
+    connection.is_idle.return_value = True
+    connection.is_available.return_value = True
+    connection.can_multiplex.return_value = True
+    connection.can_handle_request.return_value = True
+    connection.has_expired_without_socket.return_value = False
+    # The socket changes between the two assignments. The second check must
+    # never occur once the first queued request has reserved the connection.
+    connection.has_expired.side_effect = [False, True]
+
+    request = httpcore2.Request("GET", "https://example.com/")
+    first = Mock(connection=None, request=request)
+    first.is_queued.return_value = True
+    second = Mock(connection=None, request=request)
+    second.is_queued.return_value = True
+    pool = httpcore2.AsyncConnectionPool(max_connections=1, http2=True)
+    pool._connections = [connection]
+    pool._requests = [first, second]
+
+    closing = pool._assign_requests_to_connections()
+
+    assert closing == []
+    assert pool.connections == [connection]
+    first.assign_to_connection.assert_called_once_with(connection)
+    second.assign_to_connection.assert_called_once_with(connection)
+    connection.has_expired.assert_called_once()

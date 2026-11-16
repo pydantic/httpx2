@@ -268,6 +268,8 @@ class ConnectionPool(RequestInterface):
         # Connections currently referenced by an in-flight request, including
         # connections that are in the process of being established and idle
         # connections reserved by an assigned-but-not-yet-sent request.
+        # Update this set during assignment: later queued requests must not
+        # retire a newly reserved idle multiplexed connection.
         request_connections = {r.connection for r in self._requests}
 
         # First we handle cleaning up any connections that are closed
@@ -356,6 +358,7 @@ class ConnectionPool(RequestInterface):
                     new_connection_budget += 1
                     continue
                 pool_request.assign_to_connection(connection)
+                request_connections.add(connection)
                 if connection.is_idle() and not connection.can_multiplex():
                     # An idle HTTP/1.1 connection can only take this
                     # single request until it is released.
@@ -366,6 +369,7 @@ class ConnectionPool(RequestInterface):
                     connection = self.create_connection(origin)
                     self._connections.append(connection)
                     pool_request.assign_to_connection(connection)
+                    request_connections.add(connection)
                     new_connection_budget -= 1
                     continue
                 for idx, connection in enumerate(available_connections):
@@ -376,6 +380,7 @@ class ConnectionPool(RequestInterface):
                         connection = self.create_connection(origin)
                         self._connections.append(connection)
                         pool_request.assign_to_connection(connection)
+                        request_connections.add(connection)
                         break
 
         return closing_connections
