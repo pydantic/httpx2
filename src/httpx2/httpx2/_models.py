@@ -1258,7 +1258,8 @@ class Cookies(MutableMapping[str, str]):
 
         def __init__(self, request: Request) -> None:
             # The jar copies the URL's host and path into every cookie, so drop userinfo and cap the path.
-            # Cutting after a `/` keeps every cookie path of up to 1024 bytes, the RFC 6265bis `Path` limit, matching.
+            # Cutting after a `/` keeps every cookie path of up to 1024 bytes matching, the `Path` limit in
+            # [RFC 6265bis](https://httpwg.org/http-extensions/draft-ietf-httpbis-rfc6265bis.html).
             path = request.url.raw_path.partition(b"?")[0]
             if len(path) > 1024:
                 path = path[: path.rfind(b"/", 0, 1025) + 1]
