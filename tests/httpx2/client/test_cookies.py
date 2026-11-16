@@ -229,3 +229,42 @@ def test_cookies_are_sent_to_hosts_longer_than_a_dns_name() -> None:
     response = client.get(f"http://{'a.' * 200}example.org/echo_cookies")
 
     assert response.json() == {"cookies": "parent=1"}
+
+
+def test_cookies_ignore_url_userinfo() -> None:
+    client = httpx2.Client(transport=httpx2.MockTransport(get_and_set_cookies))
+
+    client.get("http://user:secret@example.org/set_cookie")
+
+    assert [cookie.domain for cookie in client.cookies.jar] == ["example.org"]
+    for url in ["http://example.org/echo_cookies", "http://user:secret@example.org/echo_cookies"]:
+        assert client.get(url).json() == {"cookies": "example-name=example-value"}
+
+
+def test_cookie_jar_sees_a_bounded_request_path() -> None:
+    def echo_or_set_cookies(request: httpx2.Request) -> httpx2.Response:
+        if request.url.path.endswith("/set_cookie"):
+            return httpx2.Response(200, headers={"set-cookie": "default=1"})
+        return httpx2.Response(200, json={"cookies": request.headers.get("cookie")})
+
+    client = httpx2.Client(transport=httpx2.MockTransport(echo_or_set_cookies))
+    directory = "/" + "a" * 1023
+    deeper = directory + "/" + "b" * 2000
+
+    client.get(f"http://example.org{directory}/set_cookie?q=1")
+    client.get(f"http://example.com{deeper}/set_cookie")
+    assert {cookie.domain: cookie.path for cookie in client.cookies.jar} == {
+        "example.org": directory,
+        "example.com": directory,
+    }
+
+    client.cookies.set("directory", "2", domain="example.org", path=directory)
+    client.cookies.set("segment", "3", domain="example.org", path="/" + "a" * 1000)
+    client.cookies.set("deeper", "4", domain="example.org", path=deeper)
+    response = client.get(f"http://example.org{deeper}/echo_cookies")
+    assert response.json() == {"cookies": "default=1; directory=2"}
+
+
+def test_relative_url_cookies_still_raise() -> None:
+    with pytest.raises(ValueError, match="unknown url type"):
+        httpx2.Cookies().set_cookie_header(httpx2.Request("GET", "/echo_cookies"))
