@@ -1,6 +1,7 @@
 import logging
 from collections.abc import Iterable
 from typing import Any
+from unittest.mock import Mock
 
 import hpack
 import hyperframe.frame
@@ -972,3 +973,89 @@ def test_idle_pool_only_probes_candidate_socket() -> None:
     legacy = IdleConnection(target_request.url.origin)
     assert httpcore2.ConnectionInterface.has_expired_without_socket(legacy) is False
     assert legacy.socket_checks == 1
+
+
+def test_reserved_idle_multiplexed_connection_is_not_retired_on_new_request() -> None:
+    # An HTTP/2 connection can still be IDLE while a request has been assigned
+    # to it but has not yet started. Retiring it would break that first request.
+    connection = Mock(spec=httpcore2.ConnectionInterface)
+    connection.is_closed.return_value = False
+    connection.is_connected.return_value = True
+    connection.is_idle.return_value = True
+    connection.is_available.return_value = True
+    connection.can_multiplex.return_value = True
+    connection.can_handle_request.return_value = True
+    connection.has_expired_without_socket.return_value = False
+    connection.has_expired.return_value = True  # A now-readable idle socket.
+
+    first = Mock(connection=connection)
+    first.is_queued.return_value = False
+    second = Mock(connection=None, request=httpcore2.Request("GET", "https://example.com/"))
+    second.is_queued.return_value = True
+
+    pool = httpcore2.ConnectionPool(max_connections=1, http2=True)
+    pool._connections = [connection]
+    pool._requests = [first, second]
+
+    closing = pool._assign_requests_to_connections()
+
+    assert closing == []
+    assert pool.connections == [connection]
+    second.assign_to_connection.assert_called_once_with(connection)
+    connection.has_expired.assert_not_called()
+
+
+
+def test_legacy_connection_expiry_fallback_runs_through_pool() -> None:
+    class LegacyConnection(httpcore2.ConnectionInterface):
+        def __init__(self, origin: httpcore2.Origin) -> None:
+            self.origin = origin
+            self.expiry_checks = 0
+            self.handled = 0
+
+        def can_handle_request(self, origin: httpcore2.Origin) -> bool:
+            return origin == self.origin
+
+        def is_connected(self) -> bool:
+            return True
+
+        def is_available(self) -> bool:
+            return True
+
+        def is_idle(self) -> bool:
+            return True
+
+        def is_closed(self) -> bool:
+            return False
+
+        def can_multiplex(self) -> bool:
+            return False
+
+        def has_expired(self) -> bool:
+            self.expiry_checks += 1
+            return False
+
+        def handle_request(self, request: httpcore2.Request) -> httpcore2.Response:
+            self.handled += 1
+            return httpcore2.Response(200, content=b"ok")
+
+        def close(self) -> None:
+            pass
+
+        def info(self) -> str:
+            return "legacy expiry interface"
+
+    # This implementation intentionally does not define
+    # has_expired_without_socket(): the interface's fallback must be used.
+    request = httpcore2.Request("GET", "http://legacy.example/")
+    conn = LegacyConnection(request.url.origin)
+    pool = httpcore2.ConnectionPool(max_connections=1)
+    pool._connections = [conn]
+
+    response = pool.handle_request(request)
+    assert response.status == 200
+    assert conn.handled == 1
+    assert conn.expiry_checks == 2  # Maintenance and candidate reuse.
+    assert conn.info() == "legacy expiry interface"
+    response.close()
+    pool.close()

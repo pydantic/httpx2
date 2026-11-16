@@ -347,7 +347,7 @@ class AsyncConnectionPool(AsyncRequestInterface):
                 if not connection.can_handle_request(origin):
                     idx += 1
                     continue
-                if connection.is_idle() and connection.has_expired():
+                if connection.is_idle() and connection not in request_connections and connection.has_expired():
                     # Probe the socket only for idle connections that would be
                     # reused. Keepalive expiry was already checked above.
                     del available_connections[idx]

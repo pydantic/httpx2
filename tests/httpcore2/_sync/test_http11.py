@@ -346,3 +346,23 @@ def test_http11_header_sub_100kb() -> None:
         response = conn.request("GET", "https://example.com/")
         assert response.status == 200
         assert response.content == b""
+
+
+def test_http11_subclass_expiration_override_is_preserved() -> None:
+    class ExpiredConnection(httpcore2.HTTP11Connection):
+        def has_expired(self) -> bool:
+            return True
+
+    origin = httpcore2.Origin(b"https", b"example.com", 443)
+    conn = ExpiredConnection(origin, httpcore2.MockStream([]))
+    assert conn.has_expired_without_socket()
+
+
+def test_http11_subclass_expiration_override_calling_super() -> None:
+    class DelegatingConnection(httpcore2.HTTP11Connection):
+        def has_expired(self) -> bool:
+            return super().has_expired()
+
+    origin = httpcore2.Origin(b"https", b"example.com", 443)
+    conn = DelegatingConnection(origin, httpcore2.MockStream([]))
+    assert not conn.has_expired_without_socket()

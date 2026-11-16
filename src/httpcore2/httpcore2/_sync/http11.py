@@ -257,9 +257,16 @@ class HTTP11Connection(ConnectionInterface):
         server_disconnected = self._state == HTTPConnectionState.IDLE and self._network_stream.get_extra_info(
             "is_readable"
         )
-        return self.has_expired_without_socket() or server_disconnected
+        return self._keepalive_expired() or server_disconnected
 
     def has_expired_without_socket(self) -> bool:
+        # Subclasses may provide custom expiration rules through has_expired().
+        # Preserve that contract rather than silently bypassing their overrides.
+        if type(self).has_expired is not HTTP11Connection.has_expired:
+            return self.has_expired()
+        return self._keepalive_expired()
+
+    def _keepalive_expired(self) -> bool:
         # Read `_expire_at` once into a local: on free-threaded builds another
         # thread may reset it to `None` between the check and comparison.
         expire_at = self._expire_at
