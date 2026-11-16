@@ -3,7 +3,8 @@ from __future__ import annotations
 import functools
 import json
 import sys
-import typing
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Any, BinaryIO, cast
 
 import click
 import pygments.lexers
@@ -19,7 +20,7 @@ from ._exceptions import RequestError
 from ._models import Response
 from ._status_codes import codes
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     import httpcore2  # pragma: no cover
 
 
@@ -95,7 +96,7 @@ def get_lexer_for_response(response: Response) -> str:
     if content_type is not None:
         mime_type, _, _ = content_type.partition(";")
         try:
-            return typing.cast(str, pygments.lexers.get_lexer_for_mimetype(mime_type.strip()).name)
+            return cast(str, pygments.lexers.get_lexer_for_mimetype(mime_type.strip()).name)
         except pygments.util.ClassNotFound:  # pragma: no cover
             pass
     return ""  # pragma: no cover
@@ -190,7 +191,7 @@ def format_certificate(cert: _PeerCertRetDictType) -> str:  # pragma: no cover
     return "\n".join(lines)
 
 
-def trace(name: str, info: typing.Mapping[str, typing.Any], verbose: bool = False) -> None:
+def trace(name: str, info: Mapping[str, Any], verbose: bool = False) -> None:
     console = rich.console.Console()
     if name == "connection.connect_tcp.started" and verbose:
         host = info["host"]
@@ -227,7 +228,7 @@ def trace(name: str, info: typing.Mapping[str, typing.Any], verbose: bool = Fals
         print_response_headers(http_version, status, reason_phrase, headers)
 
 
-def download_response(response: Response, download: typing.BinaryIO) -> None:
+def download_response(response: Response, download: BinaryIO) -> None:
     console = rich.console.Console()
     console.print()
     content_length = response.headers.get("Content-Length")
@@ -252,8 +253,8 @@ def download_response(response: Response, download: typing.BinaryIO) -> None:
 def validate_json(
     ctx: click.Context,
     param: click.Option | click.Parameter,
-    value: typing.Any,
-) -> typing.Any:
+    value: Any,
+) -> Any:
     if value is None:
         return None
 
@@ -266,8 +267,8 @@ def validate_json(
 def validate_auth(
     ctx: click.Context,
     param: click.Option | click.Parameter,
-    value: typing.Any,
-) -> typing.Any:
+    value: Any,
+) -> Any:
     if value == (None, None):
         return None
 
@@ -280,7 +281,7 @@ def validate_auth(
 def handle_help(
     ctx: click.Context,
     param: click.Option | click.Parameter,
-    value: typing.Any,
+    value: Any,
 ) -> None:
     if not value or ctx.resilient_parsing:
         return
@@ -442,7 +443,7 @@ def main(
     follow_redirects: bool,
     verify: bool,
     http2: bool,
-    download: typing.BinaryIO | None,
+    download: BinaryIO | None,
     verbose: bool,
 ) -> None:
     """

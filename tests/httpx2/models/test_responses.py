@@ -3,7 +3,7 @@ from __future__ import annotations
 import datetime
 import json
 import pickle
-import typing
+from collections.abc import AsyncIterator, Iterator
 
 import chardet
 import pytest
@@ -12,17 +12,17 @@ import httpx2
 
 
 class StreamingBody:
-    def __iter__(self) -> typing.Iterator[bytes]:
+    def __iter__(self) -> Iterator[bytes]:
         yield b"Hello, "
         yield b"world!"
 
 
-def streaming_body() -> typing.Iterator[bytes]:
+def streaming_body() -> Iterator[bytes]:
     yield b"Hello, "
     yield b"world!"
 
 
-async def async_streaming_body() -> typing.AsyncIterator[bytes]:
+async def async_streaming_body() -> AsyncIterator[bytes]:
     yield b"Hello, "
     yield b"world!"
 
@@ -412,7 +412,7 @@ def test_iter_raw_with_chunksize() -> None:
 
 
 def test_iter_raw_doesnt_return_empty_chunks() -> None:
-    def streaming_body_with_empty_chunks() -> typing.Iterator[bytes]:
+    def streaming_body_with_empty_chunks() -> Iterator[bytes]:
         yield b"Hello, "
         yield b""
         yield b"world!"
@@ -555,7 +555,7 @@ def test_iter_bytes_with_empty_response() -> None:
 
 
 def test_iter_bytes_doesnt_return_empty_chunks() -> None:
-    def streaming_body_with_empty_chunks() -> typing.Iterator[bytes]:
+    def streaming_body_with_empty_chunks() -> Iterator[bytes]:
         yield b"Hello, "
         yield b""
         yield b"world!"
@@ -941,7 +941,7 @@ def test_cannot_access_unset_request() -> None:
 
 
 def test_generator_with_transfer_encoding_header() -> None:
-    def content() -> typing.Iterator[bytes]:
+    def content() -> Iterator[bytes]:
         yield b"test 123"  # pragma: no cover
 
     response = httpx2.Response(200, content=content())
@@ -949,7 +949,7 @@ def test_generator_with_transfer_encoding_header() -> None:
 
 
 def test_generator_with_content_length_header() -> None:
-    def content() -> typing.Iterator[bytes]:
+    def content() -> Iterator[bytes]:
         yield b"test 123"  # pragma: no cover
 
     headers = {"Content-Length": "8"}

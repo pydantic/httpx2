@@ -4,14 +4,16 @@ Type definitions for type checking purposes.
 
 from collections.abc import AsyncIterable, AsyncIterator, Callable, Iterable, Iterator, Mapping, Sequence
 from http.cookiejar import CookieJar
-from typing import IO, TYPE_CHECKING, Any, Union
+from typing import IO, TYPE_CHECKING, Any, TypeVar, Union
 
 if TYPE_CHECKING:
-    from ._auth import Auth  # noqa: F401
-    from ._config import Proxy, Timeout  # noqa: F401
-    from ._models import Cookies, Headers, Request  # noqa: F401
-    from ._urls import URL, QueryParams  # noqa: F401
+    from ._auth import Auth
+    from ._config import Proxy, Timeout
+    from ._models import Cookies, Headers, Request
+    from ._urls import URL, QueryParams
 
+
+AnyStr = TypeVar("AnyStr", bytes, str)
 
 PrimitiveData = str | int | float | bool | None
 

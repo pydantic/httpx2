@@ -4,6 +4,36 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2.16.2 (November 16th, 2026)
+
+### Fixed
+
+* Restore the `Union` form of the type aliases in `httpx2._types`, such as `QueryParamTypes` and `HeaderTypes`. In `2.16.1` they were strings, so `Optional[QueryParamTypes]` raised `SyntaxError` and `QueryParamTypes | None` raised `TypeError` at runtime.
+  ([#1346](https://github.com/pydantic/httpx2/pull/1346))
+
+## 2.16.1 (November 16th, 2026)
+
+### Fixed
+
+* Return the response when a redirect has an invalid `Location` header and redirects are not followed, instead of raising `RemoteProtocolError`. `response.next_request` is `None` in that case.
+  ([#1064](https://github.com/pydantic/httpx2/pull/1064))
+* Match subdomains for `NO_PROXY` entries written as `*.example.com`, the same as `.example.com`. The entry never matched before, so those requests still went through the proxy.
+  ([#1277](https://github.com/pydantic/httpx2/pull/1277))
+* Parse Digest challenge parameter names case-insensitively, and allow whitespace around `=`. A challenge such as `Digest Realm="r", Nonce="n"` raised `ProtocolError` before.
+  ([#1315](https://github.com/pydantic/httpx2/pull/1315))
+
+## 2.16.0 (October 21st, 2026)
+
+### Changed
+
+* Look up only the cookie domains that match the request host, and skip the expired cookie sweep until a cookie is due. With 1,000 cookies across 500 domains, building the `Cookie` header is about 18 times faster. Cookies from different domains are now sent from the least to the most specific domain.
+  ([#1285](https://github.com/pydantic/httpx2/pull/1285))
+
+### Fixed
+
+* Reuse the client cookie jar instead of copying it on every request and redirect. A custom policy set with `client.cookies.jar.set_policy()` now applies to outgoing requests.
+  ([#1284](https://github.com/pydantic/httpx2/pull/1284))
+
 ## 2.15.1 (October 19th, 2026)
 
 ### Fixed

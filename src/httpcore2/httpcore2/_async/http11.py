@@ -5,8 +5,8 @@ import logging
 import ssl
 import time
 import types
-import typing
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, AsyncIterable
+from typing import Any, Self
 
 import h11
 
@@ -142,7 +142,7 @@ class AsyncHTTP11Connection(AsyncConnectionInterface):
         timeouts = request.extensions.get("timeout", {})
         timeout = timeouts.get("write", None)
 
-        assert isinstance(request.stream, typing.AsyncIterable)
+        assert isinstance(request.stream, AsyncIterable)
         async with safe_async_iterate(request.stream) as iterator:
             async for chunk in iterator:
                 event = h11.Data(data=chunk)
@@ -286,7 +286,7 @@ class AsyncHTTP11Connection(AsyncConnectionInterface):
     # These context managers are not used in the standard flow, but are
     # useful for testing or working with connection instances directly.
 
-    async def __aenter__(self) -> AsyncHTTP11Connection:
+    async def __aenter__(self) -> Self:
         return self
 
     async def __aexit__(
@@ -353,5 +353,5 @@ class AsyncHTTP11UpgradeStream(AsyncNetworkStream):
     ) -> AsyncNetworkStream:
         return await self._stream.start_tls(ssl_context, server_hostname, timeout)
 
-    def get_extra_info(self, info: str) -> typing.Any:
+    def get_extra_info(self, info: str) -> Any:
         return self._stream.get_extra_info(info)

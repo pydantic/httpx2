@@ -4,7 +4,8 @@ import os
 import socket
 import threading
 import time
-import typing
+from collections.abc import Awaitable, Callable, Coroutine, Iterator
+from typing import Any
 
 import pytest
 import trustme
@@ -33,7 +34,7 @@ ENVIRONMENT_VARIABLES = {
 
 
 @pytest.fixture(scope="function", autouse=True)
-def clean_environ() -> typing.Iterator[None]:
+def clean_environ() -> Iterator[None]:
     """Keeps os.environ clean for every test without having to mock os.environ"""
     original_environ = os.environ.copy()
     os.environ.clear()
@@ -49,10 +50,10 @@ def clean_environ() -> typing.Iterator[None]:
     os.environ.update(original_environ)
 
 
-Message = dict[str, typing.Any]
-Receive = typing.Callable[[], typing.Awaitable[Message]]
-Send = typing.Callable[[dict[str, typing.Any]], typing.Coroutine[None, None, None]]
-Scope = dict[str, typing.Any]
+Message = dict[str, Any]
+Receive = Callable[[], Awaitable[Message]]
+Send = Callable[[dict[str, Any]], Coroutine[None, None, None]]
+Scope = dict[str, Any]
 
 
 async def app(scope: Scope, receive: Receive, send: Send) -> None:
@@ -202,19 +203,19 @@ def localhost_cert(cert_authority: trustme.CA) -> trustme.LeafCert:
 
 
 @pytest.fixture(scope="session")
-def cert_pem_file(localhost_cert: trustme.LeafCert) -> typing.Iterator[str]:
+def cert_pem_file(localhost_cert: trustme.LeafCert) -> Iterator[str]:
     with localhost_cert.cert_chain_pems[0].tempfile() as tmp:
         yield tmp
 
 
 @pytest.fixture(scope="session")
-def cert_private_key_file(localhost_cert: trustme.LeafCert) -> typing.Iterator[str]:
+def cert_private_key_file(localhost_cert: trustme.LeafCert) -> Iterator[str]:
     with localhost_cert.private_key_pem.tempfile() as tmp:
         yield tmp
 
 
 @pytest.fixture(scope="session")
-def cert_encrypted_private_key_file(localhost_cert: trustme.LeafCert) -> typing.Iterator[str]:
+def cert_encrypted_private_key_file(localhost_cert: trustme.LeafCert) -> Iterator[str]:
     # Deserialize the private key and then reserialize with a password
     private_key = load_pem_private_key(localhost_cert.private_key_pem.bytes(), password=None, backend=default_backend())
     encrypted_private_key_pem = trustme.Blob(
@@ -275,7 +276,7 @@ class TestServer(Server):
             await self.startup()
 
 
-def serve_in_thread(server: TestServer) -> typing.Iterator[TestServer]:
+def serve_in_thread(server: TestServer) -> Iterator[TestServer]:
     thread = threading.Thread(target=server.run)
     thread.start()
     try:
@@ -288,7 +289,7 @@ def serve_in_thread(server: TestServer) -> typing.Iterator[TestServer]:
 
 
 @pytest.fixture(scope="session")
-def server(free_tcp_port_factory: typing.Callable[[], int]) -> typing.Iterator[TestServer]:
+def server(free_tcp_port_factory: Callable[[], int]) -> Iterator[TestServer]:
     config = Config(app=app, lifespan="off", loop="asyncio", ws="none", port=free_tcp_port_factory())
     server = TestServer(config=config)
     yield from serve_in_thread(server)

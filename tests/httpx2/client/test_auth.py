@@ -7,7 +7,8 @@ Unit tests for auth classes also exist in tests/test_auth.py
 import hashlib
 import os
 import threading
-import typing
+from collections.abc import AsyncGenerator, AsyncIterator, Generator
+from typing import Any, cast
 from urllib.request import parse_keqv_list
 
 import anyio
@@ -89,7 +90,7 @@ class RepeatAuth(httpx2.Auth):
     def __init__(self, repeat: int) -> None:
         self.repeat = repeat
 
-    def auth_flow(self, request: httpx2.Request) -> typing.Generator[httpx2.Request, httpx2.Response, None]:
+    def auth_flow(self, request: httpx2.Request) -> Generator[httpx2.Request, httpx2.Response, None]:
         nonces: list[str] = []
 
         for index in range(self.repeat):
@@ -114,7 +115,7 @@ class ResponseBodyAuth(httpx2.Auth):
     def __init__(self, token: str) -> None:
         self.token = token
 
-    def auth_flow(self, request: httpx2.Request) -> typing.Generator[httpx2.Request, httpx2.Response, None]:
+    def auth_flow(self, request: httpx2.Request) -> Generator[httpx2.Request, httpx2.Response, None]:
         request.headers["Authorization"] = self.token
         response = yield request
         data = response.text
@@ -132,12 +133,12 @@ class SyncOrAsyncAuth(httpx2.Auth):
         self._lock = threading.Lock()
         self._async_lock = anyio.Lock()
 
-    def sync_auth_flow(self, request: httpx2.Request) -> typing.Generator[httpx2.Request, httpx2.Response, None]:
+    def sync_auth_flow(self, request: httpx2.Request) -> Generator[httpx2.Request, httpx2.Response, None]:
         with self._lock:
             request.headers["Authorization"] = "sync-auth"
         yield request
 
-    async def async_auth_flow(self, request: httpx2.Request) -> typing.AsyncGenerator[httpx2.Request, httpx2.Response]:
+    async def async_auth_flow(self, request: httpx2.Request) -> AsyncGenerator[httpx2.Request, httpx2.Response]:
         async with self._async_lock:
             request.headers["Authorization"] = "async-auth"
         yield request
@@ -396,7 +397,7 @@ async def test_digest_auth(algorithm: str, expected_hash_length: int, expected_r
     assert response.status_code == 200
     assert len(response.history) == 1
 
-    authorization = typing.cast(dict[str, typing.Any], response.json())["auth"]
+    authorization = cast(dict[str, Any], response.json())["auth"]
     scheme, _, fields = authorization.partition(" ")
     assert scheme == "Digest"
 
@@ -427,7 +428,7 @@ async def test_digest_auth_no_specified_qop() -> None:
     assert response.status_code == 200
     assert len(response.history) == 1
 
-    authorization = typing.cast(dict[str, typing.Any], response.json())["auth"]
+    authorization = cast(dict[str, Any], response.json())["auth"]
     scheme, _, fields = authorization.partition(" ")
     assert scheme == "Digest"
 
@@ -647,7 +648,7 @@ async def test_digest_auth_unavailable_streaming_body() -> None:
     auth = httpx2.DigestAuth(username="user", password="password123")
     app = DigestApp()
 
-    async def streaming_body() -> typing.AsyncIterator[bytes]:
+    async def streaming_body() -> AsyncIterator[bytes]:
         yield b"Example request body"  # pragma: no cover
 
     async with httpx2.AsyncClient(transport=ConsumeBodyTransport(app)) as client:

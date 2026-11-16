@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-import typing
+from collections.abc import Iterable
+from typing import TYPE_CHECKING
 
 import pytest
 from click.testing import CliRunner
@@ -8,17 +9,17 @@ from click.testing import CliRunner
 import httpx2
 from httpx2._main import main
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from pathlib import Path
 
     from conftest import TestServer
 
 
-def splitlines(output: str) -> typing.Iterable[str]:
+def splitlines(output: str) -> Iterable[str]:
     return [line.strip() for line in output.splitlines()]
 
 
-def remove_date_header(lines: typing.Iterable[str]) -> typing.Iterable[str]:
+def remove_date_header(lines: Iterable[str]) -> Iterable[str]:
     return [line for line in lines if not line.startswith("date:")]
 
 

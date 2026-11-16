@@ -8,7 +8,7 @@
 <a href="https://pydantic.dev/docs/logfire/join-slack/"><img src="https://img.shields.io/badge/Slack-Join%20Slack-4A154B?logo=slack" alt="Join Slack"></a>
 </p>
 
-HTTPX2 is a fully featured HTTP client library for Python. It includes **an integrated command line client**, has support for both **HTTP/1.1 and HTTP/2**, and provides both **sync and async APIs**.
+HTTPX2 is a fully featured HTTP client library for Python. It includes **an integrated command line client**, has support for both **HTTP/1.1 and HTTP/2**, supports **WebSockets**, and provides both **sync and async APIs**.
 
 > [!NOTE]
 > HTTPX2 is a continuation of the wonderful work started by [@lovelydinosaur](https://github.com/lovelydinosaur) and the broader HTTPX community. We're enormously grateful for everything that has gone into HTTPX over the years - it has been a foundational piece of the modern Python ecosystem, and this project would not exist without it.
@@ -58,6 +58,7 @@ HTTPX2 builds on the well-established usability of `requests`, and gives you:
 * An integrated command-line client.
 * HTTP/1.1 [and HTTP/2 support](https://pydantic.dev/docs/httpx2/guides/http2/).
 * Standard synchronous interface, but with [async support if you need it](https://pydantic.dev/docs/httpx2/guides/async/).
+* [WebSocket support](https://pydantic.dev/docs/httpx2/guides/websockets/).
 * Ability to make requests directly to [WSGI applications](https://pydantic.dev/docs/httpx2/advanced/transports/#wsgi-transport) or [ASGI applications](https://pydantic.dev/docs/httpx2/advanced/transports/#asgi-transport).
 * Strict timeouts everywhere.
 * Fully type annotated.
@@ -101,7 +102,7 @@ Project documentation is available at [https://pydantic.dev/docs/httpx2/](https:
 
 For a run-through of all the basics, head over to the [QuickStart](https://pydantic.dev/docs/httpx2/get-started/quickstart/).
 
-For more advanced topics, see the [Advanced Usage](https://pydantic.dev/docs/httpx2/advanced/clients/) section, the [async support](https://pydantic.dev/docs/httpx2/guides/async/) section, or the [HTTP/2](https://pydantic.dev/docs/httpx2/guides/http2/) section.
+For more advanced topics, see the [Advanced Usage](https://pydantic.dev/docs/httpx2/advanced/clients/) section, the [async support](https://pydantic.dev/docs/httpx2/guides/async/) section, the [HTTP/2](https://pydantic.dev/docs/httpx2/guides/http2/) section, or the [WebSockets](https://pydantic.dev/docs/httpx2/guides/websockets/) section.
 
 The [Developer Interface](https://pydantic.dev/docs/httpx2/api/api/) provides a comprehensive API reference.
 
@@ -147,6 +148,7 @@ As well as these optional installs:
 
 * `h2` - HTTP/2 support. *(Optional, with `httpx2[http2]`)*
 * `socksio` - SOCKS proxy support. *(Optional, with `httpx2[socks]`)*
+* `wsproto` - WebSocket support. *(Optional, with `httpx2[ws]`)*
 * `rich` - Rich terminal support. *(Optional, with `httpx2[cli]`)*
 * `click` - Command line client support. *(Optional, with `httpx2[cli]`)*
 * `brotli` or `brotlicffi` - Decoding for "brotli" compressed responses. *(Optional, with `httpx2[brotli]`)*

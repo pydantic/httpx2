@@ -1,5 +1,6 @@
 import ssl
-import typing
+from collections.abc import Iterable
+from typing import Any
 
 import hpack
 import hyperframe.frame
@@ -107,7 +108,7 @@ def test_write_error_with_response_sent() -> None:
             port: int,
             timeout: float | None = None,
             local_address: str | None = None,
-            socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
+            socket_options: Iterable[SOCKET_OPTION] | None = None,
         ) -> MockStream:
             return ErrorOnRequestTooLargeStream(list(self._buffer), http2=self._http2)
 
@@ -157,7 +158,7 @@ def test_write_error_without_response_sent() -> None:
             port: int,
             timeout: float | None = None,
             local_address: str | None = None,
-            socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
+            socket_options: Iterable[SOCKET_OPTION] | None = None,
         ) -> MockStream:
             return ErrorOnRequestTooLargeStream(list(self._buffer), http2=self._http2)
 
@@ -231,7 +232,7 @@ class NeedsRetryBackend(MockBackend):
         port: int,
         timeout: float | None = None,
         local_address: str | None = None,
-        socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
+        socket_options: Iterable[SOCKET_OPTION] | None = None,
     ) -> NetworkStream:
         if self._connect_tcp_failures > 0:
             self._connect_tcp_failures -= 1
@@ -267,7 +268,7 @@ class NeedsRetryBackend(MockBackend):
             stream = self._stream.start_tls(ssl_context, server_hostname, timeout)
             return self._backend._NeedsRetryAsyncNetworkStream(self._backend, stream)
 
-        def get_extra_info(self, info: str) -> typing.Any:
+        def get_extra_info(self, info: str) -> Any:
             return self._stream.get_extra_info(info)
 
 

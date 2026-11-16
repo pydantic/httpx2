@@ -4,14 +4,14 @@ import json
 import logging
 import os
 import random
-import typing
+from typing import TYPE_CHECKING
 
 import pytest
 
 import httpx2
 from httpx2._utils import URLPattern, get_environment_proxies
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from conftest import TestServer
 
 
@@ -137,6 +137,8 @@ def test_logging_redirect_chain(server: TestServer, caplog: pytest.LogCaptureFix
         ({"no_proxy": "localhost"}, {"all://localhost": None}),
         ({"no_proxy": "github.com"}, {"all://*github.com": None}),
         ({"no_proxy": ".github.com"}, {"all://*.github.com": None}),
+        ({"no_proxy": "*.github.com"}, {"all://*.github.com": None}),
+        ({"no_proxy": "*.github.com/path"}, {}),
         ({"no_proxy": "http://github.com"}, {"http://github.com": None}),
     ],
 )

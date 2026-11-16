@@ -5,7 +5,7 @@ import queue
 import sys
 import threading
 import time
-import typing
+from typing import Any
 from unittest.mock import MagicMock, call, patch
 
 import anyio
@@ -357,7 +357,7 @@ class TestReceive:
     )
     async def test_receive_oversized_fragmented_message(
         self,
-        fragment_event: wsproto.events.Message[typing.Any],
+        fragment_event: wsproto.events.Message[Any],
     ) -> None:
         server_connection = wsproto.connection.Connection(wsproto.connection.ConnectionType.SERVER)
         fragments = [server_connection.send(fragment_event) for _ in range(3)]
@@ -392,7 +392,7 @@ class TestReceive:
     )
     async def test_async_receive_oversized_fragmented_message(
         self,
-        fragment_event: wsproto.events.Message[typing.Any],
+        fragment_event: wsproto.events.Message[Any],
     ) -> None:
         server_connection = wsproto.connection.Connection(wsproto.connection.ConnectionType.SERVER)
         fragments = [server_connection.send(fragment_event) for _ in range(3)]
