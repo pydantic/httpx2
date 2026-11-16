@@ -885,3 +885,90 @@ async def test_connection_pool_multiplexes_idle_http2_connection_within_a_pass()
                 nursery.start_soon(fetch, pool)
 
     assert QueueObservingPool.max_queued_after_pass == 0
+
+
+@pytest.mark.anyio
+async def test_idle_pool_only_probes_candidate_socket() -> None:
+    # Pool maintenance must not poll every unrelated idle socket on each request.
+    class IdleConnection(httpcore2.AsyncConnectionInterface):
+        def __init__(
+            self, origin: httpcore2.Origin, *, stale: bool = False, timed_out: bool = False, active: bool = False
+        ) -> None:
+            self.origin = origin
+            self.stale = stale
+            self.timed_out = timed_out
+            self.active = active
+            self.socket_checks = 0
+            self.handled = 0
+
+        def can_handle_request(self, origin: httpcore2.Origin) -> bool:
+            return origin == self.origin
+
+        def has_expired(self) -> bool:
+            self.socket_checks += 1
+            return self.timed_out or self.stale
+
+        def has_expired_without_socket(self) -> bool:
+            return self.timed_out
+
+        def is_connected(self) -> bool:
+            return True
+
+        def is_available(self) -> bool:
+            return True
+
+        def is_idle(self) -> bool:
+            return not self.active
+
+        def can_multiplex(self) -> bool:
+            return self.active
+
+        def is_closed(self) -> bool:
+            return False
+
+        async def handle_async_request(self, request: httpcore2.Request) -> httpcore2.Response:
+            self.handled += 1
+            return httpcore2.Response(200, content=b"ok")
+
+        async def aclose(self) -> None:
+            pass
+
+        def info(self) -> str:
+            return "idle test connection"
+
+    target_request = httpcore2.Request("GET", "http://target.example/")
+    other_request = httpcore2.Request("GET", "http://other.example/")
+    other = [IdleConnection(other_request.url.origin) for _ in range(80)]
+    # An expired idle connection is still reaped during maintenance.
+    expired = IdleConnection(other_request.url.origin, timed_out=True)
+    stale = IdleConnection(target_request.url.origin, stale=True)
+    fresh = IdleConnection(target_request.url.origin)
+    pool = httpcore2.AsyncConnectionPool(max_connections=100, max_keepalive_connections=100)
+    pool._connections = [*other, expired, stale, fresh]
+
+    response = await pool.handle_async_request(target_request)
+    assert response.status == 200
+    assert fresh.handled == 1
+    assert fresh.info() == "idle test connection"
+    assert expired not in pool.connections
+    assert stale not in pool.connections
+    assert all(c.socket_checks == 0 for c in other)
+    assert expired.socket_checks == 0
+    assert stale.socket_checks == fresh.socket_checks == 1
+    await response.aclose()
+
+    # An active multiplexed connection must not be probed for keepalive
+    # expiry while another stream is using it.
+    active = IdleConnection(target_request.url.origin, active=True)
+    pool._connections = [active]
+    response = await pool.handle_async_request(target_request)
+    assert response.status == 200
+    assert active.handled == 1
+    assert active.socket_checks == 0
+    await response.aclose()
+
+    # Existing custom connections only implement has_expired(); the
+    # interface fallback retains their old behavior and signature.
+    legacy = IdleConnection(target_request.url.origin)
+    assert httpcore2.AsyncConnectionInterface.has_expired_without_socket(legacy) is False
+    assert legacy.socket_checks == 1

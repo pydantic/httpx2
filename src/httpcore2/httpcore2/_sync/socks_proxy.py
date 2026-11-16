@@ -308,6 +308,11 @@ class Socks5Connection(ConnectionInterface):
             return self._connect_failed
         return self._connection.has_expired()
 
+    def has_expired_without_socket(self) -> bool:
+        if self._connection is None:
+            return self._connect_failed
+        return self._connection.has_expired_without_socket()
+
     def is_idle(self) -> bool:
         if self._connection is None:  # pragma: no cover
             return self._connect_failed

@@ -253,20 +253,17 @@ class HTTP11Connection(ConnectionInterface):
         return self._state == HTTPConnectionState.IDLE
 
     def has_expired(self) -> bool:
-        now = time.monotonic()
-        # Read `_expire_at` once into a local: on free-threaded builds another
-        # thread may reset it to `None` between the check and the comparison.
-        expire_at = self._expire_at
-        keepalive_expired = expire_at is not None and now > expire_at
-
-        # If the HTTP connection is idle but the socket is readable, then the
-        # only valid state is that the socket is about to return b"", indicating
-        # a server-initiated disconnect.
+        # If an idle HTTP/1.1 socket is readable, the server has disconnected.
         server_disconnected = self._state == HTTPConnectionState.IDLE and self._network_stream.get_extra_info(
             "is_readable"
         )
+        return self.has_expired_without_socket() or server_disconnected
 
-        return keepalive_expired or server_disconnected
+    def has_expired_without_socket(self) -> bool:
+        # Read `_expire_at` once into a local: on free-threaded builds another
+        # thread may reset it to `None` between the check and comparison.
+        expire_at = self._expire_at
+        return expire_at is not None and time.monotonic() > expire_at
 
     def is_idle(self) -> bool:
         return self._state == HTTPConnectionState.IDLE

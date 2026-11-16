@@ -38,6 +38,7 @@ async def test_http_connection() -> None:
         assert not conn.is_closed()
         assert not conn.is_available()
         assert not conn.has_expired()
+        assert not conn.has_expired_without_socket()
         assert not conn.is_connected()
         assert repr(conn) == "<AsyncHTTPConnection [CONNECTING]>"
 
@@ -52,6 +53,7 @@ async def test_http_connection() -> None:
         assert not conn.is_closed()
         assert conn.is_available()
         assert not conn.has_expired()
+        assert not conn.has_expired_without_socket()
         assert conn.is_connected()
         assert repr(conn) == "<AsyncHTTPConnection ['https://example.com:443', HTTP/1.1, IDLE, Request Count: 1]>"
 

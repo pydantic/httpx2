@@ -272,8 +272,8 @@ class ConnectionPool(RequestInterface):
 
         # First we handle cleaning up any connections that are closed
         # or have expired their keep-alive, in a single pass. Reserved
-        # connections skip the expiry check: they were checked when assigned,
-        # and `has_expired()` on an idle connection probes the socket.
+        # connections were checked when assigned. Socket readability is
+        # checked only when an idle connection is about to be reused.
         for connection in self._connections:
             reserved = connection in request_connections
             if connection.is_closed():
@@ -283,7 +283,7 @@ class ConnectionPool(RequestInterface):
                 # before the TCP handshake completed.  Drop it without closing
                 # (there is no socket to close yet).
                 continue
-            elif not reserved and connection.has_expired():
+            elif not reserved and connection.has_expired_without_socket():
                 closing_connections.append(connection)
             else:
                 retained_connections.append(connection)
@@ -341,14 +341,26 @@ class ConnectionPool(RequestInterface):
             # 2. We can create a new connection to handle the request.
             # 3. We can close an idle connection and then create a new connection
             #    to handle the request.
-            for idx, connection in enumerate(available_connections):
-                if connection.can_handle_request(origin):
-                    pool_request.assign_to_connection(connection)
-                    if connection.is_idle() and not connection.can_multiplex():
-                        # An idle HTTP/1.1 connection can only take this
-                        # single request until it is released.
-                        del available_connections[idx]
-                    break
+            idx = 0
+            while idx < len(available_connections):
+                connection = available_connections[idx]
+                if not connection.can_handle_request(origin):
+                    idx += 1
+                    continue
+                if connection.is_idle() and connection.has_expired():
+                    # Probe the socket only for idle connections that would be
+                    # reused. Keepalive expiry was already checked above.
+                    del available_connections[idx]
+                    self._connections.remove(connection)
+                    closing_connections.append(connection)
+                    new_connection_budget += 1
+                    continue
+                pool_request.assign_to_connection(connection)
+                if connection.is_idle() and not connection.can_multiplex():
+                    # An idle HTTP/1.1 connection can only take this
+                    # single request until it is released.
+                    del available_connections[idx]
+                break
             else:
                 if new_connection_budget > 0:
                     connection = self.create_connection(origin)

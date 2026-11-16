@@ -132,6 +132,12 @@ class ConnectionInterface(RequestInterface):
         """
         raise NotImplementedError()  # pragma: no cover
 
+    def has_expired_without_socket(self) -> bool:
+        # Preserve custom connection implementations which only provide
+        # has_expired(). Built-in HTTP/1.1 connections override this to
+        # check keepalive expiry without polling the socket.
+        return self.has_expired()
+
     def is_idle(self) -> bool:
         """
         Return `True` if the connection is currently idle.

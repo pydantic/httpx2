@@ -28,6 +28,9 @@ async def test_socks5_request() -> None:
         proxy=httpcore2.Proxy("socks5://localhost:8080/"),
         network_backend=network_backend,
     ) as proxy:
+        # Unconnected SOCKS wrappers report handshake state without any socket I/O.
+        origin = httpcore2.Origin(b"https", b"example.com", 443)
+        assert not proxy.create_connection(origin).has_expired_without_socket()
         # Sending an initial request, which once complete will return to the pool, IDLE.
         async with proxy.stream("GET", "https://example.com/") as response:
             info = [repr(c) for c in proxy.connections]
@@ -41,6 +44,7 @@ async def test_socks5_request() -> None:
         assert proxy.connections[0].is_idle()
         assert proxy.connections[0].is_available()
         assert not proxy.connections[0].is_closed()
+        assert not proxy.connections[0].has_expired_without_socket()
 
         # A connection on a tunneled proxy can only handle HTTPS requests to the same origin.
         assert not proxy.connections[0].can_handle_request(httpcore2.Origin(b"http", b"example.com", 80))
