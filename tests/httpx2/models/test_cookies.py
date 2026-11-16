@@ -131,14 +131,25 @@ def test_cookies_repr() -> None:
     )
 
 
-def test_default_cookie_path_of_1024_bytes_is_kept() -> None:
-    directory = "/" + "a" * 1023
+@pytest.mark.parametrize(
+    ("directory", "expected_path"),
+    [
+        ("/" + "a" * 1023, "/" + "a" * 1023),
+        ("/" + "[" * 400, "/" + "%5B" * 400),
+    ],
+)
+def test_default_cookie_path_is_preserved_when_only_the_filename_is_cut(directory: str, expected_path: str) -> None:
     request = httpx2.Request("GET", f"https://example.org{directory}/{'b' * 2000}?q=1")
     cookies = httpx2.Cookies()
 
     cookies.extract_cookies(httpx2.Response(200, request=request, headers={"Set-Cookie": "name=value"}))
 
-    assert [cookie.path for cookie in cookies.jar] == [directory]
+    assert [cookie.path for cookie in cookies.jar] == [expected_path]
+
+    request = httpx2.Request("GET", f"https://example.org{directory}/profile")
+    cookies.set_cookie_header(request)
+
+    assert request.headers["Cookie"] == "name=value"
 
 
 def test_response_from_a_directory_longer_than_1024_bytes_sets_no_cookies() -> None:
@@ -157,7 +168,7 @@ def test_response_from_a_directory_longer_than_1024_bytes_sets_no_cookies() -> N
     assert [cookie.name for cookie in cookies.jar] == ["stored"]
 
 
-def test_cookie_paths_longer_than_1024_bytes_are_not_sent() -> None:
+def test_cookie_paths_beyond_the_retained_directory_are_not_sent() -> None:
     directory = "/" + "a" * 1023
     deeper = directory + "/" + "b" * 2000
     cookies = httpx2.Cookies()
