@@ -462,6 +462,11 @@ The `history` property of the response can be used to inspect any followed redir
 It contains a list of any redirect responses that were followed, in the order
 in which they were made.
 
+For streaming requests, intermediate redirect and authentication responses are
+closed without reading their bodies, unless authentication requires the body.
+Their status and headers remain available in `history`, but their `content`
+may not be. Non-streaming requests continue to read intermediate bodies.
+
 ## Timeouts
 
 HTTPX defaults to including reasonable timeouts for all network operations,

@@ -976,6 +976,7 @@ class Client(BaseClient):
             auth=auth,
             follow_redirects=follow_redirects,
             history=[],
+            stream=stream,
         )
         try:
             if not stream:
@@ -993,6 +994,7 @@ class Client(BaseClient):
         auth: Auth,
         follow_redirects: bool,
         history: list[Response],
+        stream: bool,
     ) -> Response:
         auth_flow = auth.sync_auth_flow(request)
         try:
@@ -1003,6 +1005,7 @@ class Client(BaseClient):
                     request,
                     follow_redirects=follow_redirects,
                     history=history,
+                    stream=stream,
                 )
                 try:
                     try:
@@ -1011,7 +1014,10 @@ class Client(BaseClient):
                         return response
 
                     response.history = list(history)
-                    response.read()
+                    if stream and not auth.requires_response_body and response.headers.get("content-length") != "0":
+                        response.close()
+                    else:
+                        response.read()
                     request = next_request
                     history.append(response)
 
@@ -1026,6 +1032,7 @@ class Client(BaseClient):
         request: Request,
         follow_redirects: bool,
         history: list[Response],
+        stream: bool,
     ) -> Response:
         while True:
             if len(history) > self.max_redirects:
@@ -1046,7 +1053,10 @@ class Client(BaseClient):
                 if follow_redirects:
                     request = self._build_redirect_request(request, response)
                     history = [*history, response]
-                    response.read()
+                    if stream and response.headers.get("content-length") != "0":
+                        response.close()
+                    else:
+                        response.read()
                 else:
                     with suppress(RemoteProtocolError):
                         response.next_request = self._build_redirect_request(request, response)
@@ -1814,6 +1824,7 @@ class AsyncClient(BaseClient):
             auth=auth,
             follow_redirects=follow_redirects,
             history=[],
+            stream=stream,
         )
         try:
             if not stream:
@@ -1831,6 +1842,7 @@ class AsyncClient(BaseClient):
         auth: Auth,
         follow_redirects: bool,
         history: list[Response],
+        stream: bool,
     ) -> Response:
         auth_flow = auth.async_auth_flow(request)
         try:
@@ -1841,6 +1853,7 @@ class AsyncClient(BaseClient):
                     request,
                     follow_redirects=follow_redirects,
                     history=history,
+                    stream=stream,
                 )
                 try:
                     try:
@@ -1849,7 +1862,10 @@ class AsyncClient(BaseClient):
                         return response
 
                     response.history = list(history)
-                    await response.aread()
+                    if stream and not auth.requires_response_body and response.headers.get("content-length") != "0":
+                        await response.aclose()
+                    else:
+                        await response.aread()
                     request = next_request
                     history.append(response)
 
@@ -1864,6 +1880,7 @@ class AsyncClient(BaseClient):
         request: Request,
         follow_redirects: bool,
         history: list[Response],
+        stream: bool,
     ) -> Response:
         while True:
             if len(history) > self.max_redirects:
@@ -1885,7 +1902,10 @@ class AsyncClient(BaseClient):
                 if follow_redirects:
                     request = self._build_redirect_request(request, response)
                     history = [*history, response]
-                    await response.aread()
+                    if stream and response.headers.get("content-length") != "0":
+                        await response.aclose()
+                    else:
+                        await response.aread()
                 else:
                     with suppress(RemoteProtocolError):
                         response.next_request = self._build_redirect_request(request, response)
