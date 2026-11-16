@@ -481,3 +481,38 @@ def test_client_decode_text_using_explicit_encoding() -> None:
         assert response.reason_phrase == "OK"
         assert response.encoding == "Windows-1252"
         assert response.text == text
+
+
+@pytest.mark.parametrize(
+    ("relative_url", "params", "expected"),
+    [
+        ("items", None, "https://example.com/api/items?key=k"),
+        ("/items", None, "https://example.com/api/items?key=k"),
+        ("items?x=1", None, "https://example.com/api/items?key=k&x=1"),
+        ("items", {"b": "2"}, "https://example.com/api/items?key=k&b=2"),
+        ("items?x=1", {"b": "2"}, "https://example.com/api/items?key=k&b=2"),
+        ("files%2Fencoded", None, "https://example.com/api/files%2Fencoded?key=k"),
+        ("?x=1", None, "https://example.com/api/?key=k&x=1"),
+        ("", None, "https://example.com/api/?key=k"),
+        ("items?key=x", None, "https://example.com/api/items?key=k&key=x"),
+    ],
+)
+def test_merge_relative_url_with_base_query(relative_url: str, params: dict[str, str] | None, expected: str) -> None:
+    for client_type in (httpx2.Client, httpx2.AsyncClient):
+        client = client_type(base_url="https://example.com/api?key=k")
+        assert str(client.base_url) == "https://example.com/api/?key=k"
+        assert str(client.build_request("GET", relative_url, params=params).url) == expected
+
+
+def test_merge_absolute_url_does_not_inherit_base_query() -> None:
+    client = httpx2.Client(base_url="https://example.com/api?key=k")
+    assert str(client.build_request("GET", "https://other.test/items", params={"b": "2"}).url) == (
+        "https://other.test/items?b=2"
+    )
+
+
+def test_merge_relative_url_preserves_escaped_base_query_and_path() -> None:
+    client = httpx2.Client(base_url="https://example.com/api%2Fv1?key=a%2Bb&key=c")
+    assert str(client.base_url) == "https://example.com/api%2Fv1/?key=a%2Bb&key=c"
+    request = client.build_request("GET", "items%2Fdeep?x=%2B")
+    assert str(request.url) == "https://example.com/api%2Fv1/items%2Fdeep?key=a%2Bb&key=c&x=%2B"

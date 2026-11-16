@@ -218,9 +218,10 @@ class BaseClient:
         return self._trust_env
 
     def _enforce_trailing_slash(self, url: URL) -> URL:
-        if url.raw_path.endswith(b"/"):
+        path, separator, query = url.raw_path.partition(b"?")
+        if path.endswith(b"/"):
             return url
-        return url.copy_with(raw_path=url.raw_path + b"/")
+        return url.copy_with(raw_path=path + b"/" + separator + query)
 
     def _get_proxy_map(self, proxy: ProxyTypes | None, allow_env_proxies: bool) -> dict[str, Proxy | None]:
         if proxy is None:
@@ -344,10 +345,10 @@ class BaseClient:
 
         [0]: advanced/clients.md#request-instances
         """
-        url = self._merge_url(url)
+        params = self._merge_queryparams(params)
+        url = self._merge_url(URL(url, params=params) if params is not None else url)
         headers = self._merge_headers(headers)
         cookies = self._merge_cookies(cookies)
-        params = self._merge_queryparams(params)
         extensions = {} if extensions is None else extensions
         if "timeout" not in extensions:
             timeout = self.timeout if isinstance(timeout, UseClientDefault) else Timeout(timeout)
@@ -359,7 +360,6 @@ class BaseClient:
             data=data,
             files=files,
             json=json,
-            params=params,
             headers=headers,
             cookies=cookies,
             extensions=extensions,
@@ -383,7 +383,12 @@ class BaseClient:
             # URL('https://www.example.com/subpath/')
             # >>> client.build_request("GET", "/path").url
             # URL('https://www.example.com/subpath/path')
-            merge_raw_path = self.base_url.raw_path + merge_url.raw_path.lstrip(b"/")
+            base_path, _, base_query = self.base_url.raw_path.partition(b"?")
+            relative_path, _, relative_query = merge_url.raw_path.partition(b"?")
+            merge_raw_path = base_path + relative_path.lstrip(b"/")
+            query = b"&".join(part for part in (base_query, relative_query) if part)
+            if query:
+                merge_raw_path += b"?" + query
             return self.base_url.copy_with(raw_path=merge_raw_path)
         return merge_url
 
