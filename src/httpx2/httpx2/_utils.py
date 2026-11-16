@@ -3,34 +3,15 @@ from __future__ import annotations
 import ipaddress
 import os
 import re
-from collections.abc import AsyncGenerator, AsyncIterable
-from contextlib import AbstractAsyncContextManager, aclosing, nullcontext
 from re import Pattern
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any
 from urllib.request import getproxies
 
 from ._exceptions import InvalidURL
 from ._types import AnyStr, PrimitiveData
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator
-
     from ._urls import URL
-
-T = TypeVar("T")
-
-
-def safe_async_iterate(iterable: AsyncIterable[T], /) -> AbstractAsyncContextManager[AsyncIterator[T]]:
-    """
-    Iterate `iterable` and close its iterator on exit, even if the consumer stops early.
-
-    An async generator left suspended is otherwise finalized by the garbage collector,
-    on whatever event loop collects it.
-    """
-    iterator = aiter(iterable)
-    if isinstance(iterator, AsyncGenerator):
-        return aclosing(iterator)
-    return nullcontext(iterator)
 
 
 def primitive_value_to_str(value: PrimitiveData) -> str:

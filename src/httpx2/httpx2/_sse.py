@@ -35,7 +35,6 @@ from dataclasses import dataclass
 from ._config import DEFAULT_MAX_EVENT_SIZE_BYTES
 from ._exceptions import TransportError, request_context
 from ._models import Response
-from ._utils import safe_async_iterate
 
 __all__ = ["EventSource", "SSEError", "ServerSentEvent"]
 
@@ -220,9 +219,8 @@ class EventSource:
         with request_context(request=self._response.request):
             self._check_content_type()
             parser = _SSEParser(self._max_event_size)
-            async with safe_async_iterate(self._response.aiter_text()) as text_stream:
-                async for chunk in text_stream:
-                    for sse in parser.decode(chunk):
-                        yield sse
+            async for chunk in self._response.aiter_text():
+                for sse in parser.decode(chunk):
+                    yield sse
             for sse in parser.flush():
                 yield sse

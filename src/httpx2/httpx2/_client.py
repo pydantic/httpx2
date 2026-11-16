@@ -53,7 +53,7 @@ from ._types import (
     TimeoutTypes,
 )
 from ._urls import URL, QueryParams
-from ._utils import URLPattern, get_environment_proxies, safe_async_iterate
+from ._utils import URLPattern, get_environment_proxies
 
 if TYPE_CHECKING:
     import ssl  # pragma: no cover
@@ -155,9 +155,13 @@ class BoundAsyncStream(AsyncByteStream):
         self.elapsed: datetime.timedelta | None = None
 
     async def __aiter__(self) -> AsyncIterator[bytes]:
-        async with safe_async_iterate(self._stream) as stream:
+        stream = self._stream.__aiter__()
+        try:
             async for chunk in stream:
                 yield chunk
+        finally:
+            if isinstance(stream, AsyncGenerator):
+                await stream.aclose()
 
     async def aclose(self) -> None:
         self.elapsed = datetime.timedelta(seconds=time.perf_counter() - self._start)
