@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Awaitable, Callable, MutableMapping
+from types import AsyncGeneratorType
 from typing import TYPE_CHECKING, Any
 
 from .._models import Request, Response
 from .._types import AsyncByteStream
-from .._utils import safe_async_iterate
 from .base import AsyncBaseTransport
 
 if TYPE_CHECKING:
@@ -111,7 +111,8 @@ class ASGITransport(AsyncBaseTransport):
             "root_path": self.root_path,
         }
 
-        # Request. `request_body_chunks` is bound below, around the app call.
+        # Request.
+        request_body_chunks = request.stream.__aiter__()
         request_complete = False
 
         # Response.
@@ -158,19 +159,22 @@ class ASGITransport(AsyncBaseTransport):
                 if not more_body:
                     response_complete.set()
 
-        # The app may answer without reading the whole body; close it once the app returns.
-        async with safe_async_iterate(request.stream) as request_body_chunks:
-            try:
-                await self.app(scope, receive, send)
-            except Exception:
-                if self.raise_app_exceptions:
-                    raise
+        try:
+            await self.app(scope, receive, send)
+        except Exception:
+            if self.raise_app_exceptions:
+                raise
 
-                response_complete.set()
-                if status_code is None:
-                    status_code = 500
-                if response_headers is None:
-                    response_headers = {}
+            response_complete.set()
+            if status_code is None:
+                status_code = 500
+            if response_headers is None:
+                response_headers = {}
+        finally:
+            # The app may answer without reading the whole body: close it, unless a task the app left
+            # in `receive()` is still reading it (closing a running generator raises).
+            if isinstance(request_body_chunks, AsyncGeneratorType) and not request_body_chunks.ag_running:
+                await request_body_chunks.aclose()
 
         assert response_complete.is_set()
         assert status_code is not None

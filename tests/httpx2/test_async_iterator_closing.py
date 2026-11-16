@@ -11,6 +11,7 @@ from collections.abc import AsyncGenerator, AsyncIterator, Awaitable, Callable, 
 from contextlib import aclosing
 from typing import Any
 
+import anyio
 import pytest
 
 import httpx2
@@ -52,6 +53,27 @@ async def test_response_iterator_closes_the_stream(method: str) -> None:
 
 
 @pytest.mark.anyio
+async def test_async_iterator_content_is_closed() -> None:
+    stream = RecordedStream()
+    response = httpx2.Response(200, content=aiter(stream), request=REQUEST)
+
+    await take_first(response.aiter_raw())
+
+    assert stream.closed_early
+
+
+@pytest.mark.anyio
+async def test_client_response_stream_closes_the_transport_stream() -> None:
+    stream = RecordedStream()
+    transport = httpx2.MockTransport(lambda request: httpx2.Response(200, stream=stream))
+    async with httpx2.AsyncClient(transport=transport) as client:
+        async with client.stream("GET", "http://www.example.org/") as response:
+            await take_first(response.aiter_raw())
+
+    assert stream.closed_early
+
+
+@pytest.mark.anyio
 async def test_event_source_closes_the_stream() -> None:
     stream = RecordedStream(b"data: hello\n\n")
     response = httpx2.Response(200, headers={"Content-Type": "text/event-stream"}, stream=stream, request=REQUEST)
@@ -88,6 +110,48 @@ async def test_asgi_transport_closes_the_unread_request_body() -> None:
 
         assert response.status_code == 413
         assert stream.closed_early
+
+
+@pytest.mark.anyio
+async def test_asgi_transport_closes_the_request_body_when_the_app_raises() -> None:
+    async def app(scope: Any, receive: Callable[[], Awaitable[Any]], send: Any) -> None:
+        await receive()  # the first chunk only
+        raise RuntimeError()
+
+    stream = RecordedStream()
+    transport = httpx2.ASGITransport(app=app, raise_app_exceptions=False)
+    async with httpx2.AsyncClient(transport=transport) as client:
+        response = await client.send(httpx2.Request("POST", "http://www.example.org/", stream=stream))
+
+        assert response.status_code == 500
+        assert stream.closed_early
+
+
+@pytest.mark.anyio
+async def test_asgi_transport_leaves_a_request_body_still_being_received() -> None:
+    async def slow_body() -> AsyncIterator[bytes]:
+        yield b"first"
+        await anyio.sleep(3600)
+        yield b"never"  # pragma: no cover
+
+    async with anyio.create_task_group() as tg:
+
+        async def app(scope: Any, receive: Callable[[], Awaitable[Any]], send: Any) -> None:
+            async def listen() -> None:
+                await receive()
+
+            await receive()
+            tg.start_soon(listen)  # outlives the app
+            await anyio.wait_all_tasks_blocked()
+            await send({"type": "http.response.start", "status": 200, "headers": []})
+            await send({"type": "http.response.body", "body": b""})
+
+        transport = httpx2.ASGITransport(app=app)
+        async with httpx2.AsyncClient(transport=transport) as client:
+            response = await client.post("http://www.example.org/", content=slow_body())
+
+        assert response.status_code == 200
+        tg.cancel_scope.cancel()
 
 
 class ChunkIterator:
