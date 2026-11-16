@@ -516,3 +516,17 @@ def test_merge_relative_url_preserves_escaped_base_query_and_path() -> None:
     assert str(client.base_url) == "https://example.com/api%2Fv1/?key=a%2Bb&key=c"
     request = client.build_request("GET", "items%2Fdeep?x=%2B")
     assert str(request.url) == "https://example.com/api%2Fv1/items%2Fdeep?key=a%2Bb&key=c&x=%2B"
+
+
+@pytest.mark.parametrize(
+    ("base_url", "relative_url", "expected"),
+    [
+        ("https://example.com/api?", "items", "https://example.com/api/items?"),
+        ("https://example.com/api?", "items?", "https://example.com/api/items?"),
+        ("https://example.com/api", "items?", "https://example.com/api/items?"),
+        ("https://example.com/api?key=k", "items?", "https://example.com/api/items?key=k"),
+    ],
+)
+def test_merge_relative_url_keeps_empty_query_delimiter(base_url: str, relative_url: str, expected: str) -> None:
+    client = httpx2.Client(base_url=base_url)
+    assert str(client.build_request("GET", relative_url).url) == expected

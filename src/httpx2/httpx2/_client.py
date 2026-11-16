@@ -383,11 +383,11 @@ class BaseClient:
             # URL('https://www.example.com/subpath/')
             # >>> client.build_request("GET", "/path").url
             # URL('https://www.example.com/subpath/path')
-            base_path, _, base_query = self.base_url.raw_path.partition(b"?")
-            relative_path, _, relative_query = merge_url.raw_path.partition(b"?")
+            base_path, base_separator, base_query = self.base_url.raw_path.partition(b"?")
+            relative_path, relative_separator, relative_query = merge_url.raw_path.partition(b"?")
             merge_raw_path = base_path + relative_path.lstrip(b"/")
             query = b"&".join(part for part in (base_query, relative_query) if part)
-            if query:
+            if base_separator or relative_separator:
                 merge_raw_path += b"?" + query
             return self.base_url.copy_with(raw_path=merge_raw_path)
         return merge_url
