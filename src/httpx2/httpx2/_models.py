@@ -60,7 +60,7 @@ from ._types import (
     SyncByteStream,
 )
 from ._urls import URL
-from ._utils import to_bytes_or_str, to_str
+from ._utils import safe_async_iterate, to_bytes_or_str, to_str
 
 __all__ = ["Cookies", "Headers", "Request", "Response"]
 
@@ -1023,10 +1023,11 @@ class Response:
         decoder = TextDecoder(encoding=self.encoding or "utf-8")
         chunker = TextChunker(chunk_size=chunk_size)
         with request_context(request=self._request):
-            async for byte_content in self.aiter_bytes():
-                text_content = decoder.decode(byte_content)
-                for chunk in chunker.decode(text_content):
-                    yield chunk
+            async with safe_async_iterate(self.aiter_bytes()) as byte_stream:
+                async for byte_content in byte_stream:
+                    text_content = decoder.decode(byte_content)
+                    for chunk in chunker.decode(text_content):
+                        yield chunk
             text_content = decoder.flush()
             for chunk in chunker.decode(text_content):
                 yield chunk  # pragma: no cover
@@ -1036,9 +1037,10 @@ class Response:
     async def aiter_lines(self) -> AsyncIterator[str]:
         decoder = LineDecoder()
         with request_context(request=self._request):
-            async for text in self.aiter_text():
-                for line in decoder.decode(text):
-                    yield line
+            async with safe_async_iterate(self.aiter_text()) as text_stream:
+                async for text in text_stream:
+                    for line in decoder.decode(text):
+                        yield line
             for line in decoder.flush():
                 yield line
 
@@ -1057,19 +1059,17 @@ class Response:
         self._num_bytes_downloaded = 0
         chunker = ByteChunker(chunk_size=chunk_size)
 
-        stream = self.stream.__aiter__()
         try:
-            with request_context(request=self._request):
-                async for raw_stream_bytes in stream:
-                    self._num_bytes_downloaded += len(raw_stream_bytes)
-                    for chunk in chunker.decode(raw_stream_bytes):
-                        yield chunk
+            async with safe_async_iterate(self.stream) as stream:
+                with request_context(request=self._request):
+                    async for raw_stream_bytes in stream:
+                        self._num_bytes_downloaded += len(raw_stream_bytes)
+                        for chunk in chunker.decode(raw_stream_bytes):
+                            yield chunk
 
             for chunk in chunker.flush():
                 yield chunk
         finally:
-            if isinstance(stream, AsyncGenerator):
-                await stream.aclose()
             await self.aclose()
 
     async def aclose(self) -> None:

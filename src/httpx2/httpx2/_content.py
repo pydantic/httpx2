@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import inspect
 import warnings
-from collections.abc import AsyncGenerator, AsyncIterable, AsyncIterator, Iterable, Iterator, Mapping
+from collections.abc import AsyncIterable, AsyncIterator, Iterable, Iterator, Mapping
 from json import dumps as json_dumps
 from typing import (
     Any,
@@ -19,7 +19,7 @@ from ._types import (
     ResponseContent,
     SyncByteStream,
 )
-from ._utils import peek_filelike_remaining_length, primitive_value_to_str
+from ._utils import peek_filelike_remaining_length, primitive_value_to_str, safe_async_iterate
 
 __all__ = ["ByteStream"]
 
@@ -81,13 +81,9 @@ class AsyncIteratorByteStream(AsyncByteStream):
         else:
             # Otherwise iterate, making sure the wrapped stream is closed even if the
             # consumer stops early (e.g. an exception is raised part-way through decoding).
-            stream = self._stream.__aiter__()
-            try:
+            async with safe_async_iterate(self._stream) as stream:
                 async for part in stream:
                     yield part
-            finally:
-                if isinstance(stream, AsyncGenerator):
-                    await stream.aclose()
 
 
 class UnattachedStream(AsyncByteStream, SyncByteStream):

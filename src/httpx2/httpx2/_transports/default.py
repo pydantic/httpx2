@@ -56,6 +56,7 @@ from .._exceptions import (
 from .._models import Request, Response
 from .._types import AsyncByteStream, CertTypes, ProxyTypes, SyncByteStream
 from .._urls import URL
+from .._utils import safe_async_iterate
 from .base import AsyncBaseTransport, BaseTransport
 
 SOCKET_OPTION = tuple[int, int, int] | tuple[int, int, bytes | bytearray] | tuple[int, int, None, int]
@@ -260,8 +261,9 @@ class AsyncResponseStream(AsyncByteStream):
 
     async def __aiter__(self) -> AsyncIterator[bytes]:
         with map_httpcore_exceptions():
-            async for part in self._httpcore_stream:
-                yield part
+            async with safe_async_iterate(self._httpcore_stream) as parts:
+                async for part in parts:
+                    yield part
 
     async def aclose(self) -> None:
         if hasattr(self._httpcore_stream, "aclose"):
