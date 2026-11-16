@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2.16.2 (November 16th, 2026)
+
+No changes since `2.16.1`. Version bumped to stay in lockstep with `httpx2`.
+
 ## 2.16.1 (November 16th, 2026)
 
 ### Fixed
