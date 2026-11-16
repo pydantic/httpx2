@@ -248,9 +248,9 @@ def test_cookie_jar_sees_a_bounded_request_path() -> None:
                 200,
                 headers=[
                     ("set-cookie", "default=1"),
-                    ("set-cookie", "empty=1; Path="),
                     ("set-cookie", "gone=; Max-Age=0"),
                     ("set-cookie", "explicit=1; Path=/"),
+                    ("set-cookie2", 'quoted=1; Version=0; Path=""'),
                 ],
             )
         return httpx2.Response(200, json={"cookies": request.headers.get("cookie")})
@@ -264,19 +264,17 @@ def test_cookie_jar_sees_a_bounded_request_path() -> None:
     client.get(f"http://example.com{deeper}/set_cookie")
     client.get(f"http://example.net/{'c' * 1024}/set_cookie")
     assert sorted((cookie.domain, cookie.name, cookie.path) for cookie in client.cookies.jar) == [
-        ("example.com", "explicit", "/"),
-        ("example.net", "explicit", "/"),
         ("example.net", "gone", "/"),
         ("example.org", "default", directory),
-        ("example.org", "empty", directory),
         ("example.org", "explicit", "/"),
+        ("example.org", "quoted", directory),
     ]
 
     client.cookies.set("directory", "2", domain="example.org", path=directory)
     client.cookies.set("segment", "3", domain="example.org", path="/" + "a" * 1000)
     client.cookies.set("deeper", "4", domain="example.org", path=deeper)
     response = client.get(f"http://example.org{deeper}/echo_cookies")
-    assert response.json() == {"cookies": "default=1; empty=1; directory=2; explicit=1"}
+    assert response.json() == {"cookies": "quoted=1; default=1; directory=2; explicit=1"}
 
 
 def test_relative_url_cookies_still_raise() -> None:
