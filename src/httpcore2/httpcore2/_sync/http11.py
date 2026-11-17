@@ -69,7 +69,8 @@ class HTTP11Connection(ConnectionInterface):
             # only valid state is that the socket is about to return b"", indicating
             # a server-initiated disconnect.
             if self._state == HTTPConnectionState.IDLE and self._network_stream.get_extra_info("is_readable"):
-                self.close()
+                with ShieldCancellation():
+                    self.close()
             if self._state in (HTTPConnectionState.NEW, HTTPConnectionState.IDLE):
                 self._request_count += 1
                 self._state = HTTPConnectionState.ACTIVE

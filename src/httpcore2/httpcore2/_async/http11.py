@@ -69,7 +69,8 @@ class AsyncHTTP11Connection(AsyncConnectionInterface):
             # only valid state is that the socket is about to return b"", indicating
             # a server-initiated disconnect.
             if self._state == HTTPConnectionState.IDLE and self._network_stream.get_extra_info("is_readable"):
-                await self.aclose()
+                with AsyncShieldCancellation():
+                    await self.aclose()
             if self._state in (HTTPConnectionState.NEW, HTTPConnectionState.IDLE):
                 self._request_count += 1
                 self._state = HTTPConnectionState.ACTIVE
