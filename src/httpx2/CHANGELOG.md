@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## Unreleased
+
+### Added
+
+* Support async file objects, such as those returned by `anyio.open_file()`, `trio.open_file()` or `aiofiles.open()`, as `content=...` and as multipart `files=...` uploads. They are read in chunks rather than a line at a time.
+  ([#1145](https://github.com/pydantic/httpx2/pull/1145))
+
+### Fixed
+
+* Stop looping indefinitely when an async file object is passed as a multipart `files=...` upload. A sync `Client` now raises `TypeError` instead.
+  ([#1145](https://github.com/pydantic/httpx2/pull/1145))
+
 ## 2.16.2 (November 16th, 2026)
 
 ### Fixed

@@ -1,12 +1,16 @@
 import gzip
 import io
 import os
+import pathlib
 import tempfile
 from collections.abc import AsyncIterable, AsyncIterator, Iterable, Iterator
 
+import anyio
 import pytest
+import trio
 
 import httpx2
+from httpx2._content import AsyncIteratorByteStream
 
 method = "POST"
 url = "https://www.example.com"
@@ -564,3 +568,79 @@ def test_allow_nan_false() -> None:
         httpx2.Response(200, json=data_with_nan)
     with pytest.raises(ValueError, match="Out of range float values are not JSON compliant"):
         httpx2.Response(200, json=data_with_inf)
+
+
+@pytest.mark.anyio
+async def test_async_file_content(tmp_path: pathlib.Path) -> None:
+    body = b"x" * (2 * AsyncIteratorByteStream.CHUNK_SIZE + 7)
+    path = tmp_path / "upload.bin"
+    path.write_bytes(body)
+
+    async with await anyio.open_file(path, "rb") as upload:
+        request = httpx2.Request(method, url, content=upload)
+        assert not isinstance(request.stream, Iterable)
+        assert isinstance(request.stream, AsyncIterable)
+        chunks = [part async for part in request.stream]
+
+    assert request.headers == {"Host": "www.example.com", "Transfer-Encoding": "chunked"}
+    assert b"".join(chunks) == body
+    assert [len(chunk) for chunk in chunks] == [
+        AsyncIteratorByteStream.CHUNK_SIZE,
+        AsyncIteratorByteStream.CHUNK_SIZE,
+        7,
+    ]
+
+
+@pytest.mark.parametrize("anyio_backend", ["trio"])
+@pytest.mark.anyio
+async def test_trio_file_content(tmp_path: pathlib.Path) -> None:
+    path = tmp_path / "upload.bin"
+    path.write_bytes(b"<file content>")
+
+    async with await trio.open_file(path, "rb") as upload:
+        request = httpx2.Request(method, url, content=upload)
+        assert isinstance(request.stream, AsyncIterable)
+        content = b"".join([part async for part in request.stream])
+
+    assert content == b"<file content>"
+
+
+@pytest.mark.anyio
+async def test_async_file_content_from_current_position(tmp_path: pathlib.Path) -> None:
+    path = tmp_path / "upload.bin"
+    path.write_bytes(b"0123456789")
+
+    async with await anyio.open_file(path, "rb") as upload:
+        await upload.read(4)
+        request = httpx2.Request(method, url, content=upload)
+        assert isinstance(request.stream, AsyncIterable)
+        content = b"".join([part async for part in request.stream])
+
+    assert request.headers == {"Host": "www.example.com", "Transfer-Encoding": "chunked"}
+    assert content == b"456789"
+
+
+@pytest.mark.anyio
+async def test_empty_async_file_content(tmp_path: pathlib.Path) -> None:
+    path = tmp_path / "upload.bin"
+    path.write_bytes(b"")
+
+    async with await anyio.open_file(path, "rb") as upload:
+        request = httpx2.Request(method, url, content=upload)
+        assert isinstance(request.stream, AsyncIterable)
+        chunks = [part async for part in request.stream]
+
+    assert chunks == []
+
+
+@pytest.mark.parametrize("text", ["<file content>", ""])
+@pytest.mark.anyio
+async def test_async_file_content_in_text_mode(tmp_path: pathlib.Path, text: str) -> None:
+    path = tmp_path / "upload.txt"
+    path.write_text(text)
+
+    async with await anyio.open_file(path) as upload:
+        request = httpx2.Request(method, url, content=upload)  # type: ignore[arg-type]
+        assert isinstance(request.stream, AsyncIterable)
+        with pytest.raises(TypeError, match="must be opened in binary mode"):
+            [part async for part in request.stream]

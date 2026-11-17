@@ -1,16 +1,21 @@
 from __future__ import annotations
 
+import inspect
 import ipaddress
 import os
 import re
+from collections.abc import AsyncGenerator
 from re import Pattern
+from stat import S_ISREG
 from typing import TYPE_CHECKING, Any
 from urllib.request import getproxies
 
 from ._exceptions import InvalidURL
-from ._types import AnyStr, PrimitiveData
+from ._types import AnyStr, AsyncReadableFile, PrimitiveData
 
 if TYPE_CHECKING:
+    from typing_extensions import TypeIs
+
     from ._urls import URL
 
 
@@ -138,6 +143,35 @@ def peek_filelike_remaining_length(stream: Any) -> int | None:
         return None
 
     return max(0, length - offset)
+
+
+def is_async_readable_file(fileobj: Any) -> TypeIs[AsyncReadableFile]:
+    """Determine whether a file-like object has to be read with `await`."""
+    return inspect.iscoroutinefunction(getattr(fileobj, "read", None))
+
+
+def peek_async_filelike_length(stream: Any) -> int | None:
+    """Return the size of the regular file behind an async file object, or `None` if there isn't one."""
+    fileno = getattr(stream, "fileno", None)
+    if not callable(fileno) or inspect.iscoroutinefunction(fileno):
+        return None
+
+    try:
+        stat = os.fstat(fileno())
+    except (OSError, TypeError):
+        return None
+
+    return stat.st_size if S_ISREG(stat.st_mode) else None
+
+
+async def aiter_file_chunks(file: AsyncReadableFile, chunk_size: int) -> AsyncGenerator[bytes, None]:
+    """Read an async file object from its current position in chunks of `chunk_size` bytes."""
+    chunk = await file.read(chunk_size)
+    if isinstance(chunk, str):
+        raise TypeError("Async file uploads must be opened in binary mode, not text mode.")
+    while chunk:
+        yield chunk
+        chunk = await file.read(chunk_size)
 
 
 class URLPattern:
