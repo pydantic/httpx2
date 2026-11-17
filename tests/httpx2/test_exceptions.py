@@ -97,3 +97,19 @@ async def test_anyio_write_after_ragged_tls_eof(cert_authority: trustme.CA, ragg
             await stream.write(b"GET / HTTP/1.1\r\n\r\n")
     finally:
         await stream.aclose()
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("anyio_backend", ["asyncio"])
+async def test_asyncio_write_after_ragged_tls_eof(cert_authority: trustme.CA, ragged_eof_tls_server: int) -> None:
+    client_context = ssl.create_default_context()
+    cert_authority.configure_trust(client_context)
+
+    stream = await httpcore2.AsyncIOBackend().connect_tcp("127.0.0.1", ragged_eof_tls_server)
+    stream = await stream.start_tls(client_context, server_hostname="localhost")
+    try:
+        assert await stream.read(65536) == b""
+        with pytest.raises(httpcore2.WriteError):
+            await stream.write(b"GET / HTTP/1.1\r\n\r\n")
+    finally:
+        await stream.aclose()
