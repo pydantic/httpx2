@@ -27,6 +27,7 @@
     * Async
         * `httpcore2._backends.auto.AutoBackend`
         * `httpcore2._backends.anyio.AnyIOBackend`
+        * `httpcore2._backends.asyncio.AsyncIOBackend`
         * `httpcore2._backends.trio.TrioBackend`
         * `httpcore2._backends.mock.AsyncMockBackend`
     * Base interfaces
