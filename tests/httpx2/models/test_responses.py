@@ -775,6 +775,7 @@ async def test_cannot_aread_after_response_closed() -> None:
 @pytest.mark.anyio
 async def test_cancelled_aclose_can_be_retried() -> None:
     scope = anyio.CancelScope()
+    attempts = 0
     closes = 0
 
     class StalledStream(httpx2.AsyncByteStream):
@@ -784,8 +785,9 @@ async def test_cancelled_aclose_can_be_retried() -> None:
             await anyio.sleep_forever()
 
         async def aclose(self) -> None:
+            nonlocal attempts, closes
+            attempts += 1
             await anyio.lowlevel.checkpoint()
-            nonlocal closes
             closes += 1
 
     response = httpx2.Response(200, stream=StalledStream())
@@ -793,11 +795,29 @@ async def test_cancelled_aclose_can_be_retried() -> None:
         async for _ in response.aiter_raw():
             pass
     assert not response.is_closed
-    assert closes == 0
+    assert (attempts, closes) == (1, 0)
 
     await response.aclose()
     assert response.is_closed
-    assert closes == 1
+    assert (attempts, closes) == (2, 1)
+
+
+@pytest.mark.anyio
+async def test_overlapping_aclose_closes_the_stream_once() -> None:
+    attempts = 0
+
+    class SlowCloseStream(httpx2.AsyncByteStream):
+        async def aclose(self) -> None:
+            nonlocal attempts
+            attempts += 1
+            await anyio.lowlevel.checkpoint()
+
+    response = httpx2.Response(200, stream=SlowCloseStream())
+    async with anyio.create_task_group() as task_group:
+        task_group.start_soon(response.aclose)
+        task_group.start_soon(response.aclose)
+    assert response.is_closed
+    assert attempts == 1
 
 
 @pytest.mark.anyio

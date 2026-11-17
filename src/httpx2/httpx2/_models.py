@@ -1101,9 +1101,13 @@ class Response:
             raise RuntimeError("Attempted to call an async close on a sync stream.")
 
         if not self.is_closed:
-            with request_context(request=self._request):
-                await self.stream.aclose()
             self.is_closed = True
+            try:
+                with request_context(request=self._request):
+                    await self.stream.aclose()
+            except BaseException:
+                self.is_closed = False  # cancelled or failed: a later `aclose()` retries
+                raise
 
 
 class Cookies(MutableMapping[str, str]):
