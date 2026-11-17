@@ -146,7 +146,7 @@ class TestASGIWebSocketAsyncNetworkStream:
             ):
 
                 async def read() -> None:
-                    # anyio < 4.16 ends a pending read with EOF, later versions raise.
+                    # TODO: Expect only `ReadError` once anyio 4.16 is the minimum, older versions return EOF.
                     with contextlib.suppress(httpcore.ReadError):
                         assert await stream.read(4096) == b""
 
