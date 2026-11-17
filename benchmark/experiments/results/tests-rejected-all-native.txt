@@ -1,0 +1,569 @@
+/Users/marcelotryle/dev/pydantic/httpx2/.venv/lib/python3.14/site-packages/httpbin/helpers.py:38: SyntaxWarning: "\_" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\_"? A raw string is also an option.
+  \_;`"---"`|//
+/Users/marcelotryle/dev/pydantic/httpx2/.venv/lib/python3.14/site-packages/httpbin/helpers.py:84: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+  \  .-"`  `"-.  /
+/Users/marcelotryle/dev/pydantic/httpx2/.venv/lib/python3.14/site-packages/httpbin/helpers.py:444: SyntaxWarning: "\s" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\s"? A raw string is also an option.
+  match = re.search('\s*(W/)?\"?([^"]*)\"?\s*', part)
+...............................................................................................................................s.............. [  8%]
+.............................................................................................................................................. [ 16%]
+.............................................................................................................................................. [ 24%]
+.............................................................................................................................................. [ 32%]
+.............................................................................................................................................. [ 40%]
+.............................................................................................................................................. [ 48%]
+.............................................................................................................................................. [ 57%]
+.............................................................................................................................................. [ 65%]
+...................................................................................F.FFFF.FFF.FF.FFFF.FFF.F................................... [ 73%]
+.............................................................................................................................................. [ 81%]
+........................................................................................F..................................................... [ 89%]
+.............................................................................................................................................. [ 97%]
+.......F....................F..........                                                                                                        [100%]
+====================================================================== FAILURES ======================================================================
+____________________________________________________________ test_asgi_transport[asyncio] ____________________________________________________________
+
+    @pytest.mark.anyio
+    async def test_asgi_transport() -> None:
+        async with httpx2.ASGITransport(app=hello_world) as transport:
+            request = httpx2.Request("GET", "http://www.example.com/")
+>           response = await transport.handle_async_request(request)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           RuntimeWarning: coroutine 'ByteStream.__aiter__' was never awaited
+
+tests/httpx2/test_asgi.py:81: RuntimeWarning
+
+The above exception was the direct cause of the following exception:
+
+>       lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+                ^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+E   pytest.PytestUnraisableExceptionWarning: Exception ignored in: <async_generator object ByteStream.__aiter__ at 0x117b2edb0>
+E   Enable tracemalloc to get traceback where the object was allocated.
+E   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+../../../../dev/pydantic/httpx2/.venv/lib/python3.14/site-packages/flaky/flaky_pytest_plugin.py:146: PytestUnraisableExceptionWarning
+_________________________________________________________________ test_asgi[asyncio] _________________________________________________________________
+
+    @pytest.mark.anyio
+    async def test_asgi() -> None:
+        transport = httpx2.ASGITransport(app=hello_world)
+        async with httpx2.AsyncClient(transport=transport) as client:
+>           response = await client.get("http://www.example.org/")
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           RuntimeWarning: coroutine 'ByteStream.__aiter__' was never awaited
+
+tests/httpx2/test_asgi.py:101: RuntimeWarning
+
+The above exception was the direct cause of the following exception:
+
+>       lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+                ^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+E   pytest.PytestUnraisableExceptionWarning: Exception ignored in: <async_generator object ByteStream.__aiter__ at 0x117b56d00>
+E   Enable tracemalloc to get traceback where the object was allocated.
+E   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+../../../../dev/pydantic/httpx2/.venv/lib/python3.14/site-packages/flaky/flaky_pytest_plugin.py:146: PytestUnraisableExceptionWarning
+_________________________________________________________ test_asgi_urlencoded_path[asyncio] _________________________________________________________
+
+    @pytest.mark.anyio
+    async def test_asgi_urlencoded_path() -> None:
+        transport = httpx2.ASGITransport(app=echo_path)
+        async with httpx2.AsyncClient(transport=transport) as client:
+            url = httpx2.URL("http://www.example.org/").copy_with(path="/user@example.org")
+>           response = await client.get(url)
+                       ^^^^^^^^^^^^^^^^^^^^^
+E           RuntimeWarning: coroutine 'ByteStream.__aiter__' was never awaited
+
+tests/httpx2/test_asgi.py:112: RuntimeWarning
+
+The above exception was the direct cause of the following exception:
+
+>       lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+                ^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+E   pytest.PytestUnraisableExceptionWarning: Exception ignored in: <async_generator object ByteStream.__aiter__ at 0x117b57ac0>
+E   Enable tracemalloc to get traceback where the object was allocated.
+E   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+../../../../dev/pydantic/httpx2/.venv/lib/python3.14/site-packages/flaky/flaky_pytest_plugin.py:146: PytestUnraisableExceptionWarning
+____________________________________________________________ test_asgi_raw_path[asyncio] _____________________________________________________________
+
+    @pytest.mark.anyio
+    async def test_asgi_raw_path() -> None:
+        transport = httpx2.ASGITransport(app=echo_raw_path)
+        async with httpx2.AsyncClient(transport=transport) as client:
+            url = httpx2.URL("http://www.example.org/").copy_with(path="/user@example.org")
+>           response = await client.get(url)
+                       ^^^^^^^^^^^^^^^^^^^^^
+E           RuntimeWarning: coroutine 'ByteStream.__aiter__' was never awaited
+
+tests/httpx2/test_asgi.py:123: RuntimeWarning
+
+The above exception was the direct cause of the following exception:
+
+>       lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+                ^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+E   pytest.PytestUnraisableExceptionWarning: Exception ignored in: <async_generator object ByteStream.__aiter__ at 0x117c50940>
+E   Enable tracemalloc to get traceback where the object was allocated.
+E   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+../../../../dev/pydantic/httpx2/.venv/lib/python3.14/site-packages/flaky/flaky_pytest_plugin.py:146: PytestUnraisableExceptionWarning
+_________________________________________ test_asgi_raw_path_should_not_include_querystring_portion[asyncio] _________________________________________
+
+    @pytest.mark.anyio
+    async def test_asgi_raw_path_should_not_include_querystring_portion() -> None:
+        """
+        See https://github.com/encode/httpx/issues/2810
+        """
+        transport = httpx2.ASGITransport(app=echo_raw_path)
+        async with httpx2.AsyncClient(transport=transport) as client:
+            url = httpx2.URL("http://www.example.org/path?query")
+>           response = await client.get(url)
+                       ^^^^^^^^^^^^^^^^^^^^^
+E           RuntimeWarning: coroutine 'ByteStream.__aiter__' was never awaited
+
+tests/httpx2/test_asgi.py:137: RuntimeWarning
+
+The above exception was the direct cause of the following exception:
+
+>       lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+                ^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+E   pytest.PytestUnraisableExceptionWarning: Exception ignored in: <async_generator object ByteStream.__aiter__ at 0x117c51700>
+E   Enable tracemalloc to get traceback where the object was allocated.
+E   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+../../../../dev/pydantic/httpx2/.venv/lib/python3.14/site-packages/flaky/flaky_pytest_plugin.py:146: PytestUnraisableExceptionWarning
+_____________________________________________________________ test_asgi_headers[asyncio] _____________________________________________________________
+
+    @pytest.mark.anyio
+    async def test_asgi_headers() -> None:
+        transport = httpx2.ASGITransport(app=echo_headers)
+        async with httpx2.AsyncClient(transport=transport) as client:
+>           response = await client.get("http://www.example.org/")
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           RuntimeWarning: coroutine 'ByteStream.__aiter__' was never awaited
+
+tests/httpx2/test_asgi.py:157: RuntimeWarning
+
+The above exception was the direct cause of the following exception:
+
+>       lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+                ^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+E   pytest.PytestUnraisableExceptionWarning: Exception ignored in: <async_generator object ByteStream.__aiter__ at 0x117c52af0>
+E   Enable tracemalloc to get traceback where the object was allocated.
+E   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+../../../../dev/pydantic/httpx2/.venv/lib/python3.14/site-packages/flaky/flaky_pytest_plugin.py:146: PytestUnraisableExceptionWarning
+_______________________________________________________________ test_asgi_exc[asyncio] _______________________________________________________________
+
+    @pytest.mark.anyio
+    async def test_asgi_exc() -> None:
+        transport = httpx2.ASGITransport(app=raise_exc)
+        async with httpx2.AsyncClient(transport=transport) as client:
+>           with pytest.raises(RuntimeError):
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           RuntimeWarning: coroutine 'ByteStream.__aiter__' was never awaited
+
+tests/httpx2/test_asgi.py:175: RuntimeWarning
+
+The above exception was the direct cause of the following exception:
+
+>       lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+                ^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+E   pytest.PytestUnraisableExceptionWarning: Exception ignored in: <async_generator object ByteStream.__aiter__ at 0x117c538b0>
+E   Enable tracemalloc to get traceback where the object was allocated.
+E   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+../../../../dev/pydantic/httpx2/.venv/lib/python3.14/site-packages/flaky/flaky_pytest_plugin.py:146: PytestUnraisableExceptionWarning
+_______________________________________________________ test_asgi_exc_after_response[asyncio] ________________________________________________________
+
+    @pytest.mark.anyio
+    async def test_asgi_exc_after_response() -> None:
+        transport = httpx2.ASGITransport(app=raise_exc_after_response)
+        async with httpx2.AsyncClient(transport=transport) as client:
+>           with pytest.raises(RuntimeError):
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           RuntimeWarning: coroutine 'ByteStream.__aiter__' was never awaited
+
+tests/httpx2/test_asgi.py:183: RuntimeWarning
+
+The above exception was the direct cause of the following exception:
+
+>       lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+                ^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+E   pytest.PytestUnraisableExceptionWarning: Exception ignored in: <async_generator object ByteStream.__aiter__ at 0x117bd8730>
+E   Enable tracemalloc to get traceback where the object was allocated.
+E   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+../../../../dev/pydantic/httpx2/.venv/lib/python3.14/site-packages/flaky/flaky_pytest_plugin.py:146: PytestUnraisableExceptionWarning
+__________________________________________________________ test_asgi_exc_no_raise[asyncio] ___________________________________________________________
+
+    @pytest.mark.anyio
+    async def test_asgi_exc_no_raise() -> None:
+        transport = httpx2.ASGITransport(app=raise_exc, raise_app_exceptions=False)
+        async with httpx2.AsyncClient(transport=transport) as client:
+>           response = await client.get("http://www.example.org/")
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           RuntimeWarning: coroutine 'ByteStream.__aiter__' was never awaited
+
+tests/httpx2/test_asgi.py:224: RuntimeWarning
+
+The above exception was the direct cause of the following exception:
+
+>       lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+                ^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+E   pytest.PytestUnraisableExceptionWarning: Exception ignored in: <async_generator object ByteStream.__aiter__ at 0x117bd99c0>
+E   Enable tracemalloc to get traceback where the object was allocated.
+E   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+../../../../dev/pydantic/httpx2/.venv/lib/python3.14/site-packages/flaky/flaky_pytest_plugin.py:146: PytestUnraisableExceptionWarning
+_____________________________________________________________ test_asgi_transport[trio] ______________________________________________________________
+
+    @pytest.mark.anyio
+    async def test_asgi_transport() -> None:
+        async with httpx2.ASGITransport(app=hello_world) as transport:
+            request = httpx2.Request("GET", "http://www.example.com/")
+>           response = await transport.handle_async_request(request)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           RuntimeWarning: coroutine 'ByteStream.__aiter__' was never awaited
+
+tests/httpx2/test_asgi.py:81: RuntimeWarning
+
+The above exception was the direct cause of the following exception:
+
+>       lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+                ^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+E   pytest.PytestUnraisableExceptionWarning: Exception ignored in: <async_generator object ByteStream.__aiter__ at 0x117bdb6a0>
+E   Enable tracemalloc to get traceback where the object was allocated.
+E   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+../../../../dev/pydantic/httpx2/.venv/lib/python3.14/site-packages/flaky/flaky_pytest_plugin.py:146: PytestUnraisableExceptionWarning
+__________________________________________________________________ test_asgi[trio] ___________________________________________________________________
+
+    @pytest.mark.anyio
+    async def test_asgi() -> None:
+        transport = httpx2.ASGITransport(app=hello_world)
+        async with httpx2.AsyncClient(transport=transport) as client:
+>           response = await client.get("http://www.example.org/")
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           RuntimeWarning: coroutine 'ByteStream.__aiter__' was never awaited
+
+tests/httpx2/test_asgi.py:101: RuntimeWarning
+
+The above exception was the direct cause of the following exception:
+
+>       lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+                ^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+E   pytest.PytestUnraisableExceptionWarning: Exception ignored in: <async_generator object ByteStream.__aiter__ at 0x117c50890>
+E   Enable tracemalloc to get traceback where the object was allocated.
+E   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+../../../../dev/pydantic/httpx2/.venv/lib/python3.14/site-packages/flaky/flaky_pytest_plugin.py:146: PytestUnraisableExceptionWarning
+__________________________________________________________ test_asgi_urlencoded_path[trio] ___________________________________________________________
+
+    @pytest.mark.anyio
+    async def test_asgi_urlencoded_path() -> None:
+        transport = httpx2.ASGITransport(app=echo_path)
+        async with httpx2.AsyncClient(transport=transport) as client:
+            url = httpx2.URL("http://www.example.org/").copy_with(path="/user@example.org")
+>           response = await client.get(url)
+                       ^^^^^^^^^^^^^^^^^^^^^
+E           RuntimeWarning: coroutine 'ByteStream.__aiter__' was never awaited
+
+tests/httpx2/test_asgi.py:112: RuntimeWarning
+
+The above exception was the direct cause of the following exception:
+
+>       lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+                ^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+E   pytest.PytestUnraisableExceptionWarning: Exception ignored in: <async_generator object ByteStream.__aiter__ at 0x117b571d0>
+E   Enable tracemalloc to get traceback where the object was allocated.
+E   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+../../../../dev/pydantic/httpx2/.venv/lib/python3.14/site-packages/flaky/flaky_pytest_plugin.py:146: PytestUnraisableExceptionWarning
+______________________________________________________________ test_asgi_raw_path[trio] ______________________________________________________________
+
+    @pytest.mark.anyio
+    async def test_asgi_raw_path() -> None:
+        transport = httpx2.ASGITransport(app=echo_raw_path)
+        async with httpx2.AsyncClient(transport=transport) as client:
+            url = httpx2.URL("http://www.example.org/").copy_with(path="/user@example.org")
+>           response = await client.get(url)
+                       ^^^^^^^^^^^^^^^^^^^^^
+E           RuntimeWarning: coroutine 'ByteStream.__aiter__' was never awaited
+
+tests/httpx2/test_asgi.py:123: RuntimeWarning
+
+The above exception was the direct cause of the following exception:
+
+>       lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+                ^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+E   pytest.PytestUnraisableExceptionWarning: Exception ignored in: <async_generator object ByteStream.__aiter__ at 0x117b55d30>
+E   Enable tracemalloc to get traceback where the object was allocated.
+E   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+../../../../dev/pydantic/httpx2/.venv/lib/python3.14/site-packages/flaky/flaky_pytest_plugin.py:146: PytestUnraisableExceptionWarning
+__________________________________________ test_asgi_raw_path_should_not_include_querystring_portion[trio] ___________________________________________
+
+    @pytest.mark.anyio
+    async def test_asgi_raw_path_should_not_include_querystring_portion() -> None:
+        """
+        See https://github.com/encode/httpx/issues/2810
+        """
+        transport = httpx2.ASGITransport(app=echo_raw_path)
+        async with httpx2.AsyncClient(transport=transport) as client:
+            url = httpx2.URL("http://www.example.org/path?query")
+>           response = await client.get(url)
+                       ^^^^^^^^^^^^^^^^^^^^^
+E           RuntimeWarning: coroutine 'ByteStream.__aiter__' was never awaited
+
+tests/httpx2/test_asgi.py:137: RuntimeWarning
+
+The above exception was the direct cause of the following exception:
+
+>       lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+                ^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+E   pytest.PytestUnraisableExceptionWarning: Exception ignored in: <async_generator object ByteStream.__aiter__ at 0x117b2d230>
+E   Enable tracemalloc to get traceback where the object was allocated.
+E   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+../../../../dev/pydantic/httpx2/.venv/lib/python3.14/site-packages/flaky/flaky_pytest_plugin.py:146: PytestUnraisableExceptionWarning
+______________________________________________________________ test_asgi_headers[trio] _______________________________________________________________
+
+    @pytest.mark.anyio
+    async def test_asgi_headers() -> None:
+        transport = httpx2.ASGITransport(app=echo_headers)
+        async with httpx2.AsyncClient(transport=transport) as client:
+>           response = await client.get("http://www.example.org/")
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           RuntimeWarning: coroutine 'ByteStream.__aiter__' was never awaited
+
+tests/httpx2/test_asgi.py:157: RuntimeWarning
+
+The above exception was the direct cause of the following exception:
+
+>       lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+                ^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+E   pytest.PytestUnraisableExceptionWarning: Exception ignored in: <async_generator object ByteStream.__aiter__ at 0x117992f10>
+E   Enable tracemalloc to get traceback where the object was allocated.
+E   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+../../../../dev/pydantic/httpx2/.venv/lib/python3.14/site-packages/flaky/flaky_pytest_plugin.py:146: PytestUnraisableExceptionWarning
+________________________________________________________________ test_asgi_exc[trio] _________________________________________________________________
+
+    @pytest.mark.anyio
+    async def test_asgi_exc() -> None:
+        transport = httpx2.ASGITransport(app=raise_exc)
+        async with httpx2.AsyncClient(transport=transport) as client:
+>           with pytest.raises(RuntimeError):
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           RuntimeWarning: coroutine 'ByteStream.__aiter__' was never awaited
+
+tests/httpx2/test_asgi.py:175: RuntimeWarning
+
+The above exception was the direct cause of the following exception:
+
+>       lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+                ^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+E   pytest.PytestUnraisableExceptionWarning: Exception ignored in: <async_generator object ByteStream.__aiter__ at 0x1179789f0>
+E   Enable tracemalloc to get traceback where the object was allocated.
+E   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+../../../../dev/pydantic/httpx2/.venv/lib/python3.14/site-packages/flaky/flaky_pytest_plugin.py:146: PytestUnraisableExceptionWarning
+_________________________________________________________ test_asgi_exc_after_response[trio] _________________________________________________________
+
+    @pytest.mark.anyio
+    async def test_asgi_exc_after_response() -> None:
+        transport = httpx2.ASGITransport(app=raise_exc_after_response)
+        async with httpx2.AsyncClient(transport=transport) as client:
+>           with pytest.raises(RuntimeError):
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           RuntimeWarning: coroutine 'ByteStream.__aiter__' was never awaited
+
+tests/httpx2/test_asgi.py:183: RuntimeWarning
+
+The above exception was the direct cause of the following exception:
+
+>       lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+                ^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+E   pytest.PytestUnraisableExceptionWarning: Exception ignored in: <async_generator object ByteStream.__aiter__ at 0x117953540>
+E   Enable tracemalloc to get traceback where the object was allocated.
+E   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+../../../../dev/pydantic/httpx2/.venv/lib/python3.14/site-packages/flaky/flaky_pytest_plugin.py:146: PytestUnraisableExceptionWarning
+____________________________________________________________ test_asgi_exc_no_raise[trio] ____________________________________________________________
+
+    @pytest.mark.anyio
+    async def test_asgi_exc_no_raise() -> None:
+        transport = httpx2.ASGITransport(app=raise_exc, raise_app_exceptions=False)
+        async with httpx2.AsyncClient(transport=transport) as client:
+>           response = await client.get("http://www.example.org/")
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           RuntimeWarning: coroutine 'ByteStream.__aiter__' was never awaited
+
+tests/httpx2/test_asgi.py:224: RuntimeWarning
+
+The above exception was the direct cause of the following exception:
+
+>       lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+                ^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+E   pytest.PytestUnraisableExceptionWarning: Exception ignored in: <async_generator object ByteStream.__aiter__ at 0x117c52a40>
+E   Enable tracemalloc to get traceback where the object was allocated.
+E   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+../../../../dev/pydantic/httpx2/.venv/lib/python3.14/site-packages/flaky/flaky_pytest_plugin.py:146: PytestUnraisableExceptionWarning
+______________________________________________________________ test_write_timeout[trio] ______________________________________________________________
+
+agen = <async_generator object None at 0x10f043a10>
+
+    @_core.enable_ki_protection
+    def finalizer(agen: AsyncGeneratorType[object, NoReturn]) -> None:
+        try:
+            self.foreign.remove(id(agen))
+        except KeyError:
+            is_ours = True
+        else:
+            is_ours = False
+    
+        agen_name = name_asyncgen(agen)
+        if is_ours:
+            runner.entry_queue.run_sync_soon(
+                finalize_in_trio_context,
+                agen,
+                agen_name,
+            )
+    
+            # Do this last, because it might raise an exception
+            # depending on the user's warnings filter. (That
+            # exception will be printed to the terminal and
+            # ignored, since we're running in GC context.)
+>           warnings.warn(
+                f"Async generator {agen_name!r} was garbage collected before it "
+                "had been exhausted. Surround its use in 'async with "
+                "aclosing(...):' to ensure that it gets cleaned up as soon as "
+                "you're done using it.",
+                ResourceWarning,
+                stacklevel=2,
+                source=agen,
+            )
+E           ResourceWarning: Async generator '<async_generator object ByteStream.__aiter__ at 0x10f043a10>' was garbage collected before it had been exhausted. Surround its use in 'async with aclosing(...):' to ensure that it gets cleaned up as soon as you're done using it.
+
+../../../../dev/pydantic/httpx2/.venv/lib/python3.14/site-packages/trio/_core/_asyncgens.py:122: ResourceWarning
+
+The above exception was the direct cause of the following exception:
+
+>       lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+                ^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+E   pytest.PytestUnraisableExceptionWarning: Exception ignored in: <async_generator object ByteStream.__aiter__ at 0x10f043a10>
+E   Enable tracemalloc to get traceback where the object was allocated.
+E   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+../../../../dev/pydantic/httpx2/.venv/lib/python3.14/site-packages/flaky/flaky_pytest_plugin.py:146: PytestUnraisableExceptionWarning
+---------------------------------------------------------------- Captured stdout call ----------------------------------------------------------------
+INFO:     127.0.0.1:49359 - "PUT /slow_response HTTP/1.1" 200 OK
+----------------------------------------------------------------- Captured log call ------------------------------------------------------------------
+INFO     uvicorn.access:h11_impl.py:482 127.0.0.1:49359 - "PUT /slow_response HTTP/1.1" 200
+___________________________________________________ TestASGIWebSocketTransport.test_http[asyncio] ____________________________________________________
+
+self = <httpx2.websockets._transport.ASGIWebSocketTransport object at 0x1183ae7b0>, request = <Request('GET', 'http://localhost:8000/http')>
+
+    async def handle_async_request(self, request: Request) -> Response:
+        scheme = request.url.scheme
+        headers = request.headers
+    
+        if scheme in {"ws", "wss"} or headers.get("upgrade") == "websocket":
+            subprotocols: list[str] = []
+            if (subprotocols_header := headers.get("sec-websocket-protocol")) is not None:
+                subprotocols = subprotocols_header.split(",")
+    
+            scope = {
+                "type": "websocket",
+                "path": request.url.path,
+                "raw_path": request.url.raw_path,
+                "root_path": self.root_path,
+                "scheme": scheme,
+                "query_string": request.url.query,
+                "headers": [(k.lower(), v) for (k, v) in request.headers.raw],
+                "client": self.client,
+                "server": (request.url.host, request.url.port),
+                "subprotocols": subprotocols,
+            }
+            return await self._handle_ws_request(request, scope)
+    
+>       return await super().handle_async_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       RuntimeWarning: coroutine 'ByteStream.__aiter__' was never awaited
+
+/tmp/httpx2-zttp-experiment/compiled/httpx2/websockets/_transport.py:245: RuntimeWarning
+
+The above exception was the direct cause of the following exception:
+
+>       lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+                ^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+E   pytest.PytestUnraisableExceptionWarning: Exception ignored in: <async_generator object ByteStream.__aiter__ at 0x1184322b0>
+E   Enable tracemalloc to get traceback where the object was allocated.
+E   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+../../../../dev/pydantic/httpx2/.venv/lib/python3.14/site-packages/flaky/flaky_pytest_plugin.py:146: PytestUnraisableExceptionWarning
+_____________________________________________________ TestASGIWebSocketTransport.test_http[trio] _____________________________________________________
+
+self = <httpx2.websockets._transport.ASGIWebSocketTransport object at 0x11848e030>, request = <Request('GET', 'http://localhost:8000/http')>
+
+    async def handle_async_request(self, request: Request) -> Response:
+        scheme = request.url.scheme
+        headers = request.headers
+    
+        if scheme in {"ws", "wss"} or headers.get("upgrade") == "websocket":
+            subprotocols: list[str] = []
+            if (subprotocols_header := headers.get("sec-websocket-protocol")) is not None:
+                subprotocols = subprotocols_header.split(",")
+    
+            scope = {
+                "type": "websocket",
+                "path": request.url.path,
+                "raw_path": request.url.raw_path,
+                "root_path": self.root_path,
+                "scheme": scheme,
+                "query_string": request.url.query,
+                "headers": [(k.lower(), v) for (k, v) in request.headers.raw],
+                "client": self.client,
+                "server": (request.url.host, request.url.port),
+                "subprotocols": subprotocols,
+            }
+            return await self._handle_ws_request(request, scope)
+    
+>       return await super().handle_async_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       RuntimeWarning: coroutine 'ByteStream.__aiter__' was never awaited
+
+/tmp/httpx2-zttp-experiment/compiled/httpx2/websockets/_transport.py:245: RuntimeWarning
+
+The above exception was the direct cause of the following exception:
+
+>       lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+                ^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+E   pytest.PytestUnraisableExceptionWarning: Exception ignored in: <async_generator object ByteStream.__aiter__ at 0x1184a59c0>
+E   Enable tracemalloc to get traceback where the object was allocated.
+E   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+../../../../dev/pydantic/httpx2/.venv/lib/python3.14/site-packages/flaky/flaky_pytest_plugin.py:146: PytestUnraisableExceptionWarning
+============================================================== short test summary info ===============================================================
+SKIPPED [1] tests/httpx2/client/test_auth.py:253: netrc files without a password are valid from Python >= 3.11
+21 failed, 1721 passed, 1 skipped in 25.84s

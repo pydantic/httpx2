@@ -1,0 +1,116 @@
+{
+  "c16/1k fused-buffered": [
+    {
+      "lib": "fused-buffered",
+      "mode": "read",
+      "concurrency": 16,
+      "size": 1024,
+      "post": false,
+      "requests": 59190,
+      "seconds": 2.0,
+      "rps": 29589.6,
+      "p50_ms": 0.5,
+      "p99_ms": 0.93,
+      "max_ms": 5.57,
+      "cpu_us": 33.6,
+      "python": "3.14.3",
+      "gil": true,
+      "zuvloop": false
+    }
+  ],
+  "c16/1k fused-buffered-protocol": [
+    {
+      "lib": "fused-buffered-protocol",
+      "mode": "read",
+      "concurrency": 16,
+      "size": 1024,
+      "post": false,
+      "requests": 63870,
+      "seconds": 2.0,
+      "rps": 31929.6,
+      "p50_ms": 0.47,
+      "p99_ms": 0.84,
+      "max_ms": 1.3,
+      "cpu_us": 31.2,
+      "python": "3.14.3",
+      "gil": true,
+      "zuvloop": false
+    }
+  ],
+  "c16/1k pyreqwest": [
+    {
+      "lib": "pyreqwest",
+      "mode": "read",
+      "concurrency": 16,
+      "size": 1024,
+      "post": false,
+      "requests": 73497,
+      "seconds": 2.0,
+      "rps": 36740.5,
+      "p50_ms": 0.41,
+      "p99_ms": 0.74,
+      "max_ms": 2.21,
+      "cpu_us": 39.1,
+      "python": "3.14.3",
+      "gil": true,
+      "zuvloop": false
+    }
+  ],
+  "c64/100k fused-buffered": [
+    {
+      "lib": "fused-buffered",
+      "mode": "read",
+      "concurrency": 64,
+      "size": 102400,
+      "post": false,
+      "requests": 35061,
+      "seconds": 2.003,
+      "rps": 17505.2,
+      "p50_ms": 3.59,
+      "p99_ms": 4.89,
+      "max_ms": 9.51,
+      "cpu_us": 56.7,
+      "python": "3.14.3",
+      "gil": true,
+      "zuvloop": false
+    }
+  ],
+  "c64/100k fused-buffered-protocol": [
+    {
+      "lib": "fused-buffered-protocol",
+      "mode": "read",
+      "concurrency": 64,
+      "size": 102400,
+      "post": false,
+      "requests": 41024,
+      "seconds": 2.002,
+      "rps": 20494.9,
+      "p50_ms": 3.06,
+      "p99_ms": 4.19,
+      "max_ms": 5.3,
+      "cpu_us": 48.6,
+      "python": "3.14.3",
+      "gil": true,
+      "zuvloop": false
+    }
+  ],
+  "c64/100k pyreqwest": [
+    {
+      "lib": "pyreqwest",
+      "mode": "read",
+      "concurrency": 64,
+      "size": 102400,
+      "post": false,
+      "requests": 47549,
+      "seconds": 2.002,
+      "rps": 23750.9,
+      "p50_ms": 2.68,
+      "p99_ms": 3.72,
+      "max_ms": 4.27,
+      "cpu_us": 59.1,
+      "python": "3.14.3",
+      "gil": true,
+      "zuvloop": false
+    }
+  ]
+}
