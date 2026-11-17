@@ -1102,8 +1102,12 @@ class Response:
 
         if not self.is_closed:
             self.is_closed = True
-            with request_context(request=self._request):
-                await self.stream.aclose()
+            try:
+                with request_context(request=self._request):
+                    await self.stream.aclose()
+            except BaseException:
+                self.is_closed = False  # cancelled or failed: a later `aclose()` retries
+                raise
 
 
 class Cookies(MutableMapping[str, str]):
