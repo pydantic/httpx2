@@ -16,9 +16,10 @@ from ._types import (
     RequestData,
     RequestFiles,
     SyncByteStream,
-    is_async_readable_file,
 )
 from ._utils import (
+    aiter_file_chunks,
+    is_async_readable_file,
     peek_async_filelike_length,
     peek_filelike_length,
     primitive_value_to_str,
@@ -227,14 +228,9 @@ class FileField:
             except io.UnsupportedOperation:
                 pass
 
-        chunk = await self.file.read(self.CHUNK_SIZE)
-        if not isinstance(chunk, bytes):
-            # `get_length()` derives Content-Length from the file size on disk,
-            # which only matches the uploaded bytes for binary mode reads.
-            raise TypeError("Multipart file uploads must be opened in binary mode, not text mode.")
-        while chunk:
-            yield chunk
-            chunk = await self.file.read(self.CHUNK_SIZE)
+        async with aclosing(aiter_file_chunks(self.file, self.CHUNK_SIZE)) as chunks:
+            async for chunk in chunks:
+                yield chunk
 
     def render(self) -> Iterator[bytes]:
         yield self.render_headers()

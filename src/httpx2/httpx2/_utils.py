@@ -4,14 +4,18 @@ import inspect
 import ipaddress
 import os
 import re
+from collections.abc import AsyncGenerator
 from re import Pattern
+from stat import S_ISREG
 from typing import TYPE_CHECKING, Any
 from urllib.request import getproxies
 
 from ._exceptions import InvalidURL
-from ._types import AnyStr, PrimitiveData
+from ._types import AnyStr, AsyncReadableFile, PrimitiveData
 
 if TYPE_CHECKING:
+    from typing_extensions import TypeIs
+
     from ._urls import URL
 
 
@@ -141,34 +145,33 @@ def peek_filelike_remaining_length(stream: Any) -> int | None:
     return max(0, length - offset)
 
 
+def is_async_readable_file(fileobj: Any) -> TypeIs[AsyncReadableFile]:
+    """Determine whether a file-like object has to be read with `await`."""
+    return inspect.iscoroutinefunction(getattr(fileobj, "read", None))
+
+
 def peek_async_filelike_length(stream: Any) -> int | None:
-    """
-    Given an async file-like stream object, return its length in number of bytes
-    without reading it into memory.
-
-    Async file wrappers expose a synchronous `fileno()`, so the underlying
-    descriptor can be stat'ed. There is no `tell()`/`seek()` fallback as in the
-    sync case, because those would have to be awaited.
-    """
-    seekable = getattr(stream, "seekable", None)
-    if callable(seekable) and not inspect.iscoroutinefunction(seekable):
-        try:
-            rewindable = seekable()
-        except OSError:
-            return None
-        if not rewindable:
-            # We rewind before sending, so for a stream that can't be rewound the
-            # descriptor size wouldn't match the bytes we'd actually upload.
-            return None
-
+    """Return the size of the regular file behind an async file object, or `None` if there isn't one."""
     fileno = getattr(stream, "fileno", None)
     if not callable(fileno) or inspect.iscoroutinefunction(fileno):
         return None
 
     try:
-        return os.fstat(fileno()).st_size
+        stat = os.fstat(fileno())
     except (OSError, TypeError):
         return None
+
+    return stat.st_size if S_ISREG(stat.st_mode) else None
+
+
+async def aiter_file_chunks(file: AsyncReadableFile, chunk_size: int) -> AsyncGenerator[bytes, None]:
+    """Read an async file object from its current position in chunks of `chunk_size` bytes."""
+    chunk = await file.read(chunk_size)
+    if isinstance(chunk, str):
+        raise TypeError("Async file uploads must be opened in binary mode, not text mode.")
+    while chunk:
+        yield chunk
+        chunk = await file.read(chunk_size)
 
 
 class URLPattern:

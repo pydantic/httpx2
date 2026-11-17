@@ -288,8 +288,10 @@ async def main():
 anyio.run(main)
 ```
 
-The file is read one chunk at a time, so uploads are streaming and only one chunk is
-held in memory. As with sync file uploads, files must be opened in binary mode.
+The file is streamed in chunks, and must be opened in binary mode. Raw content is
+sent from the file's current position with `Transfer-Encoding: chunked`. A multipart
+upload rewinds the file first, and sets `Content-Length` when the file is a regular
+file on disk. Sending an async file with a sync `Client` raises an error.
 
 ## Multipart file encoding
 

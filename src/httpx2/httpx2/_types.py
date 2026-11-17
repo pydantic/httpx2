@@ -2,17 +2,9 @@
 Type definitions for type checking purposes.
 """
 
-import inspect
-import sys
 from collections.abc import AsyncIterable, AsyncIterator, Callable, Iterable, Iterator, Mapping, Sequence
 from http.cookiejar import CookieJar
-from types import BuiltinFunctionType
 from typing import IO, TYPE_CHECKING, Any, Protocol, TypeVar, Union
-
-if sys.version_info >= (3, 13):
-    from typing import TypeIs  # pragma: no cover
-else:
-    from typing_extensions import TypeIs  # pragma: no cover
 
 if TYPE_CHECKING:
     from ._auth import Auth
@@ -66,25 +58,6 @@ class AsyncReadableFile(Protocol):
     """
 
     async def read(self, size: int = -1, /) -> bytes: ...
-
-    async def seek(self, offset: int, whence: int = ..., /) -> int: ...
-
-
-def is_async_readable_file(fileobj: Any) -> TypeIs[AsyncReadableFile]:
-    """
-    Determine whether a file-like object has to be read with `await`.
-
-    Only an awaitable `read()` is required. `seek()` and `fileno()` are used
-    when present, so that non-seekable or in-memory async streams still upload.
-    """
-    read = getattr(fileobj, "read", None)
-    if read is None or isinstance(read, BuiltinFunctionType):
-        # `iscoroutinefunction()` is an order of magnitude more expensive than
-        # this, and always answers `False` for C callables such as the `read()`
-        # of `open(...)` or `io.BytesIO`, which can carry neither `CO_COROUTINE`
-        # nor the `markcoroutinefunction()` marker.
-        return False
-    return inspect.iscoroutinefunction(read)
 
 
 FileContent = IO[bytes] | bytes | str | AsyncReadableFile

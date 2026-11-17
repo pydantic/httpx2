@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import os
 import pathlib
 import tempfile
 from collections.abc import AsyncIterable, Iterator
@@ -598,17 +599,14 @@ async def test_multipart_encode_async_file_without_fileno() -> None:
     )
 
 
+@pytest.mark.parametrize("text", ["<file content>", ""])
 @pytest.mark.anyio
-async def test_multipart_encode_async_file_in_text_mode(tmp_path: pathlib.Path) -> None:
+async def test_multipart_encode_async_file_in_text_mode(tmp_path: pathlib.Path, text: str) -> None:
     path = tmp_path / "name.txt"
-    path.write_text("<file content>")
-
-    url = "https://www.example.com/"
+    path.write_text(text)
 
     async with await anyio.open_file(path) as upload:
-        # Text mode is rejected statically by the `AsyncReadableFile` protocol,
-        # and at runtime for file objects that aren't type checked.
-        request = httpx2.Request("POST", url, files={"file": upload})  # type: ignore[dict-item]
+        request = httpx2.Request("POST", "https://www.example.com/", files={"file": upload})  # type: ignore[dict-item]
         assert isinstance(request.stream, AsyncIterable)
         with pytest.raises(TypeError, match="must be opened in binary mode"):
             [chunk async for chunk in request.stream]
@@ -649,19 +647,6 @@ async def test_multipart_encode_async_file_that_is_not_seekable() -> None:
 
 
 @pytest.mark.anyio
-async def test_multipart_encode_empty_async_file_in_text_mode(tmp_path: pathlib.Path) -> None:
-    path = tmp_path / "name.txt"
-    path.write_text("")
-
-    async with await anyio.open_file(path) as upload:
-        request = httpx2.Request("POST", "https://www.example.com/", files={"file": upload})  # type: ignore[dict-item]
-        assert isinstance(request.stream, AsyncIterable)
-        # An empty read still has to be rejected, rather than silently uploading nothing.
-        with pytest.raises(TypeError, match="must be opened in binary mode"):
-            [chunk async for chunk in request.stream]
-
-
-@pytest.mark.anyio
 async def test_multipart_encode_empty_async_file(tmp_path: pathlib.Path) -> None:
     path = tmp_path / "name.txt"
     path.write_bytes(b"")
@@ -685,3 +670,42 @@ async def test_multipart_encode_empty_async_file(tmp_path: pathlib.Path) -> None
         ]
     )
     assert request.headers["Content-Length"] == str(len(content))
+
+
+@pytest.mark.anyio
+async def test_multipart_encode_async_pipe() -> None:
+    read_fd, write_fd = os.pipe()
+    with os.fdopen(write_fd, "wb") as writer:
+        writer.write(b"<file content>")
+
+    async with await anyio.open_file(read_fd, "rb") as upload:
+        files = {"file": ("name.txt", upload)}
+        request = httpx2.Request("POST", "https://www.example.com/", files=files)
+        assert isinstance(request.stream, AsyncIterable)
+        content = b"".join([chunk async for chunk in request.stream])
+
+    assert request.headers["Transfer-Encoding"] == "chunked"
+    assert "Content-Length" not in request.headers
+    assert b"<file content>" in content
+
+
+@pytest.mark.anyio
+async def test_multipart_async_file_resent_on_redirect(tmp_path: pathlib.Path) -> None:
+    path = tmp_path / "name.txt"
+    path.write_bytes(b"<file content>")
+    bodies = []
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        bodies.append(request.content)
+        if request.url.path == "/redirect":
+            return httpx2.Response(307, headers={"Location": "/final"})
+        return httpx2.Response(200)
+
+    async with await anyio.open_file(path, "rb") as upload:
+        async with httpx2.AsyncClient(transport=httpx2.MockTransport(handler), follow_redirects=True) as client:
+            response = await client.post("https://www.example.com/redirect", files={"file": upload})
+
+    assert response.status_code == 200
+    assert len(bodies) == 2
+    assert bodies[0] == bodies[1]
+    assert b"<file content>" in bodies[1]

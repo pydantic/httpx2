@@ -208,66 +208,39 @@ def test_pattern_priority() -> None:
     ]
 
 
-def test_peek_async_filelike_length_without_fileno() -> None:
-    class AsyncBytesIO:
-        async def read(self, size: int = -1) -> bytes:
-            return b""  # pragma: no cover
-
-    assert peek_async_filelike_length(AsyncBytesIO()) is None
+class AsyncFile:
+    def __init__(self, fileno: Callable[[], Any]) -> None:
+        self.fileno = fileno
 
 
-def test_peek_async_filelike_length_with_async_fileno() -> None:
-    class AsyncFileno:
-        async def fileno(self) -> int:
-            return 0  # pragma: no cover
-
-    assert peek_async_filelike_length(AsyncFileno()) is None
+async def async_fileno() -> int:
+    return 0  # pragma: no cover
 
 
-@pytest.mark.parametrize("fileno", (lambda: -1, lambda: None))
-def test_peek_async_filelike_length_with_unstatable_fileno(fileno: Callable[[], Any]) -> None:
-    class Unstatable:
-        def __init__(self) -> None:
-            self.fileno = fileno
-
-    assert peek_async_filelike_length(Unstatable()) is None
-
-
-def test_peek_async_filelike_length_with_non_seekable_stream() -> None:
-    class AsyncPipe:
-        def seekable(self) -> bool:
-            return False
-
-        def fileno(self) -> int:
-            return 0  # pragma: no cover
-
-    assert peek_async_filelike_length(AsyncPipe()) is None
+@pytest.mark.parametrize(
+    "stream",
+    [
+        object(),
+        AsyncFile(async_fileno),
+        AsyncFile(lambda: -1),
+        AsyncFile(lambda: None),
+    ],
+)
+def test_peek_async_filelike_length_without_a_file(stream: Any) -> None:
+    assert peek_async_filelike_length(stream) is None
 
 
-def test_peek_async_filelike_length_with_unusable_seekable() -> None:
-    class Closed:
-        def seekable(self) -> bool:
-            raise OSError("closed")
-
-        def fileno(self) -> int:
-            return 0  # pragma: no cover
-
-    assert peek_async_filelike_length(Closed()) is None
+def test_peek_async_filelike_length_of_a_pipe() -> None:
+    read_fd, write_fd = os.pipe()
+    with os.fdopen(read_fd, "rb") as reader, os.fdopen(write_fd, "wb") as writer:
+        writer.write(b"<file content>")
+        writer.flush()
+        assert peek_async_filelike_length(AsyncFile(reader.fileno)) is None
 
 
-def test_peek_async_filelike_length_with_async_seekable(tmp_path: pathlib.Path) -> None:
+def test_peek_async_filelike_length_of_a_regular_file(tmp_path: pathlib.Path) -> None:
     path = tmp_path / "upload.bin"
     path.write_bytes(b"<file content>")
 
-    class AsyncSeekable:
-        def __init__(self, fileno: int) -> None:
-            self._fileno = fileno
-
-        async def seekable(self) -> bool:
-            return True  # pragma: no cover
-
-        def fileno(self) -> int:
-            return self._fileno
-
     with path.open("rb") as file:
-        assert peek_async_filelike_length(AsyncSeekable(file.fileno())) == len(b"<file content>")
+        assert peek_async_filelike_length(AsyncFile(file.fileno)) == len(b"<file content>")
