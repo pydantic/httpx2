@@ -12,6 +12,4 @@ HeaderTypes = HeadersAsSequence | HeadersAsMapping | None
 
 Extensions = MutableMapping[str, Any]
 
-ExceptionMapping = Mapping[type[Exception], type[Exception]]
-
 SOCKET_OPTION = tuple[int, int, int] | tuple[int, int, bytes | bytearray] | tuple[int, int, None, int]
