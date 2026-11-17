@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import contextlib
 import secrets
 from typing import Any
 
@@ -138,7 +139,6 @@ class TestASGIWebSocketAsyncNetworkStream:
             await send({"type": "websocket.accept"})
             await receive()
 
-        received: list[bytes] = []
         with anyio.fail_after(5):
             async with (
                 create_task_group() as tg,
@@ -146,15 +146,15 @@ class TestASGIWebSocketAsyncNetworkStream:
             ):
 
                 async def read() -> None:
-                    received.append(await stream.read(4096))
+                    # anyio < 4.16 ends a pending read with EOF, later versions raise.
+                    with contextlib.suppress(httpcore.ReadError):
+                        assert await stream.read(4096) == b""
 
                 tg.start_soon(read)
                 await anyio.wait_all_tasks_blocked()
                 await stream.aclose()
                 with pytest.raises(httpcore.ReadError):
                     await stream.read(4096)
-
-        assert received == [b""]
 
     async def test_read_unhandled_asgi_message(self, scope: Scope) -> None:
         async def app(scope: Scope, receive: Receive, send: Send) -> None:
