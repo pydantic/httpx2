@@ -271,8 +271,7 @@ class AsyncConnectionPool(AsyncRequestInterface):
 
         # First we handle cleaning up any connections that are closed
         # or have expired their keep-alive, in a single pass. Reserved
-        # connections skip the expiry check: they were checked when assigned,
-        # and `has_expired()` on an idle connection probes the socket.
+        # connections skip the expiry check: they were checked when assigned.
         for connection in self._connections:
             reserved = connection in request_connections
             if connection.is_closed():

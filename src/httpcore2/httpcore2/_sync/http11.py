@@ -65,6 +65,11 @@ class HTTP11Connection(ConnectionInterface):
             raise RuntimeError(f"Attempted to send request to {request.url.origin} on connection to {self._origin}")
 
         with self._state_lock:
+            # If the HTTP connection is idle but the socket is readable, then the
+            # only valid state is that the socket is about to return b"", indicating
+            # a server-initiated disconnect.
+            if self._state == HTTPConnectionState.IDLE and self._network_stream.get_extra_info("is_readable"):
+                self.close()
             if self._state in (HTTPConnectionState.NEW, HTTPConnectionState.IDLE):
                 self._request_count += 1
                 self._state = HTTPConnectionState.ACTIVE
@@ -257,16 +262,7 @@ class HTTP11Connection(ConnectionInterface):
         # Read `_expire_at` once into a local: on free-threaded builds another
         # thread may reset it to `None` between the check and the comparison.
         expire_at = self._expire_at
-        keepalive_expired = expire_at is not None and now > expire_at
-
-        # If the HTTP connection is idle but the socket is readable, then the
-        # only valid state is that the socket is about to return b"", indicating
-        # a server-initiated disconnect.
-        server_disconnected = self._state == HTTPConnectionState.IDLE and self._network_stream.get_extra_info(
-            "is_readable"
-        )
-
-        return keepalive_expired or server_disconnected
+        return expire_at is not None and now > expire_at
 
     def is_idle(self) -> bool:
         return self._state == HTTPConnectionState.IDLE

@@ -125,10 +125,8 @@ class AsyncConnectionInterface(AsyncRequestInterface):
 
     def has_expired(self) -> bool:
         """
-        Return `True` if the connection is in a state where it should be closed.
-
-        This either means that the connection is idle and it has passed the
-        expiry time on its keep-alive, or that server has sent an EOF.
+        Return `True` if the connection is idle and it has passed the expiry
+        time on its keep-alive.
         """
         raise NotImplementedError()  # pragma: no cover
 

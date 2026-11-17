@@ -363,6 +363,53 @@ async def test_connection_pool_with_http_exception() -> None:
 
 
 @pytest.mark.anyio
+async def test_connection_pool_probes_idle_socket_only_on_reuse() -> None:
+    """
+    An idle HTTP/1.1 socket is checked for a server disconnect when it is about
+    to be reused, not on requests to other origins.
+    """
+    probes = 0
+    disconnected = False
+
+    class ProbedStream(httpcore2.AsyncMockStream):
+        def get_extra_info(self, info: str) -> Any:
+            if info != "is_readable":
+                return super().get_extra_info(info)
+            nonlocal probes
+            probes += 1
+            return disconnected
+
+    class ProbedBackend(httpcore2.AsyncMockBackend):
+        async def connect_tcp(
+            self,
+            host: str,
+            port: int,
+            timeout: float | None = None,
+            local_address: str | None = None,
+            socket_options: Iterable[httpcore2.SOCKET_OPTION] | None = None,
+        ) -> httpcore2.AsyncNetworkStream:
+            return ProbedStream([b"HTTP/1.1 200 OK\r\n", b"Content-Length: 0\r\n", b"\r\n"] * 2)
+
+    async with httpcore2.AsyncConnectionPool(network_backend=ProbedBackend([])) as pool:
+        await pool.request("GET", "http://a.example/")
+        await pool.request("GET", "http://b.example/")
+        assert probes == 0
+
+        await pool.request("GET", "http://b.example/")
+        assert probes == 1
+
+        # The server closed the idle connection: the request moves to a new one.
+        disconnected = True
+        response = await pool.request("GET", "http://a.example/")
+        assert response.status == 200
+        assert probes == 2
+        assert [repr(c) for c in pool.connections] == [
+            "<AsyncHTTPConnection ['http://b.example:80', HTTP/1.1, IDLE, Request Count: 2]>",
+            "<AsyncHTTPConnection ['http://a.example:80', HTTP/1.1, IDLE, Request Count: 1]>",
+        ]
+
+
+@pytest.mark.anyio
 async def test_connection_pool_with_connect_exception() -> None:
     """
     HTTP/1.1 requests that result in an exception during connection should not
