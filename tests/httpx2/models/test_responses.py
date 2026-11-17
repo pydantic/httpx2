@@ -5,6 +5,7 @@ import json
 import pickle
 from collections.abc import AsyncIterator, Iterator
 
+import anyio
 import chardet
 import pytest
 
@@ -769,6 +770,53 @@ async def test_cannot_aread_after_response_closed() -> None:
 
     with pytest.raises(httpx2.StreamClosed):
         await anext(response.aiter_raw())
+
+
+def test_failed_close_can_be_retried() -> None:
+    attempts = 0
+
+    class FailingStream(httpx2.SyncByteStream):
+        def close(self) -> None:
+            nonlocal attempts
+            attempts += 1
+            if attempts == 1:
+                raise OSError("close failed")
+
+    response = httpx2.Response(200, stream=FailingStream())
+    with pytest.raises(OSError, match="close failed"):
+        response.close()
+    assert not response.is_closed
+
+    response.close()
+    assert response.is_closed
+
+
+@pytest.mark.anyio
+async def test_cancelled_aclose_can_be_retried() -> None:
+    scope = anyio.CancelScope()
+    closes = 0
+
+    class StalledStream(httpx2.AsyncByteStream):
+        async def __aiter__(self) -> AsyncIterator[bytes]:
+            yield b"Hello"
+            scope.cancel()
+            await anyio.sleep_forever()
+
+        async def aclose(self) -> None:
+            await anyio.lowlevel.checkpoint()
+            nonlocal closes
+            closes += 1
+
+    response = httpx2.Response(200, stream=StalledStream())
+    with scope:
+        async for _ in response.aiter_raw():
+            pass
+    assert not response.is_closed
+    assert closes == 0
+
+    await response.aclose()
+    assert response.is_closed
+    assert closes == 1
 
 
 @pytest.mark.anyio

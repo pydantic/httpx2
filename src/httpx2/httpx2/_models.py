@@ -977,9 +977,9 @@ class Response:
             raise RuntimeError("Attempted to call a sync close on an async stream.")
 
         if not self.is_closed:
-            self.is_closed = True
             with request_context(request=self._request):
                 self.stream.close()
+            self.is_closed = True
 
     async def aread(self) -> bytes:
         """
@@ -1101,9 +1101,9 @@ class Response:
             raise RuntimeError("Attempted to call an async close on a sync stream.")
 
         if not self.is_closed:
-            self.is_closed = True
             with request_context(request=self._request):
                 await self.stream.aclose()
+            self.is_closed = True
 
 
 class Cookies(MutableMapping[str, str]):
