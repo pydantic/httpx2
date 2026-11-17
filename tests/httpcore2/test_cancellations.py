@@ -177,6 +177,35 @@ async def test_h11_timeout_during_request() -> None:
 
 
 @pytest.mark.anyio
+async def test_h11_cancellation_while_closing_disconnected_idle_connection() -> None:
+    """
+    A cancellation while closing an idle HTTP/1.1 connection that the server
+    disconnected should still close the network stream.
+    """
+    scope = anyio.CancelScope()
+    closed = False
+
+    class DisconnectedStream(httpcore2.AsyncMockStream):
+        def get_extra_info(self, info: str) -> Any:
+            return True if info == "is_readable" else super().get_extra_info(info)
+
+        async def aclose(self) -> None:
+            scope.cancel()
+            await anyio.lowlevel.checkpoint()
+            nonlocal closed
+            closed = True
+
+    origin = httpcore2.Origin(b"http", b"example.com", 80)
+    stream = DisconnectedStream([b"HTTP/1.1 200 OK\r\n", b"Content-Length: 0\r\n", b"\r\n"])
+    conn = httpcore2.AsyncHTTP11Connection(origin, stream)
+    await conn.request("GET", "http://example.com")
+    with scope:
+        with pytest.raises(httpcore2.ConnectionNotAvailable):
+            await conn.request("GET", "http://example.com")
+    assert closed
+
+
+@pytest.mark.anyio
 async def test_h11_timeout_during_response() -> None:
     """
     An async timeout on an HTTP/1.1 during the response reading
