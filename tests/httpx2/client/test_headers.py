@@ -223,6 +223,79 @@ def test_host_with_non_default_port_in_url() -> None:
     }
 
 
+@pytest.mark.parametrize(
+    "url,expected_host",
+    [
+        ("https://[fe80::1%en0]/", "[fe80::1]"),
+        ("https://[fe80::1%25eth0]:8443/", "[fe80::1]:8443"),
+        ("http://[::1]:80/", "[::1]"),
+        ("https://[::1]:8443/", "[::1]:8443"),
+    ],
+)
+def test_host_omits_ipv6_scope_identifier(url: str, expected_host: str) -> None:
+    request = httpx2.Request("GET", url)
+
+    assert request.headers["Host"] == expected_host
+    if "%" in url:
+        assert "%" in request.url.netloc.decode("ascii")
+
+
+def test_host_omits_ipv6_scope_identifier_in_clients() -> None:
+    url = "https://[fe80::1%25eth0]/"
+
+    sync_request = httpx2.Client().build_request("GET", url)
+    async_request = httpx2.AsyncClient().build_request("GET", url)
+
+    assert sync_request.headers["Host"] == "[fe80::1]"
+    assert async_request.headers["Host"] == "[fe80::1]"
+
+
+def test_explicit_host_header_is_preserved_for_scoped_ipv6_url() -> None:
+    request = httpx2.Request("GET", "https://[fe80::1%25eth0]/", headers={"Host": "example.org"})
+
+    assert request.headers["Host"] == "example.org"
+
+
+def test_explicit_host_header_is_rewritten_on_cross_origin_redirect() -> None:
+    request = httpx2.Request("GET", "https://example.org/", headers={"Host": "custom.example.org"})
+    url = httpx2.URL("https://[fe80::1%25eth0]/")
+
+    client = httpx2.Client()
+    headers = client._redirect_headers(request, url, "GET")
+
+    assert headers["Host"] == "[fe80::1]"
+
+
+def test_explicit_host_header_is_rewritten_to_redirect_target() -> None:
+    request = httpx2.Request("GET", "https://example.org/", headers={"Host": "custom.example.org"})
+    url = httpx2.URL("https://other.example.org/")
+
+    client = httpx2.Client()
+    headers = client._redirect_headers(request, url, "GET")
+
+    assert headers["Host"] == "other.example.org"
+
+
+def test_redirect_host_omits_ipv6_scope_identifier() -> None:
+    request = httpx2.Request("GET", "https://example.org/")
+    url = httpx2.URL("https://[fe80::1%25eth0]:8443/")
+
+    client = httpx2.Client()
+    headers = client._redirect_headers(request, url, "GET")
+
+    assert headers["Host"] == "[fe80::1]:8443"
+
+
+def test_redirect_updates_automatically_generated_host_header() -> None:
+    request = httpx2.Request("GET", "https://[fe80::1%25eth0]:8443/")
+    url = httpx2.URL("https://example.org/")
+
+    client = httpx2.Client()
+    headers = client._redirect_headers(request, url, "GET")
+
+    assert headers["Host"] == "example.org"
+
+
 def test_request_auto_headers() -> None:
     request = httpx2.Request("GET", "https://www.example.org/")
     assert "host" in request.headers
