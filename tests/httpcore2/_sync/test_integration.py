@@ -1,4 +1,5 @@
 import ssl
+from typing import Any
 
 import pytest
 from pytest_httpbin.serve import Server
@@ -11,6 +12,36 @@ def test_request(httpbin: Server) -> None:
     with httpcore2.ConnectionPool() as pool:
         response = pool.request("GET", httpbin.url)
         assert response.status == 200
+
+
+
+@pytest.mark.parametrize("phase", ["started", "complete"])
+def test_pool_releases_response_when_close_trace_is_retried(httpbin: Server, phase: str) -> None:
+    error = OSError("close trace failed")
+    started = "http11.response_closed.started"
+    complete = "http11.response_closed.complete"
+    close_events: list[str] = []
+
+    def trace(name: str, info: dict[str, Any]) -> None:
+        if name in (started, complete):
+            close_events.append(name)
+            if name == f"http11.response_closed.{phase}" and close_events.count(name) == 1:
+                response.close()
+                raise error
+
+    with httpcore2.ConnectionPool(max_connections=1) as pool:
+        with pool.stream("GET", httpbin.url, extensions={"trace": trace}) as response:
+            response.read()
+            with pytest.raises(OSError) as exc:
+                response.close()
+            assert exc.value is error
+            response.close()
+            response.close()
+
+        assert "Requests: 0 active, 0 queued" in repr(pool)
+        assert close_events == ([started, started, complete] if phase == "started" else [started, complete])
+        follow_up = pool.request("GET", httpbin.url, extensions={"timeout": {"pool": 1.0}})
+        assert follow_up.status == 200
 
 
 

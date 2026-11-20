@@ -1,4 +1,5 @@
 import ssl
+from typing import Any
 
 import pytest
 from pytest_httpbin.serve import Server
@@ -11,6 +12,36 @@ async def test_request(httpbin: Server) -> None:
     async with httpcore2.AsyncConnectionPool() as pool:
         response = await pool.request("GET", httpbin.url)
         assert response.status == 200
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("phase", ["started", "complete"])
+async def test_pool_releases_response_when_close_trace_is_retried(httpbin: Server, phase: str) -> None:
+    error = OSError("close trace failed")
+    started = "http11.response_closed.started"
+    complete = "http11.response_closed.complete"
+    close_events: list[str] = []
+
+    async def trace(name: str, info: dict[str, Any]) -> None:
+        if name in (started, complete):
+            close_events.append(name)
+            if name == f"http11.response_closed.{phase}" and close_events.count(name) == 1:
+                await response.aclose()
+                raise error
+
+    async with httpcore2.AsyncConnectionPool(max_connections=1) as pool:
+        async with pool.stream("GET", httpbin.url, extensions={"trace": trace}) as response:
+            await response.aread()
+            with pytest.raises(OSError) as exc:
+                await response.aclose()
+            assert exc.value is error
+            await response.aclose()
+            await response.aclose()
+
+        assert "Requests: 0 active, 0 queued" in repr(pool)
+        assert close_events == ([started, started, complete] if phase == "started" else [started, complete])
+        follow_up = await pool.request("GET", httpbin.url, extensions={"timeout": {"pool": 1.0}})
+        assert follow_up.status == 200
 
 
 @pytest.mark.anyio

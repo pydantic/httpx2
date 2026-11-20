@@ -319,8 +319,17 @@ class HTTP11ConnectionByteStream:
     async def aclose(self) -> None:
         if not self._closed:
             self._closed = True
-            async with Trace("response_closed", logger, self._request):
-                await self._connection._response_closed()
+            entered = False
+            try:
+                async with Trace("response_closed", logger, self._request):
+                    entered = True
+                    await self._connection._response_closed()
+            except BaseException:
+                # A failed .started callback precedes the protocol transition.
+                # Do not replay that transition if the .complete callback fails.
+                if not entered:
+                    self._closed = False
+                raise
 
 
 class AsyncHTTP11UpgradeStream(AsyncNetworkStream):
