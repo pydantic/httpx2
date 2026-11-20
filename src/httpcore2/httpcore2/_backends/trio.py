@@ -63,18 +63,18 @@ class TrioStream(AsyncNetworkStream):
             trio.TooSlowError: ConnectTimeout,
             trio.BrokenResourceError: ConnectError,
         }
-        ssl_stream = trio.SSLStream(
-            self._stream,
-            ssl_context=ssl_context,
-            server_hostname=server_hostname,
-            https_compatible=True,
-            server_side=False,
-        )
         with map_exceptions(exc_map):
             try:
+                ssl_stream = trio.SSLStream(
+                    self._stream,
+                    ssl_context=ssl_context,
+                    server_hostname=server_hostname,
+                    https_compatible=True,
+                    server_side=False,
+                )
                 with trio.fail_after(timeout_or_inf):
                     await ssl_stream.do_handshake()
-            except Exception as exc:  # pragma: no cover
+            except BaseException as exc:  # pragma: no cover
                 await self.aclose()
                 raise exc
         return TrioStream(ssl_stream)
@@ -129,8 +129,12 @@ class TrioBackend(AsyncNetworkBackend):
         with map_exceptions(exc_map):
             with trio.fail_after(timeout_or_inf):
                 stream: trio.abc.Stream = await trio.open_tcp_stream(host=host, port=port, local_address=local_address)
+            try:
                 for option in socket_options:
                     stream.setsockopt(*option)  # type: ignore[attr-defined] # pragma: no cover
+            except BaseException as exc:  # pragma: no cover
+                await stream.aclose()
+                raise exc
         return TrioStream(stream)
 
     async def connect_unix_socket(
@@ -150,8 +154,12 @@ class TrioBackend(AsyncNetworkBackend):
         with map_exceptions(exc_map):
             with trio.fail_after(timeout_or_inf):
                 stream: trio.abc.Stream = await trio.open_unix_socket(path)
+            try:
                 for option in socket_options:
                     stream.setsockopt(*option)  # type: ignore[attr-defined] # pragma: no cover
+            except BaseException as exc:
+                await stream.aclose()
+                raise exc
         return TrioStream(stream)
 
     async def sleep(self, seconds: float) -> None:
