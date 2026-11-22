@@ -65,6 +65,11 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
             list[h2.events.ResponseReceived | h2.events.DataReceived | h2.events.StreamEnded | h2.events.StreamReset,],
         ] = {}
 
+        # Streams whose response headers have been received. A stream reset
+        # with NO_ERROR arriving after the response must not discard it
+        # (RFC 9113 §8.1).
+        self._response_received: set[int] = set()
+
         # Connection terminated events are stored as state since
         # we need to handle them for all streams.
         self._connection_terminated: h2.events.ConnectionTerminated | None = None
@@ -250,21 +255,58 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
         assert isinstance(request.stream, AsyncIterable)
         async with safe_async_iterate(request.stream) as iterator:
             async for chunk in iterator:
-                await self._send_stream_data(request, stream_id, chunk)
-
+                completed = await self._send_stream_data(request, stream_id, chunk)
+                if not completed:
+                    # The server already finished its response; stop uploading
+                    # and let _receive_response return the queued response.
+                    return
         await self._send_end_stream(request, stream_id)
 
-    async def _send_stream_data(self, request: Request, stream_id: int, data: bytes) -> None:
+    async def _send_stream_data(self, request: Request, stream_id: int, data: bytes) -> bool:
         """
         Send a single chunk of data in one or more data frames.
+
+        Returns False when the server already finished or reset its response
+        while the body was uploading (RFC 9113 §8.1), in which case the upload
+        is aborted and the queued response is left for _receive_response.
         """
         position = 0
         while position < len(data):
             max_flow = await self._wait_for_outgoing_flow(request, stream_id)
+            if max_flow < 0:
+                return False
             chunk = data[position : position + max_flow]
             position += len(chunk)
             self._h2_state.send_data(stream_id, chunk)
             await self._write_outgoing_data(request)
+        return True
+
+    def _upload_aborted_by_response(self, stream_id: int) -> bool:
+        """
+        Whether the server already finished or reset its response for this
+        stream while the request body is still uploading. A server MAY send
+        RST_STREAM(NO_ERROR) after a complete response, and clients MUST NOT
+        discard the response in that case (RFC 9113 §8.1).
+        """
+        for event in self._events.get(stream_id, []):
+            if isinstance(event, (h2.events.StreamEnded, h2.events.StreamReset)):
+                return True
+        return False
+
+    async def _abort_early_upload(self, request: Request, stream_id: int) -> None:
+        """
+        Stop uploading the request body after the server completed its
+        response. When the server has not reset the stream itself, send
+        RST_STREAM(NO_ERROR) so it stops reading, like Go's net/http does.
+        """
+        events = self._events.get(stream_id, [])
+        server_reset = any(isinstance(event, h2.events.StreamReset) for event in events)
+        if not server_reset:
+            try:
+                self._h2_state.reset_stream(stream_id, h2.errors.ErrorCodes.NO_ERROR)
+                await self._write_outgoing_data(request)
+            except h2.exceptions.ProtocolError:  # pragma: no cover
+                pass  # the stream is already closed on our side
 
     async def _send_end_stream(self, request: Request, stream_id: int) -> None:
         """
@@ -293,6 +335,7 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
             elif not k.startswith(b":"):
                 headers.append((k, v))
 
+        self._response_received.add(stream_id)
         return (status_code, headers)
 
     async def _receive_response_body(self, request: Request, stream_id: int) -> AsyncGenerator[bytes]:
@@ -310,6 +353,9 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
                 yield event.data
             elif isinstance(event, h2.events.StreamEnded):
                 break
+            elif isinstance(event, h2.events.StreamReset):
+                # RST_STREAM(NO_ERROR) after a complete response ends the body.
+                break
 
     async def _receive_stream_event(
         self, request: Request, stream_id: int
@@ -326,6 +372,11 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
             await self._write_outgoing_data(request)
         event = self._events[stream_id].pop(0)
         if isinstance(event, h2.events.StreamReset):
+            if event.error_code == h2.errors.ErrorCodes.NO_ERROR and stream_id in self._response_received:
+                # The server reset the stream after a complete response
+                # (RFC 9113 §8.1); the response stands, and the reset simply
+                # ends the response body.
+                return event
             raise RemoteProtocolError(event)
         return event
 
@@ -393,6 +444,7 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
                 else:
                     await self._max_streams_semaphore.release()
                 del self._events[stream_id]
+            self._response_received.discard(stream_id)
             if self._connection_terminated and not self._events:
                 await self.aclose()
 
@@ -483,12 +535,18 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
         https://tools.ietf.org/html/rfc7540#section-6.9
         """
         while True:
+            if self._upload_aborted_by_response(stream_id):
+                # The server finished its response while we were waiting for
+                # flow control; stop uploading and deliver the queued response.
+                return -1
             local_flow: int = self._h2_state.local_flow_control_window(stream_id)
             max_frame_size: int = self._h2_state.max_outbound_frame_size
             flow = min(local_flow, max_frame_size)
             if flow > 0:
                 return flow
             async with self._read_lock:
+                if self._upload_aborted_by_response(stream_id):
+                    continue
                 if self._h2_state.local_flow_control_window(stream_id) > 0:
                     continue
                 await self._receive_events(request)
