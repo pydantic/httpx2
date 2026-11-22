@@ -532,9 +532,12 @@ class HTTP2Connection(ConnectionInterface):
             if flow > 0:
                 return flow
             with self._read_lock:
-                if self._upload_aborted_by_response(stream_id):
-                    continue
-                if self._h2_state.local_flow_control_window(stream_id) > 0:
+                if self._h2_state.local_flow_control_window(stream_id) > 0 or self._upload_aborted_by_response(
+                    stream_id
+                ):
+                    # The window opened while we waited for the lock, or
+                    # another task's read queued our response: re-check at the
+                    # top instead of blocking on a read the peer will not answer.
                     continue
                 self._receive_events(request)
             self._write_outgoing_data(request)
