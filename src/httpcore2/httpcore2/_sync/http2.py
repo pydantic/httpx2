@@ -277,17 +277,26 @@ class HTTP2Connection(ConnectionInterface):
             self._write_outgoing_data(request)
         return True
 
+    def _last_queued_event(self, stream_id: int) -> h2.events.Event | None:
+        events = self._events.get(stream_id)
+        return events[-1] if events else None
+
     def _upload_aborted_by_response(self, stream_id: int) -> bool:
         """
         Whether the server already finished or reset its response for this
         stream while the request body is still uploading. A server MAY send
         RST_STREAM(NO_ERROR) after a complete response, and clients MUST NOT
         discard the response in that case (RFC 9113 §8.1).
+
+        Only the last queued event is inspected: END_STREAM and RST_STREAM
+        both terminate the stream, so nothing for it can be queued after them,
+        and scanning the whole queue per DATA frame would let a peer that
+        queues events without spending flow-control credit amplify CPU work.
         """
-        for event in self._events.get(stream_id, []):
-            if isinstance(event, (h2.events.StreamEnded, h2.events.StreamReset)):
-                return True
-        return False
+        return isinstance(
+            self._last_queued_event(stream_id),
+            (h2.events.StreamEnded, h2.events.StreamReset),
+        )
 
     def _abort_early_upload(self, request: Request, stream_id: int) -> None:
         """
@@ -295,8 +304,7 @@ class HTTP2Connection(ConnectionInterface):
         response. When the server has not reset the stream itself, send
         RST_STREAM(NO_ERROR) so it stops reading, like Go's net/http does.
         """
-        events = self._events.get(stream_id, [])
-        server_reset = any(isinstance(event, h2.events.StreamReset) for event in events)
+        server_reset = isinstance(self._last_queued_event(stream_id), h2.events.StreamReset)
         if not server_reset:
             try:
                 self._h2_state.reset_stream(stream_id, h2.errors.ErrorCodes.NO_ERROR)
