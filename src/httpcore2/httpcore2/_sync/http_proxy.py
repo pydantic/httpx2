@@ -311,13 +311,14 @@ class TunnelHTTPConnection(ConnectionInterface):
                         # Shielded from cancellation, same as the other
                         # exception-path cleanups in this codebase, so a
                         # Trio cancellation can't interrupt the close and
-                        # leave the TLS socket open. Any failure from the
+                        # leave the TLS socket open. An error from the
                         # close itself is swallowed so it can't mask the
-                        # TLS error callers are expecting.
+                        # TLS error callers are expecting; KeyboardInterrupt
+                        # and the like still propagate.
                         with ShieldCancellation():
                             try:
                                 self._connection.close()
-                            except BaseException:
+                            except Exception:
                                 pass
                         raise
                     trace.return_value = stream
