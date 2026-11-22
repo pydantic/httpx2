@@ -68,7 +68,7 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
         # Streams whose response headers have been received. A stream reset
         # with NO_ERROR arriving after the response must not discard it
         # (RFC 9113 §8.1).
-        self._response_received: set[int] = set()
+        self._response_completed: set[int] = set()
 
         # Connection terminated events are stored as state since
         # we need to handle them for all streams.
@@ -272,8 +272,12 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
         """
         position = 0
         while position < len(data):
+            if self._upload_aborted_by_response(stream_id):
+                await self._abort_early_upload(request, stream_id)
+                return False
             max_flow = await self._wait_for_outgoing_flow(request, stream_id)
             if max_flow < 0:
+                await self._abort_early_upload(request, stream_id)
                 return False
             chunk = data[position : position + max_flow]
             position += len(chunk)
@@ -335,7 +339,6 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
             elif not k.startswith(b":"):
                 headers.append((k, v))
 
-        self._response_received.add(stream_id)
         return (status_code, headers)
 
     async def _receive_response_body(self, request: Request, stream_id: int) -> AsyncGenerator[bytes]:
@@ -359,7 +362,7 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
 
     async def _receive_stream_event(
         self, request: Request, stream_id: int
-    ) -> h2.events.ResponseReceived | h2.events.DataReceived | h2.events.StreamEnded:
+    ) -> h2.events.ResponseReceived | h2.events.DataReceived | h2.events.StreamEnded | h2.events.StreamReset:
         """
         Return the next available event for a given stream ID.
 
@@ -372,10 +375,11 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
             await self._write_outgoing_data(request)
         event = self._events[stream_id].pop(0)
         if isinstance(event, h2.events.StreamReset):
-            if event.error_code == h2.errors.ErrorCodes.NO_ERROR and stream_id in self._response_received:
-                # The server reset the stream after a complete response
+            if event.error_code == h2.errors.ErrorCodes.NO_ERROR and stream_id in self._response_completed:
+                # The server reset the stream after a *complete* response
                 # (RFC 9113 §8.1); the response stands, and the reset simply
-                # ends the response body.
+                # ends the response body. A reset before END_STREAM means the
+                # response was truncated and still raises.
                 return event
             raise RemoteProtocolError(event)
         return event
@@ -412,6 +416,10 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
             ):
                 if event.stream_id in self._events:
                     self._events[event.stream_id].append(event)
+                    if isinstance(event, h2.events.StreamEnded):
+                        # The response is complete; only a RST_STREAM(NO_ERROR)
+                        # queued after this point may end the body cleanly.
+                        self._response_completed.add(event.stream_id)
 
             elif isinstance(event, h2.events.ConnectionTerminated):
                 self._connection_terminated = event
@@ -444,7 +452,7 @@ class AsyncHTTP2Connection(AsyncConnectionInterface):
                 else:
                     await self._max_streams_semaphore.release()
                 del self._events[stream_id]
-            self._response_received.discard(stream_id)
+            self._response_completed.discard(stream_id)
             if self._connection_terminated and not self._events:
                 await self.aclose()
 
