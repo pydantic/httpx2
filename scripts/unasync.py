@@ -40,7 +40,21 @@ def unasync_line(line):
         line = re.sub(regex, repl, line)
         if old_line != line:
             USED_SUBS.add(index)
-    return line
+    return dedupe_import_names(line)
+
+
+IMPORT_FROM_RE = re.compile(r"^(\s*from \S+ import )([^()#]+?)(\s*)$")
+
+
+def dedupe_import_names(line):
+    # e.g. `from collections.abc import AsyncIterable, Iterable` becomes
+    # `from collections.abc import Iterable, Iterable`; drop the duplicate.
+    match = IMPORT_FROM_RE.match(line)
+    if match is None:
+        return line
+    prefix, names, suffix = match.groups()
+    unique_names = list(dict.fromkeys(name.strip() for name in names.split(",")))
+    return prefix + ", ".join(unique_names) + suffix
 
 
 def unasync_file(in_path, out_path):

@@ -1,13 +1,10 @@
 from __future__ import annotations
 
 import contextlib
-import typing
-from collections.abc import Generator
+from collections.abc import Generator, Iterator
 
 from .._models import (
     URL,
-    Extensions,
-    HeaderTypes,
     Origin,
     Request,
     Response,
@@ -16,6 +13,7 @@ from .._models import (
     enforce_url,
     include_request_headers,
 )
+from .._types import Extensions, HeaderTypes
 
 
 class RequestInterface:
@@ -25,7 +23,7 @@ class RequestInterface:
         url: URL | bytes | str,
         *,
         headers: HeaderTypes = None,
-        content: bytes | typing.Iterator[bytes] | None = None,
+        content: bytes | Iterator[bytes] | None = None,
         extensions: Extensions | None = None,
     ) -> Response:
         # Strict type checking on our parameters.
@@ -57,7 +55,7 @@ class RequestInterface:
         url: URL | bytes | str,
         *,
         headers: HeaderTypes = None,
-        content: bytes | typing.Iterator[bytes] | None = None,
+        content: bytes | Iterator[bytes] | None = None,
         extensions: Extensions | None = None,
     ) -> Generator[Response]:
         # Strict type checking on our parameters.
@@ -127,10 +125,8 @@ class ConnectionInterface(RequestInterface):
 
     def has_expired(self) -> bool:
         """
-        Return `True` if the connection is in a state where it should be closed.
-
-        This either means that the connection is idle and it has passed the
-        expiry time on its keep-alive, or that server has sent an EOF.
+        Return `True` if the connection is idle and it has passed the expiry
+        time on its keep-alive.
         """
         raise NotImplementedError()  # pragma: no cover
 

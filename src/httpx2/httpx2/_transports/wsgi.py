@@ -3,23 +3,24 @@ from __future__ import annotations
 import io
 import itertools
 import sys
-import typing
+from collections.abc import Callable, Iterable, Iterator
+from typing import TYPE_CHECKING, Any, TextIO, TypeVar
 
 from .._models import Request, Response
 from .._types import SyncByteStream
 from .base import BaseTransport
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from _typeshed import OptExcInfo  # pragma: no cover
     from _typeshed.wsgi import WSGIApplication  # pragma: no cover
 
-_T = typing.TypeVar("_T")
+_T = TypeVar("_T")
 
 
 __all__ = ["WSGITransport"]
 
 
-def _skip_leading_empty_chunks(body: typing.Iterable[_T]) -> typing.Iterable[_T]:
+def _skip_leading_empty_chunks(body: Iterable[_T]) -> Iterable[_T]:
     body = iter(body)
     for chunk in body:
         if chunk:
@@ -28,11 +29,11 @@ def _skip_leading_empty_chunks(body: typing.Iterable[_T]) -> typing.Iterable[_T]
 
 
 class WSGIByteStream(SyncByteStream):
-    def __init__(self, result: typing.Iterable[bytes]) -> None:
+    def __init__(self, result: Iterable[bytes]) -> None:
         self._close = getattr(result, "close", None)
         self._result = _skip_leading_empty_chunks(result)
 
-    def __iter__(self) -> typing.Iterator[bytes]:
+    def __iter__(self) -> Iterator[bytes]:
         yield from self._result
 
     def close(self) -> None:
@@ -77,7 +78,7 @@ class WSGITransport(BaseTransport):
         raise_app_exceptions: bool = True,
         script_name: str = "",
         remote_addr: str = "127.0.0.1",
-        wsgi_errors: typing.TextIO | None = None,
+        wsgi_errors: TextIO | None = None,
     ) -> None:
         self.app = app
         self.raise_app_exceptions = raise_app_exceptions
@@ -123,7 +124,7 @@ class WSGITransport(BaseTransport):
             status: str,
             response_headers: list[tuple[str, str]],
             exc_info: OptExcInfo | None = None,
-        ) -> typing.Callable[[bytes], typing.Any]:
+        ) -> Callable[[bytes], Any]:
             nonlocal seen_status, seen_response_headers, seen_exc_info
             seen_status = status
             seen_response_headers = response_headers

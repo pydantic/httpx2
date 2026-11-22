@@ -3,8 +3,9 @@ from __future__ import annotations
 import datetime
 import json
 import pickle
-import typing
+from collections.abc import AsyncIterator, Iterator
 
+import anyio
 import chardet
 import pytest
 
@@ -12,17 +13,17 @@ import httpx2
 
 
 class StreamingBody:
-    def __iter__(self) -> typing.Iterator[bytes]:
+    def __iter__(self) -> Iterator[bytes]:
         yield b"Hello, "
         yield b"world!"
 
 
-def streaming_body() -> typing.Iterator[bytes]:
+def streaming_body() -> Iterator[bytes]:
     yield b"Hello, "
     yield b"world!"
 
 
-async def async_streaming_body() -> typing.AsyncIterator[bytes]:
+async def async_streaming_body() -> AsyncIterator[bytes]:
     yield b"Hello, "
     yield b"world!"
 
@@ -412,7 +413,7 @@ def test_iter_raw_with_chunksize() -> None:
 
 
 def test_iter_raw_doesnt_return_empty_chunks() -> None:
-    def streaming_body_with_empty_chunks() -> typing.Iterator[bytes]:
+    def streaming_body_with_empty_chunks() -> Iterator[bytes]:
         yield b"Hello, "
         yield b""
         yield b"world!"
@@ -503,6 +504,9 @@ async def test_aiter_raw_on_sync() -> None:
     with pytest.raises(RuntimeError):
         [part async for part in response.aiter_raw()]
 
+    with pytest.raises(RuntimeError):
+        [part async for part in response.aiter_bytes()]
+
 
 @pytest.mark.anyio
 async def test_aclose_on_sync() -> None:
@@ -555,7 +559,7 @@ def test_iter_bytes_with_empty_response() -> None:
 
 
 def test_iter_bytes_doesnt_return_empty_chunks() -> None:
-    def streaming_body_with_empty_chunks() -> typing.Iterator[bytes]:
+    def streaming_body_with_empty_chunks() -> Iterator[bytes]:
         yield b"Hello, "
         yield b""
         yield b"world!"
@@ -738,6 +742,9 @@ async def test_cannot_aread_after_stream_consumed() -> None:
     with pytest.raises(httpx2.StreamConsumed):
         await response.aread()
 
+    with pytest.raises(httpx2.StreamConsumed):
+        await anext(response.aiter_raw())
+
 
 def test_cannot_read_after_response_closed() -> None:
     response = httpx2.Response(
@@ -760,6 +767,57 @@ async def test_cannot_aread_after_response_closed() -> None:
     await response.aclose()
     with pytest.raises(httpx2.StreamClosed):
         await response.aread()
+
+    with pytest.raises(httpx2.StreamClosed):
+        await anext(response.aiter_raw())
+
+
+@pytest.mark.anyio
+async def test_cancelled_aclose_can_be_retried() -> None:
+    scope = anyio.CancelScope()
+    attempts = 0
+    closes = 0
+
+    class StalledStream(httpx2.AsyncByteStream):
+        async def __aiter__(self) -> AsyncIterator[bytes]:
+            yield b"Hello"
+            scope.cancel()
+            await anyio.sleep_forever()
+
+        async def aclose(self) -> None:
+            nonlocal attempts, closes
+            attempts += 1
+            await anyio.lowlevel.checkpoint()
+            closes += 1
+
+    response = httpx2.Response(200, stream=StalledStream())
+    with scope:
+        async for _ in response.aiter_raw():
+            pass
+    assert not response.is_closed
+    assert (attempts, closes) == (1, 0)
+
+    await response.aclose()
+    assert response.is_closed
+    assert (attempts, closes) == (2, 1)
+
+
+@pytest.mark.anyio
+async def test_overlapping_aclose_closes_the_stream_once() -> None:
+    attempts = 0
+
+    class SlowCloseStream(httpx2.AsyncByteStream):
+        async def aclose(self) -> None:
+            nonlocal attempts
+            attempts += 1
+            await anyio.lowlevel.checkpoint()
+
+    response = httpx2.Response(200, stream=SlowCloseStream())
+    async with anyio.create_task_group() as task_group:
+        task_group.start_soon(response.aclose)
+        task_group.start_soon(response.aclose)
+    assert response.is_closed
+    assert attempts == 1
 
 
 @pytest.mark.anyio
@@ -941,7 +999,7 @@ def test_cannot_access_unset_request() -> None:
 
 
 def test_generator_with_transfer_encoding_header() -> None:
-    def content() -> typing.Iterator[bytes]:
+    def content() -> Iterator[bytes]:
         yield b"test 123"  # pragma: no cover
 
     response = httpx2.Response(200, content=content())
@@ -949,7 +1007,7 @@ def test_generator_with_transfer_encoding_header() -> None:
 
 
 def test_generator_with_content_length_header() -> None:
-    def content() -> typing.Iterator[bytes]:
+    def content() -> Iterator[bytes]:
         yield b"test 123"  # pragma: no cover
 
     headers = {"Content-Length": "8"}

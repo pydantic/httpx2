@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import threading
 import types
+from typing import Self
 
-from ._exceptions import ExceptionMapping, PoolTimeout, map_exceptions
+from ._exceptions import PoolTimeout, map_exceptions
+from ._types import ExceptionMapping
 
 # Our async synchronization primitives use either 'anyio' or 'trio' depending
 # on if they're running under asyncio or trio.
@@ -66,7 +68,7 @@ class AsyncLock:
         elif self._backend == "asyncio":
             self._anyio_lock = anyio.Lock(fast_acquire=True)
 
-    async def __aenter__(self) -> AsyncLock:
+    async def __aenter__(self) -> Self:
         if not self._backend:
             self.setup()
 
@@ -97,7 +99,7 @@ class AsyncThreadLock:
     In the async case `AsyncThreadLock` is a no-op.
     """
 
-    def __enter__(self) -> AsyncThreadLock:
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(
@@ -175,6 +177,28 @@ class AsyncSemaphore:
         elif self._backend == "asyncio":
             await self._anyio_semaphore.acquire()
 
+    def acquire_if_available(self) -> bool:
+        """
+        Acquire a permit if one is immediately available, without blocking.
+        Returns True if a permit was acquired.
+
+        Like `release()`, this requires `setup()` to have run, which any
+        prior `acquire()` call ensures.
+        """
+        if self._backend == "trio":
+            try:
+                self._trio_semaphore.acquire_nowait()
+            except trio.WouldBlock:
+                return False
+            return True
+        elif self._backend == "asyncio":
+            try:
+                self._anyio_semaphore.acquire_nowait()
+            except anyio.WouldBlock:
+                return False
+            return True
+        return False  # pragma: no cover
+
     async def release(self) -> None:
         if self._backend == "trio":
             self._trio_semaphore.release()
@@ -202,7 +226,7 @@ class AsyncShieldCancellation:
         elif self._backend == "asyncio":
             self._anyio_shield = anyio.CancelScope(shield=True)
 
-    def __enter__(self) -> AsyncShieldCancellation:
+    def __enter__(self) -> Self:
         if self._backend == "trio":
             self._trio_shield.__enter__()
         elif self._backend == "asyncio":
@@ -235,7 +259,7 @@ class Lock:
     def __init__(self) -> None:
         self._lock = threading.Lock()
 
-    def __enter__(self) -> Lock:
+    def __enter__(self) -> Self:
         self._lock.acquire()
         return self
 
@@ -259,7 +283,7 @@ class ThreadLock:
     def __init__(self) -> None:
         self._lock = threading.RLock()
 
-    def __enter__(self) -> ThreadLock:
+    def __enter__(self) -> Self:
         self._lock.acquire()
         return self
 
@@ -293,6 +317,9 @@ class Semaphore:
     def acquire(self) -> None:
         self._semaphore.acquire()
 
+    def acquire_if_available(self) -> bool:
+        return self._semaphore.acquire(blocking=False)
+
     def release(self) -> None:
         self._semaphore.release()
 
@@ -301,7 +328,7 @@ class ShieldCancellation:
     # Thread-synchronous codebases don't support cancellation semantics.
     # We have this class because we need to mirror the async and sync
     # cases within our package, but it's just a no-op.
-    def __enter__(self) -> ShieldCancellation:
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(

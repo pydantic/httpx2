@@ -3,9 +3,9 @@ from __future__ import annotations
 import base64
 import logging
 import ssl
-import typing
+from collections.abc import Iterable, Sequence
 
-from .._backends.base import SOCKET_OPTION, NetworkBackend
+from .._backends.base import NetworkBackend
 from .._exceptions import ProxyError
 from .._models import (
     URL,
@@ -19,22 +19,18 @@ from .._models import (
 from .._ssl import default_ssl_context
 from .._synchronization import Lock, ShieldCancellation
 from .._trace import Trace
+from .._types import SOCKET_OPTION, HeadersAsMapping, HeadersAsSequence
 from .connection import HTTPConnection
 from .connection_pool import ConnectionPool
 from .http11 import HTTP11Connection
 from .interfaces import ConnectionInterface
 
-ByteOrStr = bytes | str
-HeadersAsSequence = typing.Sequence[tuple[ByteOrStr, ByteOrStr]]
-HeadersAsMapping = typing.Mapping[ByteOrStr, ByteOrStr]
-
-
 logger = logging.getLogger("httpcore2.proxy")
 
 
 def merge_headers(
-    default_headers: typing.Sequence[tuple[bytes, bytes]] | None = None,
-    override_headers: typing.Sequence[tuple[bytes, bytes]] | None = None,
+    default_headers: Sequence[tuple[bytes, bytes]] | None = None,
+    override_headers: Sequence[tuple[bytes, bytes]] | None = None,
 ) -> list[tuple[bytes, bytes]]:
     """
     Append default_headers and override_headers, de-duplicating if a key exists
@@ -68,7 +64,7 @@ class HTTPProxy(ConnectionPool):  # pragma: no cover
         local_address: str | None = None,
         uds: str | None = None,
         network_backend: NetworkBackend | None = None,
-        socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
+        socket_options: Iterable[SOCKET_OPTION] | None = None,
     ) -> None:
         """
         A connection pool for making HTTP requests.
@@ -131,7 +127,7 @@ class HTTPProxy(ConnectionPool):  # pragma: no cover
             password = enforce_bytes(proxy_auth[1], name="proxy_auth")
             userpass = username + b":" + password
             authorization = b"Basic " + base64.b64encode(userpass)
-            self._proxy_headers = [(b"Proxy-Authorization", authorization)] + self._proxy_headers
+            self._proxy_headers = [(b"Proxy-Authorization", authorization), *self._proxy_headers]
 
     def create_connection(self, origin: Origin) -> ConnectionInterface:
         if origin.scheme == b"http":
@@ -164,7 +160,7 @@ class ForwardHTTPConnection(ConnectionInterface):
         proxy_headers: HeadersAsMapping | HeadersAsSequence | None = None,
         keepalive_expiry: float | None = None,
         network_backend: NetworkBackend | None = None,
-        socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
+        socket_options: Iterable[SOCKET_OPTION] | None = None,
         proxy_ssl_context: ssl.SSLContext | None = None,
     ) -> None:
         self._connection = HTTPConnection(
@@ -184,14 +180,16 @@ class ForwardHTTPConnection(ConnectionInterface):
             scheme=self._proxy_origin.scheme,
             host=self._proxy_origin.host,
             port=self._proxy_origin.port,
-            target=bytes(request.url),
+            target=bytes(request.url) if request.url.target.startswith(b"/") else request.url.target,
         )
         proxy_request = Request(
             method=request.method,
             url=url,
             headers=headers,
             content=request.stream,
-            extensions=request.extensions,
+            extensions={
+                key: value for key, value in request.extensions.items() if key not in ("sni_hostname", "target")
+            },
         )
         return self._connection.handle_request(proxy_request)
 
@@ -230,12 +228,12 @@ class TunnelHTTPConnection(ConnectionInterface):
         remote_origin: Origin,
         ssl_context: ssl.SSLContext | None = None,
         proxy_ssl_context: ssl.SSLContext | None = None,
-        proxy_headers: typing.Sequence[tuple[bytes, bytes]] | None = None,
+        proxy_headers: Sequence[tuple[bytes, bytes]] | None = None,
         keepalive_expiry: float | None = None,
         http1: bool = True,
         http2: bool = False,
         network_backend: NetworkBackend | None = None,
-        socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
+        socket_options: Iterable[SOCKET_OPTION] | None = None,
     ) -> None:
         self._connection: ConnectionInterface = HTTPConnection(
             origin=proxy_origin,
@@ -274,7 +272,9 @@ class TunnelHTTPConnection(ConnectionInterface):
                     method=b"CONNECT",
                     url=connect_url,
                     headers=connect_headers,
-                    extensions=request.extensions,
+                    extensions={
+                        key: value for key, value in request.extensions.items() if key not in ("sni_hostname", "target")
+                    },
                 )
                 connect_response = self._connection.handle_request(connect_request)
 
@@ -289,12 +289,13 @@ class TunnelHTTPConnection(ConnectionInterface):
 
                 # Upgrade the stream to SSL
                 ssl_context = default_ssl_context() if self._ssl_context is None else self._ssl_context
-                alpn_protocols = ["http/1.1", "h2"] if self._http2 else ["http/1.1"]
+                alpn_protocols = (["h2", "http/1.1"] if self._http1 else ["h2"]) if self._http2 else ["http/1.1"]
                 ssl_context.set_alpn_protocols(alpn_protocols)
 
+                server_hostname = request.extensions.get("sni_hostname") or self._remote_origin.host.decode("ascii")
                 kwargs = {
                     "ssl_context": ssl_context,
-                    "server_hostname": self._remote_origin.host.decode("ascii"),
+                    "server_hostname": server_hostname,
                     "timeout": timeout,
                 }
                 with Trace("start_tls", logger, request, kwargs) as trace:

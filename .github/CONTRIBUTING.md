@@ -15,9 +15,9 @@ Found something that HTTPX2 should support?
 Stumbled upon some unexpected behaviour?
 
 Contributions should generally start out with [a discussion](https://github.com/pydantic/httpx2/discussions).
-Possible bugs may be raised as a "Potential Issue" discussion, feature requests may
-be raised as an "Ideas" discussion. We can then determine if the discussion needs
-to be escalated into an "Issue" or not, or if we'd consider a pull request.
+Possible bugs and feature requests may be raised in the "Q&A" category. We can then
+determine if the discussion needs to be escalated into an "Issue" or not, or if we'd
+consider a pull request.
 
 Try to be more descriptive as you can and in case of a bug report,
 provide as much information as possible like:

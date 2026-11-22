@@ -1,21 +1,22 @@
 from __future__ import annotations
 
 import sys
-import typing
 import wsgiref.validate
+from collections.abc import Iterable, Iterator
 from functools import partial
 from io import StringIO
+from typing import IO, TYPE_CHECKING
 
 import pytest
 
 import httpx2
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from _typeshed.wsgi import StartResponse, WSGIApplication, WSGIEnvironment
 
 
-def application_factory(output: typing.Iterable[bytes]) -> WSGIApplication:
-    def application(environ: WSGIEnvironment, start_response: StartResponse) -> typing.Iterator[bytes]:
+def application_factory(output: Iterable[bytes]) -> WSGIApplication:
+    def application(environ: WSGIEnvironment, start_response: StartResponse) -> Iterator[bytes]:
         status = "200 OK"
 
         response_headers = [
@@ -29,7 +30,7 @@ def application_factory(output: typing.Iterable[bytes]) -> WSGIApplication:
     return wsgiref.validate.validator(application)
 
 
-def echo_body(environ: WSGIEnvironment, start_response: StartResponse) -> typing.Iterable[bytes]:
+def echo_body(environ: WSGIEnvironment, start_response: StartResponse) -> Iterable[bytes]:
     status = "200 OK"
     output = environ["wsgi.input"].read()
 
@@ -42,14 +43,14 @@ def echo_body(environ: WSGIEnvironment, start_response: StartResponse) -> typing
     return [output]
 
 
-def echo_body_with_response_stream(environ: WSGIEnvironment, start_response: StartResponse) -> typing.Iterable[bytes]:
+def echo_body_with_response_stream(environ: WSGIEnvironment, start_response: StartResponse) -> Iterable[bytes]:
     status = "200 OK"
 
     response_headers = [("Content-Type", "text/plain")]
 
     start_response(status, response_headers)
 
-    def output_generator(f: typing.IO[bytes]) -> typing.Iterator[bytes]:
+    def output_generator(f: IO[bytes]) -> Iterator[bytes]:
         while True:
             output = f.read(2)
             if not output:
@@ -63,7 +64,7 @@ def raise_exc(
     environ: WSGIEnvironment,
     start_response: StartResponse,
     exc: type[Exception] = ValueError,
-) -> typing.Iterable[bytes]:
+) -> Iterable[bytes]:
     status = "500 Server Error"
     output = b"Nope!"
 
@@ -80,7 +81,7 @@ def raise_exc(
     return [output]
 
 
-def log_to_wsgi_log_buffer(environ: WSGIEnvironment, start_response: StartResponse) -> typing.Iterable[bytes]:
+def log_to_wsgi_log_buffer(environ: WSGIEnvironment, start_response: StartResponse) -> Iterable[bytes]:
     print("test1", file=environ["wsgi.errors"])
     environ["wsgi.errors"].write("test2")
     return echo_body(environ, start_response)
@@ -103,7 +104,7 @@ def test_wsgi_upload() -> None:
 
 
 def test_wsgi_upload_with_transfer_encoding() -> None:
-    def app(environ: WSGIEnvironment, start_response: StartResponse) -> typing.Iterable[bytes]:
+    def app(environ: WSGIEnvironment, start_response: StartResponse) -> Iterable[bytes]:
         content_length = int(environ.get("CONTENT_LENGTH", "0"))
         output = environ["wsgi.input"].read(content_length)
         start_response("200 OK", [("Content-Type", "text/plain")])
@@ -185,7 +186,7 @@ def test_wsgi_server_port(url: str, expected_server_port: str) -> None:
     hello_world_app = application_factory([b"Hello, World!"])
     server_port: str | None = None
 
-    def app(environ: WSGIEnvironment, start_response: StartResponse) -> typing.Iterable[bytes]:
+    def app(environ: WSGIEnvironment, start_response: StartResponse) -> Iterable[bytes]:
         nonlocal server_port
         server_port = environ["SERVER_PORT"]
         return hello_world_app(environ, start_response)
@@ -201,7 +202,7 @@ def test_wsgi_server_port(url: str, expected_server_port: str) -> None:
 def test_wsgi_server_protocol() -> None:
     server_protocol = None
 
-    def app(environ: WSGIEnvironment, start_response: StartResponse) -> typing.Iterable[bytes]:
+    def app(environ: WSGIEnvironment, start_response: StartResponse) -> Iterable[bytes]:
         nonlocal server_protocol
         server_protocol = environ["SERVER_PROTOCOL"]
         start_response("200 OK", [("Content-Type", "text/plain")])

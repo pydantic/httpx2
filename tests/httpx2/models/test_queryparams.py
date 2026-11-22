@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import typing
+from typing import Any
 
 import pytest
 
@@ -17,7 +17,7 @@ import httpx2
         (("a", "123"), ("a", "456"), ("b", "789")),
     ],
 )
-def test_queryparams(source: typing.Any) -> None:
+def test_queryparams(source: Any) -> None:
     q = httpx2.QueryParams(source)
     assert "a" in q
     assert "A" not in q

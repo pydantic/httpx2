@@ -129,3 +129,54 @@ def test_cookies_repr() -> None:
     assert repr(cookies) == (
         "<Cookies[<Cookie foo=bar for http://blah.com />, <Cookie fizz=buzz for http://hello.com />]>"
     )
+
+
+@pytest.mark.parametrize(
+    ("directory", "expected_path"),
+    [
+        ("/" + "a" * 1023, "/" + "a" * 1023),
+        ("/" + "[" * 400, "/" + "%5B" * 400),
+    ],
+)
+def test_default_cookie_path_is_preserved_when_only_the_filename_is_cut(directory: str, expected_path: str) -> None:
+    request = httpx2.Request("GET", f"https://example.org{directory}/{'b' * 2000}?q=1")
+    cookies = httpx2.Cookies()
+
+    cookies.extract_cookies(httpx2.Response(200, request=request, headers={"Set-Cookie": "name=value"}))
+
+    assert [cookie.path for cookie in cookies.jar] == [expected_path]
+
+    request = httpx2.Request("GET", f"https://example.org{directory}/profile")
+    cookies.set_cookie_header(request)
+
+    assert request.headers["Cookie"] == "name=value"
+
+
+def test_response_from_a_directory_longer_than_1024_bytes_sets_no_cookies() -> None:
+    headers = [
+        ("Set-Cookie", "default=1"),
+        ("Set-Cookie", "explicit=1; Path=/"),
+        ("Set-Cookie", "stored=; Max-Age=0"),
+        ("Set-Cookie2", 'quoted=1; Version=0; Path=""'),
+    ]
+    request = httpx2.Request("GET", f"https://example.org/{'a' * 1024}/")
+    cookies = httpx2.Cookies()
+    cookies.set("stored", "1", domain="example.org")
+
+    cookies.extract_cookies(httpx2.Response(200, request=request, headers=headers))
+
+    assert [cookie.name for cookie in cookies.jar] == ["stored"]
+
+
+def test_cookie_paths_beyond_the_retained_directory_are_not_sent() -> None:
+    directory = "/" + "a" * 1023
+    deeper = directory + "/" + "b" * 2000
+    cookies = httpx2.Cookies()
+    cookies.set("directory", "1", domain="example.org", path=directory)
+    cookies.set("partial_segment", "2", domain="example.org", path=directory[:1000])
+    cookies.set("deeper", "3", domain="example.org", path=deeper)
+    request = httpx2.Request("GET", f"https://example.org{deeper}/")
+
+    cookies.set_cookie_header(request)
+
+    assert request.headers["Cookie"] == "directory=1"
