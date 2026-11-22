@@ -147,7 +147,7 @@ def test_decoding_bounds_output_chunks(encoding: bytes, compress: Callable[[byte
         (b"zstd", zstd.compress),
     ],
 )
-def test_truncated(encoding: bytes, compress: typing.Callable[[bytes], bytes]) -> None:
+def test_truncated(encoding: bytes, compress: Callable[[bytes], bytes]) -> None:
     compressed_body = compress(b"test 123")
     headers = [(b"Content-Encoding", encoding)]
 
