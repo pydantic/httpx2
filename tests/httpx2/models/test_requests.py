@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import pickle
-import typing
+from collections.abc import AsyncIterable, AsyncIterator, Iterable, Iterator
 
 import pytest
 
@@ -32,7 +32,7 @@ def test_ignore_content_length_header_if_transfer_encoding_exists() -> None:
 
 def test_iterable_content() -> None:
     class Content:
-        def __iter__(self) -> typing.Iterator[bytes]:
+        def __iter__(self) -> Iterator[bytes]:
             yield b"test 123"  # pragma: no cover
 
     request = httpx2.Request("POST", "http://example.org", content=Content())
@@ -40,7 +40,7 @@ def test_iterable_content() -> None:
 
 
 def test_generator_with_transfer_encoding_header() -> None:
-    def content() -> typing.Iterator[bytes]:
+    def content() -> Iterator[bytes]:
         yield b"test 123"  # pragma: no cover
 
     request = httpx2.Request("POST", "http://example.org", content=content())
@@ -48,7 +48,7 @@ def test_generator_with_transfer_encoding_header() -> None:
 
 
 def test_generator_with_content_length_header() -> None:
-    def content() -> typing.Iterator[bytes]:
+    def content() -> Iterator[bytes]:
         yield b"test 123"  # pragma: no cover
 
     headers = {"Content-Length": "8"}
@@ -88,7 +88,7 @@ def test_read_and_stream_data() -> None:
     request = httpx2.Request("POST", "http://example.org", json={"test": 123})
     request.read()
     assert request.stream is not None
-    assert isinstance(request.stream, typing.Iterable)
+    assert isinstance(request.stream, Iterable)
     content = b"".join(list(request.stream))
     assert content == request.content
 
@@ -100,14 +100,14 @@ async def test_aread_and_stream_data() -> None:
     request = httpx2.Request("POST", "http://example.org", json={"test": 123})
     await request.aread()
     assert request.stream is not None
-    assert isinstance(request.stream, typing.AsyncIterable)
+    assert isinstance(request.stream, AsyncIterable)
     content = b"".join([part async for part in request.stream])
     assert content == request.content
 
 
 def test_cannot_access_streaming_content_without_read() -> None:
     # Ensure that streaming requests
-    def streaming_body() -> typing.Iterator[bytes]:  # pragma: no cover
+    def streaming_body() -> Iterator[bytes]:  # pragma: no cover
         yield b""
 
     request = httpx2.Request("POST", "http://example.org", content=streaming_body())
@@ -116,7 +116,7 @@ def test_cannot_access_streaming_content_without_read() -> None:
 
 
 def test_transfer_encoding_header() -> None:
-    async def streaming_body(data: bytes) -> typing.AsyncIterator[bytes]:
+    async def streaming_body(data: bytes) -> AsyncIterator[bytes]:
         yield data  # pragma: no cover
 
     data = streaming_body(b"test 123")
@@ -132,7 +132,7 @@ def test_ignore_transfer_encoding_header_if_content_length_exists() -> None:
     See https://github.com/encode/httpx/issues/1168
     """
 
-    def streaming_body(data: bytes) -> typing.Iterator[bytes]:
+    def streaming_body(data: bytes) -> Iterator[bytes]:
         yield data  # pragma: no cover
 
     data = streaming_body(b"abcd")
@@ -158,7 +158,7 @@ def test_override_accept_encoding_header() -> None:
 
 
 def test_override_content_length_header() -> None:
-    async def streaming_body(data: bytes) -> typing.AsyncIterator[bytes]:
+    async def streaming_body(data: bytes) -> AsyncIterator[bytes]:
         yield data  # pragma: no cover
 
     data = streaming_body(b"test 123")
@@ -201,7 +201,7 @@ def test_request_picklable() -> None:
 
 @pytest.mark.anyio
 async def test_request_async_streaming_content_picklable() -> None:
-    async def streaming_body(data: bytes) -> typing.AsyncIterator[bytes]:
+    async def streaming_body(data: bytes) -> AsyncIterator[bytes]:
         yield data
 
     data = streaming_body(b"test 123")
@@ -219,7 +219,7 @@ async def test_request_async_streaming_content_picklable() -> None:
 
 
 def test_request_generator_content_picklable() -> None:
-    def content() -> typing.Iterator[bytes]:
+    def content() -> Iterator[bytes]:
         yield b"test 123"  # pragma: no cover
 
     request = httpx2.Request("POST", "http://example.org", content=content())

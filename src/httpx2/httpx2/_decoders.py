@@ -10,8 +10,9 @@ import codecs
 import io
 import itertools
 import sys
-import typing
 import zlib
+from collections.abc import Callable, Iterator, Sequence
+from typing import TYPE_CHECKING, ClassVar, Protocol
 
 from ._exceptions import DecodingError
 
@@ -30,7 +31,7 @@ except ImportError:  # pragma: no cover
 
 # Zstandard support is optional on Python <= 3.13.
 # On Python 3.14+, the stdlib includes an optional built-in zstd implementation.
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     if sys.version_info >= (3, 14):
         from compression.zstd import ZstdDecompressor, ZstdError
     else:
@@ -52,7 +53,7 @@ else:  # pragma: no cover
 MAX_DECODE_CHUNK_SIZE = 2**20  # 1 MiB
 
 
-class Decompressor(typing.Protocol):
+class Decompressor(Protocol):
     @property
     def unconsumed_tail(self) -> bytes: ...
 
@@ -73,7 +74,7 @@ class ZlibDecompressor:
     def __init__(self, decompressor: Decompressor) -> None:
         self.decompressor = decompressor
 
-    def decompress(self, data: bytes) -> typing.Iterator[bytes]:
+    def decompress(self, data: bytes) -> Iterator[bytes]:
         decompressed = self.decompressor.decompress(data, MAX_DECODE_CHUNK_SIZE)
         while decompressed:
             yield decompressed
@@ -88,10 +89,10 @@ class ZlibDecompressor:
 
 
 class ContentDecoder:
-    def decode(self, data: bytes) -> typing.Iterator[bytes]:
+    def decode(self, data: bytes) -> Iterator[bytes]:
         raise NotImplementedError()  # pragma: no cover
 
-    def flush(self) -> typing.Iterator[bytes]:
+    def flush(self) -> Iterator[bytes]:
         raise NotImplementedError()  # pragma: no cover
 
 
@@ -100,10 +101,10 @@ class IdentityDecoder(ContentDecoder):
     Handle unencoded data.
     """
 
-    def decode(self, data: bytes) -> typing.Iterator[bytes]:
+    def decode(self, data: bytes) -> Iterator[bytes]:
         yield data
 
-    def flush(self) -> typing.Iterator[bytes]:
+    def flush(self) -> Iterator[bytes]:
         yield from ()
 
 
@@ -119,7 +120,7 @@ class DeflateDecoder(ContentDecoder):
         self.decompressor = ZlibDecompressor(zlib.decompressobj())
         self.seen_data = False
 
-    def decode(self, data: bytes) -> typing.Iterator[bytes]:
+    def decode(self, data: bytes) -> Iterator[bytes]:
         if not data:
             return
         self.seen_data = True
@@ -134,7 +135,7 @@ class DeflateDecoder(ContentDecoder):
             else:
                 raise DecodingError(str(exc)) from exc
 
-    def flush(self) -> typing.Iterator[bytes]:
+    def flush(self) -> Iterator[bytes]:
         if not self.seen_data:
             return
         try:
@@ -156,7 +157,7 @@ class GZipDecoder(ContentDecoder):
         self.decompressor = ZlibDecompressor(zlib.decompressobj(zlib.MAX_WBITS | 16))
         self.seen_data = False
 
-    def decode(self, data: bytes) -> typing.Iterator[bytes]:
+    def decode(self, data: bytes) -> Iterator[bytes]:
         if not data:
             return
         self.seen_data = True
@@ -165,7 +166,7 @@ class GZipDecoder(ContentDecoder):
         except zlib.error as exc:
             raise DecodingError(str(exc)) from exc
 
-    def flush(self) -> typing.Iterator[bytes]:
+    def flush(self) -> Iterator[bytes]:
         if not self.seen_data:
             return
         try:
@@ -196,7 +197,7 @@ class BrotliDecoder(ContentDecoder):
 
         self.decompressor = brotli.Decompressor()
         self.seen_data = False
-        self._decompress: typing.Callable[..., bytes]
+        self._decompress: Callable[..., bytes]
         if hasattr(self.decompressor, "decompress"):
             # The 'brotlicffi' package.
             self._decompress = self.decompressor.decompress  # pragma: no cover
@@ -204,7 +205,7 @@ class BrotliDecoder(ContentDecoder):
             # The 'brotli' package.
             self._decompress = self.decompressor.process
 
-    def decode(self, data: bytes) -> typing.Iterator[bytes]:
+    def decode(self, data: bytes) -> Iterator[bytes]:
         if not data:
             return
         self.seen_data = True
@@ -218,7 +219,7 @@ class BrotliDecoder(ContentDecoder):
         except brotli.error as exc:
             raise DecodingError(str(exc)) from exc
 
-    def flush(self) -> typing.Iterator[bytes]:
+    def flush(self) -> Iterator[bytes]:
         if not self.seen_data:
             return
         if not self.decompressor.is_finished():
@@ -242,7 +243,7 @@ class ZStandardDecoder(ContentDecoder):
         self.decompressor = ZstdDecompressor()
         self.seen_data = False
 
-    def decode(self, data: bytes) -> typing.Iterator[bytes]:
+    def decode(self, data: bytes) -> Iterator[bytes]:
         if not data:
             return
         self.seen_data = True
@@ -264,7 +265,7 @@ class ZStandardDecoder(ContentDecoder):
         except ZstdError as exc:
             raise DecodingError(str(exc)) from exc
 
-    def flush(self) -> typing.Iterator[bytes]:
+    def flush(self) -> Iterator[bytes]:
         if not self.seen_data:
             return
         if not self.decompressor.eof:
@@ -277,9 +278,9 @@ class MultiDecoder(ContentDecoder):
     Handle the case where multiple encodings have been applied.
     """
 
-    max_decode_links: typing.ClassVar[int] = 5
+    max_decode_links: ClassVar[int] = 5
 
-    def __init__(self, encodings: typing.Sequence[str]) -> None:
+    def __init__(self, encodings: Sequence[str]) -> None:
         """
         'encodings' should be the content codings in the order in which
         each was applied.
@@ -290,23 +291,23 @@ class MultiDecoder(ContentDecoder):
         # Note that we reverse the order for decoding.
         self.children: list[ContentDecoder] = [SUPPORTED_DECODERS[coding]() for coding in reversed(codings)]
 
-    def decode(self, data: bytes) -> typing.Iterator[bytes]:
-        streams: typing.Iterator[bytes] = iter((data,))
+    def decode(self, data: bytes) -> Iterator[bytes]:
+        streams: Iterator[bytes] = iter((data,))
         for child in self.children:
             streams = self._pipe(child.decode, streams)
         yield from streams
 
-    def flush(self) -> typing.Iterator[bytes]:
-        streams: typing.Iterator[bytes] = iter(())
+    def flush(self) -> Iterator[bytes]:
+        streams: Iterator[bytes] = iter(())
         for child in self.children:
             streams = itertools.chain(self._pipe(child.decode, streams), child.flush())
         yield from streams
 
     @staticmethod
     def _pipe(
-        decode: typing.Callable[[bytes], typing.Iterator[bytes]],
-        upstream: typing.Iterator[bytes],
-    ) -> typing.Iterator[bytes]:
+        decode: Callable[[bytes], Iterator[bytes]],
+        upstream: Iterator[bytes],
+    ) -> Iterator[bytes]:
         for chunk in upstream:
             yield from decode(chunk)
 
@@ -438,7 +439,7 @@ class LineDecoder:
         if self.buffer:
             # Include any existing buffer in the first portion of the
             # splitlines result.
-            lines = ["".join(self.buffer) + lines[0]] + lines[1:]
+            lines = ["".join(self.buffer) + lines[0], *lines[1:]]
             self.buffer = []
 
         if not trailing_newline:

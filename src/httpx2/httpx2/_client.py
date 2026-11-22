@@ -4,11 +4,11 @@ import datetime
 import enum
 import logging
 import time
-import typing
 import warnings
-from collections.abc import AsyncGenerator, Generator
-from contextlib import asynccontextmanager, contextmanager
+from collections.abc import AsyncGenerator, AsyncIterator, Callable, Generator, Iterator, Mapping
+from contextlib import asynccontextmanager, contextmanager, suppress
 from types import TracebackType
+from typing import TYPE_CHECKING, Any, Self
 
 from .__version__ import __version__
 from ._auth import Auth, BasicAuth, FunctionAuth
@@ -55,17 +55,12 @@ from ._types import (
 from ._urls import URL, QueryParams
 from ._utils import URLPattern, get_environment_proxies
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     import ssl  # pragma: no cover
 
     from .websockets._api import AsyncWebSocketSession, WebSocketSession
 
 __all__ = ["USE_CLIENT_DEFAULT", "AsyncClient", "Client"]
-
-# The type annotation for @classmethod and context managers here follows PEP 484
-# https://www.python.org/dev/peps/pep-0484/#annotating-instance-and-class-methods
-T = typing.TypeVar("T", bound="Client")
-U = typing.TypeVar("U", bound="AsyncClient")
 
 
 def _is_https_redirect(url: URL, location: URL) -> bool:
@@ -139,7 +134,7 @@ class BoundSyncStream(SyncByteStream):
         self._start = start
         self.elapsed: datetime.timedelta | None = None
 
-    def __iter__(self) -> typing.Iterator[bytes]:
+    def __iter__(self) -> Iterator[bytes]:
         yield from self._stream
 
     def close(self) -> None:
@@ -159,7 +154,7 @@ class BoundAsyncStream(AsyncByteStream):
         self._start = start
         self.elapsed: datetime.timedelta | None = None
 
-    async def __aiter__(self) -> typing.AsyncIterator[bytes]:
+    async def __aiter__(self) -> AsyncIterator[bytes]:
         stream = self._stream.__aiter__()
         try:
             async for chunk in stream:
@@ -173,7 +168,7 @@ class BoundAsyncStream(AsyncByteStream):
         await self._stream.aclose()
 
 
-EventHook = typing.Callable[..., typing.Any]
+EventHook = Callable[..., Any]
 
 
 class BaseClient:
@@ -187,10 +182,10 @@ class BaseClient:
         timeout: TimeoutTypes = DEFAULT_TIMEOUT_CONFIG,
         follow_redirects: bool = False,
         max_redirects: int = DEFAULT_MAX_REDIRECTS,
-        event_hooks: None | (typing.Mapping[str, list[EventHook]]) = None,
+        event_hooks: Mapping[str, list[EventHook]] | None = None,
         base_url: URL | str = "",
         trust_env: bool = True,
-        default_encoding: str | typing.Callable[[bytes], str | None] = "utf-8",
+        default_encoding: str | Callable[[bytes], str | None] = "utf-8",
     ) -> None:
         event_hooks = {} if event_hooks is None else event_hooks
 
@@ -262,7 +257,7 @@ class BaseClient:
 
         See also [Authentication][0].
 
-        [0]: /quickstart/#authentication
+        [0]: quickstart.md#authentication
         """
         return self._auth
 
@@ -331,7 +326,7 @@ class BaseClient:
         content: RequestContent | None = None,
         data: RequestData | None = None,
         files: RequestFiles | None = None,
-        json: typing.Any | None = None,
+        json: Any | None = None,
         params: QueryParamTypes | None = None,
         headers: HeaderTypes | None = None,
         cookies: CookieTypes | None = None,
@@ -347,7 +342,7 @@ class BaseClient:
 
         See also: [Request instances][0]
 
-        [0]: /advanced/clients/#request-instances
+        [0]: advanced/clients.md#request-instances
         """
         url = self._merge_url(url)
         headers = self._merge_headers(headers)
@@ -392,16 +387,16 @@ class BaseClient:
             return self.base_url.copy_with(raw_path=merge_raw_path)
         return merge_url
 
-    def _merge_cookies(self, cookies: CookieTypes | None = None) -> CookieTypes | None:
+    def _merge_cookies(self, cookies: CookieTypes | None = None) -> Cookies:
         """
         Merge a cookies argument together with any cookies on the client,
         to create the cookies used for the outgoing request.
         """
-        if cookies or self.cookies:
-            merged_cookies = Cookies(self.cookies)
-            merged_cookies.update(cookies)
-            return merged_cookies
-        return cookies
+        if not cookies:
+            return self.cookies
+        merged_cookies = Cookies(self.cookies)
+        merged_cookies.update(cookies)
+        return merged_cookies
 
     def _merge_headers(self, headers: HeaderTypes | None = None) -> HeaderTypes | None:
         """
@@ -459,12 +454,11 @@ class BaseClient:
         url = self._redirect_url(request, response)
         headers = self._redirect_headers(request, url, method)
         stream = self._redirect_stream(request, method)
-        cookies = Cookies(self.cookies)
         return Request(
             method=method,
             url=url,
             headers=headers,
-            cookies=cookies,
+            cookies=self.cookies,
             stream=stream,
             extensions=request.extensions,
         )
@@ -502,18 +496,18 @@ class BaseClient:
 
         try:
             url = URL(location)
+
+            # Handle malformed 'Location' headers that are "absolute" form, have no host.
+            # See: https://github.com/encode/httpx/issues/771
+            if url.scheme and not url.host:
+                url = url.copy_with(host=request.url.host)
+
+            # Facilitate relative 'Location' headers, as allowed by RFC 7231.
+            # (e.g. '/path/to/resource' instead of 'http://domain.tld/path/to/resource')
+            if url.is_relative_url:
+                url = request.url.join(url)
         except InvalidURL as exc:
             raise RemoteProtocolError(f"Invalid URL in location header: {exc}.", request=request) from None
-
-        # Handle malformed 'Location' headers that are "absolute" form, have no host.
-        # See: https://github.com/encode/httpx/issues/771
-        if url.scheme and not url.host:
-            url = url.copy_with(host=request.url.host)
-
-        # Facilitate relative 'Location' headers, as allowed by RFC 7231.
-        # (e.g. '/path/to/resource' instead of 'http://domain.tld/path/to/resource')
-        if url.is_relative_url:
-            url = request.url.join(url)
 
         # Attach previous fragment if needed (RFC 7231 7.1.2)
         if request.url.fragment and not url.fragment:
@@ -623,15 +617,15 @@ class Client(BaseClient):
         http1: bool = True,
         http2: bool = False,
         proxy: ProxyTypes | None = None,
-        mounts: None | (typing.Mapping[str, BaseTransport | None]) = None,
+        mounts: Mapping[str, BaseTransport | None] | None = None,
         timeout: TimeoutTypes = DEFAULT_TIMEOUT_CONFIG,
         follow_redirects: bool = False,
         limits: Limits = DEFAULT_LIMITS,
         max_redirects: int = DEFAULT_MAX_REDIRECTS,
-        event_hooks: None | (typing.Mapping[str, list[EventHook]]) = None,
+        event_hooks: Mapping[str, list[EventHook]] | None = None,
         base_url: URL | str = "",
         transport: BaseTransport | None = None,
-        default_encoding: str | typing.Callable[[bytes], str | None] = "utf-8",
+        default_encoding: str | Callable[[bytes], str | None] = "utf-8",
     ) -> None:
         super().__init__(
             auth=auth,
@@ -748,7 +742,7 @@ class Client(BaseClient):
         content: RequestContent | None = None,
         data: RequestData | None = None,
         files: RequestFiles | None = None,
-        json: typing.Any | None = None,
+        json: Any | None = None,
         params: QueryParamTypes | None = None,
         headers: HeaderTypes | None = None,
         cookies: CookieTypes | None = None,
@@ -771,7 +765,7 @@ class Client(BaseClient):
         [Merging of configuration][0] for how the various parameters
         are merged with client-level configuration.
 
-        [0]: /advanced/clients/#merging-of-configuration
+        [0]: advanced/clients.md#merging-of-configuration
         """
         if cookies is not None:
             message = (
@@ -805,7 +799,7 @@ class Client(BaseClient):
         content: RequestContent | None = None,
         data: RequestData | None = None,
         files: RequestFiles | None = None,
-        json: typing.Any | None = None,
+        json: Any | None = None,
         params: QueryParamTypes | None = None,
         headers: HeaderTypes | None = None,
         cookies: CookieTypes | None = None,
@@ -822,7 +816,7 @@ class Client(BaseClient):
 
         See also: [Streaming Responses][0]
 
-        [0]: /quickstart#streaming-responses
+        [0]: quickstart.md#streaming-responses
         """
         request = self.build_request(
             method=method,
@@ -857,7 +851,7 @@ class Client(BaseClient):
         content: RequestContent | None = None,
         data: RequestData | None = None,
         files: RequestFiles | None = None,
-        json: typing.Any | None = None,
+        json: Any | None = None,
         params: QueryParamTypes | None = None,
         headers: HeaderTypes | None = None,
         cookies: CookieTypes | None = None,
@@ -965,7 +959,7 @@ class Client(BaseClient):
 
         See also: [Request instances][0]
 
-        [0]: /advanced/clients/#request-instances
+        [0]: advanced/clients.md#request-instances
         """
         if self._state == ClientState.CLOSED:
             raise RuntimeError("Cannot send a request, as the client has been closed.")
@@ -1049,13 +1043,13 @@ class Client(BaseClient):
                 if not response.has_redirect_location:
                     return response
 
-                request = self._build_redirect_request(request, response)
-                history = history + [response]
-
                 if follow_redirects:
+                    request = self._build_redirect_request(request, response)
+                    history = [*history, response]
                     response.read()
                 else:
-                    response.next_request = request
+                    with suppress(RemoteProtocolError):
+                        response.next_request = self._build_redirect_request(request, response)
                     return response
 
             except BaseException as exc:
@@ -1187,7 +1181,7 @@ class Client(BaseClient):
         content: RequestContent | None = None,
         data: RequestData | None = None,
         files: RequestFiles | None = None,
-        json: typing.Any | None = None,
+        json: Any | None = None,
         params: QueryParamTypes | None = None,
         headers: HeaderTypes | None = None,
         cookies: CookieTypes | None = None,
@@ -1224,7 +1218,7 @@ class Client(BaseClient):
         content: RequestContent | None = None,
         data: RequestData | None = None,
         files: RequestFiles | None = None,
-        json: typing.Any | None = None,
+        json: Any | None = None,
         params: QueryParamTypes | None = None,
         headers: HeaderTypes | None = None,
         cookies: CookieTypes | None = None,
@@ -1261,7 +1255,7 @@ class Client(BaseClient):
         content: RequestContent | None = None,
         data: RequestData | None = None,
         files: RequestFiles | None = None,
-        json: typing.Any | None = None,
+        json: Any | None = None,
         params: QueryParamTypes | None = None,
         headers: HeaderTypes | None = None,
         cookies: CookieTypes | None = None,
@@ -1327,7 +1321,7 @@ class Client(BaseClient):
         content: RequestContent | None = None,
         data: RequestData | None = None,
         files: RequestFiles | None = None,
-        json: typing.Any | None = None,
+        json: Any | None = None,
         params: QueryParamTypes | None = None,
         headers: HeaderTypes | None = None,
         cookies: CookieTypes | None = None,
@@ -1369,7 +1363,7 @@ class Client(BaseClient):
                 if transport is not None:
                     transport.close()
 
-    def __enter__(self: T) -> T:
+    def __enter__(self) -> Self:
         if self._state != ClientState.UNOPENED:
             msg = {
                 ClientState.OPENED: "Cannot open a client instance more than once.",
@@ -1459,16 +1453,16 @@ class AsyncClient(BaseClient):
         http1: bool = True,
         http2: bool = False,
         proxy: ProxyTypes | None = None,
-        mounts: None | (typing.Mapping[str, AsyncBaseTransport | None]) = None,
+        mounts: Mapping[str, AsyncBaseTransport | None] | None = None,
         timeout: TimeoutTypes = DEFAULT_TIMEOUT_CONFIG,
         follow_redirects: bool = False,
         limits: Limits = DEFAULT_LIMITS,
         max_redirects: int = DEFAULT_MAX_REDIRECTS,
-        event_hooks: None | (typing.Mapping[str, list[EventHook]]) = None,
+        event_hooks: Mapping[str, list[EventHook]] | None = None,
         base_url: URL | str = "",
         transport: AsyncBaseTransport | None = None,
         trust_env: bool = True,
-        default_encoding: str | typing.Callable[[bytes], str | None] = "utf-8",
+        default_encoding: str | Callable[[bytes], str | None] = "utf-8",
     ) -> None:
         super().__init__(
             auth=auth,
@@ -1585,7 +1579,7 @@ class AsyncClient(BaseClient):
         content: RequestContent | None = None,
         data: RequestData | None = None,
         files: RequestFiles | None = None,
-        json: typing.Any | None = None,
+        json: Any | None = None,
         params: QueryParamTypes | None = None,
         headers: HeaderTypes | None = None,
         cookies: CookieTypes | None = None,
@@ -1608,7 +1602,7 @@ class AsyncClient(BaseClient):
         and [Merging of configuration][0] for how the various parameters
         are merged with client-level configuration.
 
-        [0]: /advanced/clients/#merging-of-configuration
+        [0]: advanced/clients.md#merging-of-configuration
         """
 
         if cookies is not None:  # pragma: no cover
@@ -1643,7 +1637,7 @@ class AsyncClient(BaseClient):
         content: RequestContent | None = None,
         data: RequestData | None = None,
         files: RequestFiles | None = None,
-        json: typing.Any | None = None,
+        json: Any | None = None,
         params: QueryParamTypes | None = None,
         headers: HeaderTypes | None = None,
         cookies: CookieTypes | None = None,
@@ -1660,7 +1654,7 @@ class AsyncClient(BaseClient):
 
         See also: [Streaming Responses][0]
 
-        [0]: /quickstart#streaming-responses
+        [0]: quickstart.md#streaming-responses
         """
         request = self.build_request(
             method=method,
@@ -1695,7 +1689,7 @@ class AsyncClient(BaseClient):
         content: RequestContent | None = None,
         data: RequestData | None = None,
         files: RequestFiles | None = None,
-        json: typing.Any | None = None,
+        json: Any | None = None,
         params: QueryParamTypes | None = None,
         headers: HeaderTypes | None = None,
         cookies: CookieTypes | None = None,
@@ -1803,7 +1797,7 @@ class AsyncClient(BaseClient):
 
         See also: [Request instances][0]
 
-        [0]: /advanced/clients/#request-instances
+        [0]: advanced/clients.md#request-instances
         """
         if self._state == ClientState.CLOSED:
             raise RuntimeError("Cannot send a request, as the client has been closed.")
@@ -1888,13 +1882,13 @@ class AsyncClient(BaseClient):
                 if not response.has_redirect_location:
                     return response
 
-                request = self._build_redirect_request(request, response)
-                history = history + [response]
-
                 if follow_redirects:
+                    request = self._build_redirect_request(request, response)
+                    history = [*history, response]
                     await response.aread()
                 else:
-                    response.next_request = request
+                    with suppress(RemoteProtocolError):
+                        response.next_request = self._build_redirect_request(request, response)
                     return response
 
             except BaseException as exc:
@@ -2025,7 +2019,7 @@ class AsyncClient(BaseClient):
         content: RequestContent | None = None,
         data: RequestData | None = None,
         files: RequestFiles | None = None,
-        json: typing.Any | None = None,
+        json: Any | None = None,
         params: QueryParamTypes | None = None,
         headers: HeaderTypes | None = None,
         cookies: CookieTypes | None = None,
@@ -2062,7 +2056,7 @@ class AsyncClient(BaseClient):
         content: RequestContent | None = None,
         data: RequestData | None = None,
         files: RequestFiles | None = None,
-        json: typing.Any | None = None,
+        json: Any | None = None,
         params: QueryParamTypes | None = None,
         headers: HeaderTypes | None = None,
         cookies: CookieTypes | None = None,
@@ -2099,7 +2093,7 @@ class AsyncClient(BaseClient):
         content: RequestContent | None = None,
         data: RequestData | None = None,
         files: RequestFiles | None = None,
-        json: typing.Any | None = None,
+        json: Any | None = None,
         params: QueryParamTypes | None = None,
         headers: HeaderTypes | None = None,
         cookies: CookieTypes | None = None,
@@ -2165,7 +2159,7 @@ class AsyncClient(BaseClient):
         content: RequestContent | None = None,
         data: RequestData | None = None,
         files: RequestFiles | None = None,
-        json: typing.Any | None = None,
+        json: Any | None = None,
         params: QueryParamTypes | None = None,
         headers: HeaderTypes | None = None,
         cookies: CookieTypes | None = None,
@@ -2207,7 +2201,7 @@ class AsyncClient(BaseClient):
                 if proxy is not None:
                     await proxy.aclose()
 
-    async def __aenter__(self: U) -> U:
+    async def __aenter__(self) -> Self:
         if self._state != ClientState.UNOPENED:
             msg = {
                 ClientState.OPENED: "Cannot open a client instance more than once.",

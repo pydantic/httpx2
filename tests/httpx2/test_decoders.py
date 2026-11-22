@@ -3,8 +3,8 @@ from __future__ import annotations
 import io
 import sys
 import tracemalloc
-import typing
 import zlib
+from collections.abc import AsyncIterator, Callable, Iterable, Iterator
 
 import brotli
 import chardet
@@ -55,6 +55,20 @@ def test_zlib() -> None:
     assert response.content == body
 
 
+@pytest.mark.anyio
+async def test_deflate_stream_with_leading_empty_chunk() -> None:
+    body = b"test 123"
+    compressor = zlib.compressobj(9, zlib.DEFLATED, -zlib.MAX_WBITS)
+    compressed_body = compressor.compress(body) + compressor.flush()
+
+    async def raw() -> AsyncIterator[bytes]:
+        yield b""
+        yield compressed_body
+
+    response = httpx2.Response(200, headers=[(b"Content-Encoding", b"deflate")], content=raw())
+    assert await response.aread() == body
+
+
 def test_gzip() -> None:
     body = b"test 123"
     compressor = zlib.compressobj(9, zlib.DEFLATED, zlib.MAX_WBITS | 16)
@@ -80,7 +94,7 @@ def test_decoding_bounds_peak_memory(wbits: int) -> None:
     compressed = compressor.compress(b"\x00" * decoded_size) + compressor.flush()
     encoding = b"gzip" if wbits & 16 else b"deflate"
 
-    def raw() -> typing.Iterator[bytes]:
+    def raw() -> Iterator[bytes]:
         yield compressed  # deliver the whole bomb as a single raw chunk
 
     response = httpx2.Response(200, headers=[(b"Content-Encoding", encoding)], content=raw())
@@ -110,11 +124,11 @@ def test_brotli() -> None:
 
 
 @pytest.mark.parametrize(("encoding", "compress"), [(b"br", brotli.compress), (b"zstd", zstd.compress)])
-def test_decoding_bounds_output_chunks(encoding: bytes, compress: typing.Callable[[bytes], bytes]) -> None:
+def test_decoding_bounds_output_chunks(encoding: bytes, compress: Callable[[bytes], bytes]) -> None:
     body = b"\x00" * (2**20 + 1)
     compressed_body = compress(body)
 
-    def raw() -> typing.Iterator[bytes]:
+    def raw() -> Iterator[bytes]:
         yield compressed_body
 
     response = httpx2.Response(200, headers=[(b"Content-Encoding", encoding)], content=raw())
@@ -201,7 +215,7 @@ def test_zstd_streaming_multiple_frames() -> None:
     frame2 = zstd.compress(body2)
 
     # Create an iterator that yields frames separately
-    def content_iterator() -> typing.Iterator[bytes]:
+    def content_iterator() -> Iterator[bytes]:
         yield frame1
         yield frame2
 
@@ -309,6 +323,18 @@ def test_multi_decode_links_limit() -> None:
         httpx2.Response(200, headers=headers, content=b"")
 
 
+@pytest.mark.anyio
+async def test_multi_decode_links_limit_keeps_raw_stream_readable() -> None:
+    async def body() -> AsyncIterator[bytes]:
+        yield b"raw"
+
+    headers = [(b"Content-Encoding", b", ".join([b"gzip"] * 6))]
+    response = httpx2.Response(200, headers=headers, content=body())
+    with pytest.raises(httpx2.DecodingError, match="Cannot apply more than 5 content encodings"):
+        await anext(response.aiter_bytes())
+    assert [chunk async for chunk in response.aiter_raw()] == [b"raw"]
+
+
 def test_multi_decode_links_limit_ignores_identity_and_unsupported() -> None:
     body = b"test 123"
     compressed = zlib.compress(body)
@@ -322,7 +348,7 @@ async def test_streaming() -> None:
     body = b"test 123"
     compressor = zlib.compressobj(9, zlib.DEFLATED, zlib.MAX_WBITS | 16)
 
-    async def compress(body: bytes) -> typing.AsyncIterator[bytes]:
+    async def compress(body: bytes) -> AsyncIterator[bytes]:
         yield compressor.compress(body)
         yield compressor.flush()
 
@@ -377,7 +403,7 @@ def test_decoding_errors(header_value: bytes) -> None:
 )
 @pytest.mark.anyio
 async def test_text_decoder_with_autodetect(data: tuple[bytes, ...], encoding: str) -> None:
-    async def iterator() -> typing.AsyncIterator[bytes]:
+    async def iterator() -> AsyncIterator[bytes]:
         nonlocal data
         for chunk in data:
             yield chunk
@@ -400,7 +426,7 @@ async def test_text_decoder_with_autodetect(data: tuple[bytes, ...], encoding: s
 
 @pytest.mark.anyio
 async def test_text_decoder_known_encoding() -> None:
-    async def iterator() -> typing.AsyncIterator[bytes]:
+    async def iterator() -> AsyncIterator[bytes]:
         yield b"\x83g"
         yield b"\x83"
         yield b"\x89\x83x\x83\x8b"
@@ -428,7 +454,7 @@ def test_text_decoder_empty_cases() -> None:
     ["data", "expected"],
     [((b"Hello,", b" world!"), ["Hello,", " world!"])],
 )
-def test_streaming_text_decoder(data: typing.Iterable[bytes], expected: list[str]) -> None:
+def test_streaming_text_decoder(data: Iterable[bytes], expected: list[str]) -> None:
     response = httpx2.Response(200, content=iter(data))
     assert list(response.iter_text()) == expected
 
@@ -504,7 +530,7 @@ def test_streaming_decode_error_closes_response() -> None:
 async def test_async_streaming_decode_error_closes_response() -> None:
     response: httpx2.Response | None = None
 
-    async def content() -> typing.AsyncIterator[bytes]:
+    async def content() -> AsyncIterator[bytes]:
         yield b"invalid"
 
     async def handler(request: httpx2.Request) -> httpx2.Response:

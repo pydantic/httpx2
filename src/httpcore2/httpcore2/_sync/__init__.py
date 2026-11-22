@@ -29,11 +29,11 @@ except ImportError:  # pragma: no cover
 
 
 __all__ = [
-    "HTTPConnection",
-    "ConnectionPool",
-    "HTTPProxy",
-    "HTTP11Connection",
-    "HTTP2Connection",
     "ConnectionInterface",
+    "ConnectionPool",
+    "HTTP2Connection",
+    "HTTP11Connection",
+    "HTTPConnection",
+    "HTTPProxy",
     "SOCKSProxy",
 ]

@@ -42,14 +42,14 @@ Valid values: a comma-separated list of hostnames/urls
 
 ```bash
 export HTTP_PROXY=http://my-external-proxy.com:1234
-export NO_PROXY=http://127.0.0.1,python-httpx2.org
+export NO_PROXY=http://127.0.0.1,pydantic.dev
 
 # As in the previous example, this request will be sent through the proxy
 python -c "import httpx2; httpx2.get('http://example.com')"
 
 # These requests will be sent directly, bypassing the proxy
 python -c "import httpx2; httpx2.get('http://127.0.0.1:5000/my-api')"
-python -c "import httpx2; httpx2.get('https://httpx2.pydantic.dev')"
+python -c "import httpx2; httpx2.get('https://pydantic.dev/docs/httpx2/')"
 ```
 
 ## `SSL_CERT_FILE`

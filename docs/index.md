@@ -1,23 +1,14 @@
-<h1 align="center" style="font-size: 3rem; margin: -15px 0">
-HTTPX2
-</h1>
-
+---
+title: HTTPX2
 ---
 
-<div align="center">
-<p>
-<a href="https://github.com/pydantic/httpx2/actions">
-    <img src="https://github.com/pydantic/httpx2/workflows/Test%20Suite/badge.svg" alt="Test Suite">
-</a>
-<a href="https://pypi.org/project/httpx2/">
-    <img src="https://badge.fury.io/py/httpx2.svg" alt="Package version">
-</a>
-</p>
+[![Test Suite](https://github.com/pydantic/httpx2/workflows/Test%20Suite/badge.svg)](https://github.com/pydantic/httpx2/actions)
+[![Package version](https://badge.fury.io/py/httpx2.svg)](https://pypi.org/project/httpx2/)
+[![Join Slack](https://img.shields.io/badge/Slack-Join%20Slack-4A154B?logo=slack)](https://pydantic.dev/docs/logfire/join-slack/)
 
-<em>A next-generation HTTP client for Python.</em>
-</div>
+*A next-generation HTTP client for Python.*
 
-HTTPX2 is a fully featured HTTP client for Python, which provides sync and async APIs, and support for both HTTP/1.1 and HTTP/2.
+HTTPX2 is a fully featured HTTP client for Python, which provides sync and async APIs, support for both HTTP/1.1 and HTTP/2, and native support for WebSockets.
 
 !!! note
     HTTPX2 is a continuation of the wonderful work started by [@lovelydinosaur](https://github.com/lovelydinosaur) and the broader HTTPX community. We're enormously grateful for everything that has gone into HTTPX over the years - it has been a foundational piece of the modern Python ecosystem, and this project would not exist without it.
@@ -67,6 +58,7 @@ HTTPX2 builds on the well-established usability of `requests`, and gives you:
 * A broadly [requests-compatible API](compatibility.md).
 * Standard synchronous interface, but with [async support if you need it](async.md).
 * HTTP/1.1 [and HTTP/2 support](http2.md).
+* [WebSocket support](websockets.md).
 * Ability to make requests directly to [WSGI applications](advanced/transports.md#wsgi-transport) or [ASGI applications](advanced/transports.md#asgi-transport).
 * Strict timeouts everywhere.
 * Fully type annotated.

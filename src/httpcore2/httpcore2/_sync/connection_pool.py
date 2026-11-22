@@ -3,15 +3,15 @@ from __future__ import annotations
 import ssl
 import sys
 import types
-import typing
-from collections.abc import Generator
+from collections.abc import Iterable, Iterator
+from typing import Self
 
 from .._backends.sync import SyncBackend
-from .._backends.base import SOCKET_OPTION, NetworkBackend
+from .._backends.base import NetworkBackend
 from .._exceptions import ConnectionNotAvailable, UnsupportedProtocol
 from .._models import Origin, Proxy, Request, Response
 from .._synchronization import Event, ShieldCancellation, ThreadLock
-from .._utils import safe_iterate
+from .._types import SOCKET_OPTION
 from .connection import HTTPConnection
 from .interfaces import ConnectionInterface, RequestInterface
 
@@ -58,7 +58,7 @@ class ConnectionPool(RequestInterface):
         local_address: str | None = None,
         uds: str | None = None,
         network_backend: NetworkBackend | None = None,
-        socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
+        socket_options: Iterable[SOCKET_OPTION] | None = None,
     ) -> None:
         """
         A connection pool for making HTTP requests.
@@ -243,7 +243,7 @@ class ConnectionPool(RequestInterface):
 
         # Return the response. Note that in this case we still have to manage
         # the point at which the response is closed.
-        assert isinstance(response.stream, typing.Iterable)
+        assert isinstance(response.stream, Iterable)
         return Response(
             status=response.status,
             headers=response.headers,
@@ -271,8 +271,7 @@ class ConnectionPool(RequestInterface):
 
         # First we handle cleaning up any connections that are closed
         # or have expired their keep-alive, in a single pass. Reserved
-        # connections skip the expiry check: they were checked when assigned,
-        # and `has_expired()` on an idle connection probes the socket.
+        # connections skip the expiry check: they were checked when assigned.
         for connection in self._connections:
             reserved = connection in request_connections
             if connection.is_closed():
@@ -381,7 +380,7 @@ class ConnectionPool(RequestInterface):
             self._connections = []
         self._close_connections(closing_connections)
 
-    def __enter__(self) -> ConnectionPool:
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(
@@ -412,7 +411,7 @@ class ConnectionPool(RequestInterface):
 class PoolByteStream:
     def __init__(
         self,
-        stream: typing.Iterable[bytes],
+        stream: Iterable[bytes],
         pool_request: PoolRequest,
         pool: ConnectionPool,
     ) -> None:
@@ -421,10 +420,8 @@ class PoolByteStream:
         self._pool = pool
         self._closed = False
 
-    def __iter__(self) -> Generator[bytes]:
-        with safe_iterate(self._stream) as iterator:
-            for chunk in iterator:
-                yield chunk
+    def __iter__(self) -> Iterator[bytes]:
+        return self._stream.__iter__()
 
     def close(self) -> None:
         if not self._closed:

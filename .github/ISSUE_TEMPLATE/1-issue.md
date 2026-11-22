@@ -7,7 +7,7 @@ The starting point for issues should usually be a discussion...
 
 https://github.com/pydantic/httpx2/discussions
 
-Possible bugs may be raised as a "Potential Issue" discussion, feature requests may be raised as an "Ideas" discussion. We can then determine if the discussion needs to be escalated into an "Issue" or not.
+Possible bugs and feature requests may be raised in the "Q&A" discussion category. We can then determine if the discussion needs to be escalated into an "Issue" or not.
 
 This will help us ensure that the "Issues" list properly reflects ongoing or needed work on the project.
 

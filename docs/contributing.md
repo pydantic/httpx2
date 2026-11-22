@@ -11,13 +11,13 @@ There are many ways you can contribute to the project:
 
 ## Reporting Bugs or Other Issues
 
-Found something that HTTPX should support?
+Found something that HTTPX2 should support?
 Stumbled upon some unexpected behaviour?
 
 Contributions should generally start out with [a discussion](https://github.com/pydantic/httpx2/discussions).
-Possible bugs may be raised as a "Potential Issue" discussion, feature requests may
-be raised as an "Ideas" discussion. We can then determine if the discussion needs
-to be escalated into an "Issue" or not, or if we'd consider a pull request.
+Possible bugs and feature requests may be raised in the "Q&A" category. We can then
+determine if the discussion needs to be escalated into an "Issue" or not, or if we'd
+consider a pull request.
 
 Try to be more descriptive as you can and in case of a bug report,
 provide as much information as possible like:
@@ -202,8 +202,8 @@ UI options.
 
 At this point the server is ready to start serving requests, you'll need to
 configure HTTPX2 as described in the
-[proxy section](https://httpx2.pydantic.dev/advanced/proxies/#http-proxies) and
-the [SSL certificates section](https://httpx2.pydantic.dev/advanced/ssl/),
+[proxy section](https://pydantic.dev/docs/httpx2/advanced/proxies/#http-proxies) and
+the [SSL certificates section](https://pydantic.dev/docs/httpx2/advanced/ssl/),
 this is where our previously generated `client.pem` comes in:
 
 ```python

@@ -1,12 +1,21 @@
-import typing
+from collections.abc import Iterable
+from typing import Any
 from unittest.mock import patch
 
 import anyio
 import hpack
 import hyperframe.frame
 import pytest
+from trio.testing import MockClock
 
 import httpcore2
+
+
+@pytest.fixture(params=["asyncio", "trio"])
+def anyio_backend(request: pytest.FixtureRequest) -> str | tuple[str, dict[str, MockClock]]:
+    if request.param == "trio":
+        return "trio", {"clock": MockClock(autojump_threshold=0)}
+    return "asyncio"
 
 
 class SlowWriteStream(httpcore2.AsyncNetworkStream):
@@ -70,7 +79,7 @@ class SlowWriteBackend(httpcore2.AsyncNetworkBackend):
         port: int,
         timeout: float | None = None,
         local_address: str | None = None,
-        socket_options: typing.Iterable[httpcore2.SOCKET_OPTION] | None = None,
+        socket_options: Iterable[httpcore2.SOCKET_OPTION] | None = None,
     ) -> httpcore2.AsyncNetworkStream:
         return SlowWriteStream()
 
@@ -85,7 +94,7 @@ class SlowReadBackend(httpcore2.AsyncNetworkBackend):
         port: int,
         timeout: float | None = None,
         local_address: str | None = None,
-        socket_options: typing.Iterable[httpcore2.SOCKET_OPTION] | None = None,
+        socket_options: Iterable[httpcore2.SOCKET_OPTION] | None = None,
     ) -> httpcore2.AsyncNetworkStream:
         return SlowReadStream(self._buffer)
 
@@ -140,7 +149,7 @@ async def test_connection_pool_cancellation_during_waiting_for_connection() -> N
     discarded and no longer remains in the pool.
     """
 
-    async def wait_for_connection(self: typing.Any, *args: typing.Any, **kwargs: typing.Any) -> None:
+    async def wait_for_connection(self: Any, *args: Any, **kwargs: Any) -> None:
         await anyio.sleep(999)
 
     with patch(
@@ -168,6 +177,35 @@ async def test_h11_timeout_during_request() -> None:
 
 
 @pytest.mark.anyio
+async def test_h11_cancellation_while_closing_disconnected_idle_connection() -> None:
+    """
+    A cancellation while closing an idle HTTP/1.1 connection that the server
+    disconnected should still close the network stream.
+    """
+    scope = anyio.CancelScope()
+    closed = False
+
+    class DisconnectedStream(httpcore2.AsyncMockStream):
+        def get_extra_info(self, info: str) -> Any:
+            return True if info == "is_readable" else super().get_extra_info(info)
+
+        async def aclose(self) -> None:
+            scope.cancel()
+            await anyio.lowlevel.checkpoint()
+            nonlocal closed
+            closed = True
+
+    origin = httpcore2.Origin(b"http", b"example.com", 80)
+    stream = DisconnectedStream([b"HTTP/1.1 200 OK\r\n", b"Content-Length: 0\r\n", b"\r\n"])
+    conn = httpcore2.AsyncHTTP11Connection(origin, stream)
+    await conn.request("GET", "http://example.com")
+    with scope:
+        with pytest.raises(httpcore2.ConnectionNotAvailable):
+            await conn.request("GET", "http://example.com")
+    assert closed
+
+
+@pytest.mark.anyio
 async def test_h11_timeout_during_response() -> None:
     """
     An async timeout on an HTTP/1.1 during the response reading
@@ -187,6 +225,140 @@ async def test_h11_timeout_during_response() -> None:
         with anyio.move_on_after(0.01):
             await conn.request("GET", "http://example.com")
         assert conn.is_closed()
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("cancel_waiter", [False, True])
+@pytest.mark.parametrize("close_before_settings", [False, True])
+async def test_h2_queued_request_after_stream_limit_decrease(cancel_waiter: bool, close_before_settings: bool) -> None:
+    origin = httpcore2.Origin(b"https", b"example.com", 443)
+    stream = httpcore2.AsyncMockStream(
+        [
+            hyperframe.frame.SettingsFrame(
+                settings={hyperframe.frame.SettingsFrame.MAX_CONCURRENT_STREAMS: 2}
+            ).serialize(),
+            *[
+                hyperframe.frame.HeadersFrame(
+                    stream_id=stream_id,
+                    data=hpack.Encoder().encode([(b":status", b"200")]),
+                    flags=["END_HEADERS"],
+                ).serialize()
+                for stream_id in (1, 3)
+            ],
+            hyperframe.frame.DataFrame(stream_id=1, data=b"response a", flags=["END_STREAM"]).serialize(),
+            hyperframe.frame.SettingsFrame(
+                settings={hyperframe.frame.SettingsFrame.MAX_CONCURRENT_STREAMS: 1}
+            ).serialize(),
+            hyperframe.frame.DataFrame(stream_id=3, data=b"response b").serialize(),
+            hyperframe.frame.DataFrame(stream_id=3, flags=["END_STREAM"]).serialize(),
+            *[
+                hyperframe.frame.HeadersFrame(
+                    stream_id=stream_id,
+                    data=hpack.Encoder().encode([(b":status", b"200")]),
+                    flags=["END_HEADERS", "END_STREAM"],
+                ).serialize()
+                for stream_id in (5, 7)
+            ],
+        ]
+    )
+    statuses: list[int] = []
+    waiter_scope = anyio.CancelScope()
+
+    async def fetch(conn: httpcore2.AsyncHTTP2Connection) -> None:
+        with waiter_scope:
+            response = await conn.request("GET", "https://example.com/queued")
+            statuses.append(response.status)
+
+    async with httpcore2.AsyncHTTP2Connection(origin=origin, stream=stream) as conn:
+        with anyio.fail_after(2):
+            async with conn.stream("GET", "https://example.com/a") as response_a:
+
+                async def trace(name: str, info: dict[str, Any]) -> None:
+                    if name == "http2.receive_remote_settings.started" and not close_before_settings:
+                        await response_a.aclose()
+                        await anyio.wait_all_tasks_blocked()
+
+                async with conn.stream("GET", "https://example.com/b", extensions={"trace": trace}) as response_b:
+                    async with anyio.create_task_group() as task_group:
+                        task_group.start_soon(fetch, conn)
+                        await anyio.wait_all_tasks_blocked()
+                        assert await response_a.aread() == b"response a"
+                        if close_before_settings:
+                            await response_a.aclose()
+
+                        iterator = response_b.aiter_stream()
+                        assert await anext(iterator) == b"response b"
+                        await anyio.wait_all_tasks_blocked()
+                        if not close_before_settings:
+                            assert statuses == []
+                        expected_statuses = statuses.copy() if cancel_waiter else [200]
+                        if cancel_waiter:
+                            waiter_scope.cancel()
+                            await anyio.wait_all_tasks_blocked()
+                        async for chunk in iterator:
+                            assert chunk == b""
+                        await response_b.aclose()
+
+            assert statuses == expected_statuses
+            response = await conn.request("GET", "https://example.com/reused")
+            assert response.status == 200
+            assert conn.is_idle()
+
+
+@pytest.mark.anyio
+async def test_h2_stream_limit_capacity() -> None:
+    origin = httpcore2.Origin(b"https", b"example.com", 443)
+    buffer = [
+        hyperframe.frame.SettingsFrame(settings={hyperframe.frame.SettingsFrame.MAX_CONCURRENT_STREAMS: 2}).serialize(),
+        *[
+            hyperframe.frame.HeadersFrame(
+                stream_id=stream_id,
+                data=hpack.Encoder().encode([(b":status", b"200")]),
+                flags=["END_HEADERS"],
+            ).serialize()
+            for stream_id in (1, 3)
+        ],
+        hyperframe.frame.SettingsFrame(settings={hyperframe.frame.SettingsFrame.MAX_CONCURRENT_STREAMS: 1}).serialize(),
+        hyperframe.frame.DataFrame(stream_id=3, data=b"response b").serialize(),
+        hyperframe.frame.DataFrame(stream_id=1, data=b"response a", flags=["END_STREAM"]).serialize(),
+        hyperframe.frame.SettingsFrame(settings={hyperframe.frame.SettingsFrame.MAX_CONCURRENT_STREAMS: 2}).serialize(),
+        hyperframe.frame.DataFrame(stream_id=3, data=b"more").serialize(),
+        hyperframe.frame.HeadersFrame(
+            stream_id=5,
+            data=hpack.Encoder().encode([(b":status", b"200")]),
+            flags=["END_HEADERS", "END_STREAM"],
+        ).serialize(),
+    ]
+    stream = httpcore2.AsyncMockStream(buffer)
+    statuses: list[int] = []
+
+    async def fetch(conn: httpcore2.AsyncHTTP2Connection) -> None:
+        response = await conn.request("GET", "https://example.com/queued")
+        statuses.append(response.status)
+
+    async with httpcore2.AsyncHTTP2Connection(origin=origin, stream=stream) as conn:
+        with anyio.fail_after(2):
+            async with conn.stream("GET", "https://example.com/a") as response_a:
+                async with conn.stream("GET", "https://example.com/b") as response_b:
+                    iterator = response_b.aiter_stream()
+                    assert await anext(iterator) == b"response b"
+                    assert await response_a.aread() == b"response a"
+                    await response_a.aclose()
+
+                    async with anyio.create_task_group() as task_group:
+                        task_group.start_soon(fetch, conn)
+                        await anyio.wait_all_tasks_blocked()
+                        assert statuses == []
+
+                        assert await anext(iterator) == b"more"
+                        await anyio.wait_all_tasks_blocked()
+                        assert statuses == [200]
+
+                    buffer.append(hyperframe.frame.DataFrame(stream_id=3, flags=["END_STREAM"]).serialize())
+                    async for chunk in iterator:
+                        assert chunk == b""
+
+            assert conn.is_idle()
 
 
 @pytest.mark.anyio

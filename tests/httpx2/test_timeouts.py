@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import typing
+from typing import TYPE_CHECKING
 
 import pytest
 
 import httpx2
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from conftest import TestServer
 
 

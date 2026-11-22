@@ -11,7 +11,6 @@ from ._async import (
     AsyncSOCKSProxy,
 )
 from ._backends.base import (
-    SOCKET_OPTION,
     AsyncNetworkBackend,
     AsyncNetworkStream,
     NetworkBackend,
@@ -47,6 +46,7 @@ from ._sync import (
     HTTPProxy,
     SOCKSProxy,
 )
+from ._types import SOCKET_OPTION
 
 # The 'httpcore2.AnyIOBackend' class is conditional on 'anyio' being installed.
 try:
@@ -70,7 +70,7 @@ except ImportError:  # pragma: no cover
             raise RuntimeError(msg)
 
 
-__all__ = [
+__all__ = [  # noqa: RUF022
     # top-level requests
     "request",
     "stream",
