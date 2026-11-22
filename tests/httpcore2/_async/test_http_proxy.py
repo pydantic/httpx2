@@ -224,7 +224,7 @@ class FailingTLSBackend(AsyncMockBackend):
         port: int,
         timeout: float | None = None,
         local_address: str | None = None,
-        socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
+        socket_options: Iterable[SOCKET_OPTION] | None = None,
     ) -> AsyncNetworkStream:
         return FailingTLSStream(list(self._buffer))
 
@@ -281,7 +281,7 @@ class FailingCloseBackend(AsyncMockBackend):
         port: int,
         timeout: float | None = None,
         local_address: str | None = None,
-        socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
+        socket_options: Iterable[SOCKET_OPTION] | None = None,
     ) -> AsyncNetworkStream:
         return FailingCloseStream(list(self._buffer))
 
