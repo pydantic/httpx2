@@ -938,6 +938,7 @@ def test_ipv6_url_zone(zone: str, expected: str) -> None:
     assert url.raw_host == f"fe80::1%{expected}".encode()
     assert url.netloc == f"[fe80::1%25{expected}]:8080".encode()
     assert str(url) == f"http://[fe80::1%25{expected}]:8080/"
+    assert repr(url) == f"URL('http://[fe80::1%25{expected}]:8080/')"
     assert httpx2.URL(str(url)).host == url.host
     assert url.copy_with(path="/path").host == url.host
     assert url.copy_with(host=url.host).host == url.host
