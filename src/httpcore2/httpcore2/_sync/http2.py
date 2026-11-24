@@ -250,21 +250,67 @@ class HTTP2Connection(ConnectionInterface):
         assert isinstance(request.stream, Iterable)
         with safe_iterate(request.stream) as iterator:
             for chunk in iterator:
-                self._send_stream_data(request, stream_id, chunk)
-
+                completed = self._send_stream_data(request, stream_id, chunk)
+                if not completed:
+                    # The server already finished its response; stop uploading
+                    # and let _receive_response return the queued response.
+                    return
         self._send_end_stream(request, stream_id)
 
-    def _send_stream_data(self, request: Request, stream_id: int, data: bytes) -> None:
+    def _send_stream_data(self, request: Request, stream_id: int, data: bytes) -> bool:
         """
         Send a single chunk of data in one or more data frames.
+
+        Returns False when the server already finished or reset its response
+        while the body was uploading (RFC 9113 §8.1), in which case the upload
+        is aborted and the queued response is left for _receive_response.
         """
         position = 0
         while position < len(data):
             max_flow = self._wait_for_outgoing_flow(request, stream_id)
+            if max_flow < 0:
+                self._abort_early_upload(request, stream_id)
+                return False
             chunk = data[position : position + max_flow]
             position += len(chunk)
             self._h2_state.send_data(stream_id, chunk)
             self._write_outgoing_data(request)
+        return True
+
+    def _last_queued_event(self, stream_id: int) -> h2.events.Event | None:
+        events = self._events.get(stream_id)
+        return events[-1] if events else None
+
+    def _upload_aborted_by_response(self, stream_id: int) -> bool:
+        """
+        Whether the server already finished or reset its response for this
+        stream while the request body is still uploading. A server MAY send
+        RST_STREAM(NO_ERROR) after a complete response, and clients MUST NOT
+        discard the response in that case (RFC 9113 §8.1).
+
+        Only the last queued event is inspected: END_STREAM and RST_STREAM
+        both terminate the stream, so nothing for it can be queued after them,
+        and scanning the whole queue per DATA frame would let a peer that
+        queues events without spending flow-control credit amplify CPU work.
+        """
+        return isinstance(
+            self._last_queued_event(stream_id),
+            (h2.events.StreamEnded, h2.events.StreamReset),
+        )
+
+    def _abort_early_upload(self, request: Request, stream_id: int) -> None:
+        """
+        Stop uploading the request body after the server completed its
+        response. When the server has not reset the stream itself, send
+        RST_STREAM(NO_ERROR) so it stops reading, like Go's net/http does.
+        """
+        server_reset = isinstance(self._last_queued_event(stream_id), h2.events.StreamReset)
+        if not server_reset:
+            try:
+                self._h2_state.reset_stream(stream_id, h2.errors.ErrorCodes.NO_ERROR)
+                self._write_outgoing_data(request)
+            except h2.exceptions.ProtocolError:  # pragma: no cover
+                pass  # the stream is already closed on our side
 
     def _send_end_stream(self, request: Request, stream_id: int) -> None:
         """
@@ -483,13 +529,23 @@ class HTTP2Connection(ConnectionInterface):
         https://tools.ietf.org/html/rfc7540#section-6.9
         """
         while True:
+            if self._upload_aborted_by_response(stream_id):
+                # The server finished or reset its response while we were
+                # waiting for flow control; stop uploading and deliver the
+                # queued response (RFC 9113 8.1).
+                return -1
             local_flow: int = self._h2_state.local_flow_control_window(stream_id)
             max_frame_size: int = self._h2_state.max_outbound_frame_size
             flow = min(local_flow, max_frame_size)
             if flow > 0:
                 return flow
             with self._read_lock:
-                if self._h2_state.local_flow_control_window(stream_id) > 0:
+                if self._h2_state.local_flow_control_window(stream_id) > 0 or self._upload_aborted_by_response(
+                    stream_id
+                ):
+                    # The window opened while we waited for the lock, or
+                    # another task's read queued our response: re-check at the
+                    # top instead of blocking on a read the peer will not answer.
                     continue
                 self._receive_events(request)
             self._write_outgoing_data(request)

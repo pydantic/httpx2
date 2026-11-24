@@ -1,3 +1,5 @@
+from collections.abc import AsyncIterator
+
 import h2.settings
 import hpack
 import hyperframe.frame
@@ -542,3 +544,130 @@ async def test_http2_remote_max_streams_decrease_below_in_flight(limits: list[in
         assert response_c.status == 200
         assert response_c.content == b"response c"
         assert conn.is_idle()
+
+
+class WritingMockStream(httpcore2.AsyncMockStream):
+    """A mock stream that records everything written to it."""
+
+    def __init__(self, buffer: list[bytes]) -> None:
+        super().__init__(buffer)
+        self.written = b""
+
+    async def write(self, buffer: bytes, timeout: float | None = None) -> None:
+        self.written += bytes(buffer)
+
+
+async def upload_body() -> AsyncIterator[bytes]:
+    for _ in range(10):
+        yield b"x" * 20_000
+
+
+@pytest.mark.anyio
+async def test_early_response_with_reset_during_upload() -> None:
+    """
+    A server may answer a request before the body has been uploaded, and may
+    then reset the stream with NO_ERROR (RFC 9113 §8.1). The response must be
+    returned instead of blocking on flow control until the read timeout.
+    """
+    stream = httpcore2.AsyncMockStream(
+        [
+            hyperframe.frame.SettingsFrame(settings={h2.settings.SettingCodes.INITIAL_WINDOW_SIZE: 1000}).serialize(),
+            hyperframe.frame.HeadersFrame(
+                stream_id=1,
+                data=hpack.Encoder().encode([(b":status", b"413")]),
+                flags=["END_HEADERS", "END_STREAM"],
+            ).serialize(),
+            hyperframe.frame.RstStreamFrame(stream_id=1, error_code=h2.errors.ErrorCodes.NO_ERROR).serialize(),
+        ]
+    )
+    origin = httpcore2.Origin(b"https", b"example.com", 443)
+    async with httpcore2.AsyncHTTP2Connection(origin=origin, stream=stream) as conn:
+        response = await conn.request(
+            "POST",
+            "https://example.com/",
+            headers={"content-length": "200000"},
+            content=upload_body(),
+        )
+        assert response.status == 413
+        assert response.content == b""
+
+
+@pytest.mark.anyio
+async def test_early_response_without_reset_during_upload() -> None:
+    """
+    Same as above, but the server completes its response with END_STREAM
+    without resetting the stream. The client stops uploading and resets the
+    stream with NO_ERROR, and the response is still returned.
+    """
+    stream = WritingMockStream(
+        [
+            hyperframe.frame.SettingsFrame(settings={h2.settings.SettingCodes.INITIAL_WINDOW_SIZE: 1000}).serialize(),
+            hyperframe.frame.HeadersFrame(
+                stream_id=1,
+                data=hpack.Encoder().encode([(b":status", b"403")]),
+                flags=["END_HEADERS", "END_STREAM"],
+            ).serialize(),
+        ]
+    )
+    origin = httpcore2.Origin(b"https", b"example.com", 443)
+    async with httpcore2.AsyncHTTP2Connection(origin=origin, stream=stream) as conn:
+        response = await conn.request(
+            "POST",
+            "https://example.com/",
+            headers={"content-length": "200000"},
+            content=upload_body(),
+        )
+        assert response.status == 403
+        assert response.content == b""
+
+    # The client must tell the server to stop reading the request body.
+    expected_reset = hyperframe.frame.RstStreamFrame(stream_id=1, error_code=h2.errors.ErrorCodes.NO_ERROR).serialize()
+    assert expected_reset in stream.written
+
+
+@pytest.mark.anyio
+async def test_reset_without_response_during_upload() -> None:
+    """
+    A stream reset that arrives before any response still surfaces as an
+    error while the body is uploading.
+    """
+    stream = httpcore2.AsyncMockStream(
+        [
+            hyperframe.frame.SettingsFrame(settings={h2.settings.SettingCodes.INITIAL_WINDOW_SIZE: 1000}).serialize(),
+            hyperframe.frame.RstStreamFrame(stream_id=1, error_code=h2.errors.ErrorCodes.PROTOCOL_ERROR).serialize(),
+        ]
+    )
+    origin = httpcore2.Origin(b"https", b"example.com", 443)
+    async with httpcore2.AsyncHTTP2Connection(origin=origin, stream=stream) as conn:
+        with pytest.raises(httpcore2.RemoteProtocolError):
+            await conn.request(
+                "POST",
+                "https://example.com/",
+                headers={"content-length": "200000"},
+                content=upload_body(),
+            )
+
+
+@pytest.mark.anyio
+async def test_truncated_response_with_no_error_reset() -> None:
+    """
+    A RST_STREAM(NO_ERROR) that arrives *without* a preceding END_STREAM means
+    the response was truncated, not completed. It must surface as an error
+    rather than be accepted as a complete response.
+    """
+    stream = httpcore2.AsyncMockStream(
+        [
+            hyperframe.frame.SettingsFrame(settings={h2.settings.SettingCodes.INITIAL_WINDOW_SIZE: 1000}).serialize(),
+            hyperframe.frame.HeadersFrame(
+                stream_id=1,
+                data=hpack.Encoder().encode([(b":status", b"200"), (b"content-length", b"100")]),
+                flags=["END_HEADERS"],
+            ).serialize(),
+            hyperframe.frame.DataFrame(stream_id=1, data=b"abc").serialize(),
+            hyperframe.frame.RstStreamFrame(stream_id=1, error_code=h2.errors.ErrorCodes.NO_ERROR).serialize(),
+        ]
+    )
+    origin = httpcore2.Origin(b"https", b"example.com", 443)
+    async with httpcore2.AsyncHTTP2Connection(origin=origin, stream=stream) as conn:
+        with pytest.raises(httpcore2.RemoteProtocolError):
+            await conn.request("GET", "https://example.com/")
