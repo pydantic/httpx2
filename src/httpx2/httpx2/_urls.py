@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ipaddress
+import re
 import sys
 from collections.abc import ItemsView, Iterator, KeysView, Mapping, ValuesView
 from dataclasses import dataclass
@@ -688,3 +689,8 @@ class QueryParams(Mapping[str, str]):
         raise RuntimeError(
             "QueryParams are immutable since 0.18.0. Use `q = q.set(key, value)` to create an updated copy."
         )
+
+
+def host_header(url: URL) -> bytes:
+    # An IPv6 zone only has meaning on the client, so it is not sent to the server.
+    return re.sub(rb"%[^]]*]", b"]", url.netloc)
