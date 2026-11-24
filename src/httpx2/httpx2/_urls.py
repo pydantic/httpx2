@@ -688,3 +688,12 @@ class QueryParams(Mapping[str, str]):
         raise RuntimeError(
             "QueryParams are immutable since 0.18.0. Use `q = q.set(key, value)` to create an updated copy."
         )
+
+
+def host_header(url: URL) -> bytes:
+    # An IPv6 zone only has meaning on the client, so it is not sent to the server.
+    netloc = url.netloc
+    if netloc.startswith(b"["):
+        host, bracket, port = netloc.partition(b"]")
+        netloc = host.partition(b"%")[0] + bracket + port
+    return netloc

@@ -223,6 +223,31 @@ def test_host_with_non_default_port_in_url() -> None:
     }
 
 
+@pytest.mark.parametrize("zone", ["%en0", "%25en0"])
+def test_host_omits_ipv6_zone(zone: str) -> None:
+    request = httpx2.Request("GET", f"http://[fe80::1{zone}]:8080/")
+
+    assert request.headers["Host"] == "[fe80::1]:8080"
+    assert request.url.host in ("fe80::1%en0", "fe80::1%25en0")
+
+
+def test_host_keeps_percent_in_registered_name() -> None:
+    request = httpx2.Request("GET", "http://a%25b.example/")
+
+    assert request.headers["Host"] == "a%25b.example"
+
+
+def test_redirect_host_omits_ipv6_zone() -> None:
+    def redirect(request: httpx2.Request) -> httpx2.Response:
+        if request.url.host == "example.org":
+            return httpx2.Response(302, headers={"Location": "http://[fe80::1%25en0]/"})
+        return httpx2.Response(200, text=request.headers["Host"])
+
+    client = httpx2.Client(transport=httpx2.MockTransport(redirect), follow_redirects=True)
+
+    assert client.get("http://example.org/").text == "[fe80::1]"
+
+
 def test_request_auto_headers() -> None:
     request = httpx2.Request("GET", "https://www.example.org/")
     assert "host" in request.headers
