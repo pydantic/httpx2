@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Awaitable, Callable, MutableMapping
+from types import AsyncGeneratorType
 from typing import TYPE_CHECKING, Any
 
 from .._models import Request, Response
@@ -169,6 +170,11 @@ class ASGITransport(AsyncBaseTransport):
                 status_code = 500
             if response_headers is None:
                 response_headers = {}
+        finally:
+            # The app may answer without reading the whole body: close it, unless a task the app left
+            # in `receive()` is still reading it (closing a running generator raises).
+            if isinstance(request_body_chunks, AsyncGeneratorType) and not request_body_chunks.ag_running:
+                await request_body_chunks.aclose()
 
         assert response_complete.is_set()
         assert status_code is not None
