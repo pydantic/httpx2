@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import dataclasses
 import os
-import typing
+from typing import TYPE_CHECKING, SupportsFloat
 
 from ._models import Headers
 from ._types import CertTypes, HeaderTypes, TimeoutTypes
 from ._urls import URL
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     import ssl  # pragma: no cover
 
 __all__ = ["Limits", "Proxy", "Timeout", "create_ssl_context"]
@@ -94,10 +94,10 @@ class Timeout:
         self,
         timeout: TimeoutTypes | UnsetType = UNSET,
         *,
-        connect: None | float | UnsetType = UNSET,
-        read: None | float | UnsetType = UNSET,
-        write: None | float | UnsetType = UNSET,
-        pool: None | float | UnsetType = UNSET,
+        connect: float | UnsetType | None = UNSET,
+        read: float | UnsetType | None = UNSET,
+        write: float | UnsetType | None = UNSET,
+        pool: float | UnsetType | None = UNSET,
     ) -> None:
         if isinstance(timeout, Timeout):
             # Passed as a single explicit Timeout.
@@ -128,6 +128,10 @@ class Timeout:
         else:
             if isinstance(timeout, UnsetType):
                 raise ValueError("httpx2.Timeout must either include a default, or set all four parameters explicitly.")
+            if timeout is not None and not isinstance(timeout, SupportsFloat):
+                raise TypeError(
+                    f"Invalid timeout: expected a number, `None`, a tuple or `httpx2.Timeout`, got {type(timeout)!r}."
+                )
             self.connect = timeout if isinstance(connect, UnsetType) else connect
             self.read = timeout if isinstance(read, UnsetType) else read
             self.write = timeout if isinstance(write, UnsetType) else write

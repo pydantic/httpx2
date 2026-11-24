@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import ssl
-import typing
+from collections.abc import Iterable
+from typing import Any
 
 import anyio
 import anyio.abc
@@ -16,8 +17,9 @@ from .._exceptions import (
     WriteTimeout,
     map_exceptions,
 )
+from .._types import SOCKET_OPTION
 from .._utils import is_socket_readable
-from .base import SOCKET_OPTION, AsyncNetworkBackend, AsyncNetworkStream
+from .base import AsyncNetworkBackend, AsyncNetworkStream
 
 
 class AnyIOStream(AsyncNetworkStream):
@@ -82,7 +84,7 @@ class AnyIOStream(AsyncNetworkStream):
                 raise exc
         return AnyIOStream(ssl_stream)
 
-    def get_extra_info(self, info: str) -> typing.Any:
+    def get_extra_info(self, info: str) -> Any:
         if info == "ssl_object":
             return self._stream.extra(anyio.streams.tls.TLSAttribute.ssl_object, None)
         if info == "client_addr":
@@ -104,7 +106,7 @@ class AnyIOBackend(AsyncNetworkBackend):
         port: int,
         timeout: float | None = None,
         local_address: str | None = None,
-        socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
+        socket_options: Iterable[SOCKET_OPTION] | None = None,
     ) -> AsyncNetworkStream:  # pragma: no cover
         if socket_options is None:
             socket_options = []
@@ -129,7 +131,7 @@ class AnyIOBackend(AsyncNetworkBackend):
         self,
         path: str,
         timeout: float | None = None,
-        socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
+        socket_options: Iterable[SOCKET_OPTION] | None = None,
     ) -> AsyncNetworkStream:  # pragma: no cover
         if socket_options is None:
             socket_options = []

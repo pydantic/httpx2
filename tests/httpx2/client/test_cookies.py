@@ -240,3 +240,34 @@ def test_cookies_are_sent_to_hosts_longer_than_a_dns_name() -> None:
     response = client.get(f"http://{'a.' * 200}example.org/echo_cookies")
 
     assert response.json() == {"cookies": "parent=1"}
+
+
+def test_cookies_ignore_url_userinfo() -> None:
+    client = httpx2.Client(transport=httpx2.MockTransport(get_and_set_cookies))
+
+    client.get("http://user:secret@example.org/set_cookie")
+
+    assert [cookie.domain for cookie in client.cookies.jar] == ["example.org"]
+    for url in ["http://example.org/echo_cookies", "http://user:secret@example.org/echo_cookies"]:
+        assert client.get(url).json() == {"cookies": "example-name=example-value"}
+
+
+def test_relative_url_cookies_still_raise() -> None:
+    with pytest.raises(ValueError, match="unknown url type"):
+        httpx2.Cookies().set_cookie_header(httpx2.Request("GET", "/echo_cookies"))
+
+
+def test_cookie_policy_sees_url_without_query() -> None:
+    urls: list[str] = []
+
+    class RecordingPolicy(DefaultCookiePolicy):
+        def set_ok(self, cookie: Cookie, request: urllib.request.Request) -> bool:
+            urls.append(request.get_full_url())
+            return super().set_ok(cookie, request)
+
+    client = httpx2.Client(transport=httpx2.MockTransport(get_and_set_cookies))
+    client.cookies.jar.set_policy(RecordingPolicy())
+
+    client.get("http://user:secret@example.org/set_cookie?q=1#frag")
+
+    assert urls == ["http://example.org/set_cookie"]

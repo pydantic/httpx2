@@ -3,15 +3,15 @@ from __future__ import annotations
 import ssl
 import sys
 import types
-import typing
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncIterable, AsyncIterator, Iterable
+from typing import Self
 
 from .._backends.auto import AutoBackend
-from .._backends.base import SOCKET_OPTION, AsyncNetworkBackend
+from .._backends.base import AsyncNetworkBackend
 from .._exceptions import ConnectionNotAvailable, UnsupportedProtocol
 from .._models import Origin, Proxy, Request, Response
 from .._synchronization import AsyncEvent, AsyncShieldCancellation, AsyncThreadLock
-from .._utils import safe_async_iterate
+from .._types import SOCKET_OPTION
 from .connection import AsyncHTTPConnection
 from .interfaces import AsyncConnectionInterface, AsyncRequestInterface
 
@@ -58,7 +58,7 @@ class AsyncConnectionPool(AsyncRequestInterface):
         local_address: str | None = None,
         uds: str | None = None,
         network_backend: AsyncNetworkBackend | None = None,
-        socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
+        socket_options: Iterable[SOCKET_OPTION] | None = None,
     ) -> None:
         """
         A connection pool for making HTTP requests.
@@ -243,7 +243,7 @@ class AsyncConnectionPool(AsyncRequestInterface):
 
         # Return the response. Note that in this case we still have to manage
         # the point at which the response is closed.
-        assert isinstance(response.stream, typing.AsyncIterable)
+        assert isinstance(response.stream, AsyncIterable)
         return Response(
             status=response.status,
             headers=response.headers,
@@ -271,8 +271,7 @@ class AsyncConnectionPool(AsyncRequestInterface):
 
         # First we handle cleaning up any connections that are closed
         # or have expired their keep-alive, in a single pass. Reserved
-        # connections skip the expiry check: they were checked when assigned,
-        # and `has_expired()` on an idle connection probes the socket.
+        # connections skip the expiry check: they were checked when assigned.
         for connection in self._connections:
             reserved = connection in request_connections
             if connection.is_closed():
@@ -381,7 +380,7 @@ class AsyncConnectionPool(AsyncRequestInterface):
             self._connections = []
         await self._close_connections(closing_connections)
 
-    async def __aenter__(self) -> AsyncConnectionPool:
+    async def __aenter__(self) -> Self:
         return self
 
     async def __aexit__(
@@ -412,7 +411,7 @@ class AsyncConnectionPool(AsyncRequestInterface):
 class PoolByteStream:
     def __init__(
         self,
-        stream: typing.AsyncIterable[bytes],
+        stream: AsyncIterable[bytes],
         pool_request: AsyncPoolRequest,
         pool: AsyncConnectionPool,
     ) -> None:
@@ -421,10 +420,8 @@ class PoolByteStream:
         self._pool = pool
         self._closed = False
 
-    async def __aiter__(self) -> AsyncGenerator[bytes]:
-        async with safe_async_iterate(self._stream) as iterator:
-            async for chunk in iterator:
-                yield chunk
+    def __aiter__(self) -> AsyncIterator[bytes]:
+        return self._stream.__aiter__()
 
     async def aclose(self) -> None:
         if not self._closed:

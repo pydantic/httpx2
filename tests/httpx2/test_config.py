@@ -2,15 +2,15 @@ from __future__ import annotations
 
 import platform
 import ssl
-import typing
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 import trustme
 
 import httpx2
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from conftest import TestServer
 
 
@@ -149,6 +149,11 @@ def test_timeout_from_one_value_and_default() -> None:
 def test_timeout_missing_default() -> None:
     with pytest.raises(ValueError):
         httpx2.Timeout(pool=60.0)
+
+
+def test_timeout_from_unsupported_type() -> None:
+    with pytest.raises(TypeError, match="got <class 'object'>"):
+        httpx2.Timeout(object())  # type: ignore[arg-type]
 
 
 def test_timeout_from_tuple() -> None:

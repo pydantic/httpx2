@@ -34,10 +34,10 @@ Our exception hierarchy:
 from __future__ import annotations
 
 import contextlib
-import typing
 from collections.abc import Generator
+from typing import TYPE_CHECKING
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from ._models import Request, Response  # pragma: no cover
 
 __all__ = [

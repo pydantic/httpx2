@@ -5,8 +5,8 @@ import logging
 import ssl
 import time
 import types
-import typing
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, AsyncIterable
+from typing import Any, Self
 
 import h11
 
@@ -65,6 +65,12 @@ class AsyncHTTP11Connection(AsyncConnectionInterface):
             raise RuntimeError(f"Attempted to send request to {request.url.origin} on connection to {self._origin}")
 
         async with self._state_lock:
+            # If the HTTP connection is idle but the socket is readable, then the
+            # only valid state is that the socket is about to return b"", indicating
+            # a server-initiated disconnect.
+            if self._state == HTTPConnectionState.IDLE and self._network_stream.get_extra_info("is_readable"):
+                with AsyncShieldCancellation():
+                    await self.aclose()
             if self._state in (HTTPConnectionState.NEW, HTTPConnectionState.IDLE):
                 self._request_count += 1
                 self._state = HTTPConnectionState.ACTIVE
@@ -142,7 +148,7 @@ class AsyncHTTP11Connection(AsyncConnectionInterface):
         timeouts = request.extensions.get("timeout", {})
         timeout = timeouts.get("write", None)
 
-        assert isinstance(request.stream, typing.AsyncIterable)
+        assert isinstance(request.stream, AsyncIterable)
         async with safe_async_iterate(request.stream) as iterator:
             async for chunk in iterator:
                 event = h11.Data(data=chunk)
@@ -257,16 +263,7 @@ class AsyncHTTP11Connection(AsyncConnectionInterface):
         # Read `_expire_at` once into a local: on free-threaded builds another
         # thread may reset it to `None` between the check and the comparison.
         expire_at = self._expire_at
-        keepalive_expired = expire_at is not None and now > expire_at
-
-        # If the HTTP connection is idle but the socket is readable, then the
-        # only valid state is that the socket is about to return b"", indicating
-        # a server-initiated disconnect.
-        server_disconnected = self._state == HTTPConnectionState.IDLE and self._network_stream.get_extra_info(
-            "is_readable"
-        )
-
-        return keepalive_expired or server_disconnected
+        return expire_at is not None and now > expire_at
 
     def is_idle(self) -> bool:
         return self._state == HTTPConnectionState.IDLE
@@ -286,7 +283,7 @@ class AsyncHTTP11Connection(AsyncConnectionInterface):
     # These context managers are not used in the standard flow, but are
     # useful for testing or working with connection instances directly.
 
-    async def __aenter__(self) -> AsyncHTTP11Connection:
+    async def __aenter__(self) -> Self:
         return self
 
     async def __aexit__(
@@ -353,5 +350,5 @@ class AsyncHTTP11UpgradeStream(AsyncNetworkStream):
     ) -> AsyncNetworkStream:
         return await self._stream.start_tls(ssl_context, server_hostname, timeout)
 
-    def get_extra_info(self, info: str) -> typing.Any:
+    def get_extra_info(self, info: str) -> Any:
         return self._stream.get_extra_info(info)

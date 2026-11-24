@@ -432,6 +432,20 @@ def test_http2_request_to_incorrect_origin() -> None:
 
 
 
+def test_http2_request_without_host_header() -> None:
+    """
+    Requests sent directly to a connection must include a `Host` header,
+    which is used for the `:authority` pseudo-header.
+    """
+    origin = httpcore2.Origin(b"https", b"example.com", 443)
+    stream = httpcore2.MockStream([])
+    with httpcore2.HTTP2Connection(origin=origin, stream=stream) as conn:
+        request = httpcore2.Request("GET", "https://example.com/")
+        with pytest.raises(httpcore2.LocalProtocolError, match="Missing mandatory Host: header"):
+            conn.handle_request(request)
+
+
+
 def test_http2_remote_max_streams_update() -> None:
     """
     If the remote server updates the maximum concurrent streams value, we should

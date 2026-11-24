@@ -4,8 +4,8 @@ import enum
 import logging
 import time
 import types
-import typing
-from collections.abc import Generator
+from collections.abc import Generator, Iterable
+from typing import Self
 
 import h2.config
 import h2.connection
@@ -152,7 +152,7 @@ class HTTP2Connection(ConnectionInterface):
                     "stream_id": stream_id,
                 },
             )
-        except BaseException as exc:  # noqa: PIE786
+        except BaseException as exc:
             with ShieldCancellation():
                 kwargs = {"stream_id": stream_id}
                 with Trace("response_closed", logger, request, kwargs):
@@ -217,7 +217,9 @@ class HTTP2Connection(ConnectionInterface):
         # In order to gracefully handle HTTP/1.1 and HTTP/2 we always require
         # HTTP/1.1 style headers, and map them appropriately if we end up on
         # an HTTP/2 connection.
-        authority = [v for k, v in request.headers if k.lower() == b"host"][0]
+        authority = next((v for k, v in request.headers if k.lower() == b"host"), None)
+        if authority is None:
+            raise LocalProtocolError("Missing mandatory Host: header")
 
         headers = [
             (b":method", request.method),
@@ -245,7 +247,7 @@ class HTTP2Connection(ConnectionInterface):
         if not has_body_headers(request):
             return
 
-        assert isinstance(request.stream, typing.Iterable)
+        assert isinstance(request.stream, Iterable)
         with safe_iterate(request.stream) as iterator:
             for chunk in iterator:
                 self._send_stream_data(request, stream_id, chunk)
@@ -536,7 +538,7 @@ class HTTP2Connection(ConnectionInterface):
     # These context managers are not used in the standard flow, but are
     # useful for testing or working with connection instances directly.
 
-    def __enter__(self) -> HTTP2Connection:
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(

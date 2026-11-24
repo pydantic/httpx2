@@ -12,6 +12,10 @@ __all__ = ["IndexedCookieJar"]
 # longer hosts fall back to scanning every stored domain.
 MAX_HOST_LENGTH = 255
 
+# Bound the raw request-path prefix using the `Path` attribute limit in
+# [RFC 6265bis](https://httpwg.org/http-extensions/draft-ietf-httpbis-rfc6265bis.html).
+MAX_PATH_LENGTH = 1024
+
 
 class IndexedCookieJar(CookieJar):
     """

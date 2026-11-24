@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import typing
+from collections.abc import Callable, Coroutine
 
 from .._models import Request, Response
 from .base import AsyncBaseTransport, BaseTransport
 
-SyncHandler = typing.Callable[[Request], Response]
-AsyncHandler = typing.Callable[[Request], typing.Coroutine[None, None, Response]]
+SyncHandler = Callable[[Request], Response]
+AsyncHandler = Callable[[Request], Coroutine[None, None, Response]]
 
 
 __all__ = ["MockTransport"]

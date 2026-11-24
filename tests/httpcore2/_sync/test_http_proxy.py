@@ -1,5 +1,6 @@
 import ssl
-import typing
+from collections.abc import Iterable
+from typing import Any
 
 import hpack
 import hyperframe.frame
@@ -127,7 +128,7 @@ class HTTP1ThenHTTP2Backend(MockBackend):
         port: int,
         timeout: float | None = None,
         local_address: str | None = None,
-        socket_options: typing.Iterable[SOCKET_OPTION] | None = None,
+        socket_options: Iterable[SOCKET_OPTION] | None = None,
     ) -> NetworkStream:
         return HTTP1ThenHTTP2Stream(list(self._buffer))
 
@@ -255,9 +256,9 @@ def test_proxy_headers() -> None:
 def test_proxy_forwarding_preserves_target_extension(
     method: str, target: bytes, forwarding_target: bytes
 ) -> None:
-    events: dict[str, dict[str, typing.Any]] = {}
+    events: dict[str, dict[str, Any]] = {}
 
-    def trace(name: str, info: dict[str, typing.Any]) -> None:
+    def trace(name: str, info: dict[str, Any]) -> None:
         events[name] = info
 
     network_backend = MockBackend([b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n"])
@@ -273,9 +274,9 @@ def test_proxy_forwarding_preserves_target_extension(
 
 
 def test_proxy_tunneling_preserves_target_extension() -> None:
-    events: dict[str, list[dict[str, typing.Any]]] = {}
+    events: dict[str, list[dict[str, Any]]] = {}
 
-    def trace(name: str, info: dict[str, typing.Any]) -> None:
+    def trace(name: str, info: dict[str, Any]) -> None:
         events.setdefault(name, []).append(info)
 
     network_backend = MockBackend(
@@ -299,9 +300,9 @@ def test_proxy_tunneling_preserves_target_extension() -> None:
 
 
 def test_proxy_forwarding_uses_proxy_tls_hostname() -> None:
-    events: dict[str, dict[str, typing.Any]] = {}
+    events: dict[str, dict[str, Any]] = {}
 
-    def trace(name: str, info: dict[str, typing.Any]) -> None:
+    def trace(name: str, info: dict[str, Any]) -> None:
         events[name] = info
 
     network_backend = MockBackend([b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK"])
@@ -320,9 +321,9 @@ def test_proxy_forwarding_uses_proxy_tls_hostname() -> None:
     [({}, "192.0.2.1"), ({"sni_hostname": "example.com"}, "example.com")],
 )
 def test_proxy_tunneling_respects_sni_hostname(sni_extensions: dict[str, str], expected_hostname: str) -> None:
-    events: dict[str, dict[str, typing.Any]] = {}
+    events: dict[str, dict[str, Any]] = {}
 
-    def trace(name: str, info: dict[str, typing.Any]) -> None:
+    def trace(name: str, info: dict[str, Any]) -> None:
         events[name] = info
 
     network_backend = MockBackend(

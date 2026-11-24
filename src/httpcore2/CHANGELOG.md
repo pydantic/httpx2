@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2.16.2 (November 16th, 2026)
+
+No changes since `2.16.1`. Version bumped to stay in lockstep with `httpx2`.
+
+## 2.16.1 (November 16th, 2026)
+
+### Fixed
+
+* Recheck the HTTP/2 flow control window after acquiring the read lock. Concurrent uploads on one connection could stall until the read timeout once the window was exhausted.
+  ([#1163](https://github.com/pydantic/httpx2/pull/1163))
+* Raise `LocalProtocolError` instead of `IndexError` when an HTTP/2 request sent directly to a connection has no `Host` header.
+  ([#1319](https://github.com/pydantic/httpx2/pull/1319))
+
 ## 2.16.0 (October 21st, 2026)
 
 No changes since `2.15.1`. Version bumped to stay in lockstep with `httpx2`.

@@ -13,14 +13,14 @@ import threading
 import time
 from collections.abc import Callable
 from types import TracebackType
-from typing import Any
+from typing import Any, Self
 
 
 class Nursery:
     def __init__(self) -> None:
         self._threads: list[threading.Thread] = []
 
-    def __enter__(self) -> "Nursery":
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(

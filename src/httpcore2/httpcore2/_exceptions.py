@@ -1,17 +1,16 @@
 from __future__ import annotations
 
 import contextlib
-import typing
 from collections.abc import Generator
 
-ExceptionMapping = typing.Mapping[type[Exception], type[Exception]]
+from ._types import ExceptionMapping
 
 
 @contextlib.contextmanager
 def map_exceptions(map: ExceptionMapping) -> Generator[None]:
     try:
         yield
-    except Exception as exc:  # noqa: PIE786
+    except Exception as exc:
         for from_exc, to_exc in map.items():
             if isinstance(exc, from_exc):
                 raise to_exc(exc) from exc

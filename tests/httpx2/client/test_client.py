@@ -1,14 +1,16 @@
 from __future__ import annotations
 
-import typing
+from collections.abc import AsyncIterator
 from datetime import timedelta
+from types import TracebackType
+from typing import TYPE_CHECKING, Self
 
 import chardet
 import pytest
 
 import httpx2
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from conftest import TestServer
 
 
@@ -125,7 +127,7 @@ def test_raw_iterator(server: TestServer) -> None:
 
 
 def test_cannot_stream_async_request(server: TestServer) -> None:
-    async def hello_world() -> typing.AsyncIterator[bytes]:  # pragma: no cover
+    async def hello_world() -> AsyncIterator[bytes]:  # pragma: no cover
         yield b"Hello, "
         yield b"world!"
 
@@ -249,13 +251,18 @@ def test_context_managed_transport() -> None:
             # might want to additionally override `__enter__`/`__exit__`.
             self.events.append("transport.close")
 
-        def __enter__(self) -> Transport:
+        def __enter__(self) -> Self:
             super().__enter__()
             self.events.append("transport.__enter__")
             return self
 
-        def __exit__(self, *args: typing.Any) -> None:
-            super().__exit__(*args)
+        def __exit__(
+            self,
+            exc_type: type[BaseException] | None = None,
+            exc_value: BaseException | None = None,
+            traceback: TracebackType | None = None,
+        ) -> None:
+            super().__exit__(exc_type, exc_value, traceback)
             self.events.append("transport.__exit__")
 
     transport = Transport()
@@ -282,13 +289,18 @@ def test_context_managed_transport_and_mount() -> None:
             # might want to additionally override `__enter__`/`__exit__`.
             self.events.append(f"{self.name}.close")
 
-        def __enter__(self) -> Transport:
+        def __enter__(self) -> Self:
             super().__enter__()
             self.events.append(f"{self.name}.__enter__")
             return self
 
-        def __exit__(self, *args: typing.Any) -> None:
-            super().__exit__(*args)
+        def __exit__(
+            self,
+            exc_type: type[BaseException] | None = None,
+            exc_value: BaseException | None = None,
+            traceback: TracebackType | None = None,
+        ) -> None:
+            super().__exit__(exc_type, exc_value, traceback)
             self.events.append(f"{self.name}.__exit__")
 
     transport = Transport(name="transport")
