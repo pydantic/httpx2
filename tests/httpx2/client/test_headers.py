@@ -228,7 +228,7 @@ def test_host_omits_ipv6_zone(zone: str) -> None:
     request = httpx2.Request("GET", f"http://[fe80::1{zone}]:8080/")
 
     assert request.headers["Host"] == "[fe80::1]:8080"
-    assert request.url.host.endswith("en0")
+    assert request.url.host in ("fe80::1%en0", "fe80::1%25en0")
 
 
 def test_host_keeps_percent_in_registered_name() -> None:
