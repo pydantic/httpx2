@@ -191,6 +191,9 @@ class URL:
 
         url = httpx2.URL("https://[::ffff:192.168.0.1]")
         assert url.host == "::ffff:192.168.0.1"
+
+        url = httpx2.URL("http://[fe80::1%25en0]")
+        assert url.host == "fe80::1%en0"
         """
         host: str = self._uri_reference.host
 
