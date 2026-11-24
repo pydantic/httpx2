@@ -2,12 +2,16 @@ from __future__ import annotations
 
 import gzip
 import json
+import threading
 from typing import TYPE_CHECKING, Any
 
 import pytest
+import wsproto
 
 import httpx2
+from httpcore2 import NetworkStream
 from httpx2._decoders import GZipDecoder, LineDecoder
+from httpx2.websockets import WebSocketSession
 
 if TYPE_CHECKING:
     from pytest_codspeed import BenchmarkFixture
@@ -114,6 +118,38 @@ def test_bench_sse_many_chunks_without_line_separator(benchmark: BenchmarkFixtur
         return len(event.data)
 
     assert benchmark(decode) == 10_000 * 16
+
+
+def test_bench_websocket_fragment_reassembly(benchmark: BenchmarkFixture) -> None:
+    fragment_count = 65_536
+    server = wsproto.connection.Connection(wsproto.connection.ConnectionType.SERVER)
+    fragments = b"".join(
+        server.send(wsproto.events.BytesMessage(b"x", message_finished=index == fragment_count - 1))
+        for index in range(fragment_count)
+    )
+
+    class MockNetworkStream(NetworkStream):
+        def __init__(self) -> None:
+            self._sent = False
+            self._closed = threading.Event()
+
+        def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
+            if self._sent:
+                self._closed.wait()
+                return b""
+            self._sent = True
+            return fragments
+
+        def write(self, buffer: bytes, timeout: float | None = None) -> None: ...
+
+        def close(self) -> None:
+            self._closed.set()
+
+    def receive() -> bytes:
+        with WebSocketSession(MockNetworkStream(), keepalive_ping_interval_seconds=None) as websocket:
+            return websocket.receive_bytes()
+
+    assert benchmark(receive) == b"x" * fragment_count
 
 
 def test_bench_extract_cookies(benchmark: BenchmarkFixture) -> None:
