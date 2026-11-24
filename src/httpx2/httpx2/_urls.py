@@ -191,6 +191,9 @@ class URL:
 
         url = httpx2.URL("https://[::ffff:192.168.0.1]")
         assert url.host == "::ffff:192.168.0.1"
+
+        url = httpx2.URL("http://[fe80::1%25en0]")
+        assert url.host == "fe80::1%en0"
         """
         host: str = self._uri_reference.host
 
@@ -392,19 +395,13 @@ class URL:
         return str(self._uri_reference)
 
     def __repr__(self) -> str:
-        scheme, userinfo, host, port, path, query, fragment = self._uri_reference
+        scheme, userinfo, _, _, path, query, fragment = self._uri_reference
 
         if ":" in userinfo:
             # Mask any password component.
             userinfo = f"{userinfo.split(':')[0]}:[secure]"
 
-        authority = "".join(
-            [
-                f"{userinfo}@" if userinfo else "",
-                f"[{host}]" if ":" in host else host,
-                f":{port}" if port is not None else "",
-            ]
-        )
+        authority = (f"{userinfo}@" if userinfo else "") + self._uri_reference.netloc
         url = "".join(
             [
                 f"{self.scheme}:" if scheme else "",

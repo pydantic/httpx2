@@ -157,7 +157,7 @@ class ParseResult(NamedTuple):
         return "".join(
             [
                 f"{self.userinfo}@" if self.userinfo else "",
-                f"[{self.host}]" if ":" in self.host else self.host,
+                f"[{self.host.replace('%', '%25')}]" if ":" in self.host else self.host,
                 f":{self.port}" if self.port is not None else "",
             ]
         )
@@ -166,7 +166,7 @@ class ParseResult(NamedTuple):
     def netloc(self) -> str:
         return "".join(
             [
-                f"[{self.host}]" if ":" in self.host else self.host,
+                f"[{self.host.replace('%', '%25')}]" if ":" in self.host else self.host,
                 f":{self.port}" if self.port is not None else "",
             ]
         )
@@ -244,7 +244,8 @@ def urlparse(url: str = "", **kwargs: str | None) -> ParseResult:
     if "host" in kwargs:
         host = kwargs.get("host") or ""
         if ":" in host and not (host.startswith("[") and host.endswith("]")):
-            kwargs["host"] = f"[{host}]"
+            # A host without brackets is the decoded form that `URL.host` returns.
+            kwargs["host"] = f"[{host.replace('%', '%25')}]"
 
     # If any keyword arguments are provided, ensure they are valid.
     # -------------------------------------------------------------
@@ -349,11 +350,15 @@ def encode_host(host: str) -> str:
         # [RFC3513] or later, is distinguished by enclosing the IP literal
         # within square brackets ("[" and "]").  This is the only place where
         # square bracket characters are allowed in the URI syntax."
+        address, percent, zone = host[1:-1].partition("%")
+        # "%25" is how RFC 6874 writes the "%" before a zone, so a zone that starts with "25" needs "%2525".
+        if len(zone) > 2:
+            zone = zone.removeprefix("25")
         try:
-            ipaddress.IPv6Address(host[1:-1])
+            ipaddress.IPv6Address(address + percent + zone)
         except ipaddress.AddressValueError:
             raise InvalidURL(f"Invalid IPv6 address: {host!r}")
-        return host[1:-1]
+        return address + percent + zone
 
     elif host.isascii():
         # Regular ASCII hostnames

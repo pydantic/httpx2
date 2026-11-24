@@ -116,6 +116,7 @@ def test_origin_effective_port(url: str, scheme: str, port: int | None) -> None:
         ("https://[2001:db8::1]", "https://[2001:0db8:0:0:0:0:0:1]"),
         ("https://[::ffff:192.168.0.1]", "https://[::ffff:c0a8:1]"),
         ("https://[fe80::1%25eth0]", "https://[fe80:0:0:0:0:0:0:1%25eth0]"),
+        ("https://[fe80::1%eth0]", "https://[fe80::1%25eth0]"),
     ],
 )
 def test_equivalent_origins(left: str, right: str) -> None:
@@ -131,7 +132,6 @@ def test_equivalent_origins(left: str, right: str) -> None:
         ("https://example.com", "https://example.com:444"),
         ("https://[::1]", "https://[::2]"),
         ("https://[fe80::1%25eth0]", "https://[fe80::1%25eth1]"),
-        ("https://[fe80::1%eth0]", "https://[fe80::1%25eth0]"),
         ("https://[2001:db8::1%30]", "https://[2001:db8::10]"),
     ],
 )
@@ -925,6 +925,24 @@ def test_url_invalid_ipv6() -> None:
     with pytest.raises(httpx2.InvalidURL) as exc:
         httpx2.URL("https://[2001]/")
     assert str(exc.value) == "Invalid IPv6 address: '[2001]'"
+
+
+@pytest.mark.parametrize(
+    "zone,expected",
+    [("%en0", "en0"), ("%25en0", "en0"), ("%2525en0", "25en0"), ("%25", "25"), ("%2e", "2e")],
+)
+def test_ipv6_url_zone(zone: str, expected: str) -> None:
+    url = httpx2.URL(f"http://[fe80::1{zone}]:8080/")
+
+    assert url.host == f"fe80::1%{expected}"
+    assert url.raw_host == f"fe80::1%{expected}".encode()
+    assert url.netloc == f"[fe80::1%25{expected}]:8080".encode()
+    assert str(url) == f"http://[fe80::1%25{expected}]:8080/"
+    assert repr(url) == f"URL('http://[fe80::1%25{expected}]:8080/')"
+    assert httpx2.URL(str(url)).host == url.host
+    assert url.copy_with(path="/path").host == url.host
+    assert url.copy_with(host=url.host).host == url.host
+    assert url.copy_with(host=f"[fe80::1{zone}]").host == url.host
 
 
 @pytest.mark.parametrize("host", ["[::ffff:192.168.0.1]", "::ffff:192.168.0.1"])
