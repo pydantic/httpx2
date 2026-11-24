@@ -79,9 +79,14 @@ class AnyIOStream(AsyncNetworkStream):
                         standard_compatible=False,
                         server_side=False,
                     )
-            except Exception as exc:  # pragma: no cover
-                await self.aclose()
-                raise exc
+            except BaseException:
+                with anyio.CancelScope(shield=True):
+                    try:
+                        await self.aclose()
+                    except Exception:
+                        # Preserve the handshake exception if cleanup fails.
+                        pass
+                raise
         return AnyIOStream(ssl_stream)
 
     def get_extra_info(self, info: str) -> Any:
