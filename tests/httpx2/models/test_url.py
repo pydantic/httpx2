@@ -942,6 +942,7 @@ def test_ipv6_url_zone(zone: str, expected: str) -> None:
     assert httpx2.URL(str(url)).host == url.host
     assert url.copy_with(path="/path").host == url.host
     assert url.copy_with(host=url.host).host == url.host
+    assert url.copy_with(host=f"[fe80::1{zone}]").host == url.host
 
 
 @pytest.mark.parametrize("host", ["[::ffff:192.168.0.1]", "::ffff:192.168.0.1"])
