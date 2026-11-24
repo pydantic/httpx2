@@ -244,7 +244,8 @@ def urlparse(url: str = "", **kwargs: str | None) -> ParseResult:
     if "host" in kwargs:
         host = kwargs.get("host") or ""
         if ":" in host and not (host.startswith("[") and host.endswith("]")):
-            kwargs["host"] = f"[{host}]"
+            # A host without brackets is the decoded form that `URL.host` returns.
+            kwargs["host"] = f"[{host.replace('%', '%25')}]"
 
     # If any keyword arguments are provided, ensure they are valid.
     # -------------------------------------------------------------
