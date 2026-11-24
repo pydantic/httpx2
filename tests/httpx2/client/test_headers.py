@@ -231,6 +231,12 @@ def test_host_omits_ipv6_zone(zone: str) -> None:
     assert request.url.host == f"fe80::1{zone}"
 
 
+def test_host_keeps_percent_in_registered_name() -> None:
+    request = httpx2.Request("GET", "http://a%25b.example/")
+
+    assert request.headers["Host"] == "a%25b.example"
+
+
 def test_redirect_host_omits_ipv6_zone() -> None:
     def redirect(request: httpx2.Request) -> httpx2.Response:
         if request.url.host == "example.org":

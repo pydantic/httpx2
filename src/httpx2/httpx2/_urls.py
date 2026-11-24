@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import ipaddress
-import re
 import sys
 from collections.abc import ItemsView, Iterator, KeysView, Mapping, ValuesView
 from dataclasses import dataclass
@@ -693,4 +692,8 @@ class QueryParams(Mapping[str, str]):
 
 def host_header(url: URL) -> bytes:
     # An IPv6 zone only has meaning on the client, so it is not sent to the server.
-    return re.sub(rb"%[^]]*]", b"]", url.netloc)
+    netloc = url.netloc
+    if netloc.startswith(b"["):
+        host, bracket, port = netloc.partition(b"]")
+        netloc = host.partition(b"%")[0] + bracket + port
+    return netloc
