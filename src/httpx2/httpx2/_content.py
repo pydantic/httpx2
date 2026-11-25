@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import inspect
 import warnings
 from collections.abc import AsyncGenerator, AsyncIterable, AsyncIterator, Iterable, Iterator, Mapping
 from json import dumps as json_dumps
@@ -41,10 +40,11 @@ class IteratorByteStream(SyncByteStream):
     def __init__(self, stream: Iterable[bytes]) -> None:
         self._stream = stream
         self._is_stream_consumed = False
-        self._is_generator = inspect.isgenerator(stream)
+        # A file-like object or an iterator can only be read once.
+        self._is_single_use = hasattr(stream, "read") or isinstance(stream, Iterator)
 
     def __iter__(self) -> Iterator[bytes]:
-        if self._is_stream_consumed and self._is_generator:
+        if self._is_stream_consumed and self._is_single_use:
             raise StreamConsumed()
 
         self._is_stream_consumed = True
@@ -65,10 +65,12 @@ class AsyncIteratorByteStream(AsyncByteStream):
     def __init__(self, stream: AsyncIterable[bytes]) -> None:
         self._stream = stream
         self._is_stream_consumed = False
-        self._is_generator = inspect.isasyncgen(stream)
+        # A file-like object or an iterator can only be read once.
+        is_filelike = hasattr(stream, "aread") or hasattr(stream, "read")
+        self._is_single_use = is_filelike or isinstance(stream, AsyncIterator)
 
     async def __aiter__(self) -> AsyncIterator[bytes]:
-        if self._is_stream_consumed and self._is_generator:
+        if self._is_stream_consumed and self._is_single_use:
             raise StreamConsumed()
 
         self._is_stream_consumed = True

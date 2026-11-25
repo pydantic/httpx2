@@ -1,9 +1,11 @@
 import gzip
 import io
 import os
+import pathlib
 import tempfile
 from collections.abc import AsyncIterable, AsyncIterator, Iterable, Iterator
 
+import anyio
 import pytest
 
 import httpx2
@@ -68,6 +70,9 @@ async def test_bytesio_content() -> None:
 
     assert request.headers == {"Host": "www.example.com", "Content-Length": "13"}
     assert content == b"Hello, world!"
+
+    with pytest.raises(httpx2.StreamConsumed):
+        list(request.stream)
 
 
 def test_file_content() -> None:
@@ -143,6 +148,9 @@ async def test_async_bytesio_content() -> None:
     }
     assert content == b"Hello, world!"
 
+    with pytest.raises(httpx2.StreamConsumed):
+        [part async for part in request.stream]
+
 
 @pytest.mark.anyio
 async def test_iterator_content() -> None:
@@ -214,6 +222,93 @@ async def test_aiterator_content() -> None:
         "Transfer-Encoding": "chunked",
     }
     assert content == b"Hello, world!"
+
+
+def test_single_use_iterator_content() -> None:
+    """
+    An iterator can only be read once, just like a generator.
+    """
+    request = httpx2.Request(method, url, content=iter([b"Hello, ", b"world!"]))
+    assert isinstance(request.stream, Iterable)
+
+    assert b"".join(list(request.stream)) == b"Hello, world!"
+
+    with pytest.raises(httpx2.StreamConsumed):
+        list(request.stream)
+
+
+@pytest.mark.anyio
+async def test_single_use_aiterator_content() -> None:
+    """
+    An async iterator can only be read once, just like an async generator.
+    """
+
+    class Chunks:
+        def __init__(self) -> None:
+            self._chunks = [b"Hello, ", b"world!"]
+
+        def __aiter__(self) -> AsyncIterator[bytes]:
+            return self
+
+        async def __anext__(self) -> bytes:
+            if not self._chunks:
+                raise StopAsyncIteration
+            return self._chunks.pop(0)
+
+    request = httpx2.Request(method, url, content=Chunks())
+    assert isinstance(request.stream, AsyncIterable)
+
+    assert b"".join([part async for part in request.stream]) == b"Hello, world!"
+
+    with pytest.raises(httpx2.StreamConsumed):
+        [part async for part in request.stream]
+
+
+@pytest.mark.anyio
+async def test_single_use_async_file_content(tmp_path: pathlib.Path) -> None:
+    """
+    An async file can only be read once, although it is not an async iterator.
+    """
+    path = tmp_path / "upload.bin"
+    path.write_bytes(b"Hello, world!")
+
+    async with await anyio.open_file(path, "rb") as upload:
+        request = httpx2.Request(method, url, content=upload)
+        assert isinstance(request.stream, AsyncIterable)
+
+        assert b"".join([part async for part in request.stream]) == b"Hello, world!"
+
+        with pytest.raises(httpx2.StreamConsumed):
+            [part async for part in request.stream]
+
+
+def test_reusable_iterable_content() -> None:
+    """
+    An iterable that is not an iterator, such as a list, can be read again.
+    """
+    request = httpx2.Request(method, url, content=[b"Hello, ", b"world!"])
+    assert isinstance(request.stream, Iterable)
+
+    assert b"".join(list(request.stream)) == b"Hello, world!"
+    assert b"".join(list(request.stream)) == b"Hello, world!"
+
+
+@pytest.mark.anyio
+async def test_reusable_aiterable_content() -> None:
+    """
+    An async iterable that is not an async iterator can be read again.
+    """
+
+    class Chunks:
+        async def __aiter__(self) -> AsyncIterator[bytes]:
+            yield b"Hello, "
+            yield b"world!"
+
+    request = httpx2.Request(method, url, content=Chunks())
+    assert isinstance(request.stream, AsyncIterable)
+
+    assert b"".join([part async for part in request.stream]) == b"Hello, world!"
+    assert b"".join([part async for part in request.stream]) == b"Hello, world!"
 
 
 @pytest.mark.anyio

@@ -442,6 +442,46 @@ def test_multipart_encode_non_seekable_filelike() -> None:
     )
 
 
+class ReaderWithoutSeek:
+    def __init__(self, content: bytes) -> None:
+        self._buffer = io.BytesIO(content)
+
+    def read(self, size: int = -1) -> bytes:
+        return self._buffer.read(size)
+
+
+class ReaderWithUnsupportedSeek(io.IOBase):
+    def __init__(self, content: bytes) -> None:
+        self._buffer = io.BytesIO(content)
+
+    def read(self, size: int = -1) -> bytes:
+        return self._buffer.read(size)
+
+
+@pytest.mark.parametrize("filelike", (ReaderWithoutSeek, ReaderWithUnsupportedSeek))
+def test_multipart_non_seekable_filelike_is_single_use(filelike: Any) -> None:
+    """
+    A filelike object that cannot be rewound can only be sent once. Reading the
+    request body again raises, rather than leaving out the file content.
+    """
+    request = httpx2.Request("POST", "https://www.example.com/", files={"file": filelike(b"Hello, world!")})
+    assert isinstance(request.stream, httpx2.SyncByteStream)
+
+    assert b"\r\nHello, world!\r\n" in b"".join(request.stream)
+
+    with pytest.raises(httpx2.StreamConsumed):
+        list(request.stream)
+
+
+def test_multipart_seekable_file_can_be_read_again() -> None:
+    request = httpx2.Request("POST", "https://www.example.com/", files={"file": io.BytesIO(b"Hello, world!")})
+    assert isinstance(request.stream, httpx2.SyncByteStream)
+
+    content = b"".join(request.stream)
+    assert b"\r\nHello, world!\r\n" in content
+    assert b"".join(request.stream) == content
+
+
 def test_multipart_rewinds_files() -> None:
     with tempfile.TemporaryFile() as upload:
         upload.write(b"Hello, world!")
