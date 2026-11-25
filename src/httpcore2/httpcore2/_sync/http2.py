@@ -329,7 +329,7 @@ class HTTP2Connection(ConnectionInterface):
             raise RemoteProtocolError(event)
         return event
 
-    def _receive_events(self, request: Request, stream_id: int | None = None) -> None:
+    def _receive_events(self, request: Request, stream_id: int | None = None, retry: bool = True) -> None:
         """
         Read some data from the network and dispatch the resulting events.
 
@@ -340,9 +340,16 @@ class HTTP2Connection(ConnectionInterface):
         if self._connection_terminated is not None:
             last_stream_id = self._connection_terminated.last_stream_id
             if stream_id and last_stream_id and stream_id > last_stream_id:
+                if not retry:
+                    raise RemoteProtocolError(self._connection_terminated)
                 self._request_count -= 1
                 raise ConnectionNotAvailable()
-            raise RemoteProtocolError(self._connection_terminated)
+            # A server that shuts down gracefully may still complete the streams
+            # up to `last_stream_id`. See RFC 9113, section 6.8. Older versions of
+            # h2 close the connection on every GOAWAY and do not have the property.
+            graceful = getattr(self._h2_state, "is_in_graceful_shutdown", False)
+            if not (stream_id and last_stream_id and graceful):
+                raise RemoteProtocolError(self._connection_terminated)
 
         events = self._read_incoming_data(request)
         for event in events:
@@ -491,7 +498,8 @@ class HTTP2Connection(ConnectionInterface):
             with self._read_lock:
                 if self._h2_state.local_flow_control_window(stream_id) > 0:
                     continue
-                self._receive_events(request)
+                # A request body that is partly sent must not be sent again.
+                self._receive_events(request, stream_id, retry=False)
             self._write_outgoing_data(request)
 
     # Interface for connection pooling...

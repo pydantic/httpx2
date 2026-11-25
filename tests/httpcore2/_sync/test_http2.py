@@ -1,3 +1,4 @@
+import h2.connection
 import h2.settings
 import hpack
 import hyperframe.frame
@@ -5,6 +6,11 @@ import pytest
 from tests.httpcore2 import concurrency
 
 import httpcore2
+
+requires_graceful_shutdown = pytest.mark.skipif(
+    not hasattr(h2.connection.H2Connection, "is_in_graceful_shutdown"),
+    reason="This version of h2 closes the connection on every GOAWAY.",
+)
 
 
 
@@ -234,6 +240,190 @@ def test_http2_connection_with_goaway() -> None:
         # and may be retried on a new connection.
         with pytest.raises(httpcore2.ConnectionNotAvailable):
             conn.request("GET", "https://example.com/")
+
+
+@requires_graceful_shutdown
+
+def test_http2_connection_with_graceful_goaway() -> None:
+    """
+    If a GoAway frame without an error covers a request that is in flight,
+    then the server may still complete the response. The connection will
+    not be reusable for other requests.
+    """
+    origin = httpcore2.Origin(b"https", b"example.com", 443)
+    stream = httpcore2.MockStream(
+        [
+            hyperframe.frame.SettingsFrame().serialize(),
+            hyperframe.frame.HeadersFrame(
+                stream_id=1,
+                data=hpack.Encoder().encode(
+                    [
+                        (b":status", b"200"),
+                        (b"content-type", b"plain/text"),
+                    ]
+                ),
+                flags=["END_HEADERS"],
+            ).serialize(),
+            # The server starts a graceful shutdown midway through the first response...
+            hyperframe.frame.GoAwayFrame(stream_id=0, error_code=0, last_stream_id=1).serialize(),
+            # ...and then completes it.
+            hyperframe.frame.DataFrame(stream_id=1, data=b"Hello, world!", flags=["END_STREAM"]).serialize(),
+            b"",
+        ]
+    )
+    with httpcore2.HTTP2Connection(origin=origin, stream=stream) as conn:
+        response = conn.request("GET", "https://example.com/")
+        assert response.status == 200
+        assert response.content == b"Hello, world!"
+
+        assert not conn.is_available()
+        with pytest.raises(httpcore2.ConnectionNotAvailable):
+            conn.request("GET", "https://example.com/")
+
+
+
+def test_http2_connection_with_goaway_error() -> None:
+    """
+    If a GoAway frame with an error occurs, then no response will be returned,
+    even for a request that the frame covers.
+    """
+    origin = httpcore2.Origin(b"https", b"example.com", 443)
+    stream = httpcore2.MockStream(
+        [
+            hyperframe.frame.SettingsFrame().serialize(),
+            hyperframe.frame.HeadersFrame(
+                stream_id=1,
+                data=hpack.Encoder().encode(
+                    [
+                        (b":status", b"200"),
+                        (b"content-type", b"plain/text"),
+                    ]
+                ),
+                flags=["END_HEADERS"],
+            ).serialize(),
+            # Connection is closed with INTERNAL_ERROR midway through the first response...
+            hyperframe.frame.GoAwayFrame(stream_id=0, error_code=2, last_stream_id=1).serialize(),
+            # ...We'll never get to the rest of it.
+            hyperframe.frame.DataFrame(stream_id=1, data=b"Hello, world!", flags=["END_STREAM"]).serialize(),
+            b"",
+        ]
+    )
+    with httpcore2.HTTP2Connection(origin=origin, stream=stream) as conn:
+        with pytest.raises(httpcore2.RemoteProtocolError):
+            conn.request("GET", "https://example.com/")
+
+
+@requires_graceful_shutdown
+
+def test_http2_connection_with_graceful_goaway_in_two_stages() -> None:
+    """
+    A server may announce a graceful shutdown with the highest possible stream ID,
+    and send the real `last_stream_id` in a second GoAway frame.
+    """
+    origin = httpcore2.Origin(b"https", b"example.com", 443)
+    stream = httpcore2.MockStream(
+        [
+            hyperframe.frame.SettingsFrame().serialize(),
+            hyperframe.frame.HeadersFrame(
+                stream_id=1, data=hpack.Encoder().encode([(b":status", b"200")]), flags=["END_HEADERS"]
+            ).serialize(),
+            hyperframe.frame.GoAwayFrame(stream_id=0, error_code=0, last_stream_id=2**31 - 1).serialize(),
+            hyperframe.frame.GoAwayFrame(stream_id=0, error_code=0, last_stream_id=1).serialize(),
+            hyperframe.frame.DataFrame(stream_id=1, data=b"Hello, world!", flags=["END_STREAM"]).serialize(),
+            b"",
+        ]
+    )
+    with httpcore2.HTTP2Connection(origin=origin, stream=stream) as conn:
+        response = conn.request("GET", "https://example.com/")
+        assert response.status == 200
+        assert response.content == b"Hello, world!"
+        assert not conn.is_available()
+
+
+@requires_graceful_shutdown
+
+def test_http2_connection_with_graceful_goaway_then_disconnect() -> None:
+    """
+    If the server disconnects before it completes a request that its GoAway
+    frame covers, then the request fails, and does not wait any longer.
+    """
+    origin = httpcore2.Origin(b"https", b"example.com", 443)
+    stream = httpcore2.MockStream(
+        [
+            hyperframe.frame.SettingsFrame().serialize(),
+            hyperframe.frame.HeadersFrame(
+                stream_id=1, data=hpack.Encoder().encode([(b":status", b"200")]), flags=["END_HEADERS"]
+            ).serialize(),
+            hyperframe.frame.GoAwayFrame(stream_id=0, error_code=0, last_stream_id=1).serialize(),
+            b"",
+        ]
+    )
+    with httpcore2.HTTP2Connection(origin=origin, stream=stream) as conn:
+        with pytest.raises(httpcore2.RemoteProtocolError, match="Server disconnected"):
+            conn.request("GET", "https://example.com/")
+        assert conn.is_closed()
+
+
+@requires_graceful_shutdown
+
+def test_http2_connection_with_graceful_goaway_during_upload() -> None:
+    """
+    An upload that waits for flow control when a graceful GoAway frame arrives
+    can still complete, if the frame covers its stream.
+    """
+    origin = httpcore2.Origin(b"https", b"example.com", 443)
+    stream = httpcore2.MockStream(
+        [
+            hyperframe.frame.SettingsFrame().serialize(),
+            # The upload has used up the 65,535 byte initial window, and waits...
+            hyperframe.frame.GoAwayFrame(stream_id=0, error_code=0, last_stream_id=1).serialize(),
+            # ...The server extends the window after the GoAway frame.
+            b"".join(
+                [
+                    hyperframe.frame.WindowUpdateFrame(stream_id=0, window_increment=2**20).serialize(),
+                    hyperframe.frame.WindowUpdateFrame(stream_id=1, window_increment=2**20).serialize(),
+                ]
+            ),
+            hyperframe.frame.HeadersFrame(
+                stream_id=1, data=hpack.Encoder().encode([(b":status", b"200")]), flags=["END_HEADERS"]
+            ).serialize(),
+            hyperframe.frame.DataFrame(stream_id=1, data=b"Hello, world!", flags=["END_STREAM"]).serialize(),
+            b"",
+        ]
+    )
+    with httpcore2.HTTP2Connection(origin=origin, stream=stream) as conn:
+        response = conn.request("POST", "https://example.com/", content=b"x" * 100_000)
+        assert response.status == 200
+        assert response.content == b"Hello, world!"
+
+
+
+def test_http2_connection_with_goaway_during_unprocessed_upload() -> None:
+    """
+    An upload that waits for flow control when a GoAway frame arrives fails,
+    if the frame does not cover its stream. It raises `RemoteProtocolError`,
+    rather than the `ConnectionNotAvailable` that triggers a pool retry,
+    since part of the request body has been consumed.
+    """
+    origin = httpcore2.Origin(b"https", b"example.com", 443)
+    stream = httpcore2.MockStream(
+        [
+            hyperframe.frame.SettingsFrame().serialize(),
+            hyperframe.frame.HeadersFrame(
+                stream_id=1, data=hpack.Encoder().encode([(b":status", b"200")]), flags=["END_HEADERS"]
+            ).serialize(),
+            hyperframe.frame.DataFrame(stream_id=1, data=b"Hello, world!", flags=["END_STREAM"]).serialize(),
+            # The second request has used up the 65,535 byte initial window, and waits...
+            hyperframe.frame.GoAwayFrame(stream_id=0, error_code=0, last_stream_id=1).serialize(),
+            b"",
+        ]
+    )
+    with httpcore2.HTTP2Connection(origin=origin, stream=stream) as conn:
+        response = conn.request("GET", "https://example.com/")
+        assert response.status == 200
+
+        with pytest.raises(httpcore2.RemoteProtocolError):
+            conn.request("POST", "https://example.com/", content=b"x" * 100_000)
 
 
 
