@@ -3,6 +3,7 @@ from __future__ import annotations
 import inspect
 import warnings
 from collections.abc import AsyncGenerator, AsyncIterable, AsyncIterator, Iterable, Iterator, Mapping
+from contextlib import aclosing
 from json import dumps as json_dumps
 from typing import (
     Any,
@@ -19,7 +20,7 @@ from ._types import (
     ResponseContent,
     SyncByteStream,
 )
-from ._utils import peek_filelike_remaining_length, primitive_value_to_str
+from ._utils import aiter_file_chunks, is_async_readable_file, peek_filelike_remaining_length, primitive_value_to_str
 
 __all__ = ["ByteStream"]
 
@@ -78,6 +79,11 @@ class AsyncIteratorByteStream(AsyncByteStream):
             while chunk:
                 yield chunk
                 chunk = await self._stream.aread(self.CHUNK_SIZE)
+        elif is_async_readable_file(self._stream):
+            # Iterating an async file object yields one line at a time.
+            async with aclosing(aiter_file_chunks(self._stream, self.CHUNK_SIZE)) as chunks:
+                async for chunk in chunks:
+                    yield chunk
         else:
             # Otherwise iterate, making sure the wrapped stream is closed even if the
             # consumer stops early (e.g. an exception is raised part-way through decoding).

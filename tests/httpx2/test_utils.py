@@ -3,13 +3,15 @@ from __future__ import annotations
 import json
 import logging
 import os
+import pathlib
 import random
-from typing import TYPE_CHECKING
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
 import httpx2
-from httpx2._utils import URLPattern, get_environment_proxies
+from httpx2._utils import URLPattern, get_environment_proxies, peek_async_filelike_length
 
 if TYPE_CHECKING:
     from conftest import TestServer
@@ -204,3 +206,41 @@ def test_pattern_priority() -> None:
         URLPattern("http://"),
         URLPattern("all://"),
     ]
+
+
+class AsyncFile:
+    def __init__(self, fileno: Callable[[], Any]) -> None:
+        self.fileno = fileno
+
+
+async def async_fileno() -> int:
+    return 0  # pragma: no cover
+
+
+@pytest.mark.parametrize(
+    "stream",
+    [
+        object(),
+        AsyncFile(async_fileno),
+        AsyncFile(lambda: -1),
+        AsyncFile(lambda: None),
+    ],
+)
+def test_peek_async_filelike_length_without_a_file(stream: Any) -> None:
+    assert peek_async_filelike_length(stream) is None
+
+
+def test_peek_async_filelike_length_of_a_pipe() -> None:
+    read_fd, write_fd = os.pipe()
+    with os.fdopen(read_fd, "rb") as reader, os.fdopen(write_fd, "wb") as writer:
+        writer.write(b"<file content>")
+        writer.flush()
+        assert peek_async_filelike_length(AsyncFile(reader.fileno)) is None
+
+
+def test_peek_async_filelike_length_of_a_regular_file(tmp_path: pathlib.Path) -> None:
+    path = tmp_path / "upload.bin"
+    path.write_bytes(b"<file content>")
+
+    with path.open("rb") as file:
+        assert peek_async_filelike_length(AsyncFile(file.fileno)) == len(b"<file content>")

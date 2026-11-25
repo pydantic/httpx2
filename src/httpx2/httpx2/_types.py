@@ -4,7 +4,7 @@ Type definitions for type checking purposes.
 
 from collections.abc import AsyncIterable, AsyncIterator, Callable, Iterable, Iterator, Mapping, Sequence
 from http.cookiejar import CookieJar
-from typing import IO, TYPE_CHECKING, Any, TypeVar, Union
+from typing import IO, TYPE_CHECKING, Any, Protocol, TypeVar, Union
 
 if TYPE_CHECKING:
     from ._auth import Auth
@@ -50,7 +50,17 @@ ResponseExtensions = Mapping[str, Any]
 
 RequestData = Mapping[str, Any]
 
-FileContent = IO[bytes] | bytes | str
+
+class AsyncReadableFile(Protocol):
+    """
+    A file-like object with awaitable reads, as returned by `anyio.open_file()`,
+    `trio.open_file()` or `aiofiles.open()`.
+    """
+
+    async def read(self, size: int = -1, /) -> bytes: ...
+
+
+FileContent = IO[bytes] | bytes | str | AsyncReadableFile
 FileTypes = (
     # # file (or bytes)
     FileContent
