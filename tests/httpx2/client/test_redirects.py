@@ -1,3 +1,4 @@
+import io
 from collections.abc import Iterator
 
 import pytest
@@ -395,6 +396,14 @@ def test_cannot_redirect_streaming_body() -> None:
 
     with pytest.raises(httpx2.StreamConsumed):
         client.post(url, content=streaming_body(), follow_redirects=True)
+
+
+def test_cannot_redirect_file_body() -> None:
+    client = httpx2.Client(transport=ConsumeBodyTransport(redirects))
+    url = "https://example.org/redirect_body"
+
+    with pytest.raises(httpx2.StreamConsumed):
+        client.post(url, content=io.BytesIO(b"Example request body"), follow_redirects=True)
 
 
 def test_cross_subdomain_redirect() -> None:

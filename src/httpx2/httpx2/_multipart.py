@@ -8,6 +8,7 @@ from collections.abc import AsyncIterator, Iterator, Mapping
 from pathlib import Path
 from re import Match
 
+from ._exceptions import StreamConsumed
 from ._types import (
     AsyncByteStream,
     FileContent,
@@ -153,6 +154,7 @@ class FileField:
         self.filename = filename
         self.file = fileobj
         self.headers = headers
+        self._is_file_consumed = False
 
     def get_length(self) -> int | None:
         headers = self.render_headers()
@@ -195,11 +197,18 @@ class FileField:
             yield to_bytes(self.file)
             return
 
+        is_rewound = False
         if hasattr(self.file, "seek"):
             try:
                 self.file.seek(0)
+                is_rewound = True
             except io.UnsupportedOperation:
                 pass
+
+        # A file that cannot be rewound can only be read once.
+        if self._is_file_consumed and not is_rewound:
+            raise StreamConsumed()
+        self._is_file_consumed = True
 
         chunk = self.file.read(self.CHUNK_SIZE)
         while chunk:
