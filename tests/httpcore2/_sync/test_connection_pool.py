@@ -2,12 +2,19 @@ import logging
 from collections.abc import Iterable
 from typing import Any
 
+import h2.connection
+import h2.settings
 import hpack
 import hyperframe.frame
 import pytest
 from tests.httpcore2 import concurrency
 
 import httpcore2
+
+requires_graceful_shutdown = pytest.mark.skipif(
+    not hasattr(h2.connection.H2Connection, "is_in_graceful_shutdown"),
+    reason="This version of h2 closes the connection on every GOAWAY.",
+)
 
 
 
@@ -208,6 +215,58 @@ def test_connection_pool_with_http2_goaway() -> None:
         response = pool.request("GET", "https://example.com/")
         assert response.status == 200
         assert response.content == b"Hello, world!"
+
+        info = [repr(c) for c in pool.connections]
+        assert info == [
+            "<HTTPConnection ['https://example.com:443', HTTP/2, IDLE, Request Count: 1]>",
+        ]
+
+
+@requires_graceful_shutdown
+
+def test_connection_pool_with_http2_graceful_goaway() -> None:
+    """
+    Test a connection pool with two concurrent HTTP/2 requests, where the server
+    starts a graceful shutdown with a GoAway frame that covers only one of them.
+
+    The request that the frame covers completes on the original connection.
+    The other request is retried on a new connection.
+    """
+    response_headers = hpack.Encoder().encode(
+        [
+            (b":status", b"200"),
+            (b"content-type", b"plain/text"),
+        ]
+    )
+    network_backend = httpcore2.MockBackend(
+        buffer=[
+            hyperframe.frame.SettingsFrame(settings={h2.settings.SettingCodes.MAX_CONCURRENT_STREAMS: 100}).serialize(),
+            hyperframe.frame.HeadersFrame(stream_id=1, data=response_headers, flags=["END_HEADERS"]).serialize(),
+            hyperframe.frame.DataFrame(stream_id=1, data=b"Hello, world!", flags=["END_STREAM"]).serialize(),
+            hyperframe.frame.HeadersFrame(stream_id=3, data=response_headers, flags=["END_HEADERS"]).serialize(),
+            # The server accepts stream 3, and no stream after it.
+            hyperframe.frame.GoAwayFrame(stream_id=0, error_code=0, last_stream_id=3).serialize(),
+            hyperframe.frame.DataFrame(stream_id=3, data=b"Hello, world!", flags=["END_STREAM"]).serialize(),
+            b"",
+        ],
+        http2=True,
+    )
+
+    with httpcore2.ConnectionPool(
+        network_backend=network_backend,
+    ) as pool:
+        # Sending an initial request, so that the two requests below share the connection.
+        response = pool.request("GET", "https://example.com/")
+        assert response.status == 200
+
+        def fetch() -> None:
+            response = pool.request("GET", "https://example.com/")
+            assert response.status == 200
+            assert response.content == b"Hello, world!"
+
+        with concurrency.open_nursery() as nursery:
+            nursery.start_soon(fetch)
+            nursery.start_soon(fetch)
 
         info = [repr(c) for c in pool.connections]
         assert info == [
