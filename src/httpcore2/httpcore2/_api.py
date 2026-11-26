@@ -95,5 +95,5 @@ def stream(
             yield response
 
 
-request.__module__ = 'httpcore2'
-stream.__module__ = 'httpcore2'
+request.__module__ = "httpcore2"
+stream.__module__ = "httpcore2"
