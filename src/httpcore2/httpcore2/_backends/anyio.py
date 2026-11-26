@@ -149,3 +149,6 @@ class AnyIOBackend(AsyncNetworkBackend):
 
     async def sleep(self, seconds: float) -> None:
         await anyio.sleep(seconds)  # pragma: no cover
+
+
+AnyIOBackend.__module__ = "httpcore2"

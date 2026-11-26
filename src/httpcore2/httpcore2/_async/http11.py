@@ -352,3 +352,6 @@ class AsyncHTTP11UpgradeStream(AsyncNetworkStream):
 
     def get_extra_info(self, info: str) -> Any:
         return self._stream.get_extra_info(info)
+
+
+AsyncHTTP11Connection.__module__ = "httpcore2"

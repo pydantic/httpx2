@@ -351,3 +351,6 @@ class TunnelHTTPConnection(ConnectionInterface):
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} [{self.info()}]>"
+
+
+HTTPProxy.__module__ = "httpcore2"

@@ -154,3 +154,6 @@ class AsyncConnectionInterface(AsyncRequestInterface):
         returned to the connection pool or not.
         """
         raise NotImplementedError()  # pragma: no cover
+
+
+AsyncConnectionInterface.__module__ = "httpcore2"

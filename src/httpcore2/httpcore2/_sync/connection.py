@@ -207,3 +207,6 @@ class HTTPConnection(ConnectionInterface):
         traceback: types.TracebackType | None = None,
     ) -> None:
         self.close()
+
+
+HTTPConnection.__module__ = "httpcore2"

@@ -352,3 +352,6 @@ class HTTP11UpgradeStream(NetworkStream):
 
     def get_extra_info(self, info: str) -> Any:
         return self._stream.get_extra_info(info)
+
+
+HTTP11Connection.__module__ = "httpcore2"

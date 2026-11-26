@@ -38,3 +38,6 @@ def default_ssl_context(*, _trust_env: bool = True) -> ssl.SSLContext:
     if cafile or capath:
         ctx.load_verify_locations(cafile, capath)
     return ctx
+
+
+default_ssl_context.__module__ = "httpcore2"

@@ -234,3 +234,6 @@ class SyncBackend(NetworkBackend):
             sock.settimeout(timeout)
             sock.connect(path)
         return SyncStream(sock)
+
+
+SyncBackend.__module__ = "httpcore2"

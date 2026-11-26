@@ -81,3 +81,20 @@ class ReadError(NetworkError):
 
 class WriteError(NetworkError):
     pass
+
+
+ConnectionNotAvailable.__module__ = "httpcore2"
+ProxyError.__module__ = "httpcore2"
+ProtocolError.__module__ = "httpcore2"
+LocalProtocolError.__module__ = "httpcore2"
+RemoteProtocolError.__module__ = "httpcore2"
+UnsupportedProtocol.__module__ = "httpcore2"
+TimeoutException.__module__ = "httpcore2"
+PoolTimeout.__module__ = "httpcore2"
+ConnectTimeout.__module__ = "httpcore2"
+ReadTimeout.__module__ = "httpcore2"
+WriteTimeout.__module__ = "httpcore2"
+NetworkError.__module__ = "httpcore2"
+ConnectError.__module__ = "httpcore2"
+ReadError.__module__ = "httpcore2"
+WriteError.__module__ = "httpcore2"
