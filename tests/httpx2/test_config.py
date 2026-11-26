@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+import gc
 import platform
 import socket
 import ssl
 import threading
+import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -142,6 +144,27 @@ async def test_default_ssl_context_loads_system_ca_off_the_event_loop(
     assert response.status_code == 204
     assert len(ca_lookups) == 1
     assert ca_lookups[0] != threading.get_ident()
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("anyio_backend", ["trio"])
+async def test_trio_unloadable_system_ca_raises_connect_error(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    bundle = tmp_path / "ca.pem"
+    bundle.write_text("not a certificate\n")
+    missing = str(tmp_path / "missing")
+    paths = ssl.DefaultVerifyPaths(str(bundle), missing, "SSL_CERT_FILE", str(bundle), "SSL_CERT_DIR", missing)
+    monkeypatch.setattr(platform, "system", lambda: "Linux")
+    monkeypatch.setattr(ssl, "get_default_verify_paths", lambda: paths)
+
+    with warnings.catch_warnings(record=True) as caught, socket.create_server(("127.0.0.1", 0)) as server:
+        warnings.simplefilter("always")
+        port = server.getsockname()[1]
+        async with httpx2.AsyncClient() as client:
+            with pytest.raises(httpx2.ConnectError, match="NO_CERTIFICATE_OR_CRL_FOUND"):
+                await client.get(f"https://127.0.0.1:{port}/")
+        gc.collect()
+
+    assert [w for w in caught if issubclass(w.category, ResourceWarning)] == []
 
 
 def test_create_ssl_context_verify_str(cert_pem_file: str) -> None:

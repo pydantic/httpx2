@@ -20,7 +20,7 @@ You can disable SSL verification completely and allow insecure requests...
 
 If you're using a `Client()` instance you should pass any `verify=<...>` configuration when instantiating the client.
 
-By default the operating system's trust store is used for SSL verification, via [the `truststore` package](https://truststore.readthedocs.io/).
+By default the operating system's trust store is used for SSL verification. On macOS and Windows that goes through [the `truststore` package](https://truststore.readthedocs.io/). On Linux, the CA certificates at OpenSSL's default locations are loaded at the client's first TLS handshake, not when the client is built.
 
 For more complex configurations you can pass an [SSL Context](https://docs.python.org/3/library/ssl.html) instance...
 
@@ -29,7 +29,7 @@ import ssl
 import truststore
 import httpx2
 
-# This SSL context is equivalent to the default `verify=True`.
+# On macOS and Windows, this SSL context is equivalent to the default `verify=True`.
 ctx = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
 client = httpx2.Client(verify=ctx)
 ```
