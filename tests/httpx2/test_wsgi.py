@@ -215,3 +215,20 @@ def test_wsgi_server_protocol() -> None:
     assert response.status_code == 200
     assert response.text == "success"
     assert server_protocol == "HTTP/1.1"
+
+
+def test_wsgi_non_ascii() -> None:
+    environ: WSGIEnvironment = {}
+
+    def app(env: WSGIEnvironment, start_response: StartResponse) -> Iterable[bytes]:
+        environ.update(env)
+        start_response("200 OK", [("X-Name", "caf\xe9")])
+        return [b""]
+
+    transport = httpx2.WSGITransport(app=app)
+    with httpx2.Client(transport=transport, base_url="http://testserver") as client:
+        response = client.get("/caf%C3%A9/\u20ac/%FF?q=1", headers={b"X-Name": b"caf\xe9"})
+
+    assert environ["PATH_INFO"] == "/caf\xc3\xa9/\xe2\x82\xac/\xff"
+    assert environ["HTTP_X_NAME"] == "caf\xe9"
+    assert response.headers.raw[0] == (b"X-Name", b"caf\xe9")
