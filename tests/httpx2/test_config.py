@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import asyncio
 import platform
+import socket
 import ssl
+import threading
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -77,6 +80,68 @@ def test_create_ssl_context_trust_env(
 
     ca_der = ssl.PEM_cert_to_DER_cert(cert_authority.cert_pem.bytes().decode())
     assert (ca_der in context.get_ca_certs(binary_form=True)) is trust_env
+
+
+@pytest.fixture
+def ca_lookups(monkeypatch: pytest.MonkeyPatch) -> list[int]:
+    """The thread id of each system CA lookup made by the default Linux context."""
+    monkeypatch.setattr(platform, "system", lambda: "Linux")
+    lookups: list[int] = []
+    get_default_verify_paths = ssl.get_default_verify_paths
+
+    def record() -> ssl.DefaultVerifyPaths:
+        lookups.append(threading.get_ident())
+        return get_default_verify_paths()
+
+    monkeypatch.setattr(ssl, "get_default_verify_paths", record)
+    return lookups
+
+
+def test_client_construction_does_not_load_system_ca(ca_lookups: list[int]) -> None:
+    httpx2.Client()
+    httpx2.AsyncClient()
+    assert ca_lookups == []
+
+
+def test_default_ssl_context_loads_system_ca_once(ca_lookups: list[int]) -> None:
+    context = httpx2.create_ssl_context()
+    assert ca_lookups == []
+
+    with socket.socket() as sock, context.wrap_socket(sock, server_hostname="example.com"):
+        pass
+    assert len(ca_lookups) == 1
+    # A plain `ssl.SSLContext` is wrapped by `anyio` on the event loop, without a worker thread.
+    assert type(context) is ssl.SSLContext
+
+    context.wrap_bio(ssl.MemoryBIO(), ssl.MemoryBIO(), server_hostname="example.com")
+    assert len(ca_lookups) == 1
+
+
+# `trio.SSLStream` calls `wrap_bio()` on the event loop; `anyio` moves it to a worker thread.
+@pytest.mark.anyio
+@pytest.mark.parametrize("anyio_backend", ["asyncio"])
+async def test_default_ssl_context_loads_system_ca_off_the_event_loop(
+    ca_lookups: list[int], cert_authority: trustme.CA
+) -> None:
+    async def respond(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        await reader.readuntil(b"\r\n\r\n")
+        writer.write(b"HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n")
+        writer.close()
+        await writer.wait_closed()
+
+    server_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    cert_authority.issue_cert("127.0.0.1").configure_cert(server_context)
+    context = httpx2.create_ssl_context()
+    cert_authority.configure_trust(context)
+
+    async with await asyncio.start_server(respond, "127.0.0.1", 0, ssl=server_context) as server:
+        port = server.sockets[0].getsockname()[1]
+        async with httpx2.AsyncClient(verify=context) as client:
+            response = await client.get(f"https://127.0.0.1:{port}/")
+
+    assert response.status_code == 204
+    assert len(ca_lookups) == 1
+    assert ca_lookups[0] != threading.get_ident()
 
 
 def test_create_ssl_context_verify_str(cert_pem_file: str) -> None:
