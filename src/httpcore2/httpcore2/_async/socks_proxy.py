@@ -325,3 +325,6 @@ class AsyncSocks5Connection(AsyncConnectionInterface):
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} [{self.info()}]>"
+
+
+AsyncSOCKSProxy.__module__ = "httpcore2"

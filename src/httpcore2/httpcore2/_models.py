@@ -480,3 +480,10 @@ class Proxy:
             self.headers = [(b"Proxy-Authorization", authorization), *self.headers]
         else:
             self.auth = None
+
+
+Origin.__module__ = "httpcore2"
+URL.__module__ = "httpcore2"
+Request.__module__ = "httpcore2"
+Response.__module__ = "httpcore2"
+Proxy.__module__ = "httpcore2"

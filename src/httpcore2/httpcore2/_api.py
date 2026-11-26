@@ -93,3 +93,7 @@ def stream(
             extensions=extensions,
         ) as response:
             yield response
+
+
+request.__module__ = 'httpcore2'
+stream.__module__ = 'httpcore2'

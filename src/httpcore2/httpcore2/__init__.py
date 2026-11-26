@@ -132,10 +132,3 @@ __all__ = [  # noqa: RUF022
 ]
 
 __version__ = version("httpcore2")
-
-
-__locals = locals()
-for __name in __all__:
-    # Exclude SOCKET_OPTION, it causes AttributeError on Python 3.14
-    if not __name.startswith(("__", "SOCKET_OPTION")):
-        setattr(__locals[__name], "__module__", "httpcore2")  # noqa

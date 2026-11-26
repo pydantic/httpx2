@@ -351,3 +351,6 @@ class AsyncTunnelHTTPConnection(AsyncConnectionInterface):
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} [{self.info()}]>"
+
+
+AsyncHTTPProxy.__module__ = "httpcore2"

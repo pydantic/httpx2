@@ -96,3 +96,9 @@ class AsyncNetworkBackend:
 
     async def sleep(self, seconds: float) -> None:
         raise NotImplementedError()  # pragma: no cover
+
+
+AsyncNetworkStream.__module__ = "httpcore2"
+AsyncNetworkBackend.__module__ = "httpcore2"
+NetworkStream.__module__ = "httpcore2"
+NetworkBackend.__module__ = "httpcore2"

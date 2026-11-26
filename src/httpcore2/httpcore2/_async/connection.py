@@ -207,3 +207,6 @@ class AsyncHTTPConnection(AsyncConnectionInterface):
         traceback: types.TracebackType | None = None,
     ) -> None:
         await self.aclose()
+
+
+AsyncHTTPConnection.__module__ = "httpcore2"

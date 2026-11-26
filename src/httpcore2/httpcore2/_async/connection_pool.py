@@ -435,3 +435,6 @@ class PoolByteStream:
                 closing = self._pool._assign_requests_to_connections()
 
             await self._pool._close_connections(closing)
+
+
+AsyncConnectionPool.__module__ = "httpcore2"

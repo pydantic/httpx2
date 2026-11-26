@@ -154,3 +154,6 @@ class ConnectionInterface(RequestInterface):
         returned to the connection pool or not.
         """
         raise NotImplementedError()  # pragma: no cover
+
+
+ConnectionInterface.__module__ = "httpcore2"

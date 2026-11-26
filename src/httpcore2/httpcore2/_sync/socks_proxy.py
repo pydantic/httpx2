@@ -325,3 +325,6 @@ class Socks5Connection(ConnectionInterface):
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} [{self.info()}]>"
+
+
+SOCKSProxy.__module__ = "httpcore2"

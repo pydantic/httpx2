@@ -580,3 +580,6 @@ class HTTP2ConnectionByteStream:
             kwargs = {"stream_id": self._stream_id}
             with Trace("response_closed", logger, self._request, kwargs):
                 self._connection._response_closed(stream_id=self._stream_id)
+
+
+HTTP2Connection.__module__ = "httpcore2"

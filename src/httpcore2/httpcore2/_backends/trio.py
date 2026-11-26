@@ -156,3 +156,6 @@ class TrioBackend(AsyncNetworkBackend):
 
     async def sleep(self, seconds: float) -> None:
         await trio.sleep(seconds)  # pragma: no cover
+
+
+TrioBackend.__module__ = "httpcore2"

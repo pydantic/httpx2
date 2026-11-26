@@ -142,3 +142,9 @@ class AsyncMockBackend(AsyncNetworkBackend):
 
     async def sleep(self, seconds: float) -> None:
         pass
+
+
+AsyncMockBackend.__module__ = "httpcore2"
+AsyncMockStream.__module__ = "httpcore2"
+MockBackend.__module__ = "httpcore2"
+MockStream.__module__ = "httpcore2"
