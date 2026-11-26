@@ -109,6 +109,8 @@ def test_default_ssl_context_loads_system_ca_once(ca_lookups: list[int]) -> None
     context = httpx2.create_ssl_context()
     assert ca_lookups == []
 
+    # Already the default; CodeQL's `py/insecure-protocol` flags `wrap_socket()` without it.
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
     with socket.socket() as sock, context.wrap_socket(sock, server_hostname="example.com"):
         pass
     assert len(ca_lookups) == 1
