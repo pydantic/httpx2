@@ -4,8 +4,7 @@ import threading
 import types
 from typing import Self
 
-from ._exceptions import PoolTimeout, map_exceptions
-from ._types import ExceptionMapping
+from ._exceptions import PoolTimeout
 
 # Our async synchronization primitives use either 'anyio' or 'trio' depending
 # on if they're running under asyncio or trio.
@@ -140,16 +139,18 @@ class AsyncEvent:
             self.setup()
 
         if self._backend == "trio":
-            trio_exc_map: ExceptionMapping = {trio.TooSlowError: PoolTimeout}
             timeout_or_inf = float("inf") if timeout is None else timeout
-            with map_exceptions(trio_exc_map):
+            try:
                 with trio.fail_after(timeout_or_inf):
                     await self._trio_event.wait()
+            except trio.TooSlowError as exc:
+                raise PoolTimeout(exc) from exc
         elif self._backend == "asyncio":
-            anyio_exc_map: ExceptionMapping = {TimeoutError: PoolTimeout}
-            with map_exceptions(anyio_exc_map):
+            try:
                 with anyio.fail_after(timeout):
                     await self._anyio_event.wait()
+            except TimeoutError as exc:
+                raise PoolTimeout(exc) from exc
 
 
 class AsyncSemaphore:
