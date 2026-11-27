@@ -105,23 +105,35 @@ def test_client_construction_does_not_load_system_ca(ca_lookups: list[int]) -> N
     assert ca_lookups == []
 
 
-def test_default_ssl_context_loads_system_ca_once(ca_lookups: list[int]) -> None:
+@pytest.mark.parametrize("socket_first", [True, False], ids=["wrap_socket_first", "wrap_bio_first"])
+def test_default_ssl_context_loads_system_ca_once(ca_lookups: list[int], socket_first: bool) -> None:
     context = httpx2.create_ssl_context()
     assert ca_lookups == []
-
-    # Already the default; CodeQL's `py/insecure-protocol` flags `wrap_socket()` without it.
+    # CodeQL's `py/insecure-protocol` flags `wrap_socket()` unless the minimum is set.
     context.minimum_version = ssl.TLSVersion.TLSv1_2
-    with socket.socket() as sock, context.wrap_socket(sock, server_hostname="example.com"):
-        pass
+    # Bound before the load, as `anyio` binds `wrap_bio` on the event loop before its worker thread calls it, and as
+    # threads sharing a sync client bind `wrap_socket` while another thread's first handshake loads.
+    wrap_socket, wrap_bio = context.wrap_socket, context.wrap_bio
+
+    def call_wrap_socket() -> None:
+        with socket.socket() as sock, wrap_socket(sock, server_hostname="example.com"):
+            pass
+
+    def call_wrap_bio() -> None:
+        wrap_bio(ssl.MemoryBIO(), ssl.MemoryBIO(), server_hostname="example.com")
+
+    first, second = (call_wrap_socket, call_wrap_bio) if socket_first else (call_wrap_bio, call_wrap_socket)
+    first()
     assert len(ca_lookups) == 1
     # A plain `ssl.SSLContext` is wrapped by `anyio` on the event loop, without a worker thread.
     assert type(context) is ssl.SSLContext
 
-    context.wrap_bio(ssl.MemoryBIO(), ssl.MemoryBIO(), server_hostname="example.com")
+    second()
     assert len(ca_lookups) == 1
 
 
-# `trio.SSLStream` calls `wrap_bio()` on the event loop; `anyio` moves it to a worker thread.
+# On asyncio httpcore2 wraps through `anyio`, which runs `wrap_bio()` in a worker thread; on trio it uses
+# `trio.SSLStream`, which calls it on the event loop.
 @pytest.mark.anyio
 @pytest.mark.parametrize("anyio_backend", ["asyncio"])
 async def test_default_ssl_context_loads_system_ca_off_the_event_loop(

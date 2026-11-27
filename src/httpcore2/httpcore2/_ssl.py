@@ -46,7 +46,7 @@ class _DeferredCAContext(ssl.SSLContext):
                 self._ca_loaded = True
                 self.__class__ = ssl.SSLContext  # type: ignore[assignment]
 
-    # The base calls name `ssl.SSLContext`: `super()` raises once another thread's load has changed `__class__`.
+    # Both calls name their class: another thread's load can change `__class__` while a wrapper is bound or running.
     def wrap_socket(
         self,
         sock: socket.socket,
@@ -56,7 +56,7 @@ class _DeferredCAContext(ssl.SSLContext):
         server_hostname: str | bytes | None = None,
         session: ssl.SSLSession | None = None,
     ) -> ssl.SSLSocket:
-        self._load_ca()
+        _DeferredCAContext._load_ca(self)
         return ssl.SSLContext.wrap_socket(
             self, sock, server_side, do_handshake_on_connect, suppress_ragged_eofs, server_hostname, session
         )
@@ -69,7 +69,7 @@ class _DeferredCAContext(ssl.SSLContext):
         server_hostname: str | bytes | None = None,
         session: ssl.SSLSession | None = None,
     ) -> ssl.SSLObject:
-        self._load_ca()
+        _DeferredCAContext._load_ca(self)
         return ssl.SSLContext.wrap_bio(self, incoming, outgoing, server_side, server_hostname, session)
 
 
