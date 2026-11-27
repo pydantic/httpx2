@@ -6,8 +6,6 @@ import ssl
 from pathlib import Path
 from typing import Any
 
-import hpack
-import hyperframe.frame
 import pytest
 
 import httpcore2
@@ -51,19 +49,19 @@ def test_default_ssl_context_built_once_per_pool(monkeypatch: pytest.MonkeyPatch
 
     monkeypatch.setattr(ssl.SSLContext, "load_verify_locations", counting)
 
-    frames = [
-        hyperframe.frame.HeadersFrame(
-            stream_id=stream_id,
-            data=hpack.Encoder().encode([(b":status", b"200")]),
-            flags=["END_HEADERS", "END_STREAM"],
-        ).serialize()
-        for stream_id in (1, 3, 5)
-    ]
-    backend = httpcore2.MockBackend(frames, http2=True)
+    # `Connection: close` forces a fresh HTTP/1.1 connection — and therefore a
+    # fresh TLS handshake — for each request, so the pre-fix code would load
+    # the CA file three times.
+    h1_response = b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n"
+    backend = httpcore2.MockBackend([h1_response, h1_response, h1_response])
 
-    with httpcore2.ConnectionPool(network_backend=backend, http2=True) as pool:
+    with httpcore2.ConnectionPool(network_backend=backend) as pool:
         for _ in range(3):
-            response = pool.request("GET", "https://example.com/")
+            response = pool.request(
+                "GET",
+                "https://example.com/",
+                headers={"Connection": "close"},
+            )
             assert response.status == 200
 
     assert calls == 1

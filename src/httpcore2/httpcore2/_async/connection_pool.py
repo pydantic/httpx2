@@ -127,6 +127,20 @@ class AsyncConnectionPool(AsyncRequestInterface):
             self._default_ssl_context = default_ssl_context()
         return self._default_ssl_context
 
+    def _connection_ssl_context(self, origin: Origin) -> ssl.SSLContext | None:
+        """The TLS context for a connection to ``origin``.
+
+        An explicit context wins. Otherwise the pool's default context is
+        built once and reused — but only for origins that actually do TLS:
+        building it for cleartext origins would load CA files needlessly and
+        fail on an invalid ``SSL_CERT_FILE`` (#1368).
+        """
+        if self._ssl_context is not None:
+            return self._ssl_context
+        if origin.scheme in (b"https", b"wss"):
+            return self._resolved_ssl_context()
+        return None
+
     def create_connection(self, origin: Origin) -> AsyncConnectionInterface:
         if self._proxy is not None:
             if self._proxy.url.scheme in (b"socks5", b"socks5h"):
@@ -136,7 +150,7 @@ class AsyncConnectionPool(AsyncRequestInterface):
                     proxy_origin=self._proxy.url.origin,
                     proxy_auth=self._proxy.auth,
                     remote_origin=origin,
-                    ssl_context=self._ssl_context or self._resolved_ssl_context(),
+                    ssl_context=self._connection_ssl_context(origin),
                     keepalive_expiry=self._keepalive_expiry,
                     http1=self._http1,
                     http2=self._http2,
@@ -158,9 +172,9 @@ class AsyncConnectionPool(AsyncRequestInterface):
             return AsyncTunnelHTTPConnection(
                 proxy_origin=self._proxy.url.origin,
                 proxy_headers=self._proxy.headers,
-                proxy_ssl_context=self._proxy.ssl_context,
+                proxy_ssl_context=self._proxy.ssl_context or self._resolved_ssl_context(),
                 remote_origin=origin,
-                ssl_context=self._ssl_context or self._resolved_ssl_context(),
+                ssl_context=self._connection_ssl_context(origin),
                 keepalive_expiry=self._keepalive_expiry,
                 http1=self._http1,
                 http2=self._http2,
@@ -169,7 +183,7 @@ class AsyncConnectionPool(AsyncRequestInterface):
 
         return AsyncHTTPConnection(
             origin=origin,
-            ssl_context=self._ssl_context or self._resolved_ssl_context(),
+            ssl_context=self._connection_ssl_context(origin),
             keepalive_expiry=self._keepalive_expiry,
             http1=self._http1,
             http2=self._http2,
