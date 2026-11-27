@@ -176,7 +176,7 @@ class SOCKSProxy(ConnectionPool):  # pragma: no cover
             proxy_origin=self._proxy_url.origin,
             remote_origin=origin,
             proxy_auth=self._proxy_auth,
-            ssl_context=self._ssl_context,
+            ssl_context=self._ssl_context or self._resolved_ssl_context(),
             keepalive_expiry=self._keepalive_expiry,
             http1=self._http1,
             http2=self._http2,
