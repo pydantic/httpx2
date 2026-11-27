@@ -143,7 +143,7 @@ class AsyncHTTPProxy(AsyncConnectionPool):  # pragma: no cover
             proxy_origin=self._proxy_url.origin,
             proxy_headers=self._proxy_headers,
             remote_origin=origin,
-            ssl_context=self._ssl_context,
+            ssl_context=self._ssl_context or self._resolved_ssl_context(),
             proxy_ssl_context=self._proxy_ssl_context,
             keepalive_expiry=self._keepalive_expiry,
             http1=self._http1,
