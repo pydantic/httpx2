@@ -62,19 +62,21 @@ class TrioStream(AsyncNetworkStream):
         exc_map: ExceptionMapping = {
             trio.TooSlowError: ConnectTimeout,
             trio.BrokenResourceError: ConnectError,
+            ssl.SSLError: ConnectError,
         }
-        ssl_stream = trio.SSLStream(
-            self._stream,
-            ssl_context=ssl_context,
-            server_hostname=server_hostname,
-            https_compatible=True,
-            server_side=False,
-        )
         with map_exceptions(exc_map):
             try:
+                # `trio.SSLStream` calls `ssl_context.wrap_bio()`, which can raise.
+                ssl_stream = trio.SSLStream(
+                    self._stream,
+                    ssl_context=ssl_context,
+                    server_hostname=server_hostname,
+                    https_compatible=True,
+                    server_side=False,
+                )
                 with trio.fail_after(timeout_or_inf):
                     await ssl_stream.do_handshake()
-            except Exception as exc:  # pragma: no cover
+            except Exception as exc:
                 await self.aclose()
                 raise exc
         return TrioStream(ssl_stream)

@@ -1,7 +1,12 @@
 from __future__ import annotations
 
+import asyncio
+import gc
 import platform
+import socket
 import ssl
+import threading
+import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -77,6 +82,103 @@ def test_create_ssl_context_trust_env(
 
     ca_der = ssl.PEM_cert_to_DER_cert(cert_authority.cert_pem.bytes().decode())
     assert (ca_der in context.get_ca_certs(binary_form=True)) is trust_env
+
+
+@pytest.fixture
+def ca_lookups(monkeypatch: pytest.MonkeyPatch) -> list[int]:
+    """The thread id of each system CA lookup made by the default Linux context."""
+    monkeypatch.setattr(platform, "system", lambda: "Linux")
+    lookups: list[int] = []
+    get_default_verify_paths = ssl.get_default_verify_paths
+
+    def record() -> ssl.DefaultVerifyPaths:
+        lookups.append(threading.get_ident())
+        return get_default_verify_paths()
+
+    monkeypatch.setattr(ssl, "get_default_verify_paths", record)
+    return lookups
+
+
+def test_client_construction_does_not_load_system_ca(ca_lookups: list[int]) -> None:
+    httpx2.Client()
+    httpx2.AsyncClient()
+    assert ca_lookups == []
+
+
+@pytest.mark.parametrize("socket_first", [True, False], ids=["wrap_socket_first", "wrap_bio_first"])
+def test_default_ssl_context_loads_system_ca_once(ca_lookups: list[int], socket_first: bool) -> None:
+    context = httpx2.create_ssl_context()
+    assert ca_lookups == []
+    # CodeQL's `py/insecure-protocol` flags `wrap_socket()` unless the minimum is set.
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
+    # Bound before the load, as `anyio` binds `wrap_bio` on the event loop before its worker thread calls it, and as
+    # threads sharing a sync client bind `wrap_socket` while another thread's first handshake loads.
+    wrap_socket, wrap_bio = context.wrap_socket, context.wrap_bio
+
+    def call_wrap_socket() -> None:
+        with socket.socket() as sock, wrap_socket(sock, server_hostname="example.com"):
+            pass
+
+    def call_wrap_bio() -> None:
+        wrap_bio(ssl.MemoryBIO(), ssl.MemoryBIO(), server_hostname="example.com")
+
+    first, second = (call_wrap_socket, call_wrap_bio) if socket_first else (call_wrap_bio, call_wrap_socket)
+    first()
+    assert len(ca_lookups) == 1
+    # A plain `ssl.SSLContext` is wrapped by `anyio` on the event loop, without a worker thread.
+    assert type(context) is ssl.SSLContext
+
+    second()
+    assert len(ca_lookups) == 1
+
+
+# On asyncio httpcore2 wraps through `anyio`, which runs `wrap_bio()` in a worker thread; on trio it uses
+# `trio.SSLStream`, which calls it on the event loop.
+@pytest.mark.anyio
+@pytest.mark.parametrize("anyio_backend", ["asyncio"])
+async def test_default_ssl_context_loads_system_ca_off_the_event_loop(
+    ca_lookups: list[int], cert_authority: trustme.CA
+) -> None:
+    async def respond(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        await reader.readuntil(b"\r\n\r\n")
+        writer.write(b"HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n")
+        writer.close()
+        await writer.wait_closed()
+
+    server_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    cert_authority.issue_cert("127.0.0.1").configure_cert(server_context)
+    context = httpx2.create_ssl_context()
+    cert_authority.configure_trust(context)
+
+    async with await asyncio.start_server(respond, "127.0.0.1", 0, ssl=server_context) as server:
+        port = server.sockets[0].getsockname()[1]
+        async with httpx2.AsyncClient(verify=context) as client:
+            response = await client.get(f"https://127.0.0.1:{port}/")
+
+    assert response.status_code == 204
+    assert len(ca_lookups) == 1
+    assert ca_lookups[0] != threading.get_ident()
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("anyio_backend", ["trio"])
+async def test_trio_unloadable_system_ca_raises_connect_error(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    bundle = tmp_path / "ca.pem"
+    bundle.write_text("not a certificate\n")
+    missing = str(tmp_path / "missing")
+    paths = ssl.DefaultVerifyPaths(str(bundle), missing, "SSL_CERT_FILE", str(bundle), "SSL_CERT_DIR", missing)
+    monkeypatch.setattr(platform, "system", lambda: "Linux")
+    monkeypatch.setattr(ssl, "get_default_verify_paths", lambda: paths)
+
+    with warnings.catch_warnings(record=True) as caught, socket.create_server(("127.0.0.1", 0)) as server:
+        warnings.simplefilter("always")
+        port = server.getsockname()[1]
+        async with httpx2.AsyncClient() as client:
+            with pytest.raises(httpx2.ConnectError, match="NO_CERTIFICATE_OR_CRL_FOUND"):
+                await client.get(f"https://127.0.0.1:{port}/")
+        gc.collect()
+
+    assert [w for w in caught if issubclass(w.category, ResourceWarning)] == []
 
 
 def test_create_ssl_context_verify_str(cert_pem_file: str) -> None:
